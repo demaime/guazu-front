@@ -22,7 +22,7 @@ export default function Home() {
 
   // Mientras se verifica la autenticación, mostramos una pantalla de carga
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#dd0531]">
+    <main className="min-h-screen flex items-center justify-center bg-primary">
       <div className="text-white text-xl">Cargando...</div>
     </main>
   );

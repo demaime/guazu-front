@@ -43,12 +43,11 @@ class AuthService {
       // Limpiar cualquier token anterior
       this.logout();
 
-      // Guardar el token y el usuario
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem('token', tokenData.token);
-      storage.setItem('user', JSON.stringify(userData.user));
+      // Guardar el token y el usuario en localStorage
+      localStorage.setItem('token', JSON.stringify(tokenData.token));
+      localStorage.setItem('user', JSON.stringify(userData.user));
 
-      // Guardar el token como cookie
+      // Guardar el token como cookie (sin stringify ya que las cookies no necesitan ser parseadas)
       document.cookie = `token=${tokenData.token}; path=/; ${rememberMe ? 'max-age=2592000' : ''}`;
 
       return {
@@ -70,12 +69,11 @@ class AuthService {
   }
 
   getToken() {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    return token;
+    return localStorage.getItem('token');
   }
 
   getUser() {
-    const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+    const userStr = localStorage.getItem('user');
     try {
       return userStr ? JSON.parse(userStr) : null;
     } catch (e) {

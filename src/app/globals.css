@@ -5,37 +5,97 @@
 @import "tailwindcss";
 
 :root {
+  /* Theme colors */
   --primary: #3f51b5;
   --primary-dark: #2b3675;
   --primary-light: #556df8;
   --secondary: #673ab7;
   --secondary-dark: #512e90;
   --secondary-light: #7c4dca;
+}
+
+/* Light theme (default) */
+:root {
   --background: #f3f4f6;
-  --foreground: #111827;
-
-  
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --card-background: #ffffff;
+  --card-border: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --sidebar-bg: #ffffff;
+  --header-bg: var(--primary);
+  --hover-bg: rgba(63, 81, 181, 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark theme */
+.dark {
+  --background: #111827;
+  --card-background: #1f2937;
+  --card-border: #374151;
+  --text-primary: #f3f4f6;
+  --text-secondary: #e5e7eb;
+  --text-muted: #9ca3af;
+  --sidebar-bg: #1f2937;
+  --header-bg: #1f2937;
+  --hover-bg: rgba(85, 109, 248, 0.08);
 }
 
-}
-
+/* Base styles */
 body {
   @apply antialiased;
-  background: var(--background);
-  color: var(--foreground);
+  background-color: var(--background);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.bg-primary {
+  background-color: var(--primary);
+}
+
+.bg-primary-dark {
+  background-color: var(--primary-dark);
+}
+
+.bg-primary-light {
+  background-color: var(--primary-light);
+}
+
+.bg-secondary {
+  background-color: var(--secondary);
+}
+
+.bg-secondary-dark {
+  background-color: var(--secondary-dark);
+} 
+
+.bg-secondary-light {
+  background-color: var(--secondary-light);
+}
+
+.text-primary {
+  color: var(--primary);
+}
+
+.text-primary-dark {
+  color: var(--primary-dark);
+}
+
+.text-primary-light {
+  color: var(--primary-light);
+}
+
+.text-secondary {
+  color: var(--secondary);
+}
+
+.text-secondary-dark {
+  color: var(--secondary-dark);
+}
+
+.text-secondary-light {
+  color: var(--secondary-light);
 }
 
 .login-wrapper {
@@ -79,100 +139,226 @@ body {
 
 /* Dashboard Layout */
 .dashboard-layout {
-  @apply min-h-screen bg-gray-50;
+  min-height: 100vh;
+  height: 100vh;
+  background-color: var(--background);
+  transition: background-color 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Header */
 .dashboard-header {
-  @apply sticky top-0 z-30 bg-white shadow-sm;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: var(--header-bg);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  flex-shrink: 0;
 }
 
 .header-content {
-  @apply mx-auto px-4 py-3 sm:px-6 lg:px-8;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  transition: background-color 0.3s ease-in-out;
+}
+
+@media (min-width: 640px) {
+  .header-content {
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .header-content {
+    padding: 0.75rem 2rem;
+  }
 }
 
 .header-wrapper {
-  @apply flex items-center justify-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 /* Sidebar */
 .sidebar {
-  @apply fixed top-0 left-0 z-40 h-screen w-64 transform transition-all duration-300 ease-in-out bg-white shadow-lg lg:translate-x-0 lg:static lg:h-auto mt-14 lg:mt-0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 40;
+  height: 100vh;
+  width: 16rem;
+  transform: translateX(-100%);
+  transition: all 0.3s ease-in-out;
+  background-color: var(--sidebar-bg);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  border-right: 1px solid var(--card-border);
+}
+
+@media (min-width: 1024px) {
+  .sidebar {
+    position: static;
+    transform: translateX(0);
+    height: auto;
+    margin-top: 0;
+  }
 }
 
 .sidebar.collapsed {
-  @apply w-20;
+  width: 5rem;
 }
 
 .sidebar.mobile-open {
-  @apply translate-x-0;
+  transform: translateX(0);
 }
 
 .sidebar.mobile-closed {
-  @apply -translate-x-full lg:translate-x-0;
+  transform: translateX(-100%);
+}
+
+@media (min-width: 1024px) {
+  .sidebar.mobile-closed {
+    transform: translateX(0);
+  }
 }
 
 .sidebar-overlay {
-  @apply fixed inset-0 bg-gray-800/60 lg:hidden transition-opacity duration-300 ease-in-out;
+  position: fixed;
+  inset: 0;
+  background-color: rgb(31, 41, 55 / 0.6);
+  transition: opacity 0.3s ease-in-out;
+}
+
+@media (min-width: 1024px) {
+  .sidebar-overlay {
+    display: none;
+  }
 }
 
 .sidebar-toggle {
-  @apply lg:hidden fixed bottom-4 right-4 z-50 p-3 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-colors duration-200;
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 50;
+  padding: 0.75rem;
+  border-radius: 9999px;
+  background-color: var(--primary);
+  color: white;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  transition: background-color 0.2s;
+}
+
+.sidebar-toggle:hover {
+  background-color: var(--primary-dark);
+}
+
+@media (min-width: 1024px) {
+  .sidebar-toggle {
+    display: none;
+  }
 }
 
 .sidebar-header {
-  @apply flex items-center justify-between p-4 border-b border-gray-200;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid var(--card-border);
 }
 
 .sidebar-collapse-btn {
-  @apply hidden lg:block p-2 rounded-md hover:bg-gray-100 transition-colors duration-200;
+  display: none;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.sidebar-collapse-btn:hover {
+  background-color: var(--hover-bg);
+  color: var(--primary);
+}
+
+@media (min-width: 1024px) {
+  .sidebar-collapse-btn {
+    display: block;
+  }
 }
 
 .sidebar-nav {
-  @apply flex flex-col p-4 space-y-1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 0.25rem;
 }
 
 .nav-item {
-  @apply flex items-center gap-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors duration-200;
+  display: flex;
+  align-items: center;
+  padding: 1rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  color: var(--text-secondary);
+  transition: all 0.2s ease-in-out;
+}
+
+.nav-item:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-bg);
 }
 
 .nav-item.active {
-  @apply bg-blue-50 text-blue-600;
+  color: var(--primary);
+  background-color: var(--hover-bg);
 }
 
 .nav-item-icon {
-  @apply w-5 h-5;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.75rem;
+  transition: color 0.2s ease-in-out;
+}
+
+.nav-item:hover .nav-item-icon {
+  color: var(--primary);
+}
+
+.nav-item.active .nav-item-icon {
+  color: var(--primary);
 }
 
 .nav-item-text {
-  @apply transition-opacity duration-200;
+  transition: opacity 0.2s;
 }
 
 .collapsed .nav-item-text {
-  @apply opacity-0 hidden;
+  opacity: 0;
+  display: none;
 }
 
 /* Main Content */
 .main-content {
-  @apply flex-1 p-4 lg:p-8 pt-16 lg:pt-4;
+  flex: 1;
+  padding: 1.5rem;
+  transition: background-color 0.3s ease-in-out;
+  background-color: var(--background);
+  overflow-y: auto;
+}
+
+@media (min-width: 1024px) {
+  .main-content {
+    padding: 2rem;
+  }
 }
 
 .main-wrapper {
-  @apply flex min-h-[calc(100vh-3.5rem)];
-}
-
-/* Botones */
-.btn-primary {
-  @apply px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200;
-}
-
-.btn-secondary {
-  @apply px-4 py-2 rounded-md bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors duration-200;
-}
-
-/* Cards */
-.dashboard-card {
-  @apply bg-white rounded-lg shadow-sm p-6;
+  display: flex;
+  height: 100%;
+  flex: 1;
 }
 
 /* Animaciones */
@@ -201,4 +387,19 @@ body {
 .fade-in {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Cards */
+.card {
+  background-color: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: 0.5rem;
+  transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+}
+
+/* Transitions */
+.transition-colors {
+  transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out, color 0.3s ease-in-out;
+}
+
+
 
