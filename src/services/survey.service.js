@@ -13,11 +13,11 @@ class SurveyService {
       let url;
       // Los pollster ven las encuestas que les fueron asignadas
       if (user.role === 'POLLSTER') {
-        url = `${API_URL}/surveyByUserId`;
+        url = `${API_URL}/api/surveyByUserId`;
       }
       // Los supervisores y admin ven todas las encuestas que pueden gestionar
       else {
-        url = `${API_URL}/survey/${user._id}`;
+        url = `${API_URL}/api/survey/${user._id}`;
       }
       
       console.log('Fetching from URL:', url);
@@ -31,6 +31,10 @@ class SurveyService {
         credentials: 'include',
         mode: 'cors'
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
       console.log('Survey response:', data);

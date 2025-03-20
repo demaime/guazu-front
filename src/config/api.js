@@ -1,4 +1,4 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:5000/api';
 
 export const API_ENDPOINTS = {
   AUTH: {
@@ -20,4 +20,4 @@ export const getHeaders = (token = null) => {
   }
 
   return headers;
-}; 
+};
