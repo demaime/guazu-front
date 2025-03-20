@@ -1,10 +1,10 @@
-import { API_URL, API_ENDPOINTS, getHeaders } from '@/config/api';
+import { AUTH_ROUTES } from '@/config/routes';
 
 class AuthService {
   async login(email, password, rememberMe = false) {
     try {
       // Primer request para obtener el usuario
-      const userResponse = await fetch(`${API_URL}/signin`, {
+      const userResponse = await fetch(AUTH_ROUTES.LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -22,7 +22,7 @@ class AuthService {
       }
 
       // Segundo request para obtener el token
-      const tokenResponse = await fetch(`${API_URL}/signin`, {
+      const tokenResponse = await fetch(AUTH_ROUTES.LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

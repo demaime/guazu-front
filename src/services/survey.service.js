@@ -1,4 +1,4 @@
-import { API_URL } from '@/config/constants';
+import { SURVEY_ROUTES } from '@/config/routes';
 
 class SurveyService {
   async getAllSurveys() {
@@ -10,15 +10,8 @@ class SurveyService {
 
       console.log('User role:', user.role);
       
-      let url;
-      // Los pollster ven las encuestas que les fueron asignadas
-      if (user.role === 'POLLSTER') {
-        url = `${API_URL}/api/surveyByUserId`;
-      }
-      // Los supervisores y admin ven todas las encuestas que pueden gestionar
-      else {
-        url = `${API_URL}/api/survey/${user._id}`;
-      }
+      // Usamos la misma ruta para todos los roles, el backend se encarga de filtrar
+      const url = SURVEY_ROUTES.BY_ID(user._id);
       
       console.log('Fetching from URL:', url);
 
@@ -33,7 +26,8 @@ class SurveyService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -44,11 +38,8 @@ class SurveyService {
         return Promise.reject(data.validation);
       }
 
-      // Para POLLSTER, las encuestas vienen en data.surveysByPollsterId
-      // Para ADMIN/SUPERVISOR, vienen en data.survey (en singular)
-      const surveys = user.role === 'POLLSTER' 
-        ? (data.surveysByPollsterId || [])
-        : (data.survey || []);
+      // Para todos los roles, las encuestas vienen en data.survey
+      const surveys = data.survey || [];
 
       console.log('Processed surveys:', surveys);
       return { surveys };
@@ -61,7 +52,7 @@ class SurveyService {
   async deleteSurvey(surveyId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/delete-survey/${surveyId}`, {
+      const response = await fetch(SURVEY_ROUTES.DELETE(surveyId), {
         method: 'PUT',
         headers: new Headers({
           'Content-Type': 'application/json; charset=utf-8',
@@ -70,6 +61,11 @@ class SurveyService {
         credentials: 'include',
         mode: 'cors'
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
       
@@ -87,7 +83,7 @@ class SurveyService {
   async deleteAnswers(surveyId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/answers/${surveyId}`, {
+      const response = await fetch(`${SURVEY_ROUTES.ANSWERS(surveyId)}`, {
         method: 'DELETE',
         headers: new Headers({
           'Content-Type': 'application/json; charset=utf-8',
