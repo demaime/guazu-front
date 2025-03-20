@@ -8,36 +8,50 @@
   /* Theme colors */
   --primary: #3f51b5;
   --primary-dark: #2b3675;
-  --primary-light: #556df8;
-  --secondary: #673ab7;
-  --secondary-dark: #512e90;
-  --secondary-light: #7c4dca;
+  --primary-light: #8091f5;
+  --secondary: #3c27b0;
+  --secondary-dark: #192270;
+  --secondary-light: #a797fd;
 }
 
 /* Light theme (default) */
 :root {
-  --background: #f3f4f6;
+  --background: #f8fafc;
   --card-background: #ffffff;
-  --card-border: #e5e7eb;
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
+  --card-border: #e2e8f0;
+  --text-primary: #1e293b;
+  --text-secondary: #8e949b;
+  --text-muted: #64748b;
   --sidebar-bg: #ffffff;
   --header-bg: var(--primary);
-  --hover-bg: rgba(63, 81, 181, 0.08);
+  --hover-bg: rgba(63, 81, 181, 0.1);
 }
 
 /* Dark theme */
 .dark {
-  --background: #111827;
-  --card-background: #1f2937;
-  --card-border: #374151;
-  --text-primary: #f3f4f6;
-  --text-secondary: #e5e7eb;
-  --text-muted: #9ca3af;
-  --sidebar-bg: #1f2937;
-  --header-bg: #1f2937;
-  --hover-bg: rgba(85, 109, 248, 0.08);
+  --background: #0f172a;
+  --card-background: #1e293b;
+  --card-border: #334155;
+  --text-primary: #ffffff;
+  --text-secondary: #97b3db;
+  --text-muted: #64748b;
+  --sidebar-bg: #0f172a;
+  --header-bg: #0f172a;
+  --hover-bg: rgba(99, 102, 241, 0.2);
+}
+
+/* Agregamos estilos específicos para el nav-item en modo oscuro */
+.dark .nav-item.active {
+  color: var(--primary-light);
+}
+
+.dark .nav-item:hover {
+  color: var(--primary-light);
+}
+
+.dark .nav-item.active .nav-item-icon,
+.dark .nav-item:hover .nav-item-icon {
+  color: var(--primary-light);
 }
 
 /* Base styles */
@@ -312,7 +326,7 @@ body {
 
 .nav-item.active {
   color: var(--primary);
-  background-color: var(--hover-bg);
+  background-color: transparent;
 }
 
 .nav-item-icon {
@@ -399,6 +413,17 @@ body {
 /* Transitions */
 .transition-colors {
   transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out, color 0.3s ease-in-out;
+}
+
+/* Dark theme specific styles */
+.dark .nav-item:hover {
+  color: var(--primary-light);
+  background-color: var(--hover-bg);
+}
+
+.dark .nav-item.active {
+  color: var(--primary-light);
+  background-color: transparent;
 }
 
 

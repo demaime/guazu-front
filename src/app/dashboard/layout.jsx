@@ -54,7 +54,7 @@ export default function DashboardLayout({ children }) {
   const getNavItems = (userRole) => {
     // Items base que todos los usuarios pueden ver
     const baseItems = [
-      { path: '.', label: 'Inicio', icon: Home },
+      { path: '', label: 'Inicio', icon: Home },
       { path: 'encuestas', label: 'Encuestas', icon: ClipboardList },
     ];
 
@@ -152,7 +152,7 @@ export default function DashboardLayout({ children }) {
           <nav className="sidebar-nav">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const fullPath = `/dashboard/${item.path}`;
+              const fullPath = `/dashboard${item.path ? `/${item.path}` : ''}`;
               return (
                 <a
                   key={fullPath}

@@ -6,9 +6,11 @@ import { surveyService } from '@/services/survey.service';
 import { authService } from '@/services/auth.service';
 import { SurveyList } from '@/components/ui/SurveyList';
 import { Plus } from 'lucide-react';
+import { useWindowSize } from '@/hooks/useWindowSize';
 
 export default function Encuestas() {
   const router = useRouter();
+  const { isMobile } = useWindowSize();
   const [surveys, setSurveys] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -75,21 +77,23 @@ export default function Encuestas() {
   }
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] px-5 py-6 shadow-sm">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Encuestas</h1>
-          {user?.role === 'ROLE_ADMIN' && (
-            <button
-              onClick={() => router.push('/dashboard/encuestas/nueva')}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              Nueva Encuesta
-            </button>
-          )}
-        </div>
+    <div className="min-h-screen space-y-4">
+      {/* Título y botón de nueva encuesta */}
+      <div className={`flex flex-col ${!isMobile ? 'items-center' : ''} gap-4 mb-4 md:flex-row md:justify-between md:items-center`}>
+        <h1 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">Encuestas</h1>
+        {user?.role === 'ROLE_ADMIN' && (
+          <button
+            onClick={() => router.push('/dashboard/encuestas/nueva')}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors w-full md:w-auto cursor-pointer"
+          >
+            <Plus className="w-5 h-5" />
+            Nueva Encuesta
+          </button>
+        )}
+      </div>
 
+      {/* Contenedor de resultados */}
+      <div className="rounded-lg bg-[var(--background)] border border-[var(--card-border)] px-4 py-4 md:px-5 md:py-6 shadow-sm">
         {error && (
           <div className="mb-4 p-4 text-red-500 bg-red-50 rounded-md">
             {error}
@@ -103,7 +107,7 @@ export default function Encuestas() {
                 ? 'No hay encuestas creadas. ¡Crea tu primera encuesta!'
                 : 'No tienes encuestas asignadas. Por favor, consulta con el administrador.'}
             </p>
-            {user?.role === 'ROLE_ADMIN' && (
+            {user?.role === 'ROLE_ADMIN' && !isMobile && (
               <button
                 onClick={() => router.push('/dashboard/encuestas/nueva')}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
