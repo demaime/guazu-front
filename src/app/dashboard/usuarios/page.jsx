@@ -5,11 +5,12 @@ import { authService } from '@/services/auth.service';
 import { userService } from '@/services/user.service';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Mail, Search, ChevronLeft, ChevronRight, User, Shield } from 'lucide-react';
+import { Users, Mail, Search, ChevronLeft, ChevronRight, User, Shield, MapPin } from 'lucide-react';
 
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterField, setFilterField] = useState('email');
@@ -32,6 +33,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     const user = authService.getUser();
+    setCurrentUser(user);
     if (user?.role !== 'ROLE_ADMIN' && user?.role !== 'SUPERVISOR') {
       router.push('/dashboard');
       return;
@@ -199,8 +201,17 @@ export default function UsersPage() {
                     </th>
                     <th className="px-6 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider w-[15%]">
                       <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">Rol</span>
+                        {currentUser?.role === 'SUPERVISOR' ? (
+                          <>
+                            <MapPin className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">Ciudad</span>
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">Rol</span>
+                          </>
+                        )}
                       </div>
                     </th>
                     <th className="px-6 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider w-[15%]">
@@ -222,7 +233,6 @@ export default function UsersPage() {
                         key={user._id}
                         variants={rowVariants}
                         className="table-row-hover"
-                        onClick={() => router.push(`/dashboard/usuarios/${user._id}`)}
                       >
                         <td className="px-6 py-3 text-sm text-[var(--text-primary)] truncate max-w-0">
                           {user.name}
@@ -234,13 +244,17 @@ export default function UsersPage() {
                           {user.email}
                         </td>
                         <td className="px-6 py-3 text-sm text-[var(--text-primary)] truncate max-w-0">
-                          {getRoleName(user.role)}
+                          {currentUser?.role === 'SUPERVISOR' ? user.city : getRoleName(user.role)}
                         </td>
                         <td className="px-6 py-3 text-sm whitespace-nowrap">
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             className="link-action"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/dashboard/usuarios/${user._id}`);
+                            }}
                           >
                             Ver detalles
                           </motion.button>

@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { authService } from '@/services/auth.service';
 import { Loader } from '@/components/ui/Loader';
-import { Menu, X, ChevronLeft, ChevronRight, Home, ClipboardList, Users, LogOut, LayoutGrid, Settings } from 'lucide-react';
+import { Menu, X, ChevronLeft, ChevronRight, Home, ClipboardList, Users, LogOut, LayoutGrid, Settings, UserRoundPen } from 'lucide-react';
 import { themeService } from '@/services/theme.service';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -80,9 +80,12 @@ export default function DashboardLayout({ children }) {
     let items = [...baseItems];
 
     if (userRole === 'ROLE_ADMIN') {
-      items.push({ path: 'usuarios', label: 'Usuarios', icon: Users });
+      items.push(
+        { path: 'usuarios', label: 'Usuarios', icon: Users },
+        { path: 'encuestadores', label: 'Encuestadores', icon: UserRoundPen }
+      );
     } else if (userRole === 'SUPERVISOR') {
-      items.push({ path: 'usuarios', label: 'Encuestadores', icon: Users });
+      items.push({ path: 'encuestadores', label: 'Encuestadores', icon: UserRoundPen });
     }
 
     // Agregar Configuración al final

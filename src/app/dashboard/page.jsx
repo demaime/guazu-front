@@ -205,7 +205,9 @@ export default function DashboardPage() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="truncate text-sm font-medium text-[var(--text-secondary)]">Usuarios Registrados</dt>
+                      <dt className="truncate text-sm font-medium text-[var(--text-secondary)]">
+                        {user?.role === 'SUPERVISOR' ? 'Encuestadores' : 'Usuarios Registrados'}
+                      </dt>
                       <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
                         {renderNumber(totalUsers)}
                       </dd>

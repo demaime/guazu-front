@@ -178,20 +178,29 @@ class UserService {
       
       console.log('Token disponible:', !!token);
       
-      const requestBody = {
+      // Determinar el endpoint según el rol
+      let endpoint = USER_ROUTES.GET_ALL;
+      let method = 'POST';
+      let body = {
         page: 0,
         pageSize: 1000
       };
+
+      if (user?.role === 'SUPERVISOR') {
+        endpoint = USER_ROUTES.GET_POLLSTERS;
+        method = 'GET';
+        body = undefined;
+      }
       
-      console.log('Request body:', requestBody);
+      console.log('Request body:', body);
       
-      const response = await fetch(USER_ROUTES.GET_ALL, {
-        method: 'POST',
+      const response = await fetch(endpoint, {
+        method,
         headers: new Headers({
           'Content-Type': 'application/json; charset=utf-8',
           'Authorization': token
         }),
-        body: JSON.stringify(requestBody),
+        body: body ? JSON.stringify(body) : undefined,
         credentials: 'include',
         mode: 'cors'
       });
@@ -207,13 +216,18 @@ class UserService {
       const data = await response.json();
       console.log('Datos recibidos:', {
         totalCount: data.totalCount,
-        usersCount: data.users?.length,
+        usersCount: data.users?.length || data.pollsters?.length,
         hasError: !!data.error
       });
       
       if (data.error) {
         console.error('Error del API:', data.error);
         return Promise.reject(data.validation);
+      }
+
+      // Adaptar la respuesta según el endpoint usado
+      if (user?.role === 'SUPERVISOR') {
+        return { users: data.pollsters || [], totalCount: data.pollsters?.length || 0 };
       }
 
       return { users: data.users || [], totalCount: data.totalCount || 0 };
@@ -226,6 +240,7 @@ class UserService {
   async getPollsters() {
     try {
       const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
       
       const response = await fetch(USER_ROUTES.GET_POLLSTERS, {
         method: 'GET',
@@ -248,9 +263,14 @@ class UserService {
         return Promise.reject(data.validation);
       }
 
-      return { pollsters: data.pollsters || [] };
+      // Adaptar la respuesta según el rol
+      const pollsters = data.pollsters || data.users || [];
+      return { 
+        users: pollsters, 
+        totalCount: pollsters.length 
+      };
     } catch (error) {
-      console.error('Error in getPollsters:', error);
+      console.error('Error en getPollsters:', error);
       throw error;
     }
   }
