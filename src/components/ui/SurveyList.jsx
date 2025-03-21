@@ -1,19 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
-import { MoreVertical, Edit, Settings, Play, ChartBar, BarChart3, Trash2, Users, Eye, Calendar } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Edit, Settings, Play, ChartBar, BarChart3, Trash2, Users, Eye, Calendar, MoreVertical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useWindowSize } from '@/hooks/useWindowSize';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
   const router = useRouter();
   const { isMobile } = useWindowSize();
   const [openMenuId, setOpenMenuId] = useState(null);
   const [openDescriptionId, setOpenDescriptionId] = useState(null);
+  const [expandedActionsId, setExpandedActionsId] = useState(null);
+  const [openTooltipId, setOpenTooltipId] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const descriptionRef = useRef(null);
+  const menuRef = useRef(null);
+  const tooltipRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (descriptionRef.current && !descriptionRef.current.contains(event.target)) {
-        setOpenDescriptionId(null);
+        if (!event.target.closest('button[data-type="description"]')) {
+          setOpenDescriptionId(null);
+        }
+      }
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        if (!event.target.closest('button[data-type="menu"]')) {
+          setOpenMenuId(null);
+        }
+      }
+      if (!event.target.closest(`tr[data-row-id="${expandedActionsId}"]`)) {
+        setExpandedActionsId(null);
+        setOpenTooltipId(null);
       }
     };
 
@@ -21,14 +38,34 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [expandedActionsId]);
 
-  const toggleMenu = (surveyId) => {
+  const toggleActions = (surveyId) => {
+    setExpandedActionsId(expandedActionsId === surveyId ? null : surveyId);
+  };
+
+  const handleTooltip = (actionId, e, show) => {
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setTooltipPosition({ x: rect.x, y: rect.bottom });
+    }
+    setOpenTooltipId(show ? actionId : null);
+  };
+
+  const toggleMenu = (surveyId, e) => {
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setTooltipPosition({ x: rect.x, y: rect.bottom });
+    }
     setOpenMenuId(openMenuId === surveyId ? null : surveyId);
   };
 
   const toggleDescription = (surveyId, e) => {
     e.stopPropagation();
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setTooltipPosition({ x: rect.x, y: rect.bottom });
+    }
     setOpenDescriptionId(openDescriptionId === surveyId ? null : surveyId);
   };
 
@@ -98,10 +135,10 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
           return (
             <div 
               key={item._id} 
-              className={`rounded-lg border border-[var(--card-border)] p-3 shadow-sm ${
+              className={`rounded-lg p-3 shadow-sm ${
                 index % 2 === 0 
-                  ? 'dark:bg-[var(--primary-light)] bg-[var(--primary-dark)]' 
-                  : 'dark:bg-[var(--secondary-light)] bg-[var(--secondary-dark)]'
+                  ? 'dark:bg-[var(--primary)] bg-[var(--primary-light)]' 
+                  : 'dark:bg-[var(--secondary)] bg-[var(--secondary-light)]'
               }`}
             >
               <div className="flex justify-between items-start mb-2">
@@ -109,7 +146,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                   {surveyData.title?.es || 'Sin título'}
                 </h3>
                 <button
-                  onClick={() => toggleMenu(item._id)}
+                  onClick={(e) => toggleMenu(item._id, e)}
                   className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-all text-[var(--text-primary)]"
                 >
                   <MoreVertical className="w-5 h-5" />
@@ -140,11 +177,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                 <div className="mt-2">
                   <div className="text-xs mb-1">Progreso: {calculateProgress(item.totalAnswers, surveyInfo.target)}</div>
                   <div className={`w-full rounded-full h-1.5 ${
-                    index % 2 === 0 ? 'bg-[var(--primary-dark)]' : 'bg-[var(--secondary-dark)]'
+                    index % 2 === 0 ? 'dark:bg-[var(--primary-light)] bg-[var(--primary-dark)]' : 'dark:bg-[var(--secondary-light)] bg-[var(--secondary-dark)]'
                   }`}>
                     <div 
                       className={`h-1.5 rounded-full transition-all ${
-                        index % 2 === 0 ? 'bg-[var(--primary)]' : 'bg-[var(--secondary)]'
+                        index % 2 === 0 ? 'dark:bg-[var(--primary)] bg-[var(--primary)]' : 'dark:bg-[var(--secondary)] bg-[var(--secondary)]'
                       }`}
                       style={{ 
                         width: calculateProgress(item.totalAnswers, surveyInfo.target)
@@ -270,7 +307,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
               const surveyData = item.survey || {};
               const surveyInfo = item.surveyInfo || {};
               return (
-                <tr key={item._id} className="group">
+                <tr key={item._id} className="group" data-row-id={item._id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     {index + 1}
                   </td>
@@ -278,25 +315,28 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                     {surveyData.title?.es || 'Sin título'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    <button
-                      onClick={(e) => toggleDescription(item._id, e)}
-                      className="p-2 rounded-md hover:bg-[var(--hover-bg)] hover:bg-opacity-50 transition-colors"
-                    >
-                      <Eye className="w-5 h-5" />
-                    </button>
-                    
-                    {openDescriptionId === item._id && (
-                      <div 
-                        ref={descriptionRef}
-                        className="absolute z-50 mt-2 w-64 rounded-md shadow-lg bg-[var(--card-background)] border border-[var(--card-border)]"
+                    <div className="flex items-center justify-center relative">
+                      <button
+                        onClick={(e) => toggleDescription(item._id, e)}
+                        className="p-2 rounded-md hover:bg-[var(--hover-bg)] hover:bg-opacity-50 transition-colors"
+                        data-type="description"
                       >
-                        <div className="p-4">
-                          <p className="text-sm text-[var(--text-primary)] whitespace-normal">
-                            {surveyData.description?.es || 'Sin descripción'}
-                          </p>
+                        <Eye className="w-5 h-5" />
+                      </button>
+                    
+                      {openDescriptionId === item._id && (
+                        <div 
+                          ref={descriptionRef}
+                          className="absolute z-50 w-64 -left-28 bottom-full mb-1 rounded-md shadow-lg dark:bg-[var(--primary-light)] bg-[var(--primary-light)] "
+                        >
+                          <div className="p-4">
+                            <p className="text-sm text-[var(--text-primary)] whitespace-normal">
+                              {surveyData.description?.es || 'Sin descripción'}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     {formatDate(surveyInfo.startDate)}
@@ -308,109 +348,144 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                     {calculateProgress(item.totalAnswers, surveyInfo.target)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    <button
-                      onClick={() => toggleMenu(item._id)}
-                      className="p-2 rounded-md hover:bg-[var(--hover-bg)] hover:bg-opacity-50 transition-colors"
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-
-                    {openMenuId === item._id && (
-                      <div 
-                        className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-[var(--card-background)] border border-[var(--card-border)] z-50"
-                        onClick={(e) => e.stopPropagation()}
+                    <div className="flex items-center justify-end relative">
+                      <button
+                        onClick={() => toggleActions(item._id)}
+                        className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+                        data-type="action"
                       >
-                        <div className="py-1">
-                          {/* Admin puede editar y configurar */}
-                          {role === 'ROLE_ADMIN' && (
-                            <div key={`admin-actions-${item._id}`}>
-                              <button
-                                key={`edit-${item._id}`}
-                                onClick={() => handleAction('edit', item)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
-                              >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Editar
-                              </button>
-                              <button
-                                key={`settings-${item._id}`}
-                                onClick={() => handleAction('settings', item)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
-                              >
-                                <Settings className="w-4 h-4 mr-2" />
-                                Configuración
-                              </button>
-                            </div>
-                          )}
+                        {expandedActionsId === item._id ? (
+                          <ChevronLeft className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </button>
 
-                          {/* Todos pueden responder */}
-                          <button
-                            key={`answer-${item._id}`}
-                            onClick={() => handleAction('answer', item)}
-                            className="flex items-center w-full px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+                      <AnimatePresence>
+                        {expandedActionsId === item._id && (
+                          <motion.div
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: 'auto', opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="absolute right-8 top-0 overflow-hidden"
                           >
-                            <Play className="w-4 h-4 mr-2" />
-                            Responder
-                          </button>
+                            <div className="flex items-center gap-1 px-2 py-1 rounded-md shadow-lg dark:bg-[var(--card-background)] bg-[var(--card-background)] border border-[var(--card-border)]">
+                              {role === 'ROLE_ADMIN' && (
+                                <>
+                                  <button
+                                    data-type="action"
+                                    onClick={() => handleAction('edit', item)}
+                                    onMouseEnter={(e) => handleTooltip(`edit-${item._id}`, e, true)}
+                                    onMouseLeave={() => handleTooltip(null, null, false)}
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
 
-                          {/* Admin y Supervisor pueden ver cuotas y progreso */}
-                          {(role === 'ROLE_ADMIN' || role === 'SUPERVISOR') && (
-                            <div key={`admin-supervisor-actions-${item._id}`}>
+                                  <button
+                                    data-type="action"
+                                    onClick={() => handleAction('settings', item)}
+                                    onMouseEnter={(e) => handleTooltip(`settings-${item._id}`, e, true)}
+                                    onMouseLeave={() => handleTooltip(null, null, false)}
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                  >
+                                    <Settings className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+
                               <button
-                                key={`quotas-${item._id}`}
-                                onClick={() => handleAction('quotas', item)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+                                data-type="action"
+                                onClick={() => handleAction('answer', item)}
+                                onMouseEnter={(e) => handleTooltip(`answer-${item._id}`, e, true)}
+                                onMouseLeave={() => handleTooltip(null, null, false)}
+                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
                               >
-                                <ChartBar className="w-4 h-4 mr-2" />
-                                Cuotas
+                                <Play className="w-4 h-4" />
                               </button>
-                              <button
-                                key={`progress-${item._id}`}
-                                onClick={() => handleAction('progress', item)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
-                              >
-                                <BarChart3 className="w-4 h-4 mr-2" />
-                                Progreso
-                              </button>
+
+                              {(role === 'ROLE_ADMIN' || role === 'SUPERVISOR') && (
+                                <>
+                                  <button
+                                    data-type="action"
+                                    onClick={() => handleAction('quotas', item)}
+                                    onMouseEnter={(e) => handleTooltip(`quotas-${item._id}`, e, true)}
+                                    onMouseLeave={() => handleTooltip(null, null, false)}
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                  >
+                                    <ChartBar className="w-4 h-4" />
+                                  </button>
+
+                                  <button
+                                    data-type="action"
+                                    onClick={() => handleAction('progress', item)}
+                                    onMouseEnter={(e) => handleTooltip(`progress-${item._id}`, e, true)}
+                                    onMouseLeave={() => handleTooltip(null, null, false)}
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                  >
+                                    <BarChart3 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+
+                              {role === 'SUPERVISOR' && (
+                                <button
+                                  data-type="action"
+                                  onClick={() => handleAction('pollsters', item)}
+                                  onMouseEnter={(e) => handleTooltip(`pollsters-${item._id}`, e, true)}
+                                  onMouseLeave={() => handleTooltip(null, null, false)}
+                                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                >
+                                  <Users className="w-4 h-4" />
+                                </button>
+                              )}
+
+                              {role === 'ROLE_ADMIN' && (
+                                <>
+                                  <button
+                                    data-type="action"
+                                    onClick={() => handleAction('deleteAnswers', item)}
+                                    onMouseEnter={(e) => handleTooltip(`deleteAnswers-${item._id}`, e, true)}
+                                    onMouseLeave={() => handleTooltip(null, null, false)}
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-red-500"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+
+                                  <button
+                                    data-type="action"
+                                    onClick={() => handleAction('delete', item)}
+                                    onMouseEnter={(e) => handleTooltip(`delete-${item._id}`, e, true)}
+                                    onMouseLeave={() => handleTooltip(null, null, false)}
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-red-500"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
                             </div>
-                          )}
 
-                          {/* Solo Supervisor puede asignar encuestadores */}
-                          {role === 'SUPERVISOR' && (
-                            <button
-                              key={`pollsters-${item._id}`}
-                              onClick={() => handleAction('pollsters', item)}
-                              className="flex items-center w-full px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
-                            >
-                              <Users className="w-4 h-4 mr-2" />
-                              Asignar Encuestadores
-                            </button>
-                          )}
-
-                          {/* Admin puede eliminar */}
-                          {role === 'ROLE_ADMIN' && (
-                            <div key={`admin-delete-actions-${item._id}`}>
-                              <button
-                                key={`delete-answers-${item._id}`}
-                                onClick={() => handleAction('deleteAnswers', item)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-red-500 hover:bg-[var(--hover-bg)]"
+                            {openTooltipId && (
+                              <div 
+                                ref={tooltipRef}
+                                className="absolute z-50 px-2 py-1 text-xs -top-8 rounded-md shadow-lg dark:bg-[var(--primary-dark)] bg-[var(--primary-light)] text-[var(--text-primary)] whitespace-nowrap"
+                                style={{ left: tooltipPosition.x }}
                               >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Eliminar Respuestas
-                              </button>
-                              <button
-                                key={`delete-survey-${item._id}`}
-                                onClick={() => handleAction('delete', item)}
-                                className="flex items-center w-full px-4 py-2 text-sm text-red-500 hover:bg-[var(--hover-bg)]"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Eliminar Encuesta
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                                {openTooltipId.includes('edit') && 'Editar'}
+                                {openTooltipId.includes('settings') && 'Configuración'}
+                                {openTooltipId.includes('answer') && 'Responder'}
+                                {openTooltipId.includes('quotas') && 'Cuotas'}
+                                {openTooltipId.includes('progress') && 'Progreso'}
+                                {openTooltipId.includes('pollsters') && 'Asignar Encuestadores'}
+                                {openTooltipId.includes('deleteAnswers') && 'Eliminar Respuestas'}
+                                {openTooltipId.includes('delete') && 'Eliminar Encuesta'}
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </td>
                 </tr>
               );

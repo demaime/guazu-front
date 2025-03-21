@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { authService } from '@/services/auth.service';
 import { Loader } from '@/components/ui/Loader';
+import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,12 +19,20 @@ export default function LoginPage() {
   const [isPageLoading, setIsPageLoading] = useState(true);
 
   useEffect(() => {
-    // Si ya está autenticado, redirigir al dashboard
-    if (authService.isAuthenticated()) {
-      window.location.href = '/dashboard';
-    }
-    setIsPageLoading(false);
-  }, []);
+    const checkAuth = () => {
+      try {
+        if (authService.isAuthenticated()) {
+          router.replace('/dashboard');
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+      } finally {
+        setIsPageLoading(false);
+      }
+    };
+
+    setTimeout(checkAuth, 100);
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,12 +46,7 @@ export default function LoginPage() {
         formData.rememberMe
       );
       
-      // Verificar que tenemos el token antes de redirigir
-      if (authService.isAuthenticated()) {
-        window.location.href = '/dashboard';
-      } else {
-        throw new Error('No se pudo obtener el token de autenticación');
-      }
+      router.replace('/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -67,9 +71,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-page min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-xl w-full space-y-8 bg-white/10 backdrop-blur-sm p-8 rounded-2xl shadow-xl">
-        <div className="flex justify-center w-full">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="login-page min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+    >
+      <motion.div 
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.4 }}
+        className="max-w-xl w-full space-y-8 bg-white/10 backdrop-blur-sm p-8 rounded-2xl shadow-xl"
+      >
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.3 }}
+          className="flex justify-center w-full"
+        >
           <div className="w-[300px] h-[150px] relative mx-auto">
             <Image
               src="/login-logo.png"
@@ -79,11 +98,21 @@ export default function LoginPage() {
               priority
             />
           </div>
-        </div>
+        </motion.div>
         
-        <form className="mt-12 space-y-8" onSubmit={handleSubmit}>
+        <motion.form 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.4 }}
+          className="mt-12 space-y-8" 
+          onSubmit={handleSubmit}
+        >
           <div className="space-y-4">
-            <div>
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.3 }}
+            >
               <label htmlFor="email" className="block text-sm font-medium text-white uppercase">
                 Email
               </label>
@@ -97,8 +126,12 @@ export default function LoginPage() {
                 value={formData.email}
                 onChange={handleChange}
               />
-            </div>
-            <div>
+            </motion.div>
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.7, duration: 0.3 }}
+            >
               <label htmlFor="password" className="block text-sm font-medium text-white uppercase">
                 Contraseña
               </label>
@@ -112,10 +145,15 @@ export default function LoginPage() {
                 value={formData.password}
                 onChange={handleChange}
               />
-            </div>
+            </motion.div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.3 }}
+            className="flex items-center justify-between"
+          >
             <div className="flex items-center">
               <input
                 id="rememberMe"
@@ -135,15 +173,24 @@ export default function LoginPage() {
                 ¿Olvidó su contraseña?
               </a>
             </div>
-          </div>
+          </motion.div>
 
           {error && (
-            <div className="text-white bg-white/60 p-3 rounded-md text-sm text-center">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="text-white bg-white/60 p-3 rounded-md text-sm text-center"
+            >
               {error}
-            </div>
+            </motion.div>
           )}
 
-          <div>
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.9, duration: 0.3 }}
+          >
             <button
               type="submit"
               disabled={isLoading}
@@ -158,15 +205,20 @@ export default function LoginPage() {
                 'Iniciar sesión'
               )}
             </button>
-          </div>
-        </form>
+          </motion.div>
+        </motion.form>
 
-        <div className="text-center">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1, duration: 0.3 }}
+          className="text-center"
+        >
           <a href="/register" className="text-sm text-white/80 hover:text-white">
             ¿No tiene una cuenta? Regístrese
           </a>
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
 } 

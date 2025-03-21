@@ -6,6 +6,7 @@ import { authService } from '@/services/auth.service';
 import { Loader } from '@/components/ui/Loader';
 import { Menu, X, ChevronLeft, ChevronRight, Home, ClipboardList, Users, LogOut, LayoutGrid, Settings } from 'lucide-react';
 import { themeService } from '@/services/theme.service';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
@@ -77,9 +78,13 @@ export default function DashboardLayout({ children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen flex items-center justify-center"
+      >
         <Loader size="xl" className="text-primary" />
-      </div>
+      </motion.div>
     );
   }
 
@@ -87,8 +92,12 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="dashboard-layout">
-      {/* Header */}
-      <header className="dashboard-header">
+      <motion.header
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="dashboard-header"
+      >
         <div className="header-content bg-primary">
           <div className="header-wrapper">
             <button
@@ -109,18 +118,22 @@ export default function DashboardLayout({ children }) {
             </button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       <div className="main-wrapper">
-        {/* Overlay */}
-        {isSidebarOpen && (
-          <div
-            className="sidebar-overlay fade-in"
-            onClick={toggleSidebar}
-          />
-        )}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="sidebar-overlay"
+              onClick={toggleSidebar}
+            />
+          )}
+        </AnimatePresence>
 
-        {/* Sidebar */}
         <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'mobile-open' : 'mobile-closed'}`}>
           <div className="sidebar-header">
             <div className="flex items-center gap-2">
@@ -150,12 +163,15 @@ export default function DashboardLayout({ children }) {
           </div>
 
           <nav className="sidebar-nav">
-            {navItems.map((item) => {
+            {navItems.map((item, i) => {
               const Icon = item.icon;
               const fullPath = `/dashboard${item.path ? `/${item.path}` : ''}`;
               return (
-                <a
+                <motion.a
                   key={fullPath}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.1 }}
                   href={fullPath}
                   className={`nav-item ${currentPath === fullPath ? 'active' : ''}`}
                 >
@@ -163,18 +179,21 @@ export default function DashboardLayout({ children }) {
                   <span className={`nav-item-text ${isSidebarCollapsed ? 'opacity-0 hidden' : 'opacity-100'}`}>
                     {item.label}
                   </span>
-                </a>
+                </motion.a>
               );
             })}
           </nav>
         </aside>
 
-        {/* Main Content */}
-        <main className="main-content">
+        <motion.main
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="main-content"
+        >
           {children}
-        </main>
+        </motion.main>
 
-        {/* Mobile Sidebar Toggle */}
         <button
           onClick={toggleSidebar}
           className="sidebar-toggle"

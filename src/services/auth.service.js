@@ -43,15 +43,16 @@ class AuthService {
       // Limpiar cualquier token anterior
       this.logout();
 
-      // Guardar el token y el usuario en localStorage
-      localStorage.setItem('token', JSON.stringify(tokenData.token));
+      // Guardar el token y el usuario
+      const token = tokenData.token;
+      localStorage.setItem('token', token); // Guardar como string normal
       localStorage.setItem('user', JSON.stringify(userData.user));
 
-      // Guardar el token como cookie (sin stringify ya que las cookies no necesitan ser parseadas)
-      document.cookie = `token=${tokenData.token}; path=/; ${rememberMe ? 'max-age=2592000' : ''}`;
+      // Guardar el token como cookie
+      document.cookie = `token=${token}; path=/; ${rememberMe ? 'max-age=2592000' : ''}`;
 
       return {
-        token: tokenData.token,
+        token: token,
         user: userData.user
       };
     } catch (error) {
@@ -69,7 +70,8 @@ class AuthService {
   }
 
   getToken() {
-    return localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    return token || null;
   }
 
   getUser() {
@@ -84,7 +86,7 @@ class AuthService {
   isAuthenticated() {
     const token = this.getToken();
     const user = this.getUser();
-    return !!(token && user);
+    return Boolean(token && user);
   }
 }
 

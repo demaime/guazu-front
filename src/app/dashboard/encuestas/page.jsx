@@ -7,6 +7,7 @@ import { authService } from '@/services/auth.service';
 import { SurveyList } from '@/components/ui/SurveyList';
 import { Plus } from 'lucide-react';
 import { useWindowSize } from '@/hooks/useWindowSize';
+import { motion } from 'framer-motion';
 
 export default function Encuestas() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function Encuestas() {
 
   useEffect(() => {
     const loadData = async () => {
-      try {
+      try { 
         const userData = authService.getUser();
         if (!userData) {
           router.replace('/login');
@@ -70,53 +71,97 @@ export default function Encuestas() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen p-8 flex items-center justify-center">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen p-8 flex items-center justify-center"
+      >
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen space-y-4">
-      {/* Título y botón de nueva encuesta */}
-      <div className={`flex flex-col ${!isMobile ? 'items-center' : ''} gap-4 mb-4 md:flex-row md:justify-between md:items-center`}>
-        <h1 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">Encuestas</h1>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen space-y-4"
+    >
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4"
+      >
+        <motion.h1 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]"
+        >
+          Encuestas
+        </motion.h1>
         {user?.role === 'ROLE_ADMIN' && (
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => router.push('/dashboard/encuestas/nueva')}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors w-full md:w-auto cursor-pointer"
           >
             <Plus className="w-5 h-5" />
             Nueva Encuesta
-          </button>
+          </motion.button>
         )}
-      </div>
+      </motion.div>
 
-      {/* Contenedor de resultados */}
-      <div className="rounded-lg bg-[var(--background)] border border-[var(--card-border)] px-4 py-4 md:px-5 md:py-6 shadow-sm">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        className="rounded-lg bg-[var(--background)] border border-[var(--card-border)] px-4 py-4 md:px-5 md:py-6 shadow-sm"
+      >
         {error && (
-          <div className="mb-4 p-4 text-red-500 bg-red-50 rounded-md">
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4 p-4 text-red-500 bg-red-50 rounded-md"
+          >
             {error}
-          </div>
+          </motion.div>
         )}
 
         {!Array.isArray(surveys) || surveys.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-[var(--text-secondary)] mb-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-center py-8"
+          >
+            <motion.p 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-[var(--text-secondary)] mb-4"
+            >
               {user?.role === 'ROLE_ADMIN'
                 ? 'No hay encuestas creadas. ¡Crea tu primera encuesta!'
                 : 'No tienes encuestas asignadas. Por favor, consulta con el administrador.'}
-            </p>
-            {user?.role === 'ROLE_ADMIN' && !isMobile && (
-              <button
+            </motion.p>
+            {user?.role === 'ROLE_ADMIN' && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
                 onClick={() => router.push('/dashboard/encuestas/nueva')}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
               >
                 <Plus className="w-5 h-5" />
                 Crear Encuesta
-              </button>
+              </motion.button>
             )}
-          </div>
+          </motion.div>
         ) : (
           <SurveyList
             surveys={surveys}
@@ -125,7 +170,7 @@ export default function Encuestas() {
             role={user?.role}
           />
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 } 

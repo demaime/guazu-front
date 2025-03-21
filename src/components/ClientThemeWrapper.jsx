@@ -1,15 +1,32 @@
 'use client';
 
 import { ThemeProvider } from '@/providers/ThemeProvider';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function ClientThemeWrapper({ children }) {
-  // Prevenir errores de hidratación esperando a que el cliente esté listo
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
     document.documentElement.classList.remove('light', 'dark');
     const theme = localStorage.getItem('theme-preference') || 'light';
     document.documentElement.classList.add(theme);
   }, []);
 
-  return <ThemeProvider>{children}</ThemeProvider>;
+  if (!mounted) {
+    return <ThemeProvider>{children}</ThemeProvider>;
+  }
+
+  return (
+    <ThemeProvider>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.15, ease: "easeInOut" }}
+      >
+        {children}
+      </motion.div>
+    </ThemeProvider>
+  );
 } 
