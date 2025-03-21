@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { surveyService } from '@/services/survey.service';
 import { authService } from '@/services/auth.service';
 import { SurveyList } from '@/components/ui/SurveyList';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronDown } from 'lucide-react';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { motion } from 'framer-motion';
 
@@ -16,6 +16,7 @@ export default function Encuestas() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {

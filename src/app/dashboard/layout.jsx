@@ -228,20 +228,21 @@ export default function DashboardLayout({ children }) {
               const isActive = pathname === fullPath;
               
               return (
-                <motion.div
-                  key={fullPath}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: i * 0.1 }}
-                  className={`nav-item ${isActive ? 'active' : ''}`}
-                >
-                  <Link href={fullPath} className="flex items-center w-full">
-                    <Icon className="nav-item-icon" />
-                    <span className={`nav-item-text ${isSidebarCollapsed ? 'opacity-0 hidden' : 'opacity-100'}`}>
-                      {item.label}
-                    </span>
-                  </Link>
-                </motion.div>
+                <Link href={fullPath} key={fullPath} className="w-full">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.1 }}
+                    className={`nav-item ${isActive ? 'active' : ''}`}
+                  >
+                    <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'w-full'}`}>
+                      <Icon className="nav-item-icon" />
+                      <span className={`nav-item-text ${isSidebarCollapsed ? 'opacity-0 hidden' : 'opacity-100'}`}>
+                        {item.label}
+                      </span>
+                    </div>
+                  </motion.div>
+                </Link>
               );
             })}
           </nav>

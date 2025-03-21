@@ -16,6 +16,38 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
   const menuRef = useRef(null);
   const tooltipRef = useRef(null);
 
+  const rowVariants = {
+    hidden: { opacity: 0, x: -10 },
+    visible: { 
+      opacity: 1, 
+      x: 0,
+      transition: { duration: 0.15 }
+    },
+    exit: { 
+      opacity: 0,
+      x: 10,
+      transition: { duration: 0.15 }
+    }
+  };
+
+  const tableVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        duration: 0.2,
+        when: "beforeChildren",
+        staggerChildren: 0.03
+      }
+    },
+    exit: { 
+      opacity: 0,
+      y: -20,
+      transition: { duration: 0.15 }
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (descriptionRef.current && !descriptionRef.current.contains(event.target)) {
@@ -28,7 +60,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
           setOpenMenuId(null);
         }
       }
-      if (!event.target.closest(`tr[data-row-id="${expandedActionsId}"]`)) {
+      if (!event.target.closest('.action-buttons') && !event.target.closest('button[data-type="action"]')) {
         setExpandedActionsId(null);
         setOpenTooltipId(null);
       }
@@ -99,7 +131,8 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
         onDeleteAnswers(surveyData._id);
         break;
     }
-    setOpenMenuId(null);
+    setExpandedActionsId(null);
+    setOpenTooltipId(null);
   };
 
   // Función auxiliar para obtener el texto localizado
@@ -318,7 +351,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
               const surveyData = item.survey || {};
               const surveyInfo = item.surveyInfo || {};
               return (
-                <tr key={item._id} className="group" data-row-id={item._id}>
+                <motion.tr
+                  key={item._id}
+                  variants={rowVariants}
+                  className="table-row-hover"
+                >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     {index + 1}
                   </td>
@@ -361,14 +398,17 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     <div className="flex items-center justify-end relative">
                       <button
-                        onClick={() => toggleActions(item._id)}
-                        className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleActions(item._id);
+                        }}
+                        className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
                         data-type="action"
                       >
                         {expandedActionsId === item._id ? (
-                          <ChevronLeft className="w-4 h-4" />
-                        ) : (
                           <ChevronRight className="w-4 h-4" />
+                        ) : (
+                          <ChevronLeft className="w-4 h-4" />
                         )}
                       </button>
 
@@ -379,27 +419,33 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                             animate={{ width: 'auto', opacity: 1 }}
                             exit={{ width: 0, opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute right-8 top-0 overflow-hidden"
+                            className="absolute right-8 top-0 overflow-hidden z-50"
                           >
-                            <div className="flex items-center gap-1 px-2 py-1 rounded-md shadow-lg dark:bg-[var(--card-background)] bg-[var(--card-background)] border border-[var(--card-border)]">
+                            <div className="flex items-center gap-1 px-2 py-1 rounded-md shadow-lg dark:bg-[var(--card-background)] bg-[var(--card-background)] border border-[var(--card-border)] action-buttons">
                               {role === 'ROLE_ADMIN' && (
                                 <>
                                   <button
                                     data-type="action"
-                                    onClick={() => handleAction('edit', item)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction('edit', item);
+                                    }}
                                     onMouseEnter={(e) => handleTooltip(`edit-${item._id}`, e, true)}
                                     onMouseLeave={() => handleTooltip(null, null, false)}
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
                                   >
                                     <Edit className="w-4 h-4" />
                                   </button>
 
                                   <button
                                     data-type="action"
-                                    onClick={() => handleAction('settings', item)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction('settings', item);
+                                    }}
                                     onMouseEnter={(e) => handleTooltip(`settings-${item._id}`, e, true)}
                                     onMouseLeave={() => handleTooltip(null, null, false)}
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
                                   >
                                     <Settings className="w-4 h-4" />
                                   </button>
@@ -408,20 +454,26 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
 
                               <button
                                 data-type="action"
-                                onClick={() => handleAction('answer', item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAction('answer', item);
+                                }}
                                 onMouseEnter={(e) => handleTooltip(`answer-${item._id}`, e, true)}
                                 onMouseLeave={() => handleTooltip(null, null, false)}
-                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
                               >
                                 <Play className="w-4 h-4" />
                               </button>
 
                               <button
                                 data-type="action"
-                                onClick={() => handleAction('map', item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/dashboard/encuestas/${item._id}/mapa`);
+                                }}
                                 onMouseEnter={(e) => handleTooltip(`map-${item._id}`, e, true)}
                                 onMouseLeave={() => handleTooltip(null, null, false)}
-                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
                               >
                                 <Map className="w-4 h-4" />
                               </button>
@@ -430,20 +482,26 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                 <>
                                   <button
                                     data-type="action"
-                                    onClick={() => handleAction('quotas', item)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction('quotas', item);
+                                    }}
                                     onMouseEnter={(e) => handleTooltip(`quotas-${item._id}`, e, true)}
                                     onMouseLeave={() => handleTooltip(null, null, false)}
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
                                   >
                                     <ChartBar className="w-4 h-4" />
                                   </button>
 
                                   <button
                                     data-type="action"
-                                    onClick={() => handleAction('progress', item)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction('progress', item);
+                                    }}
                                     onMouseEnter={(e) => handleTooltip(`progress-${item._id}`, e, true)}
                                     onMouseLeave={() => handleTooltip(null, null, false)}
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
                                   >
                                     <BarChart3 className="w-4 h-4" />
                                   </button>
@@ -453,10 +511,13 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                               {role === 'SUPERVISOR' && (
                                 <button
                                   data-type="action"
-                                  onClick={() => handleAction('pollsters', item)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAction('pollsters', item);
+                                  }}
                                   onMouseEnter={(e) => handleTooltip(`pollsters-${item._id}`, e, true)}
                                   onMouseLeave={() => handleTooltip(null, null, false)}
-                                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
                                 >
                                   <Users className="w-4 h-4" />
                                 </button>
@@ -466,20 +527,26 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                 <>
                                   <button
                                     data-type="action"
-                                    onClick={() => handleAction('deleteAnswers', item)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction('deleteAnswers', item);
+                                    }}
                                     onMouseEnter={(e) => handleTooltip(`deleteAnswers-${item._id}`, e, true)}
                                     onMouseLeave={() => handleTooltip(null, null, false)}
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-red-500"
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-red-500 cursor-pointer"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
 
                                   <button
                                     data-type="action"
-                                    onClick={() => handleAction('delete', item)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction('delete', item);
+                                    }}
                                     onMouseEnter={(e) => handleTooltip(`delete-${item._id}`, e, true)}
                                     onMouseLeave={() => handleTooltip(null, null, false)}
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-red-500"
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-red-500 cursor-pointer"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
@@ -508,7 +575,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                       </AnimatePresence>
                     </div>
                   </td>
-                </tr>
+                </motion.tr>
               );
             })}
           </tbody>

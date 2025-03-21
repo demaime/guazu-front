@@ -317,6 +317,15 @@ body {
   border-radius: 0.375rem;
   color: var(--text-secondary);
   transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  width: 100%;
+}
+
+.nav-item a {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
 }
 
 .nav-item:hover {
@@ -335,6 +344,15 @@ body {
   height: 1.25rem;
   margin-right: 0.75rem;
   transition: color 0.2s ease-in-out;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 1rem;
+}
+
+.sidebar.collapsed .nav-item-icon {
+  margin-right: 0;
 }
 
 .nav-item:hover .nav-item-icon {
@@ -424,6 +442,157 @@ body {
 .dark .nav-item.active {
   color: var(--primary-light);
   background-color: transparent;
+}
+
+/* Paginación */
+.pagination-item {
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition-property: background-color, color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.pagination-item:hover {
+  background-color: var(--hover-bg);
+  color: var(--primary);
+}
+
+/* Lista de usuarios */
+.users-table tbody tr {
+  cursor: pointer;
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.users-table tbody tr:hover {
+  background-color: var(--hover-bg);
+}
+
+/* Elementos interactivos */
+.interactive-element {
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.interactive-element:hover {
+  background-color: var(--hover-bg);
+}
+
+/* Botones de acción */
+.action-button {
+  cursor: pointer;
+  transition-property: opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.action-button:hover {
+  opacity: 0.8;
+}
+
+/* Botones y enlaces interactivos */
+.btn-action {
+  cursor: pointer;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.btn-action:hover {
+  background-color: var(--hover-bg);
+}
+
+.btn-primary {
+  cursor: pointer;
+  background-color: var(--primary);
+  color: white;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.btn-primary:hover {
+  background-color: rgba(63, 81, 181, 0.9);
+}
+
+.btn-danger {
+  cursor: pointer;
+  background-color: rgb(239, 68, 68);
+  color: white;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.btn-danger:hover {
+  background-color: rgb(220, 38, 38);
+}
+
+.link-action {
+  cursor: pointer;
+  transition-property: color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.link-action:hover {
+  color: var(--primary);
+}
+
+/* Ajustes para la tabla de usuarios */
+.table-row-hover {
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.table-row-hover:hover {
+  background-color: var(--hover-bg);
+}
+
+/* Ajustes para el paginado */
+.pagination-number {
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  transition-property: background-color, color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.pagination-number:hover {
+  background-color: var(--hover-bg);
+  color: var(--primary);
+}
+
+.pagination-number.active {
+  background-color: var(--primary);
+  color: white;
+}
+
+.pagination-number.active:hover {
+  background-color: rgba(63, 81, 181, 0.9);
+}
+
+/* Ajustes para las filas de la tabla */
+.table-row {
+  transition-property: background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.table-row:hover {
+  background-color: var(--hover-bg);
 }
 
 

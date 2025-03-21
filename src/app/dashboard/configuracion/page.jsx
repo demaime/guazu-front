@@ -173,7 +173,7 @@ export default function ConfiguracionPage() {
                 <h3 className="text-base font-medium text-[var(--text-primary)]">Cambiar contraseña</h3>
                 <button
                   onClick={() => setShowPasswordSection(!showPasswordSection)}
-                  className="text-sm text-primary hover:text-primary-dark transition-colors"
+                  className="link-action text-sm text-primary"
                 >
                   {showPasswordSection ? 'Cancelar' : 'Cambiar'}
                 </button>
@@ -235,7 +235,7 @@ export default function ConfiguracionPage() {
               </p>
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="px-4 py-2 text-sm font-medium text-white bg-[var(--secondary)] rounded-md hover:bg-opacity-90 transition-colors"
+                className="btn-danger"
               >
                 Eliminar cuenta
               </button>

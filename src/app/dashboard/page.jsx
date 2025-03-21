@@ -154,7 +154,7 @@ export default function DashboardPage() {
             </span>
             <button
               onClick={handleRefresh}
-              className="ml-4 px-3 py-1 text-sm bg-primary text-white rounded hover:bg-primary/90"
+              className="btn-primary ml-4 px-3 py-1 text-sm"
             >
               Actualizar datos
             </button>
