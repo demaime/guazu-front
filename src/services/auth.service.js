@@ -1,9 +1,9 @@
 import { AUTH_ROUTES } from '@/config/routes';
+import axios from 'axios';
 
 class AuthService {
   async login(email, password, rememberMe = false) {
     try {
-      // Primer request para obtener el usuario
       const userResponse = await fetch(AUTH_ROUTES.LOGIN, {
         method: 'POST',
         headers: {
@@ -21,7 +21,6 @@ class AuthService {
         throw new Error(userData.validation?.email || userData.validation?.pwd || userData.message || 'Error al iniciar sesión');
       }
 
-      // Segundo request para obtener el token
       const tokenResponse = await fetch(AUTH_ROUTES.LOGIN, {
         method: 'POST',
         headers: {
@@ -40,15 +39,12 @@ class AuthService {
         throw new Error(tokenData.message || 'Error al obtener el token');
       }
 
-      // Limpiar cualquier token anterior
       this.logout();
 
-      // Guardar el token y el usuario
       const token = tokenData.token;
-      localStorage.setItem('token', token); // Guardar como string normal
+      localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData.user));
 
-      // Guardar el token como cookie
       document.cookie = `token=${token}; path=/; ${rememberMe ? 'max-age=2592000' : ''}`;
 
       return {
@@ -65,13 +61,11 @@ class AuthService {
     localStorage.removeItem('user');
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
-    // Eliminar la cookie del token
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
   }
 
   getToken() {
-    const token = localStorage.getItem('token');
-    return token || null;
+    return localStorage.getItem('token');
   }
 
   getUser() {
@@ -87,6 +81,23 @@ class AuthService {
     const token = this.getToken();
     const user = this.getUser();
     return Boolean(token && user);
+  }
+
+  async updateProfile(userData) {
+    try {
+      const response = await axios.put(`${API_URL}/users/profile`, userData, {
+        headers: { Authorization: `Bearer ${this.getToken()}` }
+      });
+      
+      // Actualizar el usuario en el localStorage
+      const currentUser = this.getUser();
+      const updatedUser = { ...currentUser, ...response.data };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 }
 

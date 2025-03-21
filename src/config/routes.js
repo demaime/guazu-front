@@ -30,6 +30,8 @@ export const ANSWER_ROUTES = {
 export const USER_ROUTES = {
   UPDATE: `${API_URL}/api/update`,
   UPDATE_PASSWORD: `${API_URL}/api/changepassword`,
+  UPDATE_IMAGE: `${API_URL}/api/upload-image`,
+  GET_PROFILE: `${API_URL}/api/getUserById`,
   GET_POLLSTERS: `${API_URL}/api/getpollsters`,
   GET_SUPERVISORS: `${API_URL}/api/getsupervisors`,
 }; 

@@ -16,8 +16,25 @@ const nextConfig = {
       },
     ];
   },
-  // Otras configuraciones que podrían ser útiles
+  // Configuraciones adicionales
   reactStrictMode: true,
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
+  experimental: {
+    appDir: true,
+    serverActions: true,
+  },
+  // Configuración para manejar redirecciones y reescrituras
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // Reescribir las rutas del dashboard
+        {
+          source: '/dashboard/:path*',
+          destination: '/dashboard/:path*',
+        },
+      ],
+    };
+  },
 };
 
 export default nextConfig;
