@@ -39,10 +39,42 @@ class SurveyService {
       }
 
       // Para todos los roles, las encuestas vienen en data.survey
-      const surveys = data.survey || [];
+      let surveys = data.survey || [];
 
-      console.log('Processed surveys:', surveys);
-      return { surveys };
+      // Obtener las respuestas para cada encuesta
+      const surveysWithAnswers = await Promise.all(surveys.map(async (survey) => {
+        try {
+          const answersResponse = await fetch(SURVEY_ROUTES.ANSWERS(survey._id), {
+            method: 'GET',
+            headers: new Headers({
+              'Content-Type': 'application/json; charset=utf-8',
+              'Authorization': token
+            }),
+            credentials: 'include',
+            mode: 'cors'
+          });
+
+          if (!answersResponse.ok) {
+            console.error(`Error fetching answers for survey ${survey._id}`);
+            return survey;
+          }
+
+          const answersData = await answersResponse.json();
+          const answers = answersData.answersBySurveyId || [];
+          
+          return {
+            ...survey,
+            totalAnswers: answers.length,
+            answers: answers
+          };
+        } catch (error) {
+          console.error(`Error fetching answers for survey ${survey._id}:`, error);
+          return survey;
+        }
+      }));
+
+      console.log('Processed surveys:', surveysWithAnswers);
+      return { surveys: surveysWithAnswers };
     } catch (error) {
       console.error('Error in getAllSurveys:', error);
       throw error;

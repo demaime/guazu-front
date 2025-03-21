@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { authService } from '@/services/auth.service';
+import { surveyService } from '@/services/survey.service';
+import CountUp from 'react-countup';
 
 const getRoleName = (role) => {
   switch (role) {
@@ -16,13 +18,118 @@ const getRoleName = (role) => {
   }
 };
 
+const isActiveSurvey = (survey) => {
+  const now = new Date();
+  const startDate = new Date(survey.surveyInfo.startDate);
+  const endDate = new Date(survey.surveyInfo.endDate);
+  return now >= startDate && now <= endDate;
+};
+
+const DotsLoader = () => (
+  <div className="flex items-center">
+    <span className="text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
+      <span className="inline-block animate-bounce">.</span>
+      <span className="inline-block animate-bounce" style={{ animationDelay: '0.2s' }}>.</span>
+      <span className="inline-block animate-bounce" style={{ animationDelay: '0.4s' }}>.</span>
+    </span>
+  </div>
+);
+
 export default function DashboardPage() {
+  console.log('Renderizando DashboardPage');
+  
   const [user, setUser] = useState(null);
+  const [activeSurveys, setActiveSurveys] = useState(0);
+  const [totalAnswers, setTotalAnswers] = useState(0);
+  const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      setShouldAnimate(false);
+      
+      console.log('Iniciando carga de datos...');
+      const response = await surveyService.getAllSurveys();
+      console.log('Respuesta completa del servicio:', response);
+      
+      const { surveys } = response;
+      console.log('Encuestas extraídas:', surveys);
+      
+      if (!surveys) {
+        console.log('No hay encuestas en la respuesta');
+        return;
+      }
+
+      // Filtrar encuestas activas según la fecha actual
+      const activeCount = surveys.filter(isActiveSurvey).length;
+      console.log('Encuestas activas:', activeCount);
+      setActiveSurveys(activeCount);
+
+      // Inspeccionar cada encuesta para ver su estructura
+      surveys.forEach((survey, index) => {
+        console.log(`Encuesta ${index + 1}:`, {
+          id: survey._id,
+          title: survey.title,
+          totalAnswers: survey.totalAnswers,
+          answers: survey.answers,
+          surveyInfo: survey.surveyInfo
+        });
+      });
+
+      // Calcular total de respuestas sumando las respuestas de cada encuesta
+      const answersCount = surveys.reduce((total, survey) => {
+        const answers = survey.totalAnswers || 0;
+        console.log(`Respuestas para encuesta ${survey._id}:`, answers);
+        return total + answers;
+      }, 0);
+      console.log('Total de respuestas calculado:', answersCount);
+      setTotalAnswers(answersCount);
+      
+      // Pequeña pausa para mostrar el loader
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setIsLoading(false);
+      setShouldAnimate(true);
+    } catch (error) {
+      console.error('Error en loadData:', error);
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const userData = authService.getUser();
-    setUser(userData);
+    console.log('useEffect ejecutándose');
+    
+    try {
+      const userData = authService.getUser();
+      console.log('Datos de usuario obtenidos:', userData);
+      setUser(userData);
+
+      if (userData) {
+        console.log('Usuario existe, llamando a loadData');
+        loadData();
+      } else {
+        console.log('No hay usuario autenticado');
+      }
+    } catch (error) {
+      console.error('Error en useEffect:', error);
+    }
   }, []);
+
+  const renderNumber = (value) => {
+    if (isLoading) {
+      return <DotsLoader />;
+    }
+    if (shouldAnimate) {
+      return (
+        <CountUp 
+          end={value} 
+          duration={1.5}
+          separator="."
+        />
+      );
+    }
+    return '0';
+  };
 
   return (
     <div>
@@ -35,6 +142,12 @@ export default function DashboardPage() {
             <span className="text-sm text-[var(--text-secondary)]">
               - {getRoleName(user?.role)}
             </span>
+            <button
+              onClick={loadData}
+              className="ml-4 px-3 py-1 text-sm bg-primary text-white rounded hover:bg-primary/90"
+            >
+              Actualizar datos
+            </button>
           </div>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
             Panel de control de Guazú - Sistema de Encuestas
@@ -54,7 +167,9 @@ export default function DashboardPage() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="truncate text-sm font-medium text-[var(--text-secondary)]">Encuestas Activas</dt>
-                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">0</dd>
+                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
+                      {renderNumber(activeSurveys)}
+                    </dd>
                   </dl>
                 </div>
               </div>
@@ -68,31 +183,35 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Card de Usuarios */}
-          <div className="overflow-hidden rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] shadow-sm">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                  </svg>
+          {/* Card de Usuarios - Solo visible para admin y supervisor */}
+          {user?.role !== 'POLLSTER' && (
+            <div className="overflow-hidden rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] shadow-sm">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="truncate text-sm font-medium text-[var(--text-secondary)]">Usuarios Registrados</dt>
+                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
+                        {renderNumber(0)}
+                      </dd>
+                    </dl>
+                  </div>
                 </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="truncate text-sm font-medium text-[var(--text-secondary)]">Usuarios Registrados</dt>
-                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">0</dd>
-                  </dl>
+              </div>
+              <div className="bg-primary px-5 py-3">
+                <div className="text-sm">
+                  <a href="/dashboard/usuarios" className="font-medium text-white hover:text-gray-100">
+                    Ver todos
+                  </a>
                 </div>
               </div>
             </div>
-            <div className="bg-primary px-5 py-3">
-              <div className="text-sm">
-                <a href="/dashboard/usuarios" className="font-medium text-white hover:text-gray-100">
-                  Ver todos
-                </a>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Card de Respuestas */}
           <div className="overflow-hidden rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] shadow-sm">
@@ -106,7 +225,9 @@ export default function DashboardPage() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="truncate text-sm font-medium text-[var(--text-secondary)]">Total de Respuestas</dt>
-                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">0</dd>
+                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
+                      {renderNumber(totalAnswers)}
+                    </dd>
                   </dl>
                 </div>
               </div>
