@@ -8,6 +8,7 @@ import { Loader } from '@/components/ui/Loader';
 import { Menu, X, ChevronLeft, ChevronRight, Home, ClipboardList, Users, LogOut, LayoutGrid, Settings } from 'lucide-react';
 import { themeService } from '@/services/theme.service';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
@@ -38,6 +39,11 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     console.log('Pathname actual:', pathname);
+  }, [pathname]);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+    setIsSidebarCollapsed(true);
   }, [pathname]);
 
   const handleProfileClick = () => {
@@ -115,12 +121,22 @@ export default function DashboardLayout({ children }) {
             >
               <Menu className="w-6 h-6 text-white" />
             </button>
-            <Link 
-              href="/dashboard"
-              className="text-lg font-semibold leading-6 text-white hover:opacity-80 transition-opacity cursor-pointer"
+            <div 
+              onClick={() => {
+                if (window.innerWidth >= 1024) {
+                  toggleSidebarCollapse();
+                }
+              }}
+              className="flex items-center hover:opacity-80 transition-opacity cursor-pointer"
             >
-              Guazú
-            </Link>
+              <Image
+                src="/logo-full.png"
+                alt="Guazú"
+                width={160}
+                height={80}
+                className="object-contain h-8"
+              />
+            </div>
             <button
               onClick={() => {
                 authService.logout();
@@ -150,29 +166,29 @@ export default function DashboardLayout({ children }) {
 
         <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'mobile-open' : 'mobile-closed'}`}>
           <div className="sidebar-header">
-            <div className="flex items-center gap-2">
-              <LayoutGrid className={`w-5 h-5 ${!isSidebarCollapsed ? 'mr-2' : ''}`} />
-              <h2 className={`font-semibold transition-opacity duration-200 ${isSidebarCollapsed ? 'opacity-0 hidden' : 'opacity-100'}`}>
-                Menú
-              </h2>
-            </div>
-            <div className="flex items-center">
-              <button
-                onClick={toggleSidebarCollapse}
-                className="sidebar-collapse-btn"
-              >
-                {isSidebarCollapsed ? (
-                  <ChevronRight className="w-5 h-5" />
+            <div 
+              className="flex items-center justify-between w-full cursor-pointer"
+              onClick={() => {
+                if (window.innerWidth < 1024) {
+                  toggleSidebar();
+                } else {
+                  toggleSidebarCollapse();
+                }
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <LayoutGrid className={`w-5 h-5 ${!isSidebarCollapsed ? 'mr-2' : ''}`} />
+                <h2 className={`font-semibold transition-opacity duration-200 ${isSidebarCollapsed ? 'opacity-0 hidden' : 'opacity-100'}`}>
+                  Menú
+                </h2>
+              </div>
+              <div className="flex items-center">
+                {window.innerWidth >= 1024 ? (
+                  <ChevronLeft className={`w-5 h-5 transition-transform ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
                 ) : (
                   <ChevronLeft className="w-5 h-5" />
                 )}
-              </button>
-              <button
-                onClick={toggleSidebar}
-                className="lg:hidden p-2 hover:bg-opacity-80 rounded-md"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              </div>
             </div>
           </div>
 

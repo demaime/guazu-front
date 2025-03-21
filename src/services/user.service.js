@@ -140,6 +140,28 @@ class UserService {
       throw new Error(error.message || 'Error al actualizar la imagen');
     }
   }
+
+  async deleteAccount(userId, token) {
+    try {
+      const response = await fetch(`${USER_ROUTES.DELETE_USER}/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.validation?.error || data.validation || 'Error al eliminar la cuenta');
+      }
+
+      return data;
+    } catch (error) {
+      throw new Error(error.message || 'Error al eliminar la cuenta');
+    }
+  }
 }
 
 export const userService = new UserService(); 
