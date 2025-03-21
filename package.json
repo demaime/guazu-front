@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@react-google-maps/api": "^2.20.6",
     "@tippyjs/react": "^4.2.6",
     "axios": "^1.8.4",

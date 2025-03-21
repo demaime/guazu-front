@@ -17,12 +17,13 @@ export default function MapaEncuesta() {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const userData = authService.getUser();
-        console.log('Usuario autenticado:', userData);
+        setUser(userData);
         
         if (!userData) {
           console.log('No hay usuario autenticado, redirigiendo a login');
@@ -30,14 +31,22 @@ export default function MapaEncuesta() {
           return;
         }
 
-        console.log('Obteniendo datos de la encuesta...');
+        console.log('Usuario actual:', userData);
         const response = await surveyService.getSurvey(id);
         console.log('Respuesta del servicio:', response);
         
         setSurvey(response.survey);
-        // En la versión original, las respuestas vienen en answersBySurveyId
-        const answersData = response.answersBySurveyId || response.answers || [];
-        console.log('Respuestas obtenidas:', answersData);
+        let answersData = response.answersBySurveyId || response.answers || [];
+        console.log('Respuestas sin filtrar:', answersData);
+        
+        // Si es encuestador, solo mostrar sus propias encuestas
+        if (userData.role === 'POLLSTER') {
+          answersData = answersData.filter(answer => {
+            console.log('Comparando:', answer.userId, userData._id);
+            return answer.userId === userData._id;
+          });
+          console.log('Respuestas filtradas para encuestador:', answersData);
+        }
         
         setAnswers(answersData);
         setLoading(false);
@@ -100,45 +109,48 @@ export default function MapaEncuesta() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">{survey.title?.es}</h1>
       
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-4">Filtrar por encuestador</h2>
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={mostrarTodos}
-              onChange={(e) => {
-                const newValue = e.target.checked;
-                console.log('Mostrar todos cambiado a:', newValue);
-                setMostrarTodos(newValue);
-                if (newValue) {
-                  setSelectedUsers([]);
-                }
-              }}
-              className="form-checkbox h-5 w-5 text-blue-600"
-            />
-            <span>Mostrar todos</span>
-          </label>
-          
-          {uniqueUsers.map(user => (
-            <label key={user.id} className="flex items-center space-x-2">
+      {/* Solo mostrar filtros si no es encuestador */}
+      {user?.role !== 'POLLSTER' && (
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-4">Filtrar por encuestador</h2>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center space-x-2">
               <input
                 type="checkbox"
-                checked={selectedUsers.includes(user.id)}
-                onChange={() => handleUserSelection(user.id)}
+                checked={mostrarTodos}
+                onChange={(e) => {
+                  const newValue = e.target.checked;
+                  console.log('Mostrar todos cambiado a:', newValue);
+                  setMostrarTodos(newValue);
+                  if (newValue) {
+                    setSelectedUsers([]);
+                  }
+                }}
                 className="form-checkbox h-5 w-5 text-blue-600"
               />
-              <span>{user.name}</span>
+              <span>Mostrar todos</span>
             </label>
-          ))}
+            
+            {uniqueUsers.map(user => (
+              <label key={user.id} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={selectedUsers.includes(user.id)}
+                  onChange={() => handleUserSelection(user.id)}
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                />
+                <span>{user.name}</span>
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-lg p-6">
         <SurveyMap
           answers={answers}
-          mostrarTodos={mostrarTodos}
-          selectedUsers={selectedUsers}
+          mostrarTodos={user?.role === 'POLLSTER' ? true : mostrarTodos}
+          selectedUsers={user?.role === 'POLLSTER' ? [user._id] : selectedUsers}
         />
       </div>
     </div>

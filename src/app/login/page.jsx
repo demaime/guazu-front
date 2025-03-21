@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -46,7 +47,10 @@ export default function LoginPage() {
         formData.rememberMe
       );
       
-      router.replace('/dashboard');
+      setIsFadingOut(true);
+      setTimeout(() => {
+        router.replace('/dashboard');
+      }, 500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -73,7 +77,7 @@ export default function LoginPage() {
   return (
     <motion.div 
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      animate={{ opacity: isFadingOut ? 0 : 1 }}
       transition={{ duration: 0.5 }}
       className="login-page min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
     >
