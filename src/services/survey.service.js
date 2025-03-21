@@ -49,6 +49,40 @@ class SurveyService {
     }
   }
 
+  async getSurvey(surveyId) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(SURVEY_ROUTES.GET(surveyId), {
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': token
+        }),
+        credentials: 'include',
+        mode: 'cors'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        return Promise.reject(data.validation);
+      }
+      
+      return {
+        survey: data.survey,
+        answers: data.answers || []
+      };
+    } catch (error) {
+      console.error('Error in getSurvey:', error);
+      throw error;
+    }
+  }
+
   async deleteSurvey(surveyId) {
     try {
       const token = localStorage.getItem('token');

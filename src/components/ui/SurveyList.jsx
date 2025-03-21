@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, Edit, Settings, Play, ChartBar, BarChart3, Trash2, Users, Eye, Calendar, MoreVertical } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Edit, Settings, Play, ChartBar, BarChart3, Trash2, Users, Eye, Calendar, MoreVertical, Map } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -88,6 +88,9 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
         break;
       case 'pollsters':
         router.push(`/dashboard/encuestas/encuestadores/${surveyData._id}`);
+        break;
+      case 'map':
+        router.push(`/dashboard/encuestas/${surveyData._id}/mapa`);
         break;
       case 'delete':
         onDelete(surveyData._id);
@@ -228,6 +231,14 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                     >
                       <Play className="w-3.5 h-3.5 mr-2" />
                       Responder
+                    </button>
+
+                    <button
+                      onClick={() => handleAction('map', item)}
+                      className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
+                    >
+                      <Map className="w-3.5 h-3.5 mr-2" />
+                      Ver Mapa
                     </button>
 
                     {(role === 'ROLE_ADMIN' || role === 'SUPERVISOR') && (
@@ -403,6 +414,16 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                 className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
                               >
                                 <Play className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                data-type="action"
+                                onClick={() => handleAction('map', item)}
+                                onMouseEnter={(e) => handleTooltip(`map-${item._id}`, e, true)}
+                                onMouseLeave={() => handleTooltip(null, null, false)}
+                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)]"
+                              >
+                                <Map className="w-4 h-4" />
                               </button>
 
                               {(role === 'ROLE_ADMIN' || role === 'SUPERVISOR') && (
