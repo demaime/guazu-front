@@ -5,6 +5,7 @@ import { authService } from '@/services/auth.service';
 import { surveyService } from '@/services/survey.service';
 import { userService } from '@/services/user.service';
 import CountUp from 'react-countup';
+import { RefreshCw } from 'lucide-react';
 
 const getRoleName = (role) => {
   switch (role) {
@@ -144,7 +145,34 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] px-5 py-6 shadow-sm sm:px-6">
-        <div className="mb-8">
+        {/* Vista Mobile */}
+        <div className="sm:hidden">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+              Bienvenido {user?.name || user?.email}
+            </h2>
+            <button
+              onClick={handleRefresh}
+              className="btn-primary px-3 py-1.5 text-sm flex items-center"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="mb-6">
+            <span className="text-base text-[var(--text-secondary)]">
+              {getRoleName(user?.role)}
+            </span>
+          </div>
+          <h3 className="text-base font-medium text-[var(--text-primary)]">
+            Panel de control de Guazú
+          </h3>
+          <p className="text-xs text-[var(--text-secondary)] mb-2">
+            Sistema de Encuestas
+          </p>
+        </div>
+
+        {/* Vista Desktop */}
+        <div className="hidden sm:block mb-8">
           <div className="flex items-baseline gap-2">
             <h2 className="text-base font-semibold leading-6 text-[var(--text-primary)]">
               Bienvenido {user?.name || user?.email}
@@ -154,9 +182,10 @@ export default function DashboardPage() {
             </span>
             <button
               onClick={handleRefresh}
-              className="btn-primary ml-4 px-3 py-1 text-sm"
+              className="btn-primary ml-4 px-3 py-1.5 text-sm flex items-center gap-2"
             >
-              Actualizar datos
+              <RefreshCw className="w-4 h-4" />
+              <span className="inline">Actualizar datos</span>
             </button>
           </div>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">

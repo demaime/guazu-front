@@ -259,13 +259,6 @@ export default function DashboardLayout({ children }) {
         >
           {children}
         </motion.main>
-
-        <button
-          onClick={toggleSidebar}
-          className="sidebar-toggle"
-        >
-          <Menu className="w-6 h-6 text-white" />
-        </button>
       </div>
     </div>
   );
