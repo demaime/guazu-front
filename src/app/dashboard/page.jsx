@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { authService } from '@/services/auth.service';
 import { surveyService } from '@/services/survey.service';
+import { userService } from '@/services/user.service';
 import CountUp from 'react-countup';
 
 const getRoleName = (role) => {
@@ -36,84 +37,93 @@ const DotsLoader = () => (
 );
 
 export default function DashboardPage() {
-  console.log('Renderizando DashboardPage');
-  
   const [user, setUser] = useState(null);
   const [activeSurveys, setActiveSurveys] = useState(0);
   const [totalAnswers, setTotalAnswers] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadData = async () => {
+  const loadData = async (currentUser) => {
     try {
       setIsLoading(true);
       setShouldAnimate(false);
       
-      console.log('Iniciando carga de datos...');
-      const response = await surveyService.getAllSurveys();
-      console.log('Respuesta completa del servicio:', response);
+      console.log('=== Iniciando carga de datos del dashboard ===');
+      console.log('Usuario actual:', {
+        role: currentUser?.role,
+        name: currentUser?.name
+      });
       
-      const { surveys } = response;
-      console.log('Encuestas extraídas:', surveys);
+      // Cargar encuestas
+      const surveyResponse = await surveyService.getAllSurveys();
+      const { surveys } = surveyResponse;
       
-      if (!surveys) {
-        console.log('No hay encuestas en la respuesta');
-        return;
+      if (surveys) {
+        const activeCount = surveys.filter(isActiveSurvey).length;
+        setActiveSurveys(activeCount);
+
+        const answersCount = surveys.reduce((total, survey) => {
+          return total + (survey.totalAnswers || 0);
+        }, 0);
+        setTotalAnswers(answersCount);
       }
 
-      // Filtrar encuestas activas según la fecha actual
-      const activeCount = surveys.filter(isActiveSurvey).length;
-      console.log('Encuestas activas:', activeCount);
-      setActiveSurveys(activeCount);
-
-      // Inspeccionar cada encuesta para ver su estructura
-      surveys.forEach((survey, index) => {
-        console.log(`Encuesta ${index + 1}:`, {
-          id: survey._id,
-          title: survey.title,
-          totalAnswers: survey.totalAnswers,
-          answers: survey.answers,
-          surveyInfo: survey.surveyInfo
-        });
-      });
-
-      // Calcular total de respuestas sumando las respuestas de cada encuesta
-      const answersCount = surveys.reduce((total, survey) => {
-        const answers = survey.totalAnswers || 0;
-        console.log(`Respuestas para encuesta ${survey._id}:`, answers);
-        return total + answers;
-      }, 0);
-      console.log('Total de respuestas calculado:', answersCount);
-      setTotalAnswers(answersCount);
+      // Cargar usuarios si el rol lo permite
+      if (currentUser?.role === 'ROLE_ADMIN' || currentUser?.role === 'SUPERVISOR') {
+        console.log('Cargando usuarios para rol:', currentUser.role);
+        try {
+          const { users, totalCount } = await userService.getAllUsers();
+          console.log('Usuarios cargados:', {
+            totalCount,
+            usersCount: users.length
+          });
+          setTotalUsers(totalCount);
+        } catch (error) {
+          console.error('Error al cargar usuarios:', error);
+          setTotalUsers(0);
+        }
+      } else {
+        console.log('No se cargan usuarios para rol:', currentUser?.role);
+      }
       
-      // Pequeña pausa para mostrar el loader
       await new Promise(resolve => setTimeout(resolve, 800));
       setIsLoading(false);
       setShouldAnimate(true);
     } catch (error) {
-      console.error('Error en loadData:', error);
+      console.error('Error general en loadData:', error);
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log('useEffect ejecutándose');
-    
-    try {
-      const userData = authService.getUser();
-      console.log('Datos de usuario obtenidos:', userData);
-      setUser(userData);
+    const initializeDashboard = async () => {
+      try {
+        const userData = authService.getUser();
+        console.log('=== Inicialización del dashboard ===');
+        console.log('Datos de usuario:', {
+          role: userData?.role,
+          name: userData?.name,
+          exists: !!userData
+        });
+        
+        setUser(userData);
 
-      if (userData) {
-        console.log('Usuario existe, llamando a loadData');
-        loadData();
-      } else {
-        console.log('No hay usuario autenticado');
+        if (userData) {
+          await loadData(userData);
+        }
+      } catch (error) {
+        console.error('Error en useEffect:', error);
       }
-    } catch (error) {
-      console.error('Error en useEffect:', error);
-    }
+    };
+
+    initializeDashboard();
   }, []);
+
+  const handleRefresh = () => {
+    const currentUser = authService.getUser();
+    loadData(currentUser);
+  };
 
   const renderNumber = (value) => {
     if (isLoading) {
@@ -143,7 +153,7 @@ export default function DashboardPage() {
               - {getRoleName(user?.role)}
             </span>
             <button
-              onClick={loadData}
+              onClick={handleRefresh}
               className="ml-4 px-3 py-1 text-sm bg-primary text-white rounded hover:bg-primary/90"
             >
               Actualizar datos
@@ -197,7 +207,7 @@ export default function DashboardPage() {
                     <dl>
                       <dt className="truncate text-sm font-medium text-[var(--text-secondary)]">Usuarios Registrados</dt>
                       <dd className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
-                        {renderNumber(0)}
+                        {renderNumber(totalUsers)}
                       </dd>
                     </dl>
                   </div>

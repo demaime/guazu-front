@@ -28,11 +28,9 @@ export const ANSWER_ROUTES = {
 
 // Rutas de usuarios
 export const USER_ROUTES = {
-  GET_PROFILE: `${API_URL}/api/getUserById`,
-  UPDATE: `${API_URL}/api/update`,
-  UPDATE_PASSWORD: `${API_URL}/api/changepassword`,
-  UPDATE_IMAGE: `${API_URL}/api/upload-image`,
-  DELETE_USER: `${API_URL}/api/deleteUser`,
+  GET_ALL: `${API_URL}/api/getUsers`,
   GET_POLLSTERS: `${API_URL}/api/getpollsters`,
   GET_SUPERVISORS: `${API_URL}/api/getsupervisors`,
+  GET_BY_ID: (id) => `${API_URL}/api/getUserById/${id}`,
+  DELETE: (id) => `${API_URL}/api/deleteUser/${id}`,
 }; 

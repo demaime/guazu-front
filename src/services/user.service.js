@@ -162,6 +162,130 @@ class UserService {
       throw new Error(error.message || 'Error al eliminar la cuenta');
     }
   }
+
+  async getAllUsers() {
+    try {
+      console.log('=== Iniciando getAllUsers ===');
+      
+      const user = JSON.parse(localStorage.getItem('user'));
+      const token = localStorage.getItem('token');
+
+      console.log('Usuario actual:', {
+        role: user?.role,
+        id: user?._id,
+        name: user?.name
+      });
+      
+      console.log('Token disponible:', !!token);
+      
+      const requestBody = {
+        page: 0,
+        pageSize: 1000
+      };
+      
+      console.log('Request body:', requestBody);
+      
+      const response = await fetch(USER_ROUTES.GET_ALL, {
+        method: 'POST',
+        headers: new Headers({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': token
+        }),
+        body: JSON.stringify(requestBody),
+        credentials: 'include',
+        mode: 'cors'
+      });
+
+      console.log('Status de la respuesta:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error en la respuesta:', errorData);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Datos recibidos:', {
+        totalCount: data.totalCount,
+        usersCount: data.users?.length,
+        hasError: !!data.error
+      });
+      
+      if (data.error) {
+        console.error('Error del API:', data.error);
+        return Promise.reject(data.validation);
+      }
+
+      return { users: data.users || [], totalCount: data.totalCount || 0 };
+    } catch (error) {
+      console.error('Error en getAllUsers:', error);
+      throw error;
+    }
+  }
+
+  async getPollsters() {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(USER_ROUTES.GET_POLLSTERS, {
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': token
+        }),
+        credentials: 'include',
+        mode: 'cors'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        return Promise.reject(data.validation);
+      }
+
+      return { pollsters: data.pollsters || [] };
+    } catch (error) {
+      console.error('Error in getPollsters:', error);
+      throw error;
+    }
+  }
+
+  async getSupervisors() {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(USER_ROUTES.GET_SUPERVISORS, {
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': token
+        }),
+        credentials: 'include',
+        mode: 'cors'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        return Promise.reject(data.validation);
+      }
+
+      return { supervisors: data.supervisors || [] };
+    } catch (error) {
+      console.error('Error in getSupervisors:', error);
+      throw error;
+    }
+  }
 }
 
 export const userService = new UserService(); 
