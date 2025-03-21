@@ -52,7 +52,9 @@ class SurveyService {
   async getSurvey(surveyId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(SURVEY_ROUTES.GET(surveyId), {
+      
+      // Primero obtenemos los datos de la encuesta
+      const surveyResponse = await fetch(SURVEY_ROUTES.GET(surveyId), {
         method: 'GET',
         headers: new Headers({
           'Content-Type': 'application/json; charset=utf-8',
@@ -62,20 +64,43 @@ class SurveyService {
         mode: 'cors'
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      if (!surveyResponse.ok) {
+        const errorData = await surveyResponse.json();
+        throw new Error(errorData.message || `HTTP error! status: ${surveyResponse.status}`);
       }
 
-      const data = await response.json();
+      const surveyData = await surveyResponse.json();
       
-      if (data.error) {
-        return Promise.reject(data.validation);
+      if (surveyData.error) {
+        return Promise.reject(surveyData.validation);
       }
-      
+
+      // Luego obtenemos las respuestas
+      const answersResponse = await fetch(SURVEY_ROUTES.ANSWERS(surveyId), {
+        method: 'GET',
+        headers: new Headers({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': token
+        }),
+        credentials: 'include',
+        mode: 'cors'
+      });
+
+      if (!answersResponse.ok) {
+        const errorData = await answersResponse.json();
+        throw new Error(errorData.message || `HTTP error! status: ${answersResponse.status}`);
+      }
+
+      const answersData = await answersResponse.json();
+
+      if (answersData.error) {
+        return Promise.reject(answersData.validation);
+      }
+
+      // Devolvemos los datos en el formato esperado
       return {
-        survey: data.survey,
-        answers: data.answers || []
+        survey: surveyData.survey,
+        answersBySurveyId: answersData.answersBySurveyId || []
       };
     } catch (error) {
       console.error('Error in getSurvey:', error);

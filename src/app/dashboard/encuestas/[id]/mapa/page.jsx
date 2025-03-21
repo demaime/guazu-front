@@ -9,6 +9,8 @@ import { authService } from '@/services/auth.service';
 export default function MapaEncuesta() {
   const router = useRouter();
   const { id } = useParams();
+  console.log('ID de la encuesta:', id);
+  
   const [survey, setSurvey] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [mostrarTodos, setMostrarTodos] = useState(true);
@@ -20,14 +22,24 @@ export default function MapaEncuesta() {
     const loadData = async () => {
       try {
         const userData = authService.getUser();
+        console.log('Usuario autenticado:', userData);
+        
         if (!userData) {
+          console.log('No hay usuario autenticado, redirigiendo a login');
           router.replace('/login');
           return;
         }
 
+        console.log('Obteniendo datos de la encuesta...');
         const response = await surveyService.getSurvey(id);
+        console.log('Respuesta del servicio:', response);
+        
         setSurvey(response.survey);
-        setAnswers(response.answers || []);
+        // En la versión original, las respuestas vienen en answersBySurveyId
+        const answersData = response.answersBySurveyId || response.answers || [];
+        console.log('Respuestas obtenidas:', answersData);
+        
+        setAnswers(answersData);
         setLoading(false);
       } catch (err) {
         console.error('Error loading survey:', err);
@@ -40,11 +52,14 @@ export default function MapaEncuesta() {
   }, [id]);
 
   const handleUserSelection = (userId) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId) 
+    console.log('Selección de usuario cambiada:', userId);
+    setSelectedUsers(prev => {
+      const newSelection = prev.includes(userId) 
         ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
+        : [...prev, userId];
+      console.log('Nueva selección de usuarios:', newSelection);
+      return newSelection;
+    });
     setMostrarTodos(false);
   };
 
@@ -70,8 +85,16 @@ export default function MapaEncuesta() {
     </div>
   );
 
-  // Get unique users from answers
-  const uniqueUsers = [...new Set(answers.map(answer => answer.userId))];
+  // Obtener encuestadores únicos con sus nombres completos
+  const uniqueUsers = answers.reduce((acc, answer) => {
+    if (!acc.find(u => u.id === answer.userId)) {
+      acc.push({
+        id: answer.userId,
+        name: answer.fullName || `Encuestador ${answer.userId}`
+      });
+    }
+    return acc;
+  }, []);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -85,8 +108,10 @@ export default function MapaEncuesta() {
               type="checkbox"
               checked={mostrarTodos}
               onChange={(e) => {
-                setMostrarTodos(e.target.checked);
-                if (e.target.checked) {
+                const newValue = e.target.checked;
+                console.log('Mostrar todos cambiado a:', newValue);
+                setMostrarTodos(newValue);
+                if (newValue) {
                   setSelectedUsers([]);
                 }
               }}
@@ -95,15 +120,15 @@ export default function MapaEncuesta() {
             <span>Mostrar todos</span>
           </label>
           
-          {uniqueUsers.map(userId => (
-            <label key={userId} className="flex items-center space-x-2">
+          {uniqueUsers.map(user => (
+            <label key={user.id} className="flex items-center space-x-2">
               <input
                 type="checkbox"
-                checked={selectedUsers.includes(userId)}
-                onChange={() => handleUserSelection(userId)}
+                checked={selectedUsers.includes(user.id)}
+                onChange={() => handleUserSelection(user.id)}
                 className="form-checkbox h-5 w-5 text-blue-600"
               />
-              <span>Encuestador {userId}</span>
+              <span>{user.name}</span>
             </label>
           ))}
         </div>
