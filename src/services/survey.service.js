@@ -196,6 +196,48 @@ class SurveyService {
       throw error;
     }
   }
+
+  async createOrUpdateSurvey(surveyData, surveyId = null) {
+    try {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      const response = await fetch(SURVEY_ROUTES.BASE, {
+        method: 'PUT',
+        headers: new Headers({
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': token
+        }),
+        credentials: 'include',
+        mode: 'cors',
+        body: JSON.stringify({
+          id: surveyId,
+          survey: surveyData.survey,
+          surveyInfo: {
+            ...surveyData.surveyInfo,
+            userIds: surveyData.userIds || [],
+            supervisorsIds: surveyData.supervisorsIds || []
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        return Promise.reject(data.validation);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error in createOrUpdateSurvey:', error);
+      throw error;
+    }
+  }
 }
 
 export const surveyService = new SurveyService(); 

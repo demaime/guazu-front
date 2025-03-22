@@ -19,7 +19,11 @@
     "next": "15.2.3",
     "react": "^19.0.0",
     "react-countup": "^6.5.3",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "survey-core": "^2.0.1",
+    "survey-creator-core": "^2.0.1",
+    "survey-creator-react": "^2.0.1",
+    "survey-react-ui": "^2.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
