@@ -93,7 +93,7 @@ export default function LoginPage() {
           transition={{ delay: 0.4, duration: 0.3 }}
           className="flex justify-center w-full"
         >
-          <div className="w-[300px] h-[150px] relative mx-auto">
+          <div className="w-[350px] h-[120px] relative mx-auto">
             <Image
               src="/login-logo.png"
               alt="Guazú - Argentina - Santa Fe - Encuestas"

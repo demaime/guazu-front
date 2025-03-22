@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, Edit, Settings, Play, ChartBar, BarChart3, Trash2, Users, Eye, Calendar, MoreVertical, Map } from 'lucide-react';
+import { ChevronRightCircle, ChevronLeftCircle, Edit, Settings, Play, ChartBar, BarChart3, Trash2, Users, Eye, Calendar, MoreVertical, Map, ClipboardX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -78,8 +78,14 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
 
   const handleTooltip = (actionId, e, show) => {
     if (e) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      setTooltipPosition({ x: rect.x, y: rect.bottom });
+      const buttonRect = e.currentTarget.getBoundingClientRect();
+      const actionButtons = e.currentTarget.closest('.action-buttons');
+      if (actionButtons) {
+        setTooltipPosition({ 
+          x: buttonRect.left + (buttonRect.width / 2),
+          y: buttonRect.top - 10
+        });
+      }
     }
     setOpenTooltipId(show ? actionId : null);
   };
@@ -309,7 +315,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                           onClick={() => handleAction('deleteAnswers', item)}
                           className="flex items-center w-full px-3 py-1.5 text-sm text-red-500 hover:bg-[var(--hover-bg)] rounded-md"
                         >
-                          <Trash2 className="w-3.5 h-3.5 mr-2" />
+                          <ClipboardX className="w-3.5 h-3.5 mr-2" />
                           Eliminar Respuestas
                         </button>
                         <button
@@ -402,13 +408,13 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                           e.stopPropagation();
                           toggleActions(item._id);
                         }}
-                        className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+                        className="hover:bg-[var(--hover-bg)] transition-colors cursor-pointer flex items-center justify-center text-[var(--text-primary)]"
                         data-type="action"
                       >
                         {expandedActionsId === item._id ? (
-                          <ChevronRight className="w-4 h-4" />
+                          <ChevronRightCircle className="w-6 h-6" />
                         ) : (
-                          <ChevronLeft className="w-4 h-4" />
+                          <ChevronLeftCircle className="w-6 h-6" />
                         )}
                       </button>
 
@@ -533,9 +539,9 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                     }}
                                     onMouseEnter={(e) => handleTooltip(`deleteAnswers-${item._id}`, e, true)}
                                     onMouseLeave={() => handleTooltip(null, null, false)}
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-red-500 cursor-pointer"
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--secondary-light)] cursor-pointer"
                                   >
-                                    <Trash2 className="w-4 h-4" />
+                                    <ClipboardX className="w-4 h-4" />
                                   </button>
 
                                   <button
@@ -557,17 +563,22 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                             {openTooltipId && (
                               <div 
                                 ref={tooltipRef}
-                                className="absolute z-50 px-2 py-1 text-xs -top-8 rounded-md shadow-lg dark:bg-[var(--primary-dark)] bg-[var(--primary-light)] text-[var(--text-primary)] whitespace-nowrap"
-                                style={{ left: tooltipPosition.x }}
+                                className="fixed z-[9999] px-2 py-1 text-xs rounded-md shadow-lg bg-gray-900 text-white dark:bg-[var(--card-background)] dark:text-[var(--text-primary)] dark:border dark:border-[var(--card-border)] whitespace-nowrap pointer-events-none"
+                                style={{ 
+                                  left: `${tooltipPosition.x}px`,
+                                  top: `${tooltipPosition.y}px`,
+                                  transform: 'translate(-50%, -100%)',
+                                }}
                               >
-                                {openTooltipId.includes('edit') && 'Editar'}
-                                {openTooltipId.includes('settings') && 'Configuración'}
-                                {openTooltipId.includes('answer') && 'Responder'}
-                                {openTooltipId.includes('quotas') && 'Cuotas'}
-                                {openTooltipId.includes('progress') && 'Progreso'}
-                                {openTooltipId.includes('pollsters') && 'Asignar Encuestadores'}
-                                {openTooltipId.includes('deleteAnswers') && 'Eliminar Respuestas'}
-                                {openTooltipId.includes('delete') && 'Eliminar Encuesta'}
+                                {openTooltipId.includes('edit') ? 'Editar' :
+                                openTooltipId.includes('settings') ? 'Configuración' :
+                                openTooltipId.includes('answer') ? 'Responder' :
+                                openTooltipId.includes('map') ? 'Ver Mapa' :
+                                openTooltipId.includes('quotas') ? 'Cuotas' :
+                                openTooltipId.includes('progress') ? 'Progreso' :
+                                openTooltipId.includes('pollsters') ? 'Asignar Encuestadores' :
+                                openTooltipId.includes('deleteAnswers') ? 'Eliminar Respuestas' :
+                                openTooltipId.includes('delete') ? 'Eliminar Encuesta' : ''}
                               </div>
                             )}
                           </motion.div>
