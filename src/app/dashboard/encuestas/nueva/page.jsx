@@ -113,7 +113,7 @@ export default function NuevaEncuesta() {
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="min-h-screen flex items-center justify-center bg-[var(--background)]"
+        className="h-full flex items-center justify-center bg-[var(--background)]"
       >
         <motion.div
           initial={{ y: -20 }}
