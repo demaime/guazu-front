@@ -381,10 +381,10 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                       {openDescriptionId === item._id && (
                         <div 
                           ref={descriptionRef}
-                          className="absolute z-50 w-64 -left-28 bottom-full mb-1 rounded-md shadow-lg dark:bg-[var(--primary-light)] bg-[var(--primary-light)] "
+                          className="absolute z-50 w-64 -left-28 bottom-full mb-1 rounded-md shadow-lg dark:bg-[var(--primary)] bg-[var(--primary)] border border-[var(--card-border)]"
                         >
-                          <div className="p-4">
-                            <p className="text-sm text-[var(--text-primary)] whitespace-normal">
+                          <div className="p-2">
+                            <p className="text-sm text-gray-100 whitespace-normal">
                               {surveyData.description?.es || 'Sin descripción'}
                             </p>
                           </div>

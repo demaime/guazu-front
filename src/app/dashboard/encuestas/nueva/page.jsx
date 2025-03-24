@@ -8,14 +8,17 @@ import { surveyService } from '@/services/survey.service';
 import { userService } from '@/services/user.service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Save } from 'lucide-react';
+import { Loader } from '@/components/ui/Loader';
 import "survey-core/survey-core.css";
+import { authService } from '@/services/auth.service';
+import { TransferModal } from '@/components/TransferModal';
 
 // Pasos del wizard
 const STEPS = {
-  BASIC_INFO: 0,
-  PARTICIPANTS: 1,
-  QUESTIONS: 2,
-  PREVIEW: 3
+  INFORMACION_BASICA: 0,
+  PARTICIPANTES: 1,
+  PREGUNTAS: 2,
+  VISTA_PREVIA: 3
 };
 
 const slideVariants = {
@@ -38,10 +41,12 @@ const slideVariants = {
 export default function NuevaEncuesta() {
   const router = useRouter();
   const [[page, direction], setPage] = useState([0, 0]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState(null);
   const [users, setUsers] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
+  const [user, setUser] = useState(null);
   const [surveyData, setSurveyData] = useState({
     basicInfo: {
       title: '',
@@ -56,6 +61,72 @@ export default function NuevaEncuesta() {
     },
     questions: []
   });
+  const [showPollstersModal, setShowPollstersModal] = useState(false);
+  const [showSupervisorsModal, setShowSupervisorsModal] = useState(false);
+
+  // Verificar permisos al cargar el componente
+  useEffect(() => {
+    const checkPermissions = async () => {
+      try {
+        const userData = authService.getUser();
+        if (!userData) {
+          router.replace('/login');
+          return;
+        }
+
+        // Solo permitir acceso a admin y supervisor
+        if (!['ROLE_ADMIN', 'SUPERVISOR'].includes(userData.role)) {
+          router.replace('/dashboard');
+          return;
+        }
+
+        setUser(userData);
+        
+        // Cargar usuarios y supervisores
+        try {
+          const [usersResponse, supervisorsResponse] = await Promise.all([
+            userService.getPollsters(),
+            userService.getSupervisors()
+          ]);
+          
+          setUsers(usersResponse.users || []);
+          setSupervisors(supervisorsResponse.supervisors || []);
+          setIsLoading(false);
+        } catch (err) {
+          console.error('Error loading users and supervisors:', err);
+          setError('Error al cargar usuarios y supervisores. Por favor, intente nuevamente.');
+          setIsLoading(false);
+        }
+        setIsInitializing(false);
+      } catch (err) {
+        console.error('Error checking permissions:', err);
+        router.replace('/dashboard');
+      }
+    };
+
+    checkPermissions();
+  }, []);
+
+  // Si está inicializando, mostrar pantalla de carga
+  if (isInitializing) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen flex items-center justify-center bg-[var(--background)]"
+      >
+        <motion.div
+          initial={{ y: -20 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="flex flex-col items-center gap-4"
+        >
+          <Loader size="xl" className="text-primary" />
+          <p className="text-[var(--text-secondary)]">Verificando permisos...</p>
+        </motion.div>
+      </motion.div>
+    );
+  }
 
   // Navegación entre pasos
   const paginate = (newDirection) => {
@@ -67,15 +138,15 @@ export default function NuevaEncuesta() {
   // Validar si se puede avanzar al siguiente paso
   const canProceed = () => {
     switch (page) {
-      case STEPS.BASIC_INFO:
+      case STEPS.INFORMACION_BASICA:
         return surveyData.basicInfo.title && 
                surveyData.basicInfo.description && 
                surveyData.basicInfo.startDate && 
                surveyData.basicInfo.endDate && 
                surveyData.basicInfo.target > 0;
-      case STEPS.PARTICIPANTS:
+      case STEPS.PARTICIPANTES:
         return surveyData.participants.userIds.length > 0;
-      case STEPS.QUESTIONS:
+      case STEPS.PREGUNTAS:
         return surveyData.questions.length > 0;
       default:
         return true;
@@ -116,30 +187,10 @@ export default function NuevaEncuesta() {
     }
   };
 
-  // Cargar usuarios y supervisores
-  useEffect(() => {
-    const loadUsersAndSupervisors = async () => {
-      try {
-        const [usersResponse, supervisorsResponse] = await Promise.all([
-          userService.getPollsters(),
-          userService.getSupervisors()
-        ]);
-        
-        setUsers(usersResponse.users || []);
-        setSupervisors(supervisorsResponse.supervisors || []);
-      } catch (err) {
-        console.error('Error loading users and supervisors:', err);
-        setError('Error al cargar usuarios y supervisores');
-      }
-    };
-
-    loadUsersAndSupervisors();
-  }, []);
-
   // Renderizar paso actual
   const renderStep = () => {
     switch (page) {
-      case STEPS.BASIC_INFO:
+      case STEPS.INFORMACION_BASICA:
         return (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">Información Básica</h2>
@@ -247,71 +298,119 @@ export default function NuevaEncuesta() {
           </div>
         );
 
-      case STEPS.PARTICIPANTS:
+      case STEPS.PARTICIPANTES:
         return (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <h2 className="text-xl font-semibold">Participantes</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Encuestadores
-                </label>
-                <select
-                  multiple
-                  value={surveyData.participants.userIds}
-                  onChange={(e) => setSurveyData(prev => ({
-                    ...prev,
-                    participants: {
-                      ...prev.participants,
-                      userIds: Array.from(e.target.selectedOptions, option => option.value)
-                    }
-                  }))}
-                  className="w-full p-2 border rounded-md"
-                  size={6}
+            
+            {/* Encuestadores */}
+            <div className="card p-6 space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Encuestadores</h3>
+                  <p className="text-text-secondary">
+                    Selecciona los encuestadores que participarán en esta encuesta. Estos usuarios serán los responsables de realizar las entrevistas y recopilar las respuestas.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPollstersModal(true)}
+                  className="btn-primary whitespace-nowrap"
                 >
-                  {users.map(user => (
-                    <option key={user._id} value={user._id}>
-                      {user.name} {user.lastName}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-gray-500 mt-1">
-                  Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples encuestadores
-                </p>
+                  Seleccionar Encuestadores
+                </button>
+              </div>
+              
+              {/* Lista de encuestadores seleccionados */}
+              {surveyData.participants.userIds.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium mb-2">Encuestadores seleccionados:</h4>
+                  <div className="space-y-2">
+                    {users
+                      .filter(user => surveyData.participants.userIds.includes(user._id))
+                      .map(user => (
+                        <div key={user._id} className="flex items-center text-sm">
+                          <span>{user.name} {user.lastName}</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Supervisores */}
+            <div className="card p-6 space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Supervisores</h3>
+                  <p className="text-text-secondary">
+                    Asigna supervisores para monitorear el progreso de la encuesta. Los supervisores podrán ver estadísticas y gestionar a los encuestadores asignados.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSupervisorsModal(true)}
+                  className="btn-primary whitespace-nowrap"
+                >
+                  Seleccionar Supervisores
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Supervisores
-                </label>
-                <select
-                  multiple
-                  value={surveyData.participants.supervisorsIds}
-                  onChange={(e) => setSurveyData(prev => ({
-                    ...prev,
-                    participants: {
-                      ...prev.participants,
-                      supervisorsIds: Array.from(e.target.selectedOptions, option => option.value)
+              {/* Lista de supervisores seleccionados */}
+              {surveyData.participants.supervisorsIds.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium mb-2">Supervisores seleccionados:</h4>
+                  <div className="space-y-2">
+                    {supervisors
+                      .filter(supervisor => surveyData.participants.supervisorsIds.includes(supervisor._id))
+                      .map(supervisor => (
+                        <div key={supervisor._id} className="flex items-center text-sm">
+                          <span>{supervisor.name} {supervisor.lastName}</span>
+                        </div>
+                      ))
                     }
-                  }))}
-                  className="w-full p-2 border rounded-md"
-                  size={6}
-                >
-                  {supervisors.map(supervisor => (
-                    <option key={supervisor._id} value={supervisor._id}>
-                      {supervisor.name} {supervisor.lastName}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-gray-500 mt-1">
-                  Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples supervisores
-                </p>
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Modales */}
+            <TransferModal
+              isOpen={showPollstersModal}
+              onClose={() => setShowPollstersModal(false)}
+              title="Seleccionar Encuestadores"
+              availableItems={users}
+              selectedItems={users.filter(user => surveyData.participants.userIds.includes(user._id))}
+              onSave={(selected) => {
+                setSurveyData(prev => ({
+                  ...prev,
+                  participants: {
+                    ...prev.participants,
+                    userIds: selected.map(user => user._id)
+                  }
+                }));
+              }}
+            />
+
+            <TransferModal
+              isOpen={showSupervisorsModal}
+              onClose={() => setShowSupervisorsModal(false)}
+              title="Seleccionar Supervisores"
+              availableItems={supervisors}
+              selectedItems={supervisors.filter(supervisor => surveyData.participants.supervisorsIds.includes(supervisor._id))}
+              onSave={(selected) => {
+                setSurveyData(prev => ({
+                  ...prev,
+                  participants: {
+                    ...prev.participants,
+                    supervisorsIds: selected.map(supervisor => supervisor._id)
+                  }
+                }));
+              }}
+            />
           </div>
         );
 
-      case STEPS.QUESTIONS:
+      case STEPS.PREGUNTAS:
         return (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">Preguntas</h2>
@@ -322,7 +421,7 @@ export default function NuevaEncuesta() {
           </div>
         );
 
-      case STEPS.PREVIEW:
+      case STEPS.VISTA_PREVIA:
         return (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">Vista Previa</h2>
@@ -336,9 +435,9 @@ export default function NuevaEncuesta() {
   };
 
   return (
-    <div className="h-full bg-background">
+    <div className="h-full" style={{ backgroundColor: 'var(--background)' }}>
       {/* Barra superior con progreso */}
-      <div className="bg-card-background border-card-border sticky top-0 z-10">
+      <div className="card sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-3">
             <div className="flex items-center justify-between">
@@ -364,7 +463,7 @@ export default function NuevaEncuesta() {
                     className={`px-4 py-2 rounded-md ${
                       canProceed()
                         ? 'btn-primary'
-                        : 'bg-gray-200 dark:bg-gray-700 text-text-muted cursor-not-allowed'
+                        : 'disabled-button'
                     }`}
                   >
                     Siguiente
@@ -413,19 +512,21 @@ export default function NuevaEncuesta() {
                     value < page
                       ? 'bg-primary text-white'
                       : value === page
-                      ? 'bg-card-background border-2 border-primary text-primary'
-                      : 'bg-gray-200 dark:bg-gray-700 text-text-muted'
+                      ? 'card border-2 border-primary text-primary'
+                      : 'disabled-step'
                   }`}
                 >
                   {value + 1}
                 </div>
                 <div className="ml-2 text-sm hidden sm:block">
-                  {key.replace('_', ' ')}
+                  {key.replace('_', ' ')
+                    .replace('INFORMACION BASICA', 'INFORMACIÓN BÁSICA')
+                    .replace('VISTA PREVIA', 'VISTA PREVIA')}
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-2 h-1 bg-gray-200 dark:bg-gray-700 rounded-full">
+          <div className="mt-2 h-1 disabled-step rounded-full">
             <div
               className="h-1 bg-primary rounded-full transition-all duration-300"
               style={{ width: `${(page / 3) * 100}%` }}
@@ -446,7 +547,7 @@ export default function NuevaEncuesta() {
               x: { type: "spring", stiffness: 300, damping: 30 },
               opacity: { duration: 0.2 }
             }}
-            className="bg-card-background border border-card-border rounded-lg shadow-sm p-6"
+            className="card p-6"
           >
             {renderStep()}
           </motion.div>

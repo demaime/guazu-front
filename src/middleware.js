@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 const protectedRoutes = {
   '/dashboard/usuarios': ['ROLE_ADMIN', 'SUPERVISOR'],
   '/dashboard/encuestas': ['ROLE_ADMIN', 'SUPERVISOR', 'POLLSTER'],
+  '/dashboard/encuestas/nueva': ['ROLE_ADMIN', 'SUPERVISOR'],
   '/dashboard/configuracion': ['ROLE_ADMIN', 'SUPERVISOR', 'POLLSTER']
 };
 
