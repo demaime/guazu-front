@@ -137,20 +137,113 @@ export default function ResponderEncuesta() {
   // Crear el modelo de la encuesta usando la estructura correcta
   const surveyModel = new Model(survey);
 
+  // Configuración básica del modelo
+  surveyModel.mode = "edit";
+  surveyModel.showProgressBar = "bottom";
+  surveyModel.showQuestionNumbers = true;
+  surveyModel.pageNextText = "Siguiente";
+  surveyModel.pagePrevText = "Anterior";
+  surveyModel.completeText = "Finalizar";
+  surveyModel.showPrevButton = true;
+  surveyModel.showCompletedPage = true;
+  surveyModel.completedHtml = "<h4>¡Gracias por completar la encuesta!</h4>";
+  surveyModel.requiredText = "Por favor responde esta pregunta.";
+  surveyModel.checkErrorsMode = "onNextPage";
+  surveyModel.questionErrorLocation = "bottom";
+  surveyModel.showPreviewBeforeComplete = "noPreview";
+
+  // Convertir cada pregunta en una página separada
+  const questions = surveyModel.getAllQuestions();
+  questions.forEach((question) => {
+    question.isRequired = true; // Mantenemos las preguntas como requeridas
+    const page = surveyModel.addNewPage(question.name);
+    page.addQuestion(question);
+  });
+
+  // Eliminar la página por defecto que contiene todas las preguntas
+  surveyModel.pages.splice(0, 1);
+
+  // Configurar estilos personalizados
+  surveyModel.css = {
+    root: "survey-container",
+    container: "p-4",
+    header: "mb-4",
+    body: "transition-all duration-300 ease-in-out",
+    page: {
+      root: "page-container",
+      title: "text-xl font-semibold mb-4",
+    },
+    navigation: {
+      complete:
+        "bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors",
+      prev: "bg-secondary text-white px-4 py-2 rounded-md hover:bg-secondary-dark transition-colors mr-2",
+      next: "bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors",
+      progressBar: "bg-gray-200 dark:bg-gray-700 rounded-full h-2",
+      progressBarFill:
+        "bg-primary h-2 rounded-full transition-all duration-300 ease-in-out",
+    },
+    question: {
+      root: "mb-6",
+      title: "text-lg font-medium mb-4",
+      description: "text-text-secondary mb-2",
+      required: "text-red-500 ml-1",
+      error: {
+        root: "text-red-500 mt-2 text-sm",
+      },
+    },
+    text: {
+      root: "w-full",
+      input:
+        "w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors",
+    },
+    radiogroup: {
+      root: "space-y-2",
+      item: "flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors",
+      itemChecked: "bg-gray-100 dark:bg-gray-700",
+      itemControl:
+        "h-4 w-4 text-primary border-gray-300 dark:border-gray-600 focus:ring-primary",
+      itemText: "ml-2 text-gray-900 dark:text-white",
+    },
+    checkbox: {
+      root: "space-y-2",
+      item: "flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors",
+      itemChecked: "bg-gray-100 dark:bg-gray-700",
+      itemControl:
+        "h-4 w-4 text-primary border-gray-300 dark:border-gray-600 focus:ring-primary",
+      itemText: "ml-2 text-gray-900 dark:text-white",
+    },
+  };
+
+  // Configuración para prevenir avanzar si no hay respuesta
+  surveyModel.onCurrentPageChanging.add((sender, options) => {
+    if (options.isNextPage) {
+      const currentPage = sender.currentPage;
+      if (!currentPage || currentPage.questions[0].isEmpty()) {
+        options.allowChanging = false;
+      }
+    }
+  });
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h1 className="text-2xl font-bold mb-6">
+      <div className="bg-card-background border border-card-border rounded-lg shadow-lg p-6">
+        <h1 className="text-2xl font-bold mb-6 text-text-primary">
           {survey.title?.es || survey.title?.default || "Sin título"}
         </h1>
         <div className="prose max-w-none mb-6">
-          <p>
+          <p className="text-text-secondary">
             {survey.description?.es ||
               survey.description?.default ||
               "Sin descripción"}
           </p>
         </div>
-        <Survey model={surveyModel} onComplete={handleComplete} />
+        <div className="transition-all duration-300 ease-in-out">
+          <Survey
+            model={surveyModel}
+            onComplete={handleComplete}
+            css={{ root: "survey-custom-container" }}
+          />
+        </div>
       </div>
     </div>
   );
