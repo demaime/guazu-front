@@ -57,7 +57,11 @@ const useConfirmNavigation = (shouldConfirm) => {
   }, [shouldConfirm]);
 };
 
-export default function NuevaEncuesta() {
+export default function NuevaEncuesta({
+  isEditing = false,
+  surveyId = null,
+  initialData = null,
+}) {
   const router = useRouter();
   const [[page, direction], setPage] = useState([0, 0]);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,20 +70,22 @@ export default function NuevaEncuesta() {
   const [users, setUsers] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
   const [user, setUser] = useState(null);
-  const [surveyData, setSurveyData] = useState({
-    basicInfo: {
-      title: "",
-      description: "",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date().toISOString().split("T")[0],
-      target: 100,
-    },
-    participants: {
-      userIds: [],
-      supervisorsIds: [],
-    },
-    questions: [],
-  });
+  const [surveyData, setSurveyData] = useState(
+    initialData || {
+      basicInfo: {
+        title: "",
+        description: "",
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: new Date().toISOString().split("T")[0],
+        target: 100,
+      },
+      participants: {
+        userIds: [],
+        supervisorsIds: [],
+      },
+      questions: [],
+    }
+  );
   const [showPollstersModal, setShowPollstersModal] = useState(false);
   const [showSupervisorsModal, setShowSupervisorsModal] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
@@ -193,17 +199,90 @@ export default function NuevaEncuesta() {
       setIsLoading(true);
       setError(null);
 
+      // Crear la estructura de la encuesta en el formato esperado por SurveyJS
+      const surveyJSFormat = {
+        locale: "es",
+        title: surveyData.basicInfo.title,
+        description: surveyData.basicInfo.description,
+        pages: [
+          {
+            name: "page1",
+            elements: surveyData.questions.map((question) => {
+              // Convertir el formato interno al formato de SurveyJS
+              const baseQuestion = {
+                type: question.type,
+                name: question.id,
+                title: question.title,
+                description: question.description,
+                isRequired: question.required,
+              };
+
+              // Agregar propiedades específicas según el tipo
+              switch (question.type) {
+                case "multiple_choice":
+                  return {
+                    ...baseQuestion,
+                    type: "checkbox",
+                    choices: question.options.map((opt) => ({
+                      value: opt.id,
+                      text: { es: opt.text },
+                    })),
+                  };
+                case "single_choice":
+                  return {
+                    ...baseQuestion,
+                    type: "radiogroup",
+                    choices: question.options.map((opt) => ({
+                      value: opt.id,
+                      text: { es: opt.text },
+                    })),
+                  };
+                case "checkbox":
+                  return {
+                    ...baseQuestion,
+                    choices: question.options.map((opt) => ({
+                      value: opt.id,
+                      text: { es: opt.text },
+                    })),
+                  };
+                case "matrix":
+                  return {
+                    ...baseQuestion,
+                    rows: question.matrixRows.map((row) => ({
+                      value: row.id,
+                      text: { es: row.text },
+                    })),
+                    columns: question.matrixColumns.map((col) => ({
+                      value: col.id,
+                      text: { es: col.text },
+                    })),
+                  };
+                case "rating":
+                  return {
+                    ...baseQuestion,
+                    rateMax: 5,
+                  };
+                default:
+                  return baseQuestion;
+              }
+            }),
+          },
+        ],
+        showProgressBar: "top",
+        progressBarType: "questions",
+        showPrevButton: true,
+        showQuestionNumbers: "on",
+        completeText: "Finalizar",
+        pageNextText: "Siguiente",
+        pagePrevText: "Anterior",
+        requiredText: "(*) Indica una respuesta requerida.",
+        questionTitlePattern: "N° {num}. {title}",
+        requiredErrorText: "Por favor responda la pregunta.",
+        questionsOnPageMode: "singlePage",
+      };
+
       const dataToSave = {
-        survey: {
-          title: surveyData.basicInfo.title,
-          description: surveyData.basicInfo.description,
-          pages: [
-            {
-              name: "page1",
-              elements: surveyData.questions,
-            },
-          ],
-        },
+        survey: surveyJSFormat,
         surveyInfo: {
           startDate: surveyData.basicInfo.startDate,
           endDate: surveyData.basicInfo.endDate,
@@ -213,7 +292,7 @@ export default function NuevaEncuesta() {
         },
       };
 
-      await surveyService.createOrUpdateSurvey(dataToSave);
+      await surveyService.createOrUpdateSurvey(dataToSave, surveyId);
       router.push("/dashboard/encuestas");
     } catch (err) {
       console.error("Error saving survey:", err);
@@ -693,137 +772,101 @@ export default function NuevaEncuesta() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[var(--background)]">
-      {/* Modal de confirmación */}
-      <ConfirmModal
-        isOpen={showConfirmCancel}
-        onClose={() => setShowConfirmCancel(false)}
-        onConfirm={() => router.back()}
-        title="Confirmar cancelación"
-        message="¿Estás seguro que deseas salir? Los cambios no guardados se perderán."
-      />
+    <div className="min-h-screen flex flex-col">
+      {/* Header fijo */}
+      <div className="sticky top-0 z-50 bg-background border-b">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-8">
+            <button
+              onClick={() => paginate(-1)}
+              disabled={page === 0}
+              className={`px-4 py-2 ${
+                page === 0
+                  ? "disabled-button"
+                  : "bg-primary text-white rounded-md hover:bg-primary/90 transition-colors cursor-pointer"
+              }`}
+            >
+              Anterior
+            </button>
 
-      {/* Barra de navegación con pasos - Fija */}
-      <div className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--background)]">
-        <div className="max-w-7xl mx-auto px-2">
-          <div className="h-16 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <button
-                onClick={handleCancel}
-                className="p-2 hover:bg-hover-bg rounded-full transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-12">
-                {Object.entries(STEPS).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className={`flex items-center ${
-                      value < page
-                        ? "text-primary"
-                        : value === page
-                        ? "text-text-primary"
-                        : "text-text-muted"
-                    }`}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        value < page
-                          ? "bg-primary text-white"
-                          : value === page
-                          ? "border-2 border-primary text-primary"
-                          : "border border-[var(--border)]"
-                      }`}
-                    >
-                      {value + 1}
-                    </div>
-                    <span className="ml-3 text-sm">
-                      {key
-                        .replace("_", " ")
-                        .replace("INFORMACION BASICA", "INFORMACIÓN BÁSICA")
-                        .replace("VISTA PREVIA", "VISTA PREVIA")}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={handleCancel}
-                className="px-4 py-2 rounded-md border border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-              >
-                Cancelar
-              </button>
-              {page > 0 && (
+            <div className="flex items-center gap-8">
+              {Object.entries(STEPS).map(([key, value]) => (
                 <button
-                  onClick={() => paginate(-1)}
-                  className="px-4 py-2 rounded-md border border-[var(--border)] hover:bg-hover-bg transition-colors"
-                >
-                  Anterior
-                </button>
-              )}
-              {page < 3 ? (
-                <button
-                  onClick={() => paginate(1)}
-                  disabled={!canProceed()}
-                  className={`px-4 py-2 rounded-md ${
-                    canProceed() ? "btn-primary" : "disabled-button"
+                  key={value}
+                  onClick={() => paginate(value - page)}
+                  className={`flex items-center gap-2 cursor-pointer ${
+                    value === page
+                      ? "text-primary"
+                      : "text-text-secondary hover:text-text-primary"
                   }`}
                 >
-                  Siguiente
+                  <div
+                    className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+                      value === page
+                        ? "border-primary text-primary"
+                        : "border-text-secondary text-text-secondary"
+                    }`}
+                  >
+                    {value + 1}
+                  </div>
+                  <span className="font-medium">{key.replace("_", " ")}</span>
                 </button>
-              ) : (
-                <button
-                  onClick={handleSave}
-                  disabled={isLoading}
-                  className="btn-primary flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Guardar Encuesta</span>
-                </button>
-              )}
+              ))}
             </div>
+
+            <button
+              onClick={() => paginate(1)}
+              disabled={page === 3 || !canProceed()}
+              className={`px-4 py-2 ${
+                page === 3 || !canProceed()
+                  ? "disabled-button"
+                  : "bg-primary text-white rounded-md hover:bg-primary/90 transition-colors cursor-pointer"
+              }`}
+            >
+              Siguiente
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 text-red-500 border border-red-500 rounded-md hover:bg-red-50 transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isLoading}
+              className="btn-primary flex items-center gap-2 cursor-pointer"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isEditing ? "Guardar Cambios" : "Guardar Encuesta"}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Contenedor principal */}
+      {/* Contenido principal con scroll */}
       <div className="flex-1 overflow-auto">
-        {/* Área de contenido */}
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto py-6">
-            {/* Mensajes de error */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 rounded-md"
-              >
-                {error}
-              </motion.div>
-            )}
-
-            {/* Contenido del paso actual */}
-            <AnimatePresence mode="wait" initial={false} custom={direction}>
-              <motion.div
-                key={page}
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  x: { type: "spring", stiffness: 300, damping: 30 },
-                  opacity: { duration: 0.2 },
-                }}
-                className="bg-[var(--background)]"
-              >
-                {renderStep()}
-              </motion.div>
-            </AnimatePresence>
+        <div className="container mx-auto max-w-5xl py-8">
+          <div className="overflow-x-hidden">
+            {page === STEPS.INFORMACION_BASICA && renderStep()}
+            {page === STEPS.PARTICIPANTES && renderStep()}
+            {page === STEPS.PREGUNTAS && renderStep()}
+            {page === STEPS.VISTA_PREVIA && renderStep()}
           </div>
         </div>
       </div>
+
+      {showConfirmCancel && (
+        <ConfirmModal
+          isOpen={showConfirmCancel}
+          onClose={() => setShowConfirmCancel(false)}
+          onConfirm={handleCancel}
+          title="Confirmar cancelación"
+          message="¿Estás seguro que deseas salir? Los cambios no guardados se perderán."
+        />
+      )}
     </div>
   );
 }

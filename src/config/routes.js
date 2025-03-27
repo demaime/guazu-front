@@ -1,4 +1,4 @@
-import { API_URL } from './constants';
+import { API_URL } from "./constants";
 
 // Rutas de autenticación
 export const AUTH_ROUTES = {
@@ -15,7 +15,7 @@ export const SURVEY_ROUTES = {
   BY_ID: (id) => `${API_URL}/api/survey/${id}`,
   BY_USER_ID: `${API_URL}/api/surveyByUserId`,
   DELETE: (id) => `${API_URL}/api/delete-survey/${id}`,
-  GET: (id) => `${API_URL}/api/survey/${id}`,
+  GET: (id) => `${API_URL}/api/surveyById/${id}`,
   ANSWERS: (id) => `${API_URL}/api/answerBySurveyId/${id}`,
 };
 
@@ -33,4 +33,4 @@ export const USER_ROUTES = {
   GET_SUPERVISORS: `${API_URL}/api/getsupervisors`,
   GET_BY_ID: (id) => `${API_URL}/api/getUserById/${id}`,
   DELETE: (id) => `${API_URL}/api/deleteUser/${id}`,
-}; 
+};
