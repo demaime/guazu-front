@@ -31,13 +31,7 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: ["localhost:3000", "guazu-app.onrender.com"],
     },
-  },
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.css$/,
-      use: ["style-loader", "css-loader"],
-    });
-    return config;
+    turbo: {},
   },
 };
 
