@@ -1,4 +1,6 @@
+const globals = require("globals");
 const js = require("@eslint/js");
+// const tseslint = require("typescript-eslint"); // Probablemente no necesario si no hay TS
 const nextPlugin = require("@next/eslint-plugin-next");
 const reactPlugin = require("eslint-plugin-react");
 const reactHooksPlugin = require("eslint-plugin-react-hooks");
@@ -6,7 +8,13 @@ const reactHooksPlugin = require("eslint-plugin-react-hooks");
 module.exports = [
   js.configs.recommended,
   {
-    files: ["**/*.{js,jsx}"],
+    // Configuración global aplica a todos los archivos
+    languageOptions: {
+      globals: {
+        ...globals.browser, // <-- Añadir globales del navegador
+        ...globals.node, // Mantener globales de Node si son necesarios
+      },
+    },
     plugins: {
       react: reactPlugin,
       "react-hooks": reactHooksPlugin,

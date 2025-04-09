@@ -94,7 +94,8 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
   }, [expandedActionsId]);
 
   const toggleActions = (surveyId) => {
-    setExpandedActionsId(expandedActionsId === surveyId ? null : surveyId);
+    const newId = expandedActionsId === surveyId ? null : surveyId;
+    setExpandedActionsId(newId);
   };
 
   const handleTooltip = (actionId, e, show) => {
@@ -125,50 +126,56 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
       const rect = e.currentTarget.getBoundingClientRect();
       setTooltipPosition({ x: rect.x, y: rect.bottom });
     }
-    setOpenDescriptionId(openDescriptionId === surveyId ? null : surveyId);
+    const newId = openDescriptionId === surveyId ? null : surveyId;
+    setOpenDescriptionId(newId);
   };
 
   const handleAction = (action, surveyData) => {
+    const surveyId = surveyData._id || surveyData.survey?._id;
+    if (!surveyId) {
+      console.error("No se encontró el ID de la encuesta:", surveyData);
+      return;
+    }
+
     switch (action) {
       case "edit":
-        router.push(`/dashboard/encuestas/${surveyData._id}/editar`);
+        router.push(`/dashboard/encuestas/${surveyId}/editar`);
         break;
       case "settings":
-        router.push(`/dashboard/encuestas/${surveyData._id}/configuracion`);
+        router.push(`/dashboard/encuestas/${surveyId}/configuracion`);
         break;
       case "answer":
-        router.push(`/dashboard/encuestas/${surveyData._id}/responder`);
+        router.push(`/dashboard/encuestas/${surveyId}/responder`);
         break;
       case "quotas":
-        router.push(`/dashboard/encuestas/${surveyData._id}/cuotas`);
+        router.push(`/dashboard/encuestas/${surveyId}/cuotas`);
         break;
       case "progress":
-        router.push(`/dashboard/encuestas/${surveyData._id}/progreso`);
+        router.push(`/dashboard/encuestas/${surveyId}/progreso`);
         break;
       case "pollsters":
-        router.push(`/dashboard/encuestas/${surveyData._id}/encuestadores`);
+        router.push(`/dashboard/encuestas/${surveyId}/encuestadores`);
         break;
       case "map":
-        router.push(`/dashboard/encuestas/${surveyData._id}/mapa`);
+        router.push(`/dashboard/encuestas/${surveyId}/mapa`);
         break;
       case "delete":
-        onDelete(surveyData._id);
+        onDelete(surveyId);
         break;
       case "deleteAnswers":
-        onDeleteAnswers(surveyData._id);
+        onDeleteAnswers(surveyId);
         break;
     }
     setExpandedActionsId(null);
     setOpenTooltipId(null);
   };
 
-  // Función auxiliar para obtener el texto localizado
   const getLocalizedText = (textObj, defaultText = "Sin definir") => {
     if (!textObj) return defaultText;
+    if (typeof textObj === "string") return textObj;
     return textObj.es || defaultText;
   };
 
-  // Función para formatear la fecha
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {
@@ -182,7 +189,6 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
     }
   };
 
-  // Función para calcular el progreso
   const calculateProgress = (totalAnswers, target) => {
     if (!target || target === 0) return "0%";
     const progress = (totalAnswers / target) * 100;
@@ -193,11 +199,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
     return (
       <div className="space-y-3">
         {surveys.map((item, index) => {
-          const surveyData = item.survey || {};
+          const surveyData = item;
           const surveyInfo = item.surveyInfo || {};
           return (
             <div
-              key={item._id}
+              key={surveyData._id}
               className={`rounded-lg p-3 shadow-sm ${
                 index % 2 === 0
                   ? "dark:bg-[var(--primary)] bg-[var(--primary-light)]"
@@ -206,10 +212,10 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
             >
               <div className="flex justify-between items-start mb-2">
                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-                  {surveyData.title?.es || "Sin título"}
+                  {getLocalizedText(surveyData.survey?.title) || "Sin título"}
                 </h3>
                 <button
-                  onClick={(e) => toggleMenu(item._id, e)}
+                  onClick={(e) => toggleMenu(surveyData._id, e)}
                   className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-all text-[var(--text-primary)]"
                 >
                   <MoreVertical className="w-5 h-5" />
@@ -220,7 +226,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                 <div className="flex items-center gap-1.5">
                   <Eye className="w-3.5 h-3.5" />
                   <button
-                    onClick={(e) => toggleDescription(item._id, e)}
+                    onClick={(e) => toggleDescription(surveyData._id, e)}
                     className="text-left hover:text-[var(--text-primary)] transition-colors"
                   >
                     Ver descripción
@@ -266,29 +272,30 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                 </div>
               </div>
 
-              {openDescriptionId === item._id && (
+              {openDescriptionId === surveyData._id && (
                 <div
                   ref={descriptionRef}
                   className="mt-3 p-2.5 rounded-md bg-[var(--background)] text-xs text-[var(--text-primary)]"
                 >
-                  {surveyData.description?.es || "Sin descripción"}
+                  {getLocalizedText(surveyData.survey?.description) ||
+                    "Sin descripción"}
                 </div>
               )}
 
-              {openMenuId === item._id && (
+              {openMenuId === surveyData._id && (
                 <div className="mt-3 border-t border-[var(--card-border)] pt-3">
                   <div className="space-y-1.5">
                     {role === "ROLE_ADMIN" && (
                       <>
                         <button
-                          onClick={() => handleAction("edit", item)}
+                          onClick={() => handleAction("edit", surveyData)}
                           className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
                         >
                           <Edit className="w-3.5 h-3.5 mr-2" />
                           Editar
                         </button>
                         <button
-                          onClick={() => handleAction("settings", item)}
+                          onClick={() => handleAction("settings", surveyData)}
                           className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
                         >
                           <Settings className="w-3.5 h-3.5 mr-2" />
@@ -298,7 +305,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                     )}
 
                     <button
-                      onClick={() => handleAction("answer", item)}
+                      onClick={() => handleAction("answer", surveyData)}
                       className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
                     >
                       <Play className="w-3.5 h-3.5 mr-2" />
@@ -306,7 +313,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                     </button>
 
                     <button
-                      onClick={() => handleAction("map", item)}
+                      onClick={() => handleAction("map", surveyData)}
                       className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
                     >
                       <Map className="w-3.5 h-3.5 mr-2" />
@@ -316,14 +323,14 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                     {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
                       <>
                         <button
-                          onClick={() => handleAction("quotas", item)}
+                          onClick={() => handleAction("quotas", surveyData)}
                           className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
                         >
                           <ChartBar className="w-3.5 h-3.5 mr-2" />
                           Cuotas
                         </button>
                         <button
-                          onClick={() => handleAction("progress", item)}
+                          onClick={() => handleAction("progress", surveyData)}
                           className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
                         >
                           <BarChart3 className="w-3.5 h-3.5 mr-2" />
@@ -334,7 +341,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
 
                     {role === "SUPERVISOR" && (
                       <button
-                        onClick={() => handleAction("pollsters", item)}
+                        onClick={() => handleAction("pollsters", surveyData)}
                         className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
                       >
                         <Users className="w-3.5 h-3.5 mr-2" />
@@ -345,14 +352,16 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                     {role === "ROLE_ADMIN" && (
                       <>
                         <button
-                          onClick={() => handleAction("deleteAnswers", item)}
+                          onClick={() =>
+                            handleAction("deleteAnswers", surveyData)
+                          }
                           className="flex items-center w-full px-3 py-1.5 text-sm text-red-500 hover:bg-[var(--hover-bg)] rounded-md"
                         >
                           <ClipboardX className="w-3.5 h-3.5 mr-2" />
                           Eliminar Respuestas
                         </button>
                         <button
-                          onClick={() => handleAction("delete", item)}
+                          onClick={() => handleAction("delete", surveyData)}
                           className="flex items-center w-full px-3 py-1.5 text-sm text-red-500 hover:bg-[var(--hover-bg)] rounded-md"
                         >
                           <Trash2 className="w-3.5 h-3.5 mr-2" />
@@ -424,11 +433,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
           </thead>
           <tbody className="bg-[var(--card-background)] divide-y divide-[var(--card-border)]">
             {surveys.map((item, index) => {
-              const surveyData = item.survey || {};
+              const surveyData = item;
               const surveyInfo = item.surveyInfo || {};
               return (
                 <motion.tr
-                  key={item._id}
+                  key={surveyData._id}
                   variants={rowVariants}
                   className="table-row-hover"
                 >
@@ -436,26 +445,28 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                     {index + 1}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    {surveyData.title?.es || "Sin título"}
+                    {getLocalizedText(surveyData.survey?.title) || "Sin título"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     <div className="flex items-center justify-center relative">
                       <button
-                        onClick={(e) => toggleDescription(item._id, e)}
+                        onClick={(e) => toggleDescription(surveyData._id, e)}
                         className="p-2 rounded-md hover:bg-[var(--hover-bg)] hover:bg-opacity-50 transition-colors"
                         data-type="description"
                       >
                         <Eye className="w-5 h-5" />
                       </button>
 
-                      {openDescriptionId === item._id && (
+                      {openDescriptionId === surveyData._id && (
                         <div
                           ref={descriptionRef}
                           className="absolute z-50 w-64 -left-28 bottom-full mb-1 rounded-md shadow-lg dark:bg-[var(--primary)] bg-[var(--primary)] border border-[var(--card-border)]"
                         >
                           <div className="p-2">
                             <p className="text-sm text-gray-100 whitespace-normal">
-                              {surveyData.description?.es || "Sin descripción"}
+                              {getLocalizedText(
+                                surveyData.survey?.description
+                              ) || "Sin descripción"}
                             </p>
                           </div>
                         </div>
@@ -476,12 +487,12 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleActions(item._id);
+                          toggleActions(surveyData._id);
                         }}
                         className="hover:bg-[var(--hover-bg)] transition-colors cursor-pointer flex items-center justify-center text-[var(--text-primary)]"
                         data-type="action"
                       >
-                        {expandedActionsId === item._id ? (
+                        {expandedActionsId === surveyData._id ? (
                           <ChevronRightCircle className="w-6 h-6" />
                         ) : (
                           <ChevronLeftCircle className="w-6 h-6" />
@@ -489,7 +500,7 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                       </button>
 
                       <AnimatePresence>
-                        {expandedActionsId === item._id && (
+                        {expandedActionsId === surveyData._id && (
                           <motion.div
                             initial={{ width: 0, opacity: 0 }}
                             animate={{ width: "auto", opacity: 1 }}
@@ -504,10 +515,14 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                     data-type="action"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAction("edit", item);
+                                      handleAction("edit", surveyData);
                                     }}
                                     onMouseEnter={(e) =>
-                                      handleTooltip(`edit-${item._id}`, e, true)
+                                      handleTooltip(
+                                        `edit-${surveyData._id}`,
+                                        e,
+                                        true
+                                      )
                                     }
                                     onMouseLeave={() =>
                                       handleTooltip(null, null, false)
@@ -521,11 +536,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                     data-type="action"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAction("settings", item);
+                                      handleAction("settings", surveyData);
                                     }}
                                     onMouseEnter={(e) =>
                                       handleTooltip(
-                                        `settings-${item._id}`,
+                                        `settings-${surveyData._id}`,
                                         e,
                                         true
                                       )
@@ -544,10 +559,14 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                 data-type="action"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleAction("answer", item);
+                                  handleAction("answer", surveyData);
                                 }}
                                 onMouseEnter={(e) =>
-                                  handleTooltip(`answer-${item._id}`, e, true)
+                                  handleTooltip(
+                                    `answer-${surveyData._id}`,
+                                    e,
+                                    true
+                                  )
                                 }
                                 onMouseLeave={() =>
                                   handleTooltip(null, null, false)
@@ -562,11 +581,15 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   router.push(
-                                    `/dashboard/encuestas/${item._id}/mapa`
+                                    `/dashboard/encuestas/${surveyData._id}/mapa`
                                   );
                                 }}
                                 onMouseEnter={(e) =>
-                                  handleTooltip(`map-${item._id}`, e, true)
+                                  handleTooltip(
+                                    `map-${surveyData._id}`,
+                                    e,
+                                    true
+                                  )
                                 }
                                 onMouseLeave={() =>
                                   handleTooltip(null, null, false)
@@ -583,11 +606,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                     data-type="action"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAction("quotas", item);
+                                      handleAction("quotas", surveyData);
                                     }}
                                     onMouseEnter={(e) =>
                                       handleTooltip(
-                                        `quotas-${item._id}`,
+                                        `quotas-${surveyData._id}`,
                                         e,
                                         true
                                       )
@@ -604,11 +627,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                     data-type="action"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAction("progress", item);
+                                      handleAction("progress", surveyData);
                                     }}
                                     onMouseEnter={(e) =>
                                       handleTooltip(
-                                        `progress-${item._id}`,
+                                        `progress-${surveyData._id}`,
                                         e,
                                         true
                                       )
@@ -628,11 +651,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                   data-type="action"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleAction("pollsters", item);
+                                    handleAction("pollsters", surveyData);
                                   }}
                                   onMouseEnter={(e) =>
                                     handleTooltip(
-                                      `pollsters-${item._id}`,
+                                      `pollsters-${surveyData._id}`,
                                       e,
                                       true
                                     )
@@ -652,11 +675,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                     data-type="action"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAction("deleteAnswers", item);
+                                      handleAction("deleteAnswers", surveyData);
                                     }}
                                     onMouseEnter={(e) =>
                                       handleTooltip(
-                                        `deleteAnswers-${item._id}`,
+                                        `deleteAnswers-${surveyData._id}`,
                                         e,
                                         true
                                       )
@@ -673,11 +696,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                                     data-type="action"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAction("delete", item);
+                                      handleAction("delete", surveyData);
                                     }}
                                     onMouseEnter={(e) =>
                                       handleTooltip(
-                                        `delete-${item._id}`,
+                                        `delete-${surveyData._id}`,
                                         e,
                                         true
                                       )

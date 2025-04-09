@@ -195,6 +195,7 @@ export default function NuevaEncuesta({
 
   // Guardar encuesta
   const handleSave = async () => {
+    // console.log("[NuevaEncuesta] Starting handleSave...");
     try {
       setIsLoading(true);
       setError(null);
@@ -291,6 +292,9 @@ export default function NuevaEncuesta({
           supervisorsIds: surveyData.participants.supervisorsIds,
         },
       };
+
+      // console.log("[NuevaEncuesta] Data to send to service:", dataToSave);
+      // console.log("[NuevaEncuesta] Survey ID being passed:", surveyId);
 
       await surveyService.createOrUpdateSurvey(dataToSave, surveyId);
       router.push("/dashboard/encuestas");

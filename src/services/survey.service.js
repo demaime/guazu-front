@@ -155,7 +155,19 @@ class SurveyService {
   async deleteSurvey(surveyId) {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(SURVEY_ROUTES.DELETE(surveyId), {
+      if (!token) {
+        throw new Error("No se encontró el token de autenticación");
+      }
+
+      const url = SURVEY_ROUTES.DELETE(surveyId);
+      console.log("Deleting survey with URL:", url);
+
+      // Validar que el surveyId sea válido
+      if (!surveyId) {
+        throw new Error("El ID de la encuesta es requerido");
+      }
+
+      const response = await fetch(url, {
         method: "PUT",
         headers: new Headers({
           "Content-Type": "application/json; charset=utf-8",
@@ -165,23 +177,57 @@ class SurveyService {
         mode: "cors",
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      console.log("Delete response status:", response.status);
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("No tienes permisos para eliminar esta encuesta");
+      }
+
+      if (response.status === 404) {
+        throw new Error("La encuesta no fue encontrada");
+      }
+
+      if (response.status === 500) {
         throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+          "Error interno del servidor. Por favor, intenta más tarde"
         );
       }
 
+      // Si la respuesta no es OK y no fue manejada arriba
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        let errorMessage;
+
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage =
+            errorData.message || `Error del servidor: ${response.status}`;
+        } else {
+          const errorText = await response.text();
+          console.error("Error response (text):", errorText);
+          errorMessage =
+            "Error al eliminar la encuesta. Por favor, intenta más tarde";
+        }
+
+        throw new Error(errorMessage);
+      }
+
       const data = await response.json();
+      console.log("Delete response data:", data);
 
       if (data.error) {
-        return Promise.reject(data.validation);
+        console.error("API error:", data.error);
+        throw new Error(data.error || "Error al eliminar la encuesta");
       }
 
       return data;
     } catch (error) {
       console.error("Error in deleteSurvey:", error);
-      throw error;
+      // Propagar el error con un mensaje más amigable
+      throw new Error(
+        error.message ||
+          "No se pudo eliminar la encuesta. Por favor, intenta más tarde"
+      );
     }
   }
 
@@ -216,23 +262,37 @@ class SurveyService {
       const token = localStorage.getItem("token");
       const user = JSON.parse(localStorage.getItem("user"));
 
-      const response = await fetch(SURVEY_ROUTES.BASE, {
-        method: "PUT",
+      // Construir el cuerpo base
+      const baseBody = {
+        survey: surveyData.survey,
+        surveyInfo: {
+          ...surveyData.surveyInfo,
+          userIds:
+            surveyData.participants?.userIds ||
+            surveyData.surveyInfo?.userIds ||
+            [],
+          supervisorsIds:
+            surveyData.participants?.supervisorsIds ||
+            surveyData.surveyInfo?.supervisorsIds ||
+            [],
+        },
+      };
+
+      // Añadir 'id' solo si surveyId tiene un valor (no es null ni undefined)
+      const requestBody = surveyId ? { ...baseBody, id: surveyId } : baseBody;
+
+      const requestUrl = SURVEY_ROUTES.BASE;
+      const requestMethod = "PUT";
+
+      const response = await fetch(requestUrl, {
+        method: requestMethod,
         headers: new Headers({
           "Content-Type": "application/json; charset=utf-8",
           Authorization: token,
         }),
         credentials: "include",
         mode: "cors",
-        body: JSON.stringify({
-          id: surveyId,
-          survey: surveyData.survey,
-          surveyInfo: {
-            ...surveyData.surveyInfo,
-            userIds: surveyData.userIds || [],
-            supervisorsIds: surveyData.supervisorsIds || [],
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
