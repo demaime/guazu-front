@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 // CSS imports moved to root layout.jsx
 import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
-import { DefaultLight, DefaultDark } from "survey-core/themes";
+import { DefaultLight, DoubleBorderDark } from "survey-core/themes";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { useTheme } from "@/providers/ThemeProvider";
@@ -153,7 +153,7 @@ export default function ResponderEncuesta() {
   useEffect(() => {
     if (surveyModel) {
       if (theme === "dark") {
-        surveyModel.applyTheme(DefaultDark);
+        surveyModel.applyTheme(DoubleBorderDark);
       } else {
         surveyModel.applyTheme(DefaultLight);
       }

@@ -1,4 +1,5 @@
 import { SURVEY_ROUTES } from "@/config/routes";
+import { v1 as uuidv1 } from "uuid";
 
 class SurveyService {
   async getAllSurveys() {
@@ -311,6 +312,102 @@ class SurveyService {
       return data;
     } catch (error) {
       console.error("Error in createOrUpdateSurvey:", error);
+      throw error;
+    }
+  }
+
+  async getSurveyWithAnswers(surveyId) {
+    console.log(
+      `[SurveyService] Fetching survey and answers for ID: ${surveyId}`
+    );
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token de autenticación no encontrado.");
+      }
+
+      // 1. Obtener definición de la encuesta
+      console.log(
+        `[SurveyService] Fetching survey definition from: ${SURVEY_ROUTES.GET(
+          surveyId
+        )}`
+      );
+      const surveyResponse = await fetch(SURVEY_ROUTES.GET(surveyId), {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+      });
+
+      if (!surveyResponse.ok) {
+        // Si no se encuentra la encuesta, lanzar error específico
+        if (surveyResponse.status === 404) {
+          throw new Error(`Encuesta no encontrada (ID: ${surveyId})`);
+        }
+        const errorDataSurvey = await surveyResponse.json().catch(() => ({})); // Intentar parsear JSON, sino objeto vacío
+        throw new Error(
+          errorDataSurvey.message ||
+            `Error al obtener la encuesta: ${surveyResponse.status}`
+        );
+      }
+      const surveyData = await surveyResponse.json();
+      console.log("[SurveyService] Survey definition received:", surveyData);
+      if (surveyData.error) {
+        throw new Error(surveyData.validation || "Error en datos de encuesta");
+      }
+
+      // 2. Obtener respuestas de la encuesta
+      console.log(
+        `[SurveyService] Fetching answers from: ${SURVEY_ROUTES.ANSWERS(
+          surveyId
+        )}`
+      );
+      const answersResponse = await fetch(SURVEY_ROUTES.ANSWERS(surveyId), {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+      });
+
+      // No lanzamos error si no hay respuestas, simplemente devolvemos array vacío
+      let answersData = { answersBySurveyId: [] };
+      if (answersResponse.ok) {
+        answersData = await answersResponse.json();
+        console.log("[SurveyService] Answers received:", answersData);
+      } else {
+        console.warn(
+          `[SurveyService] Could not fetch answers for survey ${surveyId}, status: ${answersResponse.status}. Proceeding without answers.`
+        );
+      }
+
+      // 3. Combinar y devolver
+      const combinedData = {
+        // Asegurarnos de devolver la estructura correcta de la encuesta
+        survey: surveyData.survey?.survey || surveyData.survey || null,
+        answers: answersData.answersBySurveyId || [],
+      };
+      console.log("[SurveyService] Combined data:", combinedData);
+
+      // Verificar si la encuesta en sí es null después de extraerla
+      if (!combinedData.survey) {
+        throw new Error(
+          `Definición de encuesta no encontrada o inválida dentro de la respuesta (ID: ${surveyId})`
+        );
+      }
+
+      return combinedData;
+    } catch (error) {
+      console.error(
+        `[SurveyService] Error in getSurveyWithAnswers for ID ${surveyId}:`,
+        error
+      );
+      // Re-lanzar el error para que el componente lo maneje
       throw error;
     }
   }
