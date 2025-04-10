@@ -11,25 +11,30 @@ import {
   Users,
   Eye,
   Calendar,
-  MoreVertical,
   Map,
   ClipboardX,
+  ChevronDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
+import { ConfirmModal } from "./ConfirmModal";
 
-export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
+export function SurveyList({
+  surveys,
+  onDelete,
+  onDeleteAnswers,
+  role,
+  isFinished,
+}) {
   const router = useRouter();
   const { isMobile } = useWindowSize();
-  const [openMenuId, setOpenMenuId] = useState(null);
-  const [openDescriptionId, setOpenDescriptionId] = useState(null);
+  const [expandedCardId, setExpandedCardId] = useState(null);
   const [expandedActionsId, setExpandedActionsId] = useState(null);
   const [openTooltipId, setOpenTooltipId] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const descriptionRef = useRef(null);
-  const menuRef = useRef(null);
   const tooltipRef = useRef(null);
+  const [showFinishedAlert, setShowFinishedAlert] = useState(false);
 
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
@@ -66,24 +71,14 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
-        descriptionRef.current &&
-        !descriptionRef.current.contains(event.target)
-      ) {
-        if (!event.target.closest('button[data-type="description"]')) {
-          setOpenDescriptionId(null);
-        }
-      }
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        if (!event.target.closest('button[data-type="menu"]')) {
-          setOpenMenuId(null);
-        }
-      }
-      if (
         !event.target.closest(".action-buttons") &&
         !event.target.closest('button[data-type="action"]')
       ) {
         setExpandedActionsId(null);
         setOpenTooltipId(null);
+      }
+      if (!event.target.closest(".survey-card-mobile")) {
+        setExpandedCardId(null);
       }
     };
 
@@ -112,22 +107,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
     setOpenTooltipId(show ? actionId : null);
   };
 
-  const toggleMenu = (surveyId, e) => {
-    if (e) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      setTooltipPosition({ x: rect.x, y: rect.bottom });
+  const toggleCardExpansion = (surveyId, e) => {
+    if (e.target.closest(".mobile-action-button")) {
+      return;
     }
-    setOpenMenuId(openMenuId === surveyId ? null : surveyId);
-  };
-
-  const toggleDescription = (surveyId, e) => {
-    e.stopPropagation();
-    if (e) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      setTooltipPosition({ x: rect.x, y: rect.bottom });
-    }
-    const newId = openDescriptionId === surveyId ? null : surveyId;
-    setOpenDescriptionId(newId);
+    setExpandedCardId(expandedCardId === surveyId ? null : surveyId);
   };
 
   const handleAction = (action, surveyData) => {
@@ -145,7 +129,11 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
         router.push(`/dashboard/encuestas/${surveyId}/configuracion`);
         break;
       case "answer":
-        router.push(`/dashboard/encuestas/${surveyId}/responder`);
+        if (isFinished) {
+          setShowFinishedAlert(true);
+        } else {
+          router.push(`/dashboard/encuestas/${surveyId}/responder`);
+        }
         break;
       case "quotas":
         router.push(`/dashboard/encuestas/${surveyId}/cuotas`);
@@ -201,180 +189,193 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
         {surveys.map((item, index) => {
           const surveyData = item;
           const surveyInfo = item.surveyInfo || {};
+          const isExpanded = expandedCardId === surveyData._id;
+
           return (
-            <div
+            <motion.div
               key={surveyData._id}
-              className={`rounded-lg p-3 shadow-sm ${
-                index % 2 === 0
-                  ? "dark:bg-[var(--primary)] bg-[var(--primary-light)]"
-                  : "dark:bg-[var(--secondary)] bg-[var(--secondary-light)]"
-              }`}
+              layout
+              className={`
+                survey-card-mobile rounded-lg shadow-sm overflow-hidden cursor-pointer
+                ${
+                  index % 2 === 0
+                    ? "bg-[var(--primary)]"
+                    : "bg-[var(--secondary)]"
+                }
+              `}
+              onClick={(e) => toggleCardExpansion(surveyData._id, e)}
+              initial={false}
+              animate={{ paddingBottom: isExpanded ? "0.75rem" : "0" }}
+              transition={{ duration: 0.2 }}
             >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+              <div className="flex justify-between items-center p-3">
+                <h3 className="text-base font-semibold text-white mr-2 truncate">
                   {getLocalizedText(surveyData.survey?.title) || "Sin título"}
                 </h3>
-                <button
-                  onClick={(e) => toggleMenu(surveyData._id, e)}
-                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-all text-[var(--text-primary)]"
-                >
-                  <MoreVertical className="w-5 h-5" />
-                </button>
+                <ChevronDown
+                  className={`w-5 h-5 text-indigo-100 transition-transform duration-200 ${
+                    isExpanded ? "rotate-180" : ""
+                  }`}
+                />
               </div>
 
-              <div className="space-y-2 text-xs text-[var(--text-primary)]">
-                <div className="flex items-center gap-1.5">
-                  <Eye className="w-3.5 h-3.5" />
-                  <button
-                    onClick={(e) => toggleDescription(surveyData._id, e)}
-                    className="text-left hover:text-[var(--text-primary)] transition-colors"
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="px-3 text-xs text-indigo-100 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Ver descripción
-                  </button>
-                </div>
+                    <div className="mb-2 text-xs italic">
+                      {getLocalizedText(
+                        surveyData.survey?.description,
+                        "Sin descripción"
+                      ) || "Sin descripción"}
+                    </div>
 
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Inicio: {formatDate(surveyInfo.startDate)}</span>
-                </div>
+                    <div className="flex items-center gap-1.5 mb-2 text-xs">
+                      <Calendar className="w-3 h-3 flex-shrink-0" />
+                      <span className="flex-1">
+                        Inicio: {formatDate(surveyInfo.startDate)}
+                      </span>
+                      <span className="flex-1 text-right">
+                        Fin: {formatDate(surveyInfo.endDate)}
+                      </span>
+                    </div>
 
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Fin: {formatDate(surveyInfo.endDate)}</span>
-                </div>
-
-                <div className="mt-2">
-                  <div className="text-xs mb-1">
-                    Progreso:{" "}
-                    {calculateProgress(item.totalAnswers, surveyInfo.target)}
-                  </div>
-                  <div
-                    className={`w-full rounded-full h-1.5 ${
-                      index % 2 === 0
-                        ? "dark:bg-[var(--primary-light)] bg-[var(--primary-dark)]"
-                        : "dark:bg-[var(--secondary-light)] bg-[var(--secondary-dark)]"
-                    }`}
-                  >
-                    <div
-                      className={`h-1.5 rounded-full transition-all ${
-                        index % 2 === 0
-                          ? "dark:bg-[var(--primary)] bg-[var(--primary)]"
-                          : "dark:bg-[var(--secondary)] bg-[var(--secondary)]"
-                      }`}
-                      style={{
-                        width: calculateProgress(
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span>
+                        Progreso:{" "}
+                        {calculateProgress(
                           item.totalAnswers,
                           surveyInfo.target
-                        ),
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+                        )}
+                      </span>
+                    </div>
+                    <div className="w-full bg-black/20 rounded-full h-1.5 mt-1">
+                      <div
+                        className="bg-green-500 h-1.5 rounded-full"
+                        style={{
+                          width: calculateProgress(
+                            item.totalAnswers,
+                            surveyInfo.target
+                          ),
+                        }}
+                      ></div>
+                    </div>
 
-              {openDescriptionId === surveyData._id && (
-                <div
-                  ref={descriptionRef}
-                  className="mt-3 p-2.5 rounded-md bg-[var(--background)] text-xs text-[var(--text-primary)]"
-                >
-                  {getLocalizedText(surveyData.survey?.description) ||
-                    "Sin descripción"}
-                </div>
-              )}
+                    <div className="mt-3 border-t border-[var(--card-border)] pt-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        {role === "ROLE_ADMIN" && (
+                          <>
+                            <button
+                              onClick={() => handleAction("edit", surveyData)}
+                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                            >
+                              <Edit className="w-3 h-3" />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleAction("settings", surveyData)
+                              }
+                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                            >
+                              <Settings className="w-3 h-3" />
+                              Configuración
+                            </button>
+                          </>
+                        )}
 
-              {openMenuId === surveyData._id && (
-                <div className="mt-3 border-t border-[var(--card-border)] pt-3">
-                  <div className="space-y-1.5">
-                    {role === "ROLE_ADMIN" && (
-                      <>
                         <button
-                          onClick={() => handleAction("edit", surveyData)}
-                          className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
+                          onClick={() => handleAction("answer", surveyData)}
+                          className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
                         >
-                          <Edit className="w-3.5 h-3.5 mr-2" />
-                          Editar
+                          <Play className="w-3 h-3" />
+                          Responder
                         </button>
-                        <button
-                          onClick={() => handleAction("settings", surveyData)}
-                          className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
-                        >
-                          <Settings className="w-3.5 h-3.5 mr-2" />
-                          Configuración
-                        </button>
-                      </>
-                    )}
 
-                    <button
-                      onClick={() => handleAction("answer", surveyData)}
-                      className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
-                    >
-                      <Play className="w-3.5 h-3.5 mr-2" />
-                      Responder
-                    </button>
-
-                    <button
-                      onClick={() => handleAction("map", surveyData)}
-                      className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
-                    >
-                      <Map className="w-3.5 h-3.5 mr-2" />
-                      Ver Mapa
-                    </button>
-
-                    {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
-                      <>
                         <button
-                          onClick={() => handleAction("quotas", surveyData)}
-                          className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
+                          onClick={() => handleAction("map", surveyData)}
+                          className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
                         >
-                          <ChartBar className="w-3.5 h-3.5 mr-2" />
-                          Cuotas
+                          <Map className="w-3 h-3" />
+                          Ver Mapa
                         </button>
-                        <button
-                          onClick={() => handleAction("progress", surveyData)}
-                          className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
-                        >
-                          <BarChart3 className="w-3.5 h-3.5 mr-2" />
-                          Progreso
-                        </button>
-                      </>
-                    )}
 
-                    {role === "SUPERVISOR" && (
-                      <button
-                        onClick={() => handleAction("pollsters", surveyData)}
-                        className="flex items-center w-full px-3 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--hover-bg)] rounded-md"
-                      >
-                        <Users className="w-3.5 h-3.5 mr-2" />
-                        Asignar Encuestadores
-                      </button>
-                    )}
+                        {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
+                          <>
+                            <button
+                              onClick={() => handleAction("quotas", surveyData)}
+                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                            >
+                              <ChartBar className="w-3 h-3" />
+                              Cuotas
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleAction("progress", surveyData)
+                              }
+                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                            >
+                              <BarChart3 className="w-3 h-3" />
+                              Progreso
+                            </button>
+                          </>
+                        )}
 
-                    {role === "ROLE_ADMIN" && (
-                      <>
-                        <button
-                          onClick={() =>
-                            handleAction("deleteAnswers", surveyData)
-                          }
-                          className="flex items-center w-full px-3 py-1.5 text-sm text-red-500 hover:bg-[var(--hover-bg)] rounded-md"
-                        >
-                          <ClipboardX className="w-3.5 h-3.5 mr-2" />
-                          Eliminar Respuestas
-                        </button>
-                        <button
-                          onClick={() => handleAction("delete", surveyData)}
-                          className="flex items-center w-full px-3 py-1.5 text-sm text-red-500 hover:bg-[var(--hover-bg)] rounded-md"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mr-2" />
-                          Eliminar Encuesta
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+                        {role === "SUPERVISOR" && (
+                          <button
+                            onClick={() =>
+                              handleAction("pollsters", surveyData)
+                            }
+                            className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors col-span-2"
+                          >
+                            <Users className="w-3 h-3" />
+                            Asignar Encuestadores
+                          </button>
+                        )}
+
+                        {role === "ROLE_ADMIN" && (
+                          <>
+                            <button
+                              onClick={() =>
+                                handleAction("deleteAnswers", surveyData)
+                              }
+                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-red-500/80 hover:bg-red-500 text-white rounded-md transition-colors"
+                            >
+                              <ClipboardX className="w-3 h-3" />
+                              Eliminar Respuestas
+                            </button>
+                            <button
+                              onClick={() => handleAction("delete", surveyData)}
+                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-red-500/80 hover:bg-red-500 text-white rounded-md transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Eliminar Encuesta
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           );
         })}
+        <ConfirmModal
+          isOpen={showFinishedAlert}
+          onClose={() => setShowFinishedAlert(false)}
+          onConfirm={() => setShowFinishedAlert(false)}
+          title="Encuesta Finalizada"
+          message="No se pueden ingresar nuevas respuestas en encuestas finalizadas."
+          confirmText="Entendido"
+          showCancelButton={false}
+        />
       </div>
     );
   };
@@ -450,27 +451,12 @@ export function SurveyList({ surveys, onDelete, onDeleteAnswers, role }) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     <div className="flex items-center justify-center relative">
                       <button
-                        onClick={(e) => toggleDescription(surveyData._id, e)}
+                        onClick={(e) => toggleCardExpansion(surveyData._id, e)}
                         className="p-2 rounded-md hover:bg-[var(--hover-bg)] hover:bg-opacity-50 transition-colors"
                         data-type="description"
                       >
                         <Eye className="w-5 h-5" />
                       </button>
-
-                      {openDescriptionId === surveyData._id && (
-                        <div
-                          ref={descriptionRef}
-                          className="absolute z-50 w-64 -left-28 bottom-full mb-1 rounded-md shadow-lg dark:bg-[var(--primary)] bg-[var(--primary)] border border-[var(--card-border)]"
-                        >
-                          <div className="p-2">
-                            <p className="text-sm text-gray-100 whitespace-normal">
-                              {getLocalizedText(
-                                surveyData.survey?.description
-                              ) || "Sin descripción"}
-                            </p>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">

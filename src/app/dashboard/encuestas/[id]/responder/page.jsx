@@ -163,64 +163,57 @@ export default function ResponderEncuesta() {
   // Handle survey completion - wrapped in useCallback
   const handleComplete = useCallback(
     async (sender) => {
+      const endTime = new Date();
+      const timeTaken = endTime - startTime; // Time in milliseconds
+
+      console.log("Survey sender data:", sender.data);
+
+      let coords = null;
       try {
-        const endTime = Date.now();
-        const timeSpent = Math.floor((endTime - startTime) / 1000); // Time in seconds
-
-        let location = { lat: null, lng: null };
-        try {
-          const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              timeout: 5000,
-            }); // Added timeout
-          });
-          location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-        } catch (geoError) {
-          console.error("Error al obtener la ubicación:", geoError);
-          // Continue without location if it fails or times out
-        }
-
-        const answerData = {
-          surveyId: id,
-          userId: user?._id, // Use optional chaining
-          fullName: user?.fullName, // Use optional chaining
-          answer: sender.data,
-          time: timeSpent,
-          lat: location.lat,
-          lng: location.lng,
-          createdAt: new Date().toISOString(),
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 5000,
+          }); // Added timeout
+        });
+        coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
         };
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: localStorage.getItem("token"),
-            },
-            body: JSON.stringify(answerData),
-          }
-        );
-
-        if (!response.ok) {
-          const errorBody = await response.text(); // Get more details on error
-          throw new Error(
-            `Error al guardar la respuesta: ${response.status} ${errorBody}`
-          );
-        }
-
-        router.push("/dashboard/encuestas");
-      } catch (err) {
-        console.error("Error al guardar la respuesta:", err);
-        setError(
-          `Error al guardar la respuesta: ${err.message}. Por favor, intente nuevamente.`
-        );
-        // Potentially show error within the survey UI instead of replacing the whole page
+      } catch (geoError) {
+        console.error("Error al obtener la ubicación:", geoError);
+        // Continue without location if it fails or times out
       }
+
+      const answerData = {
+        surveyId: id,
+        fullName: user?.fullName, // Use optional chaining
+        answer: sender.data,
+        time: timeTaken,
+        lat: coords?.lat,
+        lng: coords?.lng,
+        createdAt: new Date().toISOString(),
+      };
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: localStorage.getItem("token"),
+          },
+          body: JSON.stringify(answerData),
+        }
+      );
+
+      if (!response.ok) {
+        const errorBody = await response.text(); // Get more details on error
+        throw new Error(
+          `Error al guardar la respuesta: ${response.status} ${errorBody}`
+        );
+      }
+
+      router.push("/dashboard/encuestas");
     },
     [id, router, startTime, user]
   ); // Added dependencies

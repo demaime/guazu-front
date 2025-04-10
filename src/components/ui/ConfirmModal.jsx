@@ -1,7 +1,14 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 
-export function ConfirmModal({ isOpen, onClose, onConfirm, title, message }) {
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  isAlert = false,
+}) {
   if (!isOpen) return null;
 
   return (
@@ -39,24 +46,26 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message }) {
             <p className="text-[var(--text-primary)]">{message}</p>
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-2 p-4 border-t border-[var(--card-border)] bg-[var(--card-background)] rounded-b-lg">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => {
-                onConfirm();
-                onClose();
-              }}
-              className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
-            >
-              Confirmar
-            </button>
-          </div>
+          {/* Footer - Conditionally render based on isAlert */}
+          {!isAlert && (
+            <div className="flex justify-end gap-2 p-4 border-t border-[var(--card-border)] bg-[var(--card-background)] rounded-b-lg">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  onConfirm();
+                  onClose();
+                }}
+                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                Confirmar
+              </button>
+            </div>
+          )}
         </motion.div>
       </div>
     </AnimatePresence>

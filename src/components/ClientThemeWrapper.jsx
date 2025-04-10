@@ -1,17 +1,15 @@
-'use client';
+"use client";
 
-import { ThemeProvider } from '@/providers/ThemeProvider';
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ThemeProvider } from "@/providers/ThemeProvider";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function ClientThemeWrapper({ children }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    document.documentElement.classList.remove('light', 'dark');
-    const theme = localStorage.getItem('theme-preference') || 'light';
-    document.documentElement.classList.add(theme);
+    // Let ThemeProvider and themeService handle class application
   }, []);
 
   if (!mounted) {
@@ -29,4 +27,4 @@ export function ClientThemeWrapper({ children }) {
       </motion.div>
     </ThemeProvider>
   );
-} 
+}
