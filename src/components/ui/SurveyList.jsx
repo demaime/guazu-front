@@ -161,7 +161,7 @@ export function SurveyList({
   const getLocalizedText = (textObj, defaultText = "Sin definir") => {
     if (!textObj) return defaultText;
     if (typeof textObj === "string") return textObj;
-    return textObj.es || defaultText;
+    return textObj.es || textObj.default || defaultText;
   };
 
   const formatDate = (dateString) => {

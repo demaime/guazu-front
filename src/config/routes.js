@@ -17,6 +17,7 @@ export const SURVEY_ROUTES = {
   DELETE: (id) => `${API_URL}/api/delete-survey/${id}`,
   GET: (id) => `${API_URL}/api/surveyById/${id}`,
   ANSWERS: (id) => `${API_URL}/api/answerBySurveyId/${id}`,
+  CREATE: `${API_URL}/api/create-survey`,
 };
 
 // Rutas de respuestas

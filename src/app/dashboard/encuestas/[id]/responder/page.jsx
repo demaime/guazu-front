@@ -57,8 +57,9 @@ const surveyCssConfiguration = {
     item: "flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors",
     itemChecked: "bg-gray-100 dark:bg-gray-700",
     itemControl:
-      "h-4 w-4 text-primary border-gray-300 dark:border-gray-600 focus:ring-primary",
-    itemText: "ml-2 text-gray-900 dark:text-white",
+      "h-5 w-5 text-blue-600 bg-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 rounded",
+    itemText: "ml-3 text-base text-gray-900 dark:text-white select-none",
+    controlLabel: "w-full flex items-center cursor-pointer",
   },
 };
 
@@ -84,6 +85,48 @@ export default function ResponderEncuesta() {
   const [user, setUser] = useState(null);
   const [startTime, setStartTime] = useState(null);
 
+  // Direct style injection for checkboxes - this is a more aggressive approach
+  useEffect(() => {
+    // Create a style element
+    const styleEl = document.createElement("style");
+    styleEl.textContent = `
+      /* Hide the decorative checkbox */
+      .sd-checkbox__decorator {
+        display: none !important;
+      }
+      
+      /* Show and style the real checkbox */
+      .sd-checkbox input[type="checkbox"] {
+        opacity: 1 !important;
+        position: static !important;
+        width: 20px !important;
+        height: 20px !important;
+        margin-right: 10px !important;
+        cursor: pointer !important;
+        z-index: 1 !important;
+      }
+      
+      /* Make labels clickable */
+      .sd-selectbase__label {
+        cursor: pointer !important;
+      }
+      
+      /* Fix checkbox alignment */
+      .sd-item__control-label {
+        display: flex !important;
+        align-items: center !important;
+      }
+    `;
+
+    // Add the style element to the head
+    document.head.appendChild(styleEl);
+
+    // Clean up function
+    return () => {
+      document.head.removeChild(styleEl);
+    };
+  }, []);
+
   // Effect to load initial user and survey data
   useEffect(() => {
     const loadData = async () => {
@@ -100,7 +143,16 @@ export default function ResponderEncuesta() {
         }
 
         const response = await surveyService.getSurvey(id);
-        setSurveyJson(response); // Store survey JSON
+        console.log("Survey data from backend:", response);
+
+        // Check if the survey data exists
+        if (!response || !response.survey) {
+          throw new Error("No se encontró la encuesta");
+        }
+
+        // Use the survey object inside the response
+        const surveyObject = response.survey;
+        setSurveyJson(surveyObject); // Store survey JSON
         setStartTime(Date.now());
       } catch (err) {
         console.error("Error al cargar la encuesta:", err);
@@ -116,7 +168,18 @@ export default function ResponderEncuesta() {
   // Effect to create and configure survey model when surveyJson is loaded
   useEffect(() => {
     if (surveyJson) {
-      const model = new Model(surveyJson);
+      // Make sure we have the complete survey definition with all required properties
+      console.log("Creating survey model with:", surveyJson);
+      // Add debug log to examine structure
+      console.log("Survey structure:", {
+        title: surveyJson.title,
+        description: surveyJson.description,
+        survey: surveyJson.survey,
+        surveyPages: surveyJson.survey?.pages,
+      });
+
+      // Create the model with the survey definition
+      const model = new Model(surveyJson.survey || surveyJson);
 
       // Basic configuration
       model.mode = "edit";
@@ -133,6 +196,32 @@ export default function ResponderEncuesta() {
       model.questionErrorLocation = "bottom";
       model.showPreviewBeforeComplete = "noPreview";
       model.questionsOnPageMode = "questionPerPage";
+
+      // Fix checkbox styling issues - target correct class names based on inspector
+      model.onAfterRenderQuestion.add((survey, options) => {
+        if (options.question.getType() === "checkbox") {
+          // Give the real checkboxes proper styling and make them visible
+          const checkboxInputs = options.htmlElement.querySelectorAll(
+            'input[type="checkbox"]'
+          );
+          checkboxInputs.forEach((input) => {
+            input.style.opacity = "1";
+            input.style.position = "static";
+            input.style.width = "20px";
+            input.style.height = "20px";
+            input.style.marginRight = "10px";
+            input.style.cursor = "pointer";
+          });
+
+          // Hide the decorative checkboxes
+          const decorators = options.htmlElement.querySelectorAll(
+            ".sd-checkbox__decorator"
+          );
+          decorators.forEach((decorator) => {
+            decorator.style.display = "none";
+          });
+        }
+      });
 
       // Apply custom CSS classes
       model.css = surveyCssConfiguration;
@@ -157,6 +246,42 @@ export default function ResponderEncuesta() {
       } else {
         surveyModel.applyTheme(DefaultLight);
       }
+
+      // Cleanup checkbox duplicates after model is applied
+      const cleanupCheckboxes = () => {
+        // Target the SD classes as seen in the console
+        const checkboxGroups = document.querySelectorAll(".sd-checkbox");
+        checkboxGroups.forEach((group) => {
+          // Hide all decorative checkboxes
+          const decorators = group.querySelectorAll(".sd-checkbox__decorator");
+          decorators.forEach((decorator) => {
+            decorator.style.display = "none";
+          });
+
+          // Make real checkboxes visible and styled
+          const inputs = group.querySelectorAll('input[type="checkbox"]');
+          inputs.forEach((input) => {
+            input.style.opacity = "1";
+            input.style.position = "static";
+            input.style.width = "20px";
+            input.style.height = "20px";
+            input.style.marginRight = "10px";
+            input.style.cursor = "pointer";
+          });
+        });
+      };
+
+      // Give some time for the DOM to render
+      setTimeout(cleanupCheckboxes, 100);
+
+      // Also run cleanup when window loads and resizes
+      window.addEventListener("load", cleanupCheckboxes);
+      window.addEventListener("resize", cleanupCheckboxes);
+
+      return () => {
+        window.removeEventListener("load", cleanupCheckboxes);
+        window.removeEventListener("resize", cleanupCheckboxes);
+      };
     }
   }, [theme, surveyModel]); // Re-run effect when theme or surveyModel changes
 
@@ -256,17 +381,41 @@ export default function ResponderEncuesta() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Add custom CSS to fix checkbox styling */}
+      <style jsx global>{`
+        /* Hide the decorator checkbox that's causing duplication */
+        .sd-checkbox__decorator {
+          display: none !important;
+        }
+
+        /* Style the real checkbox */
+        .sd-checkbox input[type="checkbox"] {
+          opacity: 1 !important;
+          position: static !important;
+          margin-right: 10px;
+          width: 20px;
+          height: 20px;
+          cursor: pointer;
+        }
+
+        /* Make the label and row fully clickable */
+        .sd-selectbase__label {
+          cursor: pointer;
+          width: 100%;
+        }
+
+        /* Style the checkbox container */
+        div.sd-checkbox {
+          margin-bottom: 8px;
+        }
+
+        /* Remove any extra spacing */
+        .sd-item__control-label {
+          display: flex;
+          align-items: center;
+        }
+      `}</style>
       <div className="bg-card-background border border-card-border rounded-lg shadow-lg p-6">
-        <h1 className="text-2xl font-bold mb-6 text-text-primary">
-          {surveyJson.title?.es || surveyJson.title?.default || "Sin título"}
-        </h1>
-        <div className="prose max-w-none mb-6">
-          <p className="text-text-secondary">
-            {surveyJson.description?.es ||
-              surveyJson.description?.default ||
-              "Sin descripción"}
-          </p>
-        </div>
         <div className="transition-all duration-300 ease-in-out">
           <Survey model={surveyModel} onComplete={handleComplete} />
         </div>

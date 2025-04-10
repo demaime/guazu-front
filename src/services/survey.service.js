@@ -1,5 +1,4 @@
 import { SURVEY_ROUTES } from "@/config/routes";
-import { v1 as uuidv1 } from "uuid";
 
 class SurveyService {
   async getAllSurveys() {
@@ -146,7 +145,7 @@ class SurveyService {
       }
 
       // Devolvemos la estructura correcta de la encuesta
-      return surveyData.survey?.survey || surveyData.survey;
+      return surveyData;
     } catch (error) {
       console.error("Error in getSurvey:", error);
       throw error;
@@ -261,31 +260,25 @@ class SurveyService {
   async createOrUpdateSurvey(surveyData, surveyId = null) {
     try {
       const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user"));
+      const isUpdating = !!surveyId;
 
-      // Construir el cuerpo base
-      const baseBody = {
-        survey: surveyData.survey,
-        surveyInfo: {
-          ...surveyData.surveyInfo,
-          userIds:
-            surveyData.participants?.userIds ||
-            surveyData.surveyInfo?.userIds ||
-            [],
-          supervisorsIds:
-            surveyData.participants?.supervisorsIds ||
-            surveyData.surveyInfo?.supervisorsIds ||
-            [],
-        },
-      };
+      // Include the id in the body only when updating
+      const requestBody = isUpdating
+        ? { ...surveyData, id: surveyId }
+        : surveyData;
 
-      // Añadir 'id' solo si surveyId tiene un valor (no es null ni undefined)
-      const requestBody = surveyId ? { ...baseBody, id: surveyId } : baseBody;
+      // The backend uses PUT to /api/survey for both creating and updating
+      const url = SURVEY_ROUTES.BASE;
 
-      const requestUrl = SURVEY_ROUTES.BASE;
+      // Always use PUT for both creating and updating (based on backend implementation)
       const requestMethod = "PUT";
 
-      const response = await fetch(requestUrl, {
+      console.log(
+        `Sending ${requestMethod} request to ${url} with data:`,
+        requestBody
+      );
+
+      const response = await fetch(url, {
         method: requestMethod,
         headers: new Headers({
           "Content-Type": "application/json; charset=utf-8",
@@ -296,17 +289,36 @@ class SurveyService {
         body: JSON.stringify(requestBody),
       });
 
+      // Check response status first
+      console.log("Response status:", response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
+        // Try to get content type
+        const contentType = response.headers.get("content-type");
+
+        // If it's JSON, parse it normally
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.message || `Error del servidor: ${response.status}`
+          );
+        }
+        // Otherwise, handle as text (including HTML errors)
+        else {
+          const errorText = await response.text();
+          console.error("Server response (non-JSON):", errorText);
+          throw new Error(
+            `Error al guardar la encuesta. Código: ${response.status}`
+          );
+        }
       }
 
+      // Parse successful response
       const data = await response.json();
+      console.log("Survey save response:", data);
 
       if (data.error) {
-        return Promise.reject(data.validation);
+        throw new Error(data.message || "Error al guardar la encuesta");
       }
 
       return data;
