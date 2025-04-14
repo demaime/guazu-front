@@ -402,6 +402,26 @@ export default function ResponderEncuesta() {
           radioDecorators.forEach((decorator) => {
             decorator.style.display = "none";
           });
+        } else if (
+          question.getType() === "text" ||
+          question.getType() === "comment"
+        ) {
+          // Handle text and comment inputs
+          const textInput = options.htmlElement.querySelector(
+            'input[type="text"], textarea'
+          );
+          if (textInput) {
+            // Apply Tailwind classes for consistent styling
+            textInput.classList.add(
+              "p-2", // Increase vertical padding
+              "border", // Ensure border utility is applied
+              "border-gray-600", // Visible border (adjust if needed for dark mode)
+              "dark:border-gray-500", // Slightly lighter border for dark mode contrast
+              "rounded-md" // Use consistent rounding
+            );
+            // Optional: Remove potentially conflicting default classes if necessary
+            // textInput.classList.remove('some-default-surveyjs-class');
+          }
         }
       });
 
