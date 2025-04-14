@@ -152,7 +152,123 @@ export default function ResponderEncuesta() {
 
         // Use the survey object inside the response
         const surveyObject = response.survey;
-        setSurveyJson(surveyObject); // Store survey JSON
+        // Log para ver la estructura INMEDIATA de surveyObject
+        console.log(
+          "[Immediate Check] surveyObject raw:",
+          JSON.parse(JSON.stringify(surveyObject))
+        );
+        console.log(
+          `[Immediate Check] surveyObject has pages? ${!!surveyObject.pages}, length: ${
+            surveyObject.pages?.length
+          }`
+        );
+        console.log(
+          `[Immediate Check] surveyObject has survey prop? ${!!surveyObject.survey}`
+        );
+        console.log(
+          `[Immediate Check] surveyObject.survey has pages? ${!!surveyObject
+            .survey?.pages}, length: ${surveyObject.survey?.pages?.length}`
+        );
+
+        // --- Inicio: Transformación para corregir key ---
+        const transformedSurvey = JSON.parse(JSON.stringify(surveyObject));
+
+        // Volver a buscar pages en .survey.pages
+        console.log(
+          `[Transform Pre-Check] transformedSurvey.survey.pages exists? ${!!transformedSurvey
+            .survey?.pages}, length: ${transformedSurvey.survey?.pages?.length}`
+        );
+
+        transformedSurvey.survey?.pages?.forEach((page, pageIndex) => {
+          // <-- CORREGIDO a transformedSurvey.survey.pages
+          // Log para verificar la existencia y longitud de elements en cada page
+          console.log(
+            `[Transform Pre-Check] Page ${pageIndex}: page.elements exists? ${!!page.elements}, length: ${
+              page.elements?.length
+            }`
+          );
+
+          page.elements?.forEach((question) => {
+            // Log CADA question encontrada ANTES del check de tipo/choices
+            console.log(
+              `[Transform Loop] Found element: name='${question.name}', type='${
+                question.type
+              }', hasChoices?=${!!question.choices}`
+            );
+
+            if (
+              (question.type === "radiogroup" ||
+                question.type === "checkbox" ||
+                question.type === "dropdown") &&
+              question.choices
+            ) {
+              console.log(
+                `[Transform Check] Processing choices for question: ${question.name}`
+              ); // Log question name
+              question.choices.forEach((choice, index) => {
+                console.log(
+                  `[Transform Check] Choice ${index} BEFORE:`,
+                  JSON.parse(JSON.stringify(choice))
+                ); // Log choice before
+
+                let valueIsMissingOrObject =
+                  typeof choice.value === "undefined" ||
+                  choice.value === null ||
+                  typeof choice.value === "object";
+
+                // Si 'value' falta O es un objeto, intentar generar uno desde text.es
+                if (
+                  valueIsMissingOrObject &&
+                  choice.text &&
+                  typeof choice.text.es === "string"
+                ) {
+                  const originalValue = choice.value; // Puede ser undefined u objeto
+                  // Generar un valor simple desde el texto (ej: lowercase, replace spaces)
+                  const newValue = choice.text.es
+                    .toLowerCase()
+                    .replace(/\s+/g, "_");
+                  console.warn(
+                    `[Transform Action] Generating/Replacing choice value for question '${question.name}', choice index ${index}. Original:`,
+                    originalValue,
+                    `New:`,
+                    newValue
+                  );
+                  choice.value = newValue;
+                  console.log(
+                    `[Transform Check] Choice ${index} AFTER assign:`,
+                    JSON.parse(JSON.stringify(choice))
+                  );
+                } else if (choice.value) {
+                  // Si el value existe y es primitivo, no hacer nada pero loguear
+                  console.log(
+                    `[Transform Check] Choice ${index} - value exists and is primitive:`,
+                    choice.value
+                  );
+                } else {
+                  // Si no se pudo generar (ej. falta text.es)
+                  console.error(
+                    `[Transform Error] Could not generate value for choice ${index} in question '${question.name}'. Missing text.es?`,
+                    choice
+                  );
+                }
+              });
+            } else {
+              // Log si no entra en el if
+              console.log(
+                `[Transform Loop] Skipping choices processing for element '${question.name}' (type or choices condition not met).`
+              );
+            }
+            // Añadir lógica similar para otros tipos de preguntas si es necesario (ej. matrix columns/rows)
+          });
+        });
+
+        console.log(
+          "[Transform Check] Final transformedSurvey before setSurveyJson:",
+          JSON.parse(JSON.stringify(transformedSurvey))
+        ); // Log final object
+        // --- Fin: Transformación ---
+
+        setSurveyJson(transformedSurvey); // <--- Usar el objeto transformado
         setStartTime(Date.now());
       } catch (err) {
         console.error("Error al cargar la encuesta:", err);
@@ -199,7 +315,23 @@ export default function ResponderEncuesta() {
 
       // Fix checkbox styling issues - target correct class names based on inspector
       model.onAfterRenderQuestion.add((survey, options) => {
-        if (options.question.getType() === "checkbox") {
+        // Log question details for debugging
+        const question = options.question;
+        const choicesDetails = question.visibleChoices?.map((choice) => ({
+          value: choice.value,
+          text: choice.text, // Or choice.locText.renderedHtml for localized/HTML text
+          // Add any other relevant choice properties here
+        }));
+
+        console.log("Rendering question: " + question.name, {
+          type: question.getType(),
+          // choices: question.choices, // Keep original choices array if needed
+          visibleChoicesDetails: choicesDetails, // Log processed choice details
+          data: question.toJSON(), // Log full question data as JSON
+          htmlElement: options.htmlElement, // Reference to the rendered HTML
+        });
+
+        if (question.getType() === "checkbox") {
           // Give the real checkboxes proper styling and make them visible
           const checkboxInputs = options.htmlElement.querySelectorAll(
             'input[type="checkbox"]'
