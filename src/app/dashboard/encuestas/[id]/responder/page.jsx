@@ -86,48 +86,6 @@ export default function ResponderEncuesta() {
   const [user, setUser] = useState(null);
   const [startTime, setStartTime] = useState(null);
 
-  // Direct style injection for checkboxes - this is a more aggressive approach
-  useEffect(() => {
-    // Create a style element
-    const styleEl = document.createElement("style");
-    styleEl.textContent = `
-      /* Hide the decorative checkbox */
-      .sd-checkbox__decorator {
-        display: none !important;
-      }
-      
-      /* Show and style the real checkbox */
-      .sd-checkbox input[type="checkbox"] {
-        opacity: 1 !important;
-        position: static !important;
-        width: 20px !important;
-        height: 20px !important;
-        margin-right: 10px !important;
-        cursor: pointer !important;
-        z-index: 1 !important;
-      }
-      
-      /* Make labels clickable */
-      .sd-selectbase__label {
-        cursor: pointer !important;
-      }
-      
-      /* Fix checkbox alignment */
-      .sd-item__control-label {
-        display: flex !important;
-        align-items: center !important;
-      }
-    `;
-
-    // Add the style element to the head
-    document.head.appendChild(styleEl);
-
-    // Clean up function
-    return () => {
-      document.head.removeChild(styleEl);
-    };
-  }, []);
-
   // Effect to load initial user and survey data
   useEffect(() => {
     const loadData = async () => {
@@ -170,18 +128,43 @@ export default function ResponderEncuesta() {
           `[Immediate Check] surveyObject.survey has pages? ${!!surveyObject
             .survey?.pages}, length: ${surveyObject.survey?.pages?.length}`
         );
+        console.log(
+          "[Data Flow] Raw surveyObject from API:",
+          JSON.parse(JSON.stringify(surveyObject))
+        );
 
         // --- Inicio: Transformación para corregir key ---
         const transformedSurvey = JSON.parse(JSON.stringify(surveyObject));
 
-        // Volver a buscar pages en .survey.pages
+        // Check where 'pages' actually exists
+        console.log(
+          `[Transform Pre-Check] transformedSurvey.pages exists? ${!!transformedSurvey.pages}, length: ${
+            transformedSurvey.pages?.length
+          }`
+        );
         console.log(
           `[Transform Pre-Check] transformedSurvey.survey.pages exists? ${!!transformedSurvey
             .survey?.pages}, length: ${transformedSurvey.survey?.pages?.length}`
         );
 
-        transformedSurvey.survey?.pages?.forEach((page, pageIndex) => {
-          // <-- CORREGIDO a transformedSurvey.survey.pages
+        // Determine the correct path to pages
+        const pagesToTransform =
+          transformedSurvey.pages || transformedSurvey.survey?.pages || []; // Prioritize direct pages
+
+        // Log which path is being used
+        console.log(
+          `[Transform Logic] Using pages from: ${
+            transformedSurvey.pages
+              ? "transformedSurvey.pages"
+              : transformedSurvey.survey?.pages
+              ? "transformedSurvey.survey.pages"
+              : "none"
+          }`
+        );
+
+        // Iterate over the determined pages array
+        pagesToTransform.forEach((page, pageIndex) => {
+          // <-- Use pagesToTransform
           // Log para verificar la existencia y longitud de elements en cada page
           console.log(
             `[Transform Pre-Check] Page ${pageIndex}: page.elements exists? ${!!page.elements}, length: ${
@@ -196,6 +179,41 @@ export default function ResponderEncuesta() {
                 question.type
               }', hasChoices?=${!!question.choices}`
             );
+
+            // ---> START: Convert specific types to text + inputType <---
+            const originalType = question.type;
+            if (originalType === "date") {
+              question.type = "text";
+              question.inputType = "date";
+              console.log(
+                `[Transform Action] Converted question '${question.name}' from 'date' to 'text' with inputType 'date'.`
+              );
+            } else if (originalType === "time") {
+              question.type = "text";
+              question.inputType = "time";
+              console.log(
+                `[Transform Action] Converted question '${question.name}' from 'time' to 'text' with inputType 'time'.`
+              );
+            } else if (originalType === "email") {
+              question.type = "text";
+              question.inputType = "email";
+              console.log(
+                `[Transform Action] Converted question '${question.name}' from 'email' to 'text' with inputType 'email'.`
+              );
+            } else if (originalType === "number") {
+              question.type = "text";
+              question.inputType = "number";
+              console.log(
+                `[Transform Action] Converted question '${question.name}' from 'number' to 'text' with inputType 'number'.`
+              );
+            } else if (originalType === "phone") {
+              question.type = "text";
+              question.inputType = "tel"; // Use 'tel' for phone inputType
+              console.log(
+                `[Transform Action] Converted question '${question.name}' from 'phone' to 'text' with inputType 'tel'.`
+              );
+            }
+            // ---> END: Convert specific types <---
 
             if (
               (question.type === "radiogroup" ||
@@ -267,6 +285,10 @@ export default function ResponderEncuesta() {
           "[Transform Check] Final transformedSurvey before setSurveyJson:",
           JSON.parse(JSON.stringify(transformedSurvey))
         ); // Log final object
+        console.log(
+          "[Data Flow] Transformed survey data before setting state:",
+          JSON.parse(JSON.stringify(transformedSurvey))
+        );
         // --- Fin: Transformación ---
 
         setSurveyJson(transformedSurvey); // <--- Usar el objeto transformado
@@ -286,6 +308,10 @@ export default function ResponderEncuesta() {
   useEffect(() => {
     if (surveyJson) {
       // Make sure we have the complete survey definition with all required properties
+      console.log(
+        "[Data Flow] surveyJson state before creating Model:",
+        JSON.parse(JSON.stringify(surveyJson))
+      );
       console.log("Creating survey model with:", surveyJson);
       // Add debug log to examine structure
       console.log("Survey structure:", {
@@ -314,6 +340,18 @@ export default function ResponderEncuesta() {
       model.showPreviewBeforeComplete = "noPreview";
       model.questionsOnPageMode = "questionPerPage";
 
+      // --- START: Define common styles for inputs ---
+      const commonInputStyles = {
+        opacity: "1",
+        position: "static",
+        width: "24px", // Increased size
+        height: "24px", // Increased size
+        marginRight: "12px", // Adjusted margin
+        cursor: "pointer",
+        verticalAlign: "middle", // Align vertically with label
+      };
+      // --- END: Define common styles for inputs ---
+
       // Fix checkbox styling issues - target correct class names based on inspector
       model.onAfterRenderQuestion.add((survey, options) => {
         // Log question details for debugging
@@ -333,24 +371,35 @@ export default function ResponderEncuesta() {
         });
 
         if (question.getType() === "checkbox") {
-          // Give the real checkboxes proper styling and make them visible
+          // Apply common styles to the real checkboxes
           const checkboxInputs = options.htmlElement.querySelectorAll(
             'input[type="checkbox"]'
           );
           checkboxInputs.forEach((input) => {
-            input.style.opacity = "1";
-            input.style.position = "static";
-            input.style.width = "20px";
-            input.style.height = "20px";
-            input.style.marginRight = "10px";
-            input.style.cursor = "pointer";
+            Object.assign(input.style, commonInputStyles); // Apply styles
           });
 
           // Hide the decorative checkboxes
-          const decorators = options.htmlElement.querySelectorAll(
+          const checkboxDecorators = options.htmlElement.querySelectorAll(
             ".sd-checkbox__decorator"
           );
-          decorators.forEach((decorator) => {
+          checkboxDecorators.forEach((decorator) => {
+            decorator.style.display = "none";
+          });
+        } else if (question.getType() === "radiogroup") {
+          // Apply common styles to the real radio buttons
+          const radioInputs = options.htmlElement.querySelectorAll(
+            'input[type="radio"]' // Target radio inputs
+          );
+          radioInputs.forEach((input) => {
+            Object.assign(input.style, commonInputStyles); // Apply same styles
+          });
+
+          // Hide the decorative element for radio buttons
+          const radioDecorators = options.htmlElement.querySelectorAll(
+            ".sd-radio__decorator"
+          );
+          radioDecorators.forEach((decorator) => {
             decorator.style.display = "none";
           });
         }
@@ -363,6 +412,23 @@ export default function ResponderEncuesta() {
       model.onCurrentPageChanging.add(handleCurrentPageChanging);
 
       setSurveyModel(model); // Set the configured model instance to state
+
+      // ---> ADDED LOGGING
+      console.log("[Data Flow] SurveyJS Model created:", model);
+      console.log("[Data Flow] Model Pages Count:", model.pages?.length);
+      model.pages?.forEach((page, index) => {
+        console.log(
+          `[Data Flow] Model Page ${index} Elements Count:`,
+          page.elements?.length
+        );
+        page.elements?.forEach((element, elIndex) => {
+          console.log(
+            `[Data Flow] Model Page ${index}, Element ${elIndex}:`,
+            element.name,
+            element.getType()
+          );
+        });
+      });
 
       // Clean up event listener on unmount or when surveyJson changes
       return () => {
@@ -379,42 +445,6 @@ export default function ResponderEncuesta() {
       } else {
         surveyModel.applyTheme(DefaultLight);
       }
-
-      // Cleanup checkbox duplicates after model is applied
-      const cleanupCheckboxes = () => {
-        // Target the SD classes as seen in the console
-        const checkboxGroups = document.querySelectorAll(".sd-checkbox");
-        checkboxGroups.forEach((group) => {
-          // Hide all decorative checkboxes
-          const decorators = group.querySelectorAll(".sd-checkbox__decorator");
-          decorators.forEach((decorator) => {
-            decorator.style.display = "none";
-          });
-
-          // Make real checkboxes visible and styled
-          const inputs = group.querySelectorAll('input[type="checkbox"]');
-          inputs.forEach((input) => {
-            input.style.opacity = "1";
-            input.style.position = "static";
-            input.style.width = "20px";
-            input.style.height = "20px";
-            input.style.marginRight = "10px";
-            input.style.cursor = "pointer";
-          });
-        });
-      };
-
-      // Give some time for the DOM to render
-      setTimeout(cleanupCheckboxes, 100);
-
-      // Also run cleanup when window loads and resizes
-      window.addEventListener("load", cleanupCheckboxes);
-      window.addEventListener("resize", cleanupCheckboxes);
-
-      return () => {
-        window.removeEventListener("load", cleanupCheckboxes);
-        window.removeEventListener("resize", cleanupCheckboxes);
-      };
     }
   }, [theme, surveyModel]); // Re-run effect when theme or surveyModel changes
 
@@ -537,40 +567,6 @@ export default function ResponderEncuesta() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Add custom CSS to fix checkbox styling */}
-      <style jsx global>{`
-        /* Hide the decorator checkbox that's causing duplication */
-        .sd-checkbox__decorator {
-          display: none !important;
-        }
-
-        /* Style the real checkbox */
-        .sd-checkbox input[type="checkbox"] {
-          opacity: 1 !important;
-          position: static !important;
-          margin-right: 10px;
-          width: 20px;
-          height: 20px;
-          cursor: pointer;
-        }
-
-        /* Make the label and row fully clickable */
-        .sd-selectbase__label {
-          cursor: pointer;
-          width: 100%;
-        }
-
-        /* Style the checkbox container */
-        div.sd-checkbox {
-          margin-bottom: 8px;
-        }
-
-        /* Remove any extra spacing */
-        .sd-item__control-label {
-          display: flex;
-          align-items: center;
-        }
-      `}</style>
       <div className="bg-card-background border border-card-border rounded-lg shadow-lg p-6">
         <div className="transition-all duration-300 ease-in-out">
           <Survey model={surveyModel} onComplete={handleComplete} />
