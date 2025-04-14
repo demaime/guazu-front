@@ -3,13 +3,29 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 // CSS imports moved to root layout.jsx
-import { Model } from "survey-core";
+import { Model, surveyLocalization } from "survey-core";
+import "survey-core/i18n/spanish";
 import { Survey } from "survey-react-ui";
 import { DefaultLight, DoubleBorderDark } from "survey-core/themes";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { useTheme } from "@/providers/ThemeProvider";
 // CSS imports moved to globals.css
+
+// --- START: Configure Spanish Localization (Module Level) ---
+// Ensure Spanish locale object exists after import
+if (surveyLocalization.locales["es"]) {
+  surveyLocalization.locales["es"].progressText =
+    "{0} de {1} preguntas completadas";
+  surveyLocalization.locales["es"].requiredText = " (*) Pregunta obligatoria.";
+  surveyLocalization.locales["es"].requiredError = "Este campo es obligatorio.";
+  console.log("Spanish localization modified at module level.");
+} else {
+  console.error(
+    "Spanish locale object not found in surveyLocalization at module level."
+  );
+}
+// --- END: Configure Spanish Localization (Module Level) ---
 
 // Define survey configuration outside the component if it doesn't depend on props/state
 const surveyCssConfiguration = {
@@ -324,17 +340,19 @@ export default function ResponderEncuesta() {
       // Create the model with the survey definition
       const model = new Model(surveyJson.survey || surveyJson);
 
+      // Set model locale
+      model.locale = "es";
+
       // Basic configuration
       model.mode = "edit";
       model.showProgressBar = "bottom";
       model.showQuestionNumbers = true;
-      model.pageNextText = "Siguiente";
-      model.pagePrevText = "Anterior";
-      model.completeText = "Finalizar";
+      model.pageNextText = "Siguiente"; // Already likely set by 'es' locale, but explicit is fine
+      model.pagePrevText = "Anterior"; // Already likely set by 'es' locale
+      model.completeText = "Finalizar"; // Already likely set by 'es' locale
       model.showPrevButton = true;
       model.showCompletedPage = true;
       model.completedHtml = "<h4>¡Gracias por completar la encuesta!</h4>";
-      model.requiredText = "Por favor responde esta pregunta.";
       model.checkErrorsMode = "onNextPage";
       model.questionErrorLocation = "bottom";
       model.showPreviewBeforeComplete = "noPreview";
@@ -406,21 +424,76 @@ export default function ResponderEncuesta() {
           question.getType() === "text" ||
           question.getType() === "comment"
         ) {
-          // Handle text and comment inputs
+          // Handle text and comment inputs - now with error state handling
           const textInput = options.htmlElement.querySelector(
-            'input[type="text"], textarea'
+            'input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="time"], textarea'
           );
           if (textInput) {
-            // Apply Tailwind classes for consistent styling
+            // Apply base styles
             textInput.classList.add(
-              "p-2", // Increase vertical padding
-              "border", // Ensure border utility is applied
-              "border-gray-600", // Visible border (adjust if needed for dark mode)
-              "dark:border-gray-500", // Slightly lighter border for dark mode contrast
-              "rounded-md" // Use consistent rounding
+              "p-2",
+              "border",
+              "border-gray-600",
+              "dark:border-gray-500",
+              "rounded-md",
+              "w-full",
+              "min-h-[40px]"
             );
-            // Optional: Remove potentially conflicting default classes if necessary
-            // textInput.classList.remove('some-default-surveyjs-class');
+
+            // Set direct styles that might get overwritten
+            Object.assign(textInput.style, {
+              minHeight: "40px",
+              padding: "8px 12px",
+              width: "100%",
+              opacity: "1",
+              backgroundColor: theme === "dark" ? "#1f2937" : "#ffffff",
+              border: "1px solid #4b5563", // Base border color
+              borderRadius: "0.375rem", // 6px rounded corners
+              transition: "all 0.2s ease-in-out",
+            });
+
+            // Check for error state using SurveyJS's class
+            if (textInput.classList.contains("sd-input--error")) {
+              Object.assign(textInput.style, {
+                border: "2px solid #dc2626", // Más rojo y más visible
+                backgroundColor:
+                  theme === "dark" ? "rgba(220, 38, 38, 0.1)" : "#fee2e2",
+              });
+            }
+
+            // Add focus styles
+            textInput.addEventListener("focus", () => {
+              if (textInput.classList.contains("sd-input--error")) {
+                textInput.style.border = "2px solid #dc2626"; // Mantener el rojo en focus
+                textInput.style.boxShadow = "0 0 0 1px #dc2626"; // Añadir un sutil resplandor rojo
+              } else {
+                textInput.style.border = "2px solid #2563eb";
+                textInput.style.boxShadow = "0 0 0 1px #2563eb";
+              }
+            });
+
+            textInput.addEventListener("blur", () => {
+              if (textInput.classList.contains("sd-input--error")) {
+                textInput.style.border = "2px solid #dc2626";
+                textInput.style.boxShadow = "none";
+              } else {
+                textInput.style.border = "1px solid #4b5563";
+                textInput.style.boxShadow = "none";
+              }
+            });
+          }
+
+          // Style the error message container if it exists
+          const errorContainer = options.htmlElement.querySelector(
+            ".sd-question__erbox"
+          );
+          if (errorContainer) {
+            errorContainer.classList.add(
+              "mt-2",
+              "text-red-500",
+              "text-sm",
+              "font-medium"
+            );
           }
         }
       });

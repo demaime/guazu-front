@@ -276,7 +276,7 @@ export default function NuevaEncuesta({
         completeText: "Finalizar",
         pageNextText: "Siguiente",
         pagePrevText: "Anterior",
-        requiredText: "(*) Indica una respuesta requerida.",
+        requiredText: "(*) Pregunta obligatoria.",
         questionTitlePattern: "N° {num}. {title}",
         requiredErrorText: "Por favor responda la pregunta.",
         questionsOnPageMode: "singlePage",
