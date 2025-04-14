@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 // CSS imports moved to root layout.jsx
 import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
@@ -77,6 +77,7 @@ const handleCurrentPageChanging = (sender, options) => {
 export default function ResponderEncuesta() {
   const router = useRouter();
   const { id } = useParams();
+  const searchParams = useSearchParams();
   const { theme } = useTheme();
   const [surveyJson, setSurveyJson] = useState(null); // State for survey JSON structure
   const [surveyModel, setSurveyModel] = useState(null); // State for SurveyJS Model instance
@@ -420,6 +421,29 @@ export default function ResponderEncuesta() {
   // Handle survey completion - wrapped in useCallback
   const handleComplete = useCallback(
     async (sender) => {
+      const mode = searchParams.get("mode");
+
+      // If it's test mode, show message and skip saving
+      if (mode === "test") {
+        console.log("Modo Prueba Local: Omitiendo guardado.");
+        sender.completedHtml = `
+          <div style="padding: 20px; text-align: center;">
+            <h4>¡Prueba Local Completada!</h4>
+            <p>Esta fue una prueba. Tus respuestas no han sido guardadas.</p>
+            <button 
+              onclick="window.location.href='/dashboard/encuestas'" 
+              style="margin-top: 15px; padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;"
+            >
+              Volver a Encuestas
+            </button>
+          </div>
+        `;
+        // We modify the sender's completedHtml directly
+        // The survey library will show this page instead of redirecting immediately
+        return; // Exit before saving and redirecting
+      }
+
+      // --- Regular saving logic starts here ---
       const endTime = new Date();
       const timeTaken = endTime - startTime; // Time in milliseconds
 
@@ -472,7 +496,7 @@ export default function ResponderEncuesta() {
 
       router.push("/dashboard/encuestas");
     },
-    [id, router, startTime, user]
+    [id, router, startTime, user, searchParams]
   ); // Added dependencies
 
   // --- Render logic ---

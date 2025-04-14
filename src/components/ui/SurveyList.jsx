@@ -14,6 +14,7 @@ import {
   Map,
   ClipboardX,
   ChevronDown,
+  TestTube2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
@@ -125,14 +126,15 @@ export function SurveyList({
       case "edit":
         router.push(`/dashboard/encuestas/${surveyId}/editar`);
         break;
-      case "settings":
-        router.push(`/dashboard/encuestas/${surveyId}/configuracion`);
-        break;
       case "answer":
         if (isFinished) {
           setShowFinishedAlert(true);
         } else {
-          router.push(`/dashboard/encuestas/${surveyId}/responder`);
+          const isTestMode = role === "ROLE_ADMIN" || role === "SUPERVISOR";
+          const url = `/dashboard/encuestas/${surveyId}/responder${
+            isTestMode ? "?mode=test" : ""
+          }`;
+          router.push(url);
         }
         break;
       case "quotas":
@@ -278,25 +280,26 @@ export function SurveyList({
                               <Edit className="w-3 h-3" />
                               Editar
                             </button>
-                            <button
-                              onClick={() =>
-                                handleAction("settings", surveyData)
-                              }
-                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                            >
-                              <Settings className="w-3 h-3" />
-                              Configuración
-                            </button>
                           </>
                         )}
 
-                        <button
-                          onClick={() => handleAction("answer", surveyData)}
-                          className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                        >
-                          <Play className="w-3 h-3" />
-                          Responder
-                        </button>
+                        {role === "ROLE_ADMIN" || role === "SUPERVISOR" ? (
+                          <button
+                            onClick={() => handleAction("answer", surveyData)}
+                            className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-blue-500/80 hover:bg-blue-500 text-white rounded-md transition-colors"
+                          >
+                            <TestTube2 className="w-3 h-3" />
+                            Prueba Local
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleAction("answer", surveyData)}
+                            className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                          >
+                            <Play className="w-3 h-3" />
+                            Responder
+                          </button>
+                        )}
 
                         <button
                           onClick={() => handleAction("map", surveyData)}
@@ -517,50 +520,53 @@ export function SurveyList({
                                   >
                                     <Edit className="w-4 h-4" />
                                   </button>
-
-                                  <button
-                                    data-type="action"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAction("settings", surveyData);
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      handleTooltip(
-                                        `settings-${surveyData._id}`,
-                                        e,
-                                        true
-                                      )
-                                    }
-                                    onMouseLeave={() =>
-                                      handleTooltip(null, null, false)
-                                    }
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                                  >
-                                    <Settings className="w-4 h-4" />
-                                  </button>
                                 </>
                               )}
 
-                              <button
-                                data-type="action"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAction("answer", surveyData);
-                                }}
-                                onMouseEnter={(e) =>
-                                  handleTooltip(
-                                    `answer-${surveyData._id}`,
-                                    e,
-                                    true
-                                  )
-                                }
-                                onMouseLeave={() =>
-                                  handleTooltip(null, null, false)
-                                }
-                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                              >
-                                <Play className="w-4 h-4" />
-                              </button>
+                              {role === "ROLE_ADMIN" ||
+                              role === "SUPERVISOR" ? (
+                                <button
+                                  data-type="action"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAction("answer", surveyData);
+                                  }}
+                                  onMouseEnter={(e) =>
+                                    handleTooltip(
+                                      `answer-${surveyData._id}`,
+                                      e,
+                                      true
+                                    )
+                                  }
+                                  onMouseLeave={() =>
+                                    handleTooltip(null, null, false)
+                                  }
+                                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-blue-500 cursor-pointer"
+                                >
+                                  <TestTube2 className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  data-type="action"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAction("answer", surveyData);
+                                  }}
+                                  onMouseEnter={(e) =>
+                                    handleTooltip(
+                                      `answer-${surveyData._id}`,
+                                      e,
+                                      true
+                                    )
+                                  }
+                                  onMouseLeave={() =>
+                                    handleTooltip(null, null, false)
+                                  }
+                                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
+                                >
+                                  <Play className="w-4 h-4" />
+                                </button>
+                              )}
 
                               <button
                                 data-type="action"
@@ -714,10 +720,11 @@ export function SurveyList({
                               >
                                 {openTooltipId.includes("edit")
                                   ? "Editar"
-                                  : openTooltipId.includes("settings")
-                                  ? "Configuración"
                                   : openTooltipId.includes("answer")
-                                  ? "Responder"
+                                  ? role === "ROLE_ADMIN" ||
+                                    role === "SUPERVISOR"
+                                    ? "Prueba Local"
+                                    : "Responder"
                                   : openTooltipId.includes("map")
                                   ? "Ver Mapa"
                                   : openTooltipId.includes("quotas")
