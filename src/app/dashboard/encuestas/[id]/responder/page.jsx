@@ -1,600 +1,244 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-// CSS imports moved to root layout.jsx
-import { Model, surveyLocalization } from "survey-core";
-import "survey-core/i18n/spanish";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Model, surveyLocalization, StylesManager } from "survey-core";
 import { Survey } from "survey-react-ui";
-import { DefaultLight, DoubleBorderDark } from "survey-core/themes";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { useTheme } from "@/providers/ThemeProvider";
-// CSS imports moved to globals.css
+import { DoubleBorderLight, DoubleBorderDark } from "survey-core/themes";
 
-// --- START: Configure Spanish Localization (Module Level) ---
-// Ensure Spanish locale object exists after import
-if (surveyLocalization.locales["es"]) {
-  surveyLocalization.locales["es"].progressText =
-    "{0} de {1} preguntas completadas";
-  surveyLocalization.locales["es"].requiredText = " (*) Pregunta obligatoria.";
-  surveyLocalization.locales["es"].requiredError = "Este campo es obligatorio.";
-  console.log("Spanish localization modified at module level.");
-} else {
-  console.error(
-    "Spanish locale object not found in surveyLocalization at module level."
-  );
-}
-// --- END: Configure Spanish Localization (Module Level) ---
+// Import SurveyJS styles
+import "survey-core/survey-core.css";
+import "survey-core/i18n/spanish";
 
-// Define survey configuration outside the component if it doesn't depend on props/state
-const surveyCssConfiguration = {
-  root: "survey-container",
-  container: "p-4",
-  header: "mb-4",
-  body: "transition-all duration-300 ease-in-out",
-  page: {
-    root: "page-container",
-    title: "text-xl font-semibold mb-4",
-  },
-  navigation: {
-    complete:
-      "bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors",
-    prev: "bg-secondary text-white px-4 py-2 rounded-md hover:bg-secondary-dark transition-colors mr-2",
-    next: "bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors",
-    progressBar: "bg-gray-200 dark:bg-gray-700 rounded-full h-2",
-    progressBarFill:
-      "bg-primary h-2 rounded-full transition-all duration-300 ease-in-out",
-  },
-  question: {
-    root: "mb-6",
-    title: "text-lg font-medium mb-4",
-    description: "text-text-secondary mb-2",
-    required: "text-red-500 ml-1",
-    error: {
-      root: "text-red-500 mt-2 text-sm",
-    },
-  },
-  text: {
-    root: "w-full",
-    input:
-      "w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors",
-  },
-  radiogroup: {
-    root: "space-y-2",
-    item: "flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors",
-    itemChecked: "bg-gray-100 dark:bg-gray-700",
-    itemControl:
-      "h-4 w-4 text-primary border-gray-300 dark:border-gray-600 focus:ring-primary",
-    itemText: "ml-2 text-gray-900 dark:text-white",
-  },
-  checkbox: {
-    root: "space-y-2",
-    item: "flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors",
-    itemChecked: "bg-gray-100 dark:bg-gray-700",
-    itemControl:
-      "h-5 w-5 text-blue-600 bg-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 rounded",
-    itemText: "ml-3 text-base text-gray-900 dark:text-white select-none",
-    controlLabel: "w-full flex items-center cursor-pointer",
-  },
+// Spanish localization configuration
+const spanishLocalization = {
+  pagePrevText: "Anterior",
+  pageNextText: "Siguiente",
+  completeText: "Finalizar",
+  requiredText: "",
+  requiredError: "Este campo es obligatorio.",
+  emptySurvey: "No hay página visible o pregunta en la encuesta.",
+  questionsProgressText: "Respondido {0}/{1} preguntas",
 };
 
-// Prevent page change if current question is empty
-const handleCurrentPageChanging = (sender, options) => {
-  if (options.isNextPage) {
-    const currentPage = sender.currentPage;
-    if (!currentPage || currentPage.questions[0]?.isEmpty()) {
-      // Add null check for questions[0]
-      options.allowChanging = false;
-    }
-  }
-};
+// Configure Spanish locale
+surveyLocalization.locales["es"] = spanishLocalization;
+surveyLocalization.defaultLocale = "es";
 
-export default function ResponderEncuesta() {
+export default function SurveyPage() {
   const router = useRouter();
   const { id } = useParams();
-  const searchParams = useSearchParams();
   const { theme } = useTheme();
-  const [surveyJson, setSurveyJson] = useState(null); // State for survey JSON structure
-  const [surveyModel, setSurveyModel] = useState(null); // State for SurveyJS Model instance
+  const [surveyModel, setSurveyModel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
-  const [startTime, setStartTime] = useState(null);
 
-  // Effect to load initial user and survey data
+  // Apply theme when it changes
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
+    if (surveyModel) {
+      if (theme === "dark") {
+        surveyModel.applyTheme(DoubleBorderDark);
+      } else {
+        surveyModel.applyTheme(DoubleBorderLight);
+      }
+    }
+  }, [theme, surveyModel]);
+
+  // Load survey data
+  useEffect(() => {
+    const loadSurvey = async () => {
       try {
-        const userData = authService.getUser();
-        setUser(userData);
-
-        if (!userData) {
-          console.log("No hay usuario autenticado, redirigiendo a login");
+        // Check authentication
+        const user = authService.getUser();
+        if (!user) {
+          console.log("No user found, redirecting to login");
           router.replace("/login");
-          return; // Exit early if no user
+          return;
         }
 
+        console.log("Loading survey with ID:", id);
         const response = await surveyService.getSurvey(id);
-        console.log("Survey data from backend:", response);
+        console.log("Survey response:", response);
 
-        // Check if the survey data exists
-        if (!response || !response.survey) {
-          throw new Error("No se encontró la encuesta");
+        if (!response?.survey) {
+          throw new Error("Survey not found");
         }
 
-        // Use the survey object inside the response
-        const surveyObject = response.survey;
-        // Log para ver la estructura INMEDIATA de surveyObject
-        console.log(
-          "[Immediate Check] surveyObject raw:",
-          JSON.parse(JSON.stringify(surveyObject))
-        );
-        console.log(
-          `[Immediate Check] surveyObject has pages? ${!!surveyObject.pages}, length: ${
-            surveyObject.pages?.length
-          }`
-        );
-        console.log(
-          `[Immediate Check] surveyObject has survey prop? ${!!surveyObject.survey}`
-        );
-        console.log(
-          `[Immediate Check] surveyObject.survey has pages? ${!!surveyObject
-            .survey?.pages}, length: ${surveyObject.survey?.pages?.length}`
-        );
-        console.log(
-          "[Data Flow] Raw surveyObject from API:",
-          JSON.parse(JSON.stringify(surveyObject))
-        );
+        // Get the actual survey data
+        const surveyData = response.survey.survey || response.survey;
+        console.log("Processing survey data:", surveyData);
 
-        // --- Inicio: Transformación para corregir key ---
-        const transformedSurvey = JSON.parse(JSON.stringify(surveyObject));
+        if (!surveyData.pages || !surveyData.pages.length) {
+          throw new Error("La encuesta no tiene preguntas configuradas");
+        }
 
-        // Check where 'pages' actually exists
-        console.log(
-          `[Transform Pre-Check] transformedSurvey.pages exists? ${!!transformedSurvey.pages}, length: ${
-            transformedSurvey.pages?.length
-          }`
-        );
-        console.log(
-          `[Transform Pre-Check] transformedSurvey.survey.pages exists? ${!!transformedSurvey
-            .survey?.pages}, length: ${transformedSurvey.survey?.pages?.length}`
-        );
+        // Process choices for radio, checkbox, and dropdown questions
+        surveyData.pages.forEach((page) => {
+          if (!page.elements) return;
 
-        // Determine the correct path to pages
-        const pagesToTransform =
-          transformedSurvey.pages || transformedSurvey.survey?.pages || []; // Prioritize direct pages
-
-        // Log which path is being used
-        console.log(
-          `[Transform Logic] Using pages from: ${
-            transformedSurvey.pages
-              ? "transformedSurvey.pages"
-              : transformedSurvey.survey?.pages
-              ? "transformedSurvey.survey.pages"
-              : "none"
-          }`
-        );
-
-        // Iterate over the determined pages array
-        pagesToTransform.forEach((page, pageIndex) => {
-          // <-- Use pagesToTransform
-          // Log para verificar la existencia y longitud de elements en cada page
-          console.log(
-            `[Transform Pre-Check] Page ${pageIndex}: page.elements exists? ${!!page.elements}, length: ${
-              page.elements?.length
-            }`
-          );
-
-          page.elements?.forEach((question) => {
-            // Log CADA question encontrada ANTES del check de tipo/choices
-            console.log(
-              `[Transform Loop] Found element: name='${question.name}', type='${
-                question.type
-              }', hasChoices?=${!!question.choices}`
-            );
-
-            // ---> START: Convert specific types to text + inputType <---
-            const originalType = question.type;
-            if (originalType === "date") {
-              question.type = "text";
-              question.inputType = "date";
-              console.log(
-                `[Transform Action] Converted question '${question.name}' from 'date' to 'text' with inputType 'date'.`
-              );
-            } else if (originalType === "time") {
-              question.type = "text";
-              question.inputType = "time";
-              console.log(
-                `[Transform Action] Converted question '${question.name}' from 'time' to 'text' with inputType 'time'.`
-              );
-            } else if (originalType === "email") {
-              question.type = "text";
-              question.inputType = "email";
-              console.log(
-                `[Transform Action] Converted question '${question.name}' from 'email' to 'text' with inputType 'email'.`
-              );
-            } else if (originalType === "number") {
-              question.type = "text";
-              question.inputType = "number";
-              console.log(
-                `[Transform Action] Converted question '${question.name}' from 'number' to 'text' with inputType 'number'.`
-              );
-            } else if (originalType === "phone") {
-              question.type = "text";
-              question.inputType = "tel"; // Use 'tel' for phone inputType
-              console.log(
-                `[Transform Action] Converted question '${question.name}' from 'phone' to 'text' with inputType 'tel'.`
-              );
-            }
-            // ---> END: Convert specific types <---
-
+          page.elements.forEach((question) => {
             if (
               (question.type === "radiogroup" ||
                 question.type === "checkbox" ||
                 question.type === "dropdown") &&
               question.choices
             ) {
-              console.log(
-                `[Transform Check] Processing choices for question: ${question.name}`
-              ); // Log question name
-              question.choices.forEach((choice, index) => {
-                console.log(
-                  `[Transform Check] Choice ${index} BEFORE:`,
-                  JSON.parse(JSON.stringify(choice))
-                ); // Log choice before
+              question.choices.forEach((choice) => {
+                // Handle choice text in Spanish
+                if (
+                  choice.text &&
+                  typeof choice.text === "object" &&
+                  choice.text.es
+                ) {
+                  choice.text = choice.text.es;
+                }
 
-                let valueIsMissingOrObject =
+                // Generate value from text if missing
+                if (
                   typeof choice.value === "undefined" ||
                   choice.value === null ||
-                  typeof choice.value === "object";
-
-                // Si 'value' falta O es un objeto, intentar generar uno desde text.es
-                if (
-                  valueIsMissingOrObject &&
-                  choice.text &&
-                  typeof choice.text.es === "string"
+                  typeof choice.value === "object"
                 ) {
-                  const originalValue = choice.value; // Puede ser undefined u objeto
-                  // Generar un valor simple desde el texto (ej: lowercase, replace spaces)
-                  const newValue = choice.text.es
-                    .toLowerCase()
-                    .replace(/\s+/g, "_");
-                  console.warn(
-                    `[Transform Action] Generating/Replacing choice value for question '${question.name}', choice index ${index}. Original:`,
-                    originalValue,
-                    `New:`,
-                    newValue
-                  );
-                  choice.value = newValue;
-                  console.log(
-                    `[Transform Check] Choice ${index} AFTER assign:`,
-                    JSON.parse(JSON.stringify(choice))
-                  );
-                } else if (choice.value) {
-                  // Si el value existe y es primitivo, no hacer nada pero loguear
-                  console.log(
-                    `[Transform Check] Choice ${index} - value exists and is primitive:`,
-                    choice.value
-                  );
-                } else {
-                  // Si no se pudo generar (ej. falta text.es)
-                  console.error(
-                    `[Transform Error] Could not generate value for choice ${index} in question '${question.name}'. Missing text.es?`,
-                    choice
-                  );
+                  if (choice.text && typeof choice.text === "string") {
+                    choice.value = choice.text
+                      .toLowerCase()
+                      .replace(/\s+/g, "_");
+                  }
                 }
               });
-            } else {
-              // Log si no entra en el if
-              console.log(
-                `[Transform Loop] Skipping choices processing for element '${question.name}' (type or choices condition not met).`
-              );
             }
-            // Añadir lógica similar para otros tipos de preguntas si es necesario (ej. matrix columns/rows)
           });
         });
 
-        console.log(
-          "[Transform Check] Final transformedSurvey before setSurveyJson:",
-          JSON.parse(JSON.stringify(transformedSurvey))
-        ); // Log final object
-        console.log(
-          "[Data Flow] Transformed survey data before setting state:",
-          JSON.parse(JSON.stringify(transformedSurvey))
-        );
-        // --- Fin: Transformación ---
+        // Create and configure survey model
+        const model = new Model(surveyData);
+        console.log("Survey model created:", model);
+        console.log("Survey pages:", model.pages);
 
-        setSurveyJson(transformedSurvey); // <--- Usar el objeto transformado
-        setStartTime(Date.now());
+        // Basic configuration
+        model.locale = "es";
+        model.showQuestionNumbers = false;
+        model.showProgressBar = "top";
+        model.pageNextText = "Siguiente";
+        model.pagePrevText = "Anterior";
+        model.completeText = "Finalizar";
+        model.showPreviewBeforeComplete = "noPreview";
+
+        // Customize CSS classes
+        model.css = {
+          root: "survey-container",
+          header: "survey-header text-sm text-text-secondary mb-4",
+          headerText: "text-base font-normal",
+          description: "hidden",
+          page: {
+            root: "survey-page",
+            title: "hidden",
+          },
+          pageTitle: "hidden",
+          question: {
+            root: "survey-question mb-6",
+            title: "text-lg font-medium text-text-primary mb-3",
+            content: "question-content",
+            mainRoot: "question-main-root",
+            header: "question-header",
+            headerLeft: "question-header-left",
+            headerRight: "question-header-right",
+            contentLeft: "question-content-left",
+            contentRight: "question-content-right",
+          },
+          panel: {
+            title: "panel-title text-base font-medium text-text-primary mb-2",
+            description: "panel-description text-sm text-text-secondary mb-4",
+          },
+          error: {
+            root: "text-red-500 text-sm mt-1",
+            icon: "hidden",
+            item: "text-red-500",
+          },
+          progressBar: {
+            root: "progress-bar-root mb-4",
+            container:
+              "progress-bar-container h-2 bg-card-background rounded-full",
+            bar: "progress-bar h-full bg-primary rounded-full transition-all duration-300",
+          },
+          navigation: {
+            complete: "btn-primary px-6 py-2 rounded-lg",
+            prev: "btn-action px-6 py-2 rounded-lg mr-2",
+            next: "btn-primary px-6 py-2 rounded-lg",
+            start: "btn-primary px-6 py-2 rounded-lg",
+          },
+        };
+
+        // Wizard configuration
+        model.questionsOnPageMode = "questionPerPage";
+        model.showPageTitles = false;
+        model.showPageNumbers = false;
+        model.showNavigationButtons = true;
+        model.showPrevButton = true;
+        model.goNextPageAutomatic = false;
+        model.checkErrorsMode = "onNextPage";
+        model.clearInvisibleValues = "onHidden";
+
+        // Completion page configuration
+        model.showCompletedPage = true;
+        model.completedHtml = "<h4>¡Gracias por completar la encuesta!</h4>";
+
+        // Event handlers for navigation
+        model.onCurrentPageChanging.add(function (sender, options) {
+          if (options.isNextPage) {
+            const currentPage = sender.currentPage;
+            if (currentPage && currentPage.hasErrors()) {
+              options.allowChanging = false;
+            }
+          }
+        });
+
+        // Custom progress text
+        const updateProgressText = (sender) => {
+          const currentPageNo = sender.currentPageNo + 1;
+          const pageCount = sender.pageCount;
+          const progressTextElement =
+            document.querySelector(".sv-progress__text");
+          if (progressTextElement) {
+            progressTextElement.textContent = `Pregunta ${currentPageNo} de ${pageCount}`;
+          }
+        };
+
+        // Initial progress text
+        model.onAfterRenderPage.add(updateProgressText);
+        // Update progress text when page changes
+        model.onCurrentPageChanged.add(updateProgressText);
+
+        // Apply initial theme
+        if (theme === "dark") {
+          model.applyTheme(DoubleBorderDark);
+        } else {
+          model.applyTheme(DoubleBorderLight);
+        }
+
+        setSurveyModel(model);
       } catch (err) {
-        console.error("Error al cargar la encuesta:", err);
-        setError("Error al cargar la encuesta. Por favor, intente nuevamente.");
+        console.error("Error loading survey:", err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
-  }, [id, router]);
+    loadSurvey();
+  }, [id, router, theme]);
 
-  // Effect to create and configure survey model when surveyJson is loaded
-  useEffect(() => {
-    if (surveyJson) {
-      // Make sure we have the complete survey definition with all required properties
-      console.log(
-        "[Data Flow] surveyJson state before creating Model:",
-        JSON.parse(JSON.stringify(surveyJson))
-      );
-      console.log("Creating survey model with:", surveyJson);
-      // Add debug log to examine structure
-      console.log("Survey structure:", {
-        title: surveyJson.title,
-        description: surveyJson.description,
-        survey: surveyJson.survey,
-        surveyPages: surveyJson.survey?.pages,
-      });
-
-      // Create the model with the survey definition
-      const model = new Model(surveyJson.survey || surveyJson);
-
-      // Set model locale
-      model.locale = "es";
-
-      // Basic configuration
-      model.mode = "edit";
-      model.showProgressBar = "bottom";
-      model.showQuestionNumbers = true;
-      model.pageNextText = "Siguiente"; // Already likely set by 'es' locale, but explicit is fine
-      model.pagePrevText = "Anterior"; // Already likely set by 'es' locale
-      model.completeText = "Finalizar"; // Already likely set by 'es' locale
-      model.showPrevButton = true;
-      model.showCompletedPage = true;
-      model.completedHtml = "<h4>¡Gracias por completar la encuesta!</h4>";
-      model.checkErrorsMode = "onNextPage";
-      model.questionErrorLocation = "bottom";
-      model.showPreviewBeforeComplete = "noPreview";
-      model.questionsOnPageMode = "questionPerPage";
-
-      // --- START: Define common styles for inputs ---
-      const commonInputStyles = {
-        opacity: "1",
-        position: "static",
-        width: "24px", // Increased size
-        height: "24px", // Increased size
-        marginRight: "12px", // Adjusted margin
-        cursor: "pointer",
-        verticalAlign: "middle", // Align vertically with label
-      };
-      // --- END: Define common styles for inputs ---
-
-      // Fix checkbox styling issues - target correct class names based on inspector
-      model.onAfterRenderQuestion.add((survey, options) => {
-        // Log question details for debugging
-        const question = options.question;
-        const choicesDetails = question.visibleChoices?.map((choice) => ({
-          value: choice.value,
-          text: choice.text, // Or choice.locText.renderedHtml for localized/HTML text
-          // Add any other relevant choice properties here
-        }));
-
-        console.log("Rendering question: " + question.name, {
-          type: question.getType(),
-          // choices: question.choices, // Keep original choices array if needed
-          visibleChoicesDetails: choicesDetails, // Log processed choice details
-          data: question.toJSON(), // Log full question data as JSON
-          htmlElement: options.htmlElement, // Reference to the rendered HTML
-        });
-
-        if (question.getType() === "checkbox") {
-          // Apply common styles to the real checkboxes
-          const checkboxInputs = options.htmlElement.querySelectorAll(
-            'input[type="checkbox"]'
-          );
-          checkboxInputs.forEach((input) => {
-            Object.assign(input.style, commonInputStyles); // Apply styles
-          });
-
-          // Hide the decorative checkboxes
-          const checkboxDecorators = options.htmlElement.querySelectorAll(
-            ".sd-checkbox__decorator"
-          );
-          checkboxDecorators.forEach((decorator) => {
-            decorator.style.display = "none";
-          });
-        } else if (question.getType() === "radiogroup") {
-          // Apply common styles to the real radio buttons
-          const radioInputs = options.htmlElement.querySelectorAll(
-            'input[type="radio"]' // Target radio inputs
-          );
-          radioInputs.forEach((input) => {
-            Object.assign(input.style, commonInputStyles); // Apply same styles
-          });
-
-          // Hide the decorative element for radio buttons
-          const radioDecorators = options.htmlElement.querySelectorAll(
-            ".sd-radio__decorator"
-          );
-          radioDecorators.forEach((decorator) => {
-            decorator.style.display = "none";
-          });
-        } else if (
-          question.getType() === "text" ||
-          question.getType() === "comment"
-        ) {
-          // Handle text and comment inputs - now with error state handling
-          const textInput = options.htmlElement.querySelector(
-            'input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="time"], textarea'
-          );
-          if (textInput) {
-            // Apply base styles
-            textInput.classList.add(
-              "p-2",
-              "border",
-              "border-gray-600",
-              "dark:border-gray-500",
-              "rounded-md",
-              "w-full",
-              "min-h-[40px]"
-            );
-
-            // Set direct styles that might get overwritten
-            Object.assign(textInput.style, {
-              minHeight: "40px",
-              padding: "8px 12px",
-              width: "100%",
-              opacity: "1",
-              backgroundColor: theme === "dark" ? "#1f2937" : "#ffffff",
-              border: "1px solid #4b5563", // Base border color
-              borderRadius: "0.375rem", // 6px rounded corners
-              transition: "all 0.2s ease-in-out",
-            });
-
-            // Check for error state using SurveyJS's class
-            if (textInput.classList.contains("sd-input--error")) {
-              Object.assign(textInput.style, {
-                border: "2px solid #dc2626", // Más rojo y más visible
-                backgroundColor:
-                  theme === "dark" ? "rgba(220, 38, 38, 0.1)" : "#fee2e2",
-              });
-            }
-
-            // Add focus styles
-            textInput.addEventListener("focus", () => {
-              if (textInput.classList.contains("sd-input--error")) {
-                textInput.style.border = "2px solid #dc2626"; // Mantener el rojo en focus
-                textInput.style.boxShadow = "0 0 0 1px #dc2626"; // Añadir un sutil resplandor rojo
-              } else {
-                textInput.style.border = "2px solid #2563eb";
-                textInput.style.boxShadow = "0 0 0 1px #2563eb";
-              }
-            });
-
-            textInput.addEventListener("blur", () => {
-              if (textInput.classList.contains("sd-input--error")) {
-                textInput.style.border = "2px solid #dc2626";
-                textInput.style.boxShadow = "none";
-              } else {
-                textInput.style.border = "1px solid #4b5563";
-                textInput.style.boxShadow = "none";
-              }
-            });
-          }
-
-          // Style the error message container if it exists
-          const errorContainer = options.htmlElement.querySelector(
-            ".sd-question__erbox"
-          );
-          if (errorContainer) {
-            errorContainer.classList.add(
-              "mt-2",
-              "text-red-500",
-              "text-sm",
-              "font-medium"
-            );
-          }
-        }
-      });
-
-      // Apply custom CSS classes
-      model.css = surveyCssConfiguration;
-
-      // Add event listener
-      model.onCurrentPageChanging.add(handleCurrentPageChanging);
-
-      setSurveyModel(model); // Set the configured model instance to state
-
-      // ---> ADDED LOGGING
-      console.log("[Data Flow] SurveyJS Model created:", model);
-      console.log("[Data Flow] Model Pages Count:", model.pages?.length);
-      model.pages?.forEach((page, index) => {
-        console.log(
-          `[Data Flow] Model Page ${index} Elements Count:`,
-          page.elements?.length
-        );
-        page.elements?.forEach((element, elIndex) => {
-          console.log(
-            `[Data Flow] Model Page ${index}, Element ${elIndex}:`,
-            element.name,
-            element.getType()
-          );
-        });
-      });
-
-      // Clean up event listener on unmount or when surveyJson changes
-      return () => {
-        model.onCurrentPageChanging.remove(handleCurrentPageChanging);
-      };
-    }
-  }, [surveyJson]); // Re-run when surveyJson changes
-
-  // Effect to apply SurveyJS theme dynamically based on app theme and surveyModel
-  useEffect(() => {
-    if (surveyModel) {
-      if (theme === "dark") {
-        surveyModel.applyTheme(DoubleBorderDark);
-      } else {
-        surveyModel.applyTheme(DefaultLight);
-      }
-    }
-  }, [theme, surveyModel]); // Re-run effect when theme or surveyModel changes
-
-  // Handle survey completion - wrapped in useCallback
-  const handleComplete = useCallback(
-    async (sender) => {
-      const mode = searchParams.get("mode");
-
-      // If it's test mode, show message and skip saving
-      if (mode === "test") {
-        console.log("Modo Prueba Local: Omitiendo guardado.");
-        sender.completedHtml = `
-          <div style="padding: 20px; text-align: center;">
-            <h4>¡Prueba Local Completada!</h4>
-            <p>Esta fue una prueba. Tus respuestas no han sido guardadas.</p>
-            <button 
-              onclick="window.location.href='/dashboard/encuestas'" 
-              style="margin-top: 15px; padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;"
-            >
-              Volver a Encuestas
-            </button>
-          </div>
-        `;
-        // We modify the sender's completedHtml directly
-        // The survey library will show this page instead of redirecting immediately
-        return; // Exit before saving and redirecting
-      }
-
-      // --- Regular saving logic starts here ---
-      const endTime = new Date();
-      const timeTaken = endTime - startTime; // Time in milliseconds
-
-      console.log("Survey sender data:", sender.data);
-
-      let coords = null;
-      try {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            timeout: 5000,
-          }); // Added timeout
-        });
-        coords = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-      } catch (geoError) {
-        console.error("Error al obtener la ubicación:", geoError);
-        // Continue without location if it fails or times out
-      }
-
+  // Handle survey completion
+  const handleComplete = async (sender) => {
+    try {
+      const user = authService.getUser();
       const answerData = {
         surveyId: id,
-        fullName: user?.fullName, // Use optional chaining
+        fullName: user?.fullName,
         answer: sender.data,
-        time: timeTaken,
-        lat: coords?.lat,
-        lng: coords?.lng,
         createdAt: new Date().toISOString(),
       };
 
@@ -611,23 +255,20 @@ export default function ResponderEncuesta() {
       );
 
       if (!response.ok) {
-        const errorBody = await response.text(); // Get more details on error
-        throw new Error(
-          `Error al guardar la respuesta: ${response.status} ${errorBody}`
-        );
+        throw new Error("Failed to save survey response");
       }
 
       router.push("/dashboard/encuestas");
-    },
-    [id, router, startTime, user, searchParams]
-  ); // Added dependencies
-
-  // --- Render logic ---
+    } catch (err) {
+      console.error("Error saving survey:", err);
+      setError("Failed to save survey response");
+    }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
       </div>
     );
   }
@@ -635,35 +276,73 @@ export default function ResponderEncuesta() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div
-          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative m-4" // Added margin
-          role="alert"
-        >
-          <strong className="font-bold">Error!</strong>
-          <span className="block sm:inline"> {error}</span>
-          {/* Optional: Add a button to retry loading? */}
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
         </div>
       </div>
     );
   }
 
-  // Render survey only when model is ready
-  if (!surveyModel || !surveyJson) {
-    // Check for surveyJson too
-    // Or show a specific message like "Preparing survey..."
+  if (!surveyModel) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p>Cargando encuesta...</p>
+        <div className="text-red-700">No hay encuesta disponible</div>
       </div>
     );
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="bg-card-background border border-card-border rounded-lg shadow-lg p-6">
-        <div className="transition-all duration-300 ease-in-out">
-          <Survey model={surveyModel} onComplete={handleComplete} />
-        </div>
+      <div className="bg-card-background rounded-lg shadow-sm border border-card-border p-6">
+        <style jsx global>{`
+          .sv_main .sv_container {
+            color: var(--text-primary);
+          }
+
+          .sv_main .sv_body {
+            border: none;
+            background: transparent;
+          }
+
+          .sv_main .sv_q_title {
+            color: var(--text-primary);
+          }
+
+          .sv_main .sv_q_description {
+            color: var(--text-secondary);
+          }
+
+          .sv_main input[type="radio"],
+          .sv_main input[type="checkbox"] {
+            accent-color: var(--primary);
+          }
+
+          .sv_main .sv_q_radiogroup_label,
+          .sv_main .sv_q_checkbox_label,
+          .sv_main .sv_q_rating_item {
+            color: var(--text-primary);
+            transition: all 0.2s ease-in-out;
+          }
+
+          .sv_main .sv_q_radiogroup_label:hover,
+          .sv_main .sv_q_checkbox_label:hover {
+            color: var(--primary);
+          }
+
+          .sv_main .sv_q_rating_item.active {
+            background-color: var(--primary);
+            border-color: var(--primary);
+          }
+
+          .sv_main .sv_progress_bar {
+            background-color: var(--card-background);
+          }
+
+          .sv_main .sv_progress_bar > span {
+            background-color: var(--primary);
+          }
+        `}</style>
+        <Survey model={surveyModel} onComplete={handleComplete} />
       </div>
     </div>
   );
