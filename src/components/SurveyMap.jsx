@@ -406,21 +406,43 @@ const SurveyMap = ({
                       <div className="max-h-40 overflow-y-auto space-y-1">
                         {Object.entries(selectedMarker.answer).map(
                           ([key, value]) => {
-                            const question = survey?.pages?.[0]?.elements?.find(
-                              (q) => q.name === key
-                            );
-                            const questionTitle = question?.title || key;
-                            const readableValue = getReadableAnswer(
-                              survey,
-                              key,
-                              value
-                            );
+                            // Removed the logic relying on getReadableAnswer for displaying the value
+                            // const question = survey?.pages?.[0]?.elements?.find(
+                            //   (q) => q.name === key
+                            // );
+                            // const questionTitle = question?.title || key;
+                            // const readableValue = getReadableAnswer(
+                            //   survey,
+                            //   key,
+                            //   value
+                            // );
+
+                            // Direct rendering logic
+                            let displayValue;
+                            if (
+                              typeof value === "object" &&
+                              value !== null &&
+                              !Array.isArray(value)
+                            ) {
+                              // Format object values (e.g., matrix)
+                              displayValue = Object.entries(value)
+                                .map(
+                                  ([objKey, objValue]) =>
+                                    `${objKey}: ${objValue}`
+                                )
+                                .join(", ");
+                            } else if (Array.isArray(value)) {
+                              // Format array values (e.g., multiple choice)
+                              displayValue = value.join(", ");
+                            } else {
+                              // Display other values directly
+                              displayValue = String(value);
+                            }
+
                             return (
                               <div key={key} className="ml-2">
-                                <span className="font-medium">
-                                  {questionTitle}:
-                                </span>{" "}
-                                <span>{readableValue}</span>
+                                <span className="font-medium">{key}:</span>{" "}
+                                <span>{displayValue}</span>
                               </div>
                             );
                           }
