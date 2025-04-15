@@ -22,10 +22,41 @@ const QUESTION_TYPES = {
   MATRIX: "matrix",
 };
 
+// Placeholder descriptions for each question type
+const DESCRIPTION_PLACEHOLDERS = {
+  [QUESTION_TYPES.TEXT]: "Respuesta de texto libre.",
+  [QUESTION_TYPES.MULTIPLE_CHOICE]: "Seleccione una o más opciones.",
+  [QUESTION_TYPES.SINGLE_CHOICE]: "Seleccione solo una opción.",
+  [QUESTION_TYPES.CHECKBOX]: "Marque las casillas correspondientes.",
+  [QUESTION_TYPES.RATING]: "Valore en una escala.",
+  [QUESTION_TYPES.DATE]: "Introduzca una fecha.",
+  [QUESTION_TYPES.TIME]: "Introduzca una hora.",
+  [QUESTION_TYPES.EMAIL]: "Introduzca una dirección de correo electrónico.",
+  [QUESTION_TYPES.NUMBER]: "Introduzca un número.",
+  [QUESTION_TYPES.PHONE]: "Introduzca un número de teléfono.",
+  [QUESTION_TYPES.MATRIX]: "Valore los elementos según las columnas.",
+};
+
+// Spanish labels for question types
+const QUESTION_TYPE_LABELS = {
+  [QUESTION_TYPES.TEXT]: "Texto",
+  [QUESTION_TYPES.MULTIPLE_CHOICE]: "Opción Múltiple",
+  [QUESTION_TYPES.SINGLE_CHOICE]: "Opción Única",
+  [QUESTION_TYPES.CHECKBOX]: "Casilla de Verificación",
+  [QUESTION_TYPES.RATING]: "Calificación",
+  [QUESTION_TYPES.DATE]: "Fecha",
+  [QUESTION_TYPES.TIME]: "Hora",
+  [QUESTION_TYPES.EMAIL]: "Correo Electrónico",
+  [QUESTION_TYPES.NUMBER]: "Número",
+  [QUESTION_TYPES.PHONE]: "Teléfono",
+  [QUESTION_TYPES.MATRIX]: "Matriz",
+};
+
 export default function QuestionModal({
   isOpen,
   onClose,
   onSave,
+  onValidationError,
   initialData = null,
 }) {
   const [question, setQuestion] = useState(
@@ -33,8 +64,8 @@ export default function QuestionModal({
       id: null,
       type: QUESTION_TYPES.TEXT,
       title: "",
-      description: "",
-      required: false,
+      description: DESCRIPTION_PLACEHOLDERS[QUESTION_TYPES.TEXT] || "",
+      required: true,
       options: [],
       matrixRows: [],
       matrixColumns: [],
@@ -50,8 +81,8 @@ export default function QuestionModal({
         id: null,
         type: QUESTION_TYPES.TEXT,
         title: "",
-        description: "",
-        required: false,
+        description: DESCRIPTION_PLACEHOLDERS[QUESTION_TYPES.TEXT] || "",
+        required: true,
         options: [],
         matrixRows: [],
         matrixColumns: [],
@@ -110,10 +141,10 @@ export default function QuestionModal({
       case QUESTION_TYPES.CHECKBOX:
         return (
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center">
               <button
                 onClick={addOption}
-                className="link-action flex items-center gap-1 text-sm"
+                className="link-action flex items-center gap-1 text-sm border rounded-md p-2 hover:bg-gray-100"
               >
                 <Plus className="w-4 h-4" />
                 Agregar opción
@@ -214,6 +245,39 @@ export default function QuestionModal({
   };
 
   const handleSave = () => {
+    // Validation: Check if title is empty
+    if (!question.title.trim()) {
+      if (onValidationError) {
+        onValidationError("No es posible crear una pregunta sin título.");
+      } else {
+        console.error("QuestionModal: onValidationError prop is missing!");
+        alert("No es posible crear una pregunta sin título.");
+      }
+      return; // Prevent saving
+    }
+
+    // Validation: Check for minimum options for relevant types
+    const typesRequiringOptions = [
+      QUESTION_TYPES.MULTIPLE_CHOICE,
+      QUESTION_TYPES.SINGLE_CHOICE,
+      QUESTION_TYPES.CHECKBOX,
+    ];
+
+    if (
+      typesRequiringOptions.includes(question.type) &&
+      question.options.length < 2
+    ) {
+      if (onValidationError) {
+        onValidationError(
+          "Este tipo de pregunta requiere al menos 2 opciones."
+        );
+      } else {
+        console.error("QuestionModal: onValidationError prop is missing!");
+        alert("Este tipo de pregunta requiere al menos 2 opciones.");
+      }
+      return; // Prevent saving
+    }
+
     const questionToSave = {
       ...question,
       id: question.id || generateUniqueId(),
@@ -226,10 +290,7 @@ export default function QuestionModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
 
         <div className="card relative transform overflow-hidden shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
           <div className="p-6 space-y-4">
@@ -238,41 +299,62 @@ export default function QuestionModal({
             </h3>
 
             <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-1">
+              {/* Title Input - Full Width */}
+              <div>
+                <input
+                  type="text"
+                  value={question.title}
+                  onChange={(e) =>
+                    setQuestion((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  className="w-full p-2 border rounded-md" // Ensure full width
+                  placeholder="Título de la pregunta"
+                />
+              </div>
+
+              {/* Required Checkbox & Type Dropdown Row */}
+              <div className="flex justify-evenly items-center gap-4">
+                {/* Required Checkbox */}
+                <div className="flex items-center gap-2">
                   <input
-                    type="text"
-                    value={question.title}
+                    type="checkbox"
+                    id="required"
+                    checked={question.required}
                     onChange={(e) =>
                       setQuestion((prev) => ({
                         ...prev,
-                        title: e.target.value,
+                        required: e.target.checked,
                       }))
                     }
-                    className="w-full p-2 border rounded-md"
-                    placeholder="Título de la pregunta"
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
                   />
+                  <label htmlFor="required" className="text-sm">
+                    Pregunta obligatoria
+                  </label>
                 </div>
+                {/* Type Dropdown */}
                 <select
                   value={question.type}
-                  onChange={(e) =>
-                    setQuestion((prev) => ({ ...prev, type: e.target.value }))
-                  }
-                  className="p-2 border rounded-md"
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    setQuestion((prev) => ({
+                      ...prev,
+                      type: newType,
+                      description: DESCRIPTION_PLACEHOLDERS[newType] || "",
+                    }));
+                  }}
+                  className="p-2 border rounded-md flex-none"
                 >
                   {Object.entries(QUESTION_TYPES).map(([key, value]) => (
                     <option key={value} value={value}>
-                      {key
-                        .split("_")
-                        .map(
-                          (word) => word.charAt(0) + word.slice(1).toLowerCase()
-                        )
-                        .join(" ")}
+                      {QUESTION_TYPE_LABELS[value] || key}{" "}
+                      {/* Use Spanish label */}
                     </option>
                   ))}
                 </select>
               </div>
 
+              {/* Description Textarea - Full Width */}
               <textarea
                 value={question.description}
                 onChange={(e) =>
@@ -281,29 +363,12 @@ export default function QuestionModal({
                     description: e.target.value,
                   }))
                 }
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md" // Ensure full width
                 rows={2}
                 placeholder="Descripción (opcional)"
               />
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="required"
-                  checked={question.required}
-                  onChange={(e) =>
-                    setQuestion((prev) => ({
-                      ...prev,
-                      required: e.target.checked,
-                    }))
-                  }
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <label htmlFor="required" className="text-sm">
-                  Pregunta obligatoria
-                </label>
-              </div>
-
+              {/* Dynamic Question Options */}
               {renderQuestionOptions()}
             </div>
 

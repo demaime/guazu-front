@@ -1,7 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2, Edit, GripVertical } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Plus,
+  Trash2,
+  Edit,
+  GripVertical,
+  Type,
+  CheckSquare,
+  List,
+  ToggleLeft,
+  Star,
+  Calendar,
+  Clock,
+  Mail,
+  Hash,
+  Phone,
+  Grid,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import QuestionModal from "./QuestionModal";
 import { ConfirmModal } from "./ui/ConfirmModal";
@@ -20,7 +36,41 @@ const QUESTION_TYPES = {
   MATRIX: "matrix",
 };
 
-export default function QuestionEditor({ questions, onChange }) {
+// Spanish labels (redundant, consider moving to shared file later)
+const QUESTION_TYPE_LABELS_ES = {
+  [QUESTION_TYPES.TEXT]: "Texto",
+  [QUESTION_TYPES.MULTIPLE_CHOICE]: "Opción Múltiple",
+  [QUESTION_TYPES.SINGLE_CHOICE]: "Opción Única",
+  [QUESTION_TYPES.CHECKBOX]: "Casilla Verificación",
+  [QUESTION_TYPES.RATING]: "Calificación",
+  [QUESTION_TYPES.DATE]: "Fecha",
+  [QUESTION_TYPES.TIME]: "Hora",
+  [QUESTION_TYPES.EMAIL]: "Correo Electrónico",
+  [QUESTION_TYPES.NUMBER]: "Número",
+  [QUESTION_TYPES.PHONE]: "Teléfono",
+  [QUESTION_TYPES.MATRIX]: "Matriz",
+};
+
+// Icon mapping
+const QUESTION_TYPE_ICONS = {
+  [QUESTION_TYPES.TEXT]: Type,
+  [QUESTION_TYPES.MULTIPLE_CHOICE]: List,
+  [QUESTION_TYPES.SINGLE_CHOICE]: ToggleLeft,
+  [QUESTION_TYPES.CHECKBOX]: CheckSquare,
+  [QUESTION_TYPES.RATING]: Star,
+  [QUESTION_TYPES.DATE]: Calendar,
+  [QUESTION_TYPES.TIME]: Clock,
+  [QUESTION_TYPES.EMAIL]: Mail,
+  [QUESTION_TYPES.NUMBER]: Hash,
+  [QUESTION_TYPES.PHONE]: Phone,
+  [QUESTION_TYPES.MATRIX]: Grid,
+};
+
+export default function QuestionEditor({
+  questions,
+  onChange,
+  onValidationError,
+}) {
   const [draggingIndex, setDraggingIndex] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
@@ -68,11 +118,9 @@ export default function QuestionEditor({ questions, onChange }) {
     setQuestionToDelete(null);
   };
 
-  const getQuestionTypeLabel = (type) => {
-    return type
-      .split("_")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(" ");
+  // Helper to get the icon component for a type
+  const getQuestionTypeIcon = (type) => {
+    return QUESTION_TYPE_ICONS[type] || Type; // Default to 'Type' icon
   };
 
   return (
@@ -98,13 +146,12 @@ export default function QuestionEditor({ questions, onChange }) {
             className="card p-3"
           >
             <div className="flex items-start gap-3">
-              <button
-                className="p-1.5 text-gray-400 hover:text-gray-600 cursor-move mt-0.5"
-                onMouseDown={() => setDraggingIndex(index)}
-                onMouseUp={() => setDraggingIndex(null)}
-              >
-                <GripVertical className="w-4 h-4" />
-              </button>
+              {/* Question Type Icon */}
+              <div className="p-1.5 text-gray-500 mt-0.5 flex-shrink-0">
+                {React.createElement(getQuestionTypeIcon(question.type), {
+                  className: "w-4 h-4",
+                })}
+              </div>
               <div className="flex-1">
                 <div className="flex items-start justify-between">
                   <div>
@@ -117,7 +164,7 @@ export default function QuestionEditor({ questions, onChange }) {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-text-secondary">
-                      {getQuestionTypeLabel(question.type)}
+                      {QUESTION_TYPE_LABELS_ES[question.type] || question.type}
                     </span>
                     {question.required && (
                       <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
@@ -170,6 +217,7 @@ export default function QuestionEditor({ questions, onChange }) {
         onClose={() => setShowModal(false)}
         onSave={handleSaveQuestion}
         initialData={editingQuestion}
+        onValidationError={onValidationError}
       />
 
       <ConfirmModal

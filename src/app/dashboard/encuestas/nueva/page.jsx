@@ -89,6 +89,15 @@ export default function NuevaEncuesta({
   const [showPollstersModal, setShowPollstersModal] = useState(false);
   const [showSupervisorsModal, setShowSupervisorsModal] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
+  const [showValidationErrorModal, setShowValidationErrorModal] =
+    useState(false);
+  const [validationErrorMessage, setValidationErrorMessage] = useState("");
+
+  // Function to show validation error modal
+  const showValidationError = (message) => {
+    setValidationErrorMessage(message);
+    setShowValidationErrorModal(true);
+  };
 
   // Mover el hook useConfirmNavigation aquí, antes de cualquier efecto condicional
   useConfirmNavigation(
@@ -195,6 +204,18 @@ export default function NuevaEncuesta({
 
   // Guardar encuesta
   const handleSave = async () => {
+    // Validation: Check if title is empty
+    if (!surveyData.basicInfo.title.trim()) {
+      showValidationError("No es posible crear una encuesta sin título.");
+      return; // Prevent saving
+    }
+
+    // Validation: Check if there are any questions
+    if (surveyData.questions.length === 0) {
+      showValidationError("No es posible crear una encuesta sin preguntas.");
+      return; // Prevent saving
+    }
+
     // console.log("[NuevaEncuesta] Starting handleSave...");
     try {
       setIsLoading(true);
@@ -550,6 +571,7 @@ export default function NuevaEncuesta({
             <div>
               <QuestionEditor
                 questions={surveyData.questions}
+                onValidationError={showValidationError}
                 onChange={(questions) =>
                   setSurveyData((prev) => ({
                     ...prev,
@@ -824,14 +846,22 @@ export default function NuevaEncuesta({
         </div>
       </div>
 
+      {/* Modal de confirmación para cancelar */}
       {showConfirmCancel && (
         <ConfirmModal
           isOpen={showConfirmCancel}
           onClose={() => setShowConfirmCancel(false)}
           onConfirm={handleConfirmCancel}
           title="Confirmar cancelación"
-          message="¿Estás seguro que deseas salir? Los cambios no guardados se perderán."
-        />
+          confirmText="Salir sin guardar"
+          cancelText="Permanecer"
+          confirmButtonClass="bg-red-500 text-white hover:bg-red-600"
+        >
+          <p>
+            ¿Estás seguro que deseas salir? Los cambios no guardados se
+            perderán.
+          </p>
+        </ConfirmModal>
       )}
 
       {/* Modal de selección de encuestadores */}
@@ -877,6 +907,19 @@ export default function NuevaEncuesta({
           setShowSupervisorsModal(false);
         }}
       />
+
+      {/* Validation Error Modal - Using modified ConfirmModal */}
+      <ConfirmModal
+        isOpen={showValidationErrorModal}
+        onClose={() => setShowValidationErrorModal(false)}
+        onConfirm={() => setShowValidationErrorModal(false)}
+        title="Error de Validación"
+        confirmText="Aceptar"
+        showCancelButton={false}
+        confirmButtonClass="btn-primary"
+      >
+        <p>{validationErrorMessage}</p>
+      </ConfirmModal>
     </div>
   );
 }

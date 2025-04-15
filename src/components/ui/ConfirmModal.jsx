@@ -6,8 +6,11 @@ export function ConfirmModal({
   onClose,
   onConfirm,
   title,
-  message,
-  isAlert = false,
+  children,
+  confirmText = "Confirmar",
+  cancelText = "Cancelar",
+  confirmButtonClass = "bg-red-500 text-white hover:bg-red-600",
+  showCancelButton = true,
 }) {
   if (!isOpen) return null;
 
@@ -43,29 +46,28 @@ export function ConfirmModal({
 
           {/* Content */}
           <div className="p-4 bg-[var(--background)]">
-            <p className="text-[var(--text-primary)]">{message}</p>
+            <div className="text-[var(--text-primary)]">{children}</div>
           </div>
 
-          {/* Footer - Conditionally render based on isAlert */}
-          {!isAlert && (
-            <div className="flex justify-end gap-2 p-4 border-t border-[var(--card-border)] bg-[var(--card-background)] rounded-b-lg">
+          {/* Footer */}
+          <div className="flex justify-end gap-2 p-4 border-t border-[var(--card-border)] bg-[var(--card-background)] rounded-b-lg">
+            {showCancelButton && (
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                className="px-4 py-2 btn-secondary transition-colors"
               >
-                Cancelar
+                {cancelText}
               </button>
-              <button
-                onClick={() => {
-                  onConfirm();
-                  onClose();
-                }}
-                className="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors"
-              >
-                Confirmar
-              </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => {
+                onConfirm();
+              }}
+              className={`px-4 py-2 rounded-md ${confirmButtonClass} transition-colors`}
+            >
+              {confirmText}
+            </button>
+          </div>
         </motion.div>
       </div>
     </AnimatePresence>
