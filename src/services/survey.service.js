@@ -1,4 +1,5 @@
 import { SURVEY_ROUTES } from "@/config/routes";
+import { ANSWER_ROUTES } from "@/config/routes";
 
 class SurveyService {
   async getAllSurveys() {
@@ -234,8 +235,8 @@ class SurveyService {
   async deleteAnswers(surveyId) {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`${SURVEY_ROUTES.ANSWERS(surveyId)}`, {
-        method: "DELETE",
+      const response = await fetch(`${ANSWER_ROUTES.DELETE(surveyId)}`, {
+        method: "PUT",
         headers: new Headers({
           "Content-Type": "application/json; charset=utf-8",
           Authorization: token,
@@ -244,16 +245,38 @@ class SurveyService {
         mode: "cors",
       });
 
-      const data = await response.json();
-
-      if (data.error) {
-        return Promise.reject(data.validation);
+      // Check for 404 specifically
+      if (response.status === 404) {
+        const data = await response.json();
+        return {
+          noAnswersFound: true,
+          message:
+            data.message || "No se encontraron respuestas para eliminar.",
+        };
       }
 
-      return data;
+      // Handle other non-ok responses
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Error del servidor: ${response.status}`
+        );
+      }
+
+      // Handle successful deletion (200 OK)
+      const data = await response.json();
+      return {
+        success: true,
+        message: data.message || "Respuestas eliminadas con éxito",
+        deletedCount: data.deletedCount,
+      };
     } catch (error) {
-      console.error("Error in deleteAnswers:", error);
-      throw error;
+      console.error("Error al borrar respuestas:", error);
+      // Re-throw the error or return an error object for the component to handle
+      return {
+        error: true,
+        message: error.message || "Ocurrió un error inesperado.",
+      };
     }
   }
 

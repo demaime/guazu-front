@@ -8,6 +8,7 @@ import { SurveyList } from "@/components/ui/SurveyList";
 import { Plus, ChevronDown } from "lucide-react";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "react-toastify";
 
 // Helper function to check if a survey is active based on dates
 const isSurveyActive = (survey) => {
@@ -77,21 +78,30 @@ export default function Encuestas() {
   };
 
   const handleDeleteAnswers = async (surveyId) => {
-    if (
-      window.confirm(
-        "¿Estás seguro de que deseas eliminar todas las respuestas de esta encuesta?"
-      )
-    ) {
-      try {
-        await surveyService.deleteAnswers(surveyId);
+    try {
+      const result = await surveyService.deleteAnswers(surveyId);
+
+      if (result.noAnswersFound) {
+        toast.info("No se encontraron respuestas para eliminar.");
+      } else if (result.success) {
+        toast.success(result.message || "Respuestas eliminadas con éxito");
+        // Refresh survey list after successful deletion
         const response = await surveyService.getAllSurveys();
         const newSurveysData = Array.isArray(response.surveys)
           ? response.surveys
           : [];
         setSurveys(newSurveysData);
-      } catch (err) {
-        setError(err.message);
+      } else {
+        // Handle errors returned from the service or unexpected issues
+        console.error("Error deleting answers:", result.message);
+        toast.error(result.message || "Error al eliminar las respuestas");
+        setError(result.message); // Optionally update the main error state too
       }
+    } catch (err) {
+      // Catch any unexpected errors during the process (e.g., network issues)
+      console.error("Unexpected error in handleDeleteAnswers:", err);
+      toast.error("Ocurrió un error inesperado al procesar la solicitud.");
+      setError(err.message);
     }
   };
 

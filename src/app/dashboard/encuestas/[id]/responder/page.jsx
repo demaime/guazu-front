@@ -235,12 +235,68 @@ export default function SurveyPage() {
   const handleComplete = async (sender) => {
     try {
       const user = authService.getUser();
+
+      // Transform the answers to use question text as keys
+      const transformedAnswers = {};
+
+      // Get all questions from the survey
+      sender.getAllQuestions().forEach((question) => {
+        const questionName = question.name;
+        const questionText = question.title;
+        const answer = sender.data[questionName];
+
+        if (answer !== undefined) {
+          // Handle different question types
+          if (Array.isArray(answer)) {
+            // For checkbox questions that have multiple answers
+            transformedAnswers[questionText] = answer.map((value) => {
+              const choice = question.choices?.find((c) => c.value === value);
+              return choice?.text || value;
+            });
+          } else if (typeof answer === "object" && answer !== null) {
+            // For matrix or panel dynamic questions
+            transformedAnswers[questionText] = {};
+            Object.entries(answer).forEach(([key, value]) => {
+              const row = question.rows?.find((r) => r.value === key);
+              const col = question.columns?.find((c) => c.value === value);
+              transformedAnswers[questionText][row?.text || key] =
+                col?.text || value;
+            });
+          } else {
+            // For simple questions (radiogroup, text, etc)
+            const choice = question.choices?.find((c) => c.value === answer);
+            transformedAnswers[questionText] = choice?.text || answer;
+          }
+        }
+      });
+
       const answerData = {
         surveyId: id,
         fullName: user?.fullName,
-        answer: sender.data,
+        answer: transformedAnswers,
         createdAt: new Date().toISOString(),
       };
+
+      // Get geolocation if available
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 5000,
+              maximumAge: 0,
+            });
+          });
+
+          answerData.lat = position.coords.latitude;
+          answerData.lng = position.coords.longitude;
+        } catch (geoError) {
+          console.warn("Could not get geolocation:", geoError);
+        }
+      }
+
+      // Add time spent
+      answerData.time = sender.timeSpent;
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,

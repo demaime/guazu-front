@@ -22,6 +22,7 @@
     "react": "^18.2.0",
     "react-countup": "^6.5.3",
     "react-dom": "^18.2.0",
+    "react-toastify": "^11.0.5",
     "survey-core": "^2.0.1",
     "survey-creator-core": "^2.0.1",
     "survey-creator-react": "^2.0.1",

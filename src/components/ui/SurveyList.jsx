@@ -36,6 +36,8 @@ export function SurveyList({
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const tooltipRef = useRef(null);
   const [showFinishedAlert, setShowFinishedAlert] = useState(false);
+  const [showDeleteAnswersModal, setShowDeleteAnswersModal] = useState(false);
+  const [selectedSurveyId, setSelectedSurveyId] = useState(null);
 
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
@@ -153,11 +155,20 @@ export function SurveyList({
         onDelete(surveyId);
         break;
       case "deleteAnswers":
-        onDeleteAnswers(surveyId);
+        setSelectedSurveyId(surveyId);
+        setShowDeleteAnswersModal(true);
         break;
     }
     setExpandedActionsId(null);
     setOpenTooltipId(null);
+  };
+
+  const handleConfirmDeleteAnswers = () => {
+    if (selectedSurveyId) {
+      onDeleteAnswers(selectedSurveyId);
+      setShowDeleteAnswersModal(false);
+      setSelectedSurveyId(null);
+    }
   };
 
   const getLocalizedText = (textObj, defaultText = "Sin definir") => {
@@ -384,7 +395,7 @@ export function SurveyList({
   };
 
   return (
-    <div className="overflow-x-auto">
+    <>
       {isMobile ? (
         renderMobileView()
       ) : (
@@ -751,6 +762,20 @@ export function SurveyList({
           </tbody>
         </table>
       )}
-    </div>
+
+      <ConfirmModal
+        isOpen={showDeleteAnswersModal}
+        onClose={() => {
+          setShowDeleteAnswersModal(false);
+          setSelectedSurveyId(null);
+        }}
+        onConfirm={handleConfirmDeleteAnswers}
+        title="Borrar respuestas"
+        message="¿Estás seguro que deseas borrar todas las respuestas de esta encuesta? Esta acción no se puede deshacer."
+        confirmText="Borrar respuestas"
+        cancelText="Cancelar"
+        type="warning"
+      />
+    </>
   );
 }
