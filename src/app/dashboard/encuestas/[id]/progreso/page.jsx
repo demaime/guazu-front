@@ -11,6 +11,7 @@ import {
   Clock,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
+import { authService } from "@/services/auth.service";
 import { Loader } from "@/components/ui/Loader";
 
 export default function AnalisisEncuesta() {
@@ -22,8 +23,31 @@ export default function AnalisisEncuesta() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Comprobar permisos - solo admin y supervisor pueden ver análisis
+    const checkPermissions = () => {
+      const user = authService.getUser();
+      if (!user) {
+        router.replace("/login");
+        return false;
+      }
+
+      // Pollsters no pueden acceder a esta página
+      if (user.role === "POLLSTER") {
+        console.log(
+          "Acceso denegado: los encuestadores no pueden ver análisis"
+        );
+        router.replace("/dashboard");
+        return false;
+      }
+
+      return true;
+    };
+
     const fetchSurveyData = async () => {
       try {
+        // Verificar permisos primero
+        if (!checkPermissions()) return;
+
         setIsLoading(true);
         const surveyId = params.id;
 
@@ -43,7 +67,7 @@ export default function AnalisisEncuesta() {
     if (params.id) {
       fetchSurveyData();
     }
-  }, [params.id]);
+  }, [params.id, router]);
 
   if (isLoading) {
     return (
