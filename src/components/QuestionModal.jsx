@@ -59,35 +59,39 @@ export default function QuestionModal({
   onValidationError,
   initialData = null,
 }) {
-  const [question, setQuestion] = useState(
-    initialData || {
+  const getInitialState = (data) => {
+    const defaults = {
       id: null,
       type: QUESTION_TYPES.TEXT,
       title: "",
-      description: DESCRIPTION_PLACEHOLDERS[QUESTION_TYPES.TEXT] || "",
+      description: "",
       required: true,
+      rateMin: 1, // Default minimum rating
+      rateMax: 5, // Default maximum rating
       options: [],
       matrixRows: [],
       matrixColumns: [],
-    }
-  );
+    };
 
-  // Asegurarse de que el ID se mantenga al editar
-  useEffect(() => {
-    if (initialData) {
-      setQuestion(initialData);
+    if (data) {
+      // Merge initialData with defaults, ensuring all fields are present
+      const mergedData = { ...defaults, ...data };
+      // Ensure description is prefilled if empty based on type
+      mergedData.description =
+        data.description || DESCRIPTION_PLACEHOLDERS[mergedData.type] || "";
+      return mergedData;
     } else {
-      setQuestion({
-        id: null,
-        type: QUESTION_TYPES.TEXT,
-        title: "",
-        description: DESCRIPTION_PLACEHOLDERS[QUESTION_TYPES.TEXT] || "",
-        required: true,
-        options: [],
-        matrixRows: [],
-        matrixColumns: [],
-      });
+      // New question, ensure description is prefilled for default type
+      defaults.description = DESCRIPTION_PLACEHOLDERS[defaults.type] || "";
+      return defaults;
     }
+  };
+
+  const [question, setQuestion] = useState(() => getInitialState(initialData));
+
+  // Asegurarse de que el ID se mantenga al editar y el estado se resetee/inicialice correctamente
+  useEffect(() => {
+    setQuestion(getInitialState(initialData));
   }, [initialData]);
 
   const addOption = () => {
@@ -236,6 +240,55 @@ export default function QuestionModal({
                   Agregar columna
                 </button>
               </div>
+            </div>
+          </div>
+        );
+      case QUESTION_TYPES.RATING:
+        return (
+          <div className="flex justify-evenly">
+            <div>
+              <label
+                htmlFor="rateMin"
+                className="block text-sm font-medium mb-1"
+              >
+                Valor mínimo de la escala
+              </label>
+              <input
+                type="number"
+                id="rateMin"
+                value={question.rateMin}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  // Ensure value is non-negative and less than current max
+                  if (!isNaN(value) && value >= 0 && value < question.rateMax) {
+                    setQuestion((prev) => ({ ...prev, rateMin: value }));
+                  }
+                }}
+                max={question.rateMax - 1} // Max is one less than current rateMax
+                className="p-2 border rounded-md w-24"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="rateMax"
+                className="block text-sm font-medium mb-1"
+              >
+                Valor máximo de la escala
+              </label>
+              <input
+                type="number"
+                id="rateMax"
+                value={question.rateMax}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  // Ensure value is greater than current min
+                  if (!isNaN(value) && value > question.rateMin) {
+                    setQuestion((prev) => ({ ...prev, rateMax: value }));
+                  }
+                }}
+                min={question.rateMin + 1} // Min is one more than current rateMin
+                className="p-2 border rounded-md w-24"
+              />
             </div>
           </div>
         );

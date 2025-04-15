@@ -15,6 +15,35 @@ import { TransferModal } from "@/components/TransferModal";
 import QuestionEditor from "@/components/QuestionEditor";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
+// Constants (Consider moving to a shared file)
+const QUESTION_TYPES = {
+  TEXT: "text",
+  MULTIPLE_CHOICE: "multiple_choice",
+  SINGLE_CHOICE: "single_choice",
+  CHECKBOX: "checkbox",
+  RATING: "rating",
+  DATE: "date",
+  TIME: "time",
+  EMAIL: "email",
+  NUMBER: "number",
+  PHONE: "phone",
+  MATRIX: "matrix",
+};
+
+const QUESTION_TYPE_LABELS_ES = {
+  [QUESTION_TYPES.TEXT]: "Texto",
+  [QUESTION_TYPES.MULTIPLE_CHOICE]: "Opción Múltiple",
+  [QUESTION_TYPES.SINGLE_CHOICE]: "Opción Única",
+  [QUESTION_TYPES.CHECKBOX]: "Casilla Verificación",
+  [QUESTION_TYPES.RATING]: "Calificación",
+  [QUESTION_TYPES.DATE]: "Fecha",
+  [QUESTION_TYPES.TIME]: "Hora",
+  [QUESTION_TYPES.EMAIL]: "Correo Electrónico",
+  [QUESTION_TYPES.NUMBER]: "Número",
+  [QUESTION_TYPES.PHONE]: "Teléfono",
+  [QUESTION_TYPES.MATRIX]: "Matriz",
+};
+
 // Pasos del wizard
 const STEPS = {
   INFORMACION_BASICA: 0,
@@ -282,7 +311,9 @@ export default function NuevaEncuesta({
                 case "rating":
                   return {
                     ...baseQuestion,
-                    rateMax: 5,
+                    rateMin:
+                      question.rateMin !== undefined ? question.rateMin : 1,
+                    rateMax: question.rateMax || 5,
                   };
                 default:
                   return baseQuestion;
@@ -657,15 +688,10 @@ export default function NuevaEncuesta({
                               )}
                             </div>
                             <div className="flex items-center gap-1.5">
+                              {/* Use Spanish Label for Type Tag */}
                               <span className="text-xs text-text-secondary">
-                                {question.type
-                                  .split("_")
-                                  .map(
-                                    (word) =>
-                                      word.charAt(0).toUpperCase() +
-                                      word.slice(1)
-                                  )
-                                  .join(" ")}
+                                {QUESTION_TYPE_LABELS_ES[question.type] ||
+                                  question.type}
                               </span>
                               {question.required && (
                                 <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
