@@ -323,13 +323,6 @@ export function SurveyList({
                         {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
                           <>
                             <button
-                              onClick={() => handleAction("quotas", surveyData)}
-                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                            >
-                              <ChartBar className="w-3 h-3" />
-                              Cuotas
-                            </button>
-                            <button
                               onClick={() =>
                                 handleAction("progress", surveyData)
                               }
@@ -609,27 +602,6 @@ export function SurveyList({
                                     data-type="action"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleAction("quotas", surveyData);
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      handleTooltip(
-                                        `quotas-${surveyData._id}`,
-                                        e,
-                                        true
-                                      )
-                                    }
-                                    onMouseLeave={() =>
-                                      handleTooltip(null, null, false)
-                                    }
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                                  >
-                                    <ChartBar className="w-4 h-4" />
-                                  </button>
-
-                                  <button
-                                    data-type="action"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
                                       handleAction("progress", surveyData);
                                     }}
                                     onMouseEnter={(e) =>
@@ -690,7 +662,7 @@ export function SurveyList({
                                     onMouseLeave={() =>
                                       handleTooltip(null, null, false)
                                     }
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--secondary-light)] cursor-pointer"
+                                    className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors text-red-400 cursor-pointer"
                                   >
                                     <ClipboardX className="w-4 h-4" />
                                   </button>
@@ -738,10 +710,8 @@ export function SurveyList({
                                     : "Responder"
                                   : openTooltipId.includes("map")
                                   ? "Ver Mapa"
-                                  : openTooltipId.includes("quotas")
-                                  ? "Cuotas"
                                   : openTooltipId.includes("progress")
-                                  ? "Progreso"
+                                  ? "Análisis"
                                   : openTooltipId.includes("pollsters")
                                   ? "Asignar Encuestadores"
                                   : openTooltipId.includes("deleteAnswers")
