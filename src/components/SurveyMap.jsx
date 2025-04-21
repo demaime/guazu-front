@@ -193,7 +193,7 @@ const SurveyMap = ({
 
   const { isLoaded } = useLoadScript({
     id: "google-map-script",
-    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     libraries,
   });
 
