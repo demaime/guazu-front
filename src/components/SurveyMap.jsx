@@ -192,7 +192,8 @@ const SurveyMap = ({
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    id: "google-map-script",
+    googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
     libraries,
   });
 
