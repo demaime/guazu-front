@@ -94,14 +94,8 @@ export default function PerfilPage() {
           return;
         }
 
-        // Log userData just before calling getProfile
-        // console.log("Calling getProfile with userData:", userData);
-
         try {
           const updatedUser = await userService.getProfile(userData._id, token);
-          // console.log("getProfile successful, updatedUser:", updatedUser); // Remove log
-
-          // --- RESTORE STATE UPDATES ---
           setUser(updatedUser);
           const initialFormData = {
             name: updatedUser?.name || "",
@@ -124,11 +118,8 @@ export default function PerfilPage() {
           };
           setFormData(initialFormData);
           setOriginalFormData(initialFormData);
-          // --- END OF RESTORE ---
         } catch (error) {
           setError(error.message || "Error al cargar los datos del usuario");
-          // Fallback: Use initial userData from localStorage if getProfile fails
-          setUser(userData); // Set user from localStorage data
           const initialFormData = {
             name: userData?.name || "",
             lastName: userData?.lastName || "",
@@ -151,32 +142,6 @@ export default function PerfilPage() {
           setFormData(initialFormData);
           setOriginalFormData(initialFormData);
         }
-
-        // Remove the direct setting from localStorage as it's now handled in try/catch
-        /*
-        setUser(userData); 
-        const initialFormData = {
-          name: userData?.name || "",
-          lastName: userData?.lastName || "",
-          email: userData?.email || "",
-          phone: userData?.phone || "",
-          address: userData?.address || "",
-          addressNumber: userData?.addressNumber || "",
-          addressUnity: userData?.addressUnity || "",
-          birthDate: userData?.birthDate || "",
-          cellular: userData?.cellular || "",
-          city: userData?.city || "",
-          dni: userData?.dni || "",
-          job: userData?.job || "",
-          province: userData?.province || "",
-          section: userData?.section || "",
-          study: userData?.study || "",
-          workHistory: userData?.workHistory || "",
-          aboutSurvey: userData?.aboutSurvey || "",
-        };
-        setFormData(initialFormData);
-        setOriginalFormData(initialFormData);
-        */
       } catch (error) {
         setError("Error al inicializar el usuario");
       } finally {
@@ -342,19 +307,12 @@ export default function PerfilPage() {
               {/* Sección de imagen de perfil */}
               <div className="flex items-center space-x-6">
                 <div className="relative w-24 h-24">
-                  {user && user.image ? (
+                  {user?.image ? (
                     <Image
                       src={user.image}
                       alt="Foto de perfil"
                       fill
                       className="rounded-full object-cover"
-                      onError={(e) => {
-                        console.error(
-                          "Error loading profile image:",
-                          e.target.src
-                        );
-                        e.target.style.display = "none";
-                      }}
                     />
                   ) : (
                     <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-white text-2xl font-bold">
