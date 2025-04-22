@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 // Función para generar IDs únicos
@@ -52,12 +52,81 @@ const QUESTION_TYPE_LABELS = {
   [QUESTION_TYPES.MATRIX]: "Matriz",
 };
 
+// Función para calcular números jerárquicos
+function calculateQuestionNumbers(questions) {
+  const questionNumbers = {}; // { questionId: numberString }
+  let mainQuestionCounter = 0;
+
+  // Helper para encontrar si una pregunta es hija y de quién
+  function findParentInfo(targetId, allQuestions) {
+    for (let i = 0; i < allQuestions.length; i++) {
+      const parentQ = allQuestions[i];
+      if (parentQ.isConditional && parentQ.options) {
+        const optionIndex = parentQ.options.findIndex(
+          (opt) => opt.nextQuestionId === targetId
+        );
+        if (optionIndex !== -1) {
+          // Asegurarse que el padre no sea el mismo (evitar ciclos en cálculo)
+          if (parentQ.id !== targetId) {
+            return { parentId: parentQ.id, optionIndex };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Asignar números principales primero
+  questions.forEach((q) => {
+    const parentInfo = findParentInfo(q.id, questions);
+    if (!parentInfo) {
+      mainQuestionCounter++;
+      questionNumbers[q.id] = `${mainQuestionCounter}`;
+    }
+  });
+
+  // Asignar números jerárquicos a hijos
+  questions.forEach((q) => {
+    const parentInfo = findParentInfo(q.id, questions);
+    if (parentInfo) {
+      const parentNumber = questionNumbers[parentInfo.parentId];
+      // Usar solo la parte principal del número padre
+      const mainParentNumber = parentNumber ? parentNumber.split(".")[0] : "?";
+      questionNumbers[q.id] = `${mainParentNumber}.${
+        parentInfo.optionIndex + 1
+      }`;
+    }
+  });
+
+  // Fallback por si algo no se calculó (no debería pasar con la lógica actual)
+  mainQuestionCounter = 0;
+  questions.forEach((q) => {
+    if (!questionNumbers[q.id]) {
+      const parentInfo = findParentInfo(q.id, questions);
+      if (!parentInfo) {
+        mainQuestionCounter++;
+        questionNumbers[q.id] = `${mainQuestionCounter}`;
+      } else {
+        const parentIndexFallback = questions.findIndex(
+          (pq) => pq.id === parentInfo.parentId
+        );
+        questionNumbers[q.id] = `${parentIndexFallback + 1}.${
+          parentInfo.optionIndex + 1
+        }`;
+      }
+    }
+  });
+
+  return questionNumbers;
+}
+
 export default function QuestionModal({
   isOpen,
   onClose,
   onSave,
   onValidationError,
   initialData = null,
+  allQuestions = [],
 }) {
   const getInitialState = (data) => {
     const defaults = {
@@ -71,6 +140,7 @@ export default function QuestionModal({
       options: [],
       matrixRows: [],
       matrixColumns: [],
+      isConditional: false,
     };
 
     if (data) {
@@ -92,12 +162,21 @@ export default function QuestionModal({
   // Asegurarse de que el ID se mantenga al editar y el estado se resetee/inicialice correctamente
   useEffect(() => {
     setQuestion(getInitialState(initialData));
-  }, [initialData]);
+  }, [initialData, isOpen]);
+
+  // Calcular números jerárquicos para usar en el selector
+  const questionNumberMap = useMemo(
+    () => calculateQuestionNumbers(allQuestions),
+    [allQuestions]
+  );
 
   const addOption = () => {
     setQuestion((prev) => ({
       ...prev,
-      options: [...prev.options, { id: generateUniqueId(), text: "" }],
+      options: [
+        ...prev.options,
+        { id: generateUniqueId(), text: "", nextQuestionId: null },
+      ],
     }));
   };
 
@@ -105,6 +184,18 @@ export default function QuestionModal({
     setQuestion((prev) => {
       const newOptions = [...prev.options];
       newOptions[optionIndex].text = value;
+      return { ...prev, options: newOptions };
+    });
+  };
+
+  // Nueva función para actualizar la pregunta siguiente para una opción
+  const updateOptionNextQuestion = (optionIndex, nextQuestionId) => {
+    setQuestion((prev) => {
+      const newOptions = [...prev.options];
+      newOptions[optionIndex] = {
+        ...newOptions[optionIndex],
+        nextQuestionId: nextQuestionId === "" ? null : nextQuestionId,
+      };
       return { ...prev, options: newOptions };
     });
   };
@@ -154,22 +245,62 @@ export default function QuestionModal({
                 Agregar opción
               </button>
             </div>
-            <div className="space-y-2">
-              {question.options.map((option, optionIndex) => (
-                <div key={option.id} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={option.text}
-                    onChange={(e) => updateOption(optionIndex, e.target.value)}
-                    className="flex-1 p-2 border rounded-md"
-                    placeholder="Texto de la opción"
-                  />
-                  <button
-                    onClick={() => deleteOption(optionIndex)}
-                    className="p-2 text-red-500 hover:text-red-600"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {question.options.map((option, index) => (
+                <div
+                  key={option.id}
+                  className="flex flex-col border border-[var(--border)] p-2 rounded-md"
+                >
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={option.text}
+                      onChange={(e) => updateOption(index, e.target.value)}
+                      className="flex-1 p-1.5 border rounded-md"
+                      placeholder={`Opción ${index + 1}`}
+                    />
+                    <button
+                      onClick={() => deleteOption(index)}
+                      className="p-1 text-red-500 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Selector de pregunta siguiente para lógica condicional */}
+                  {question.isConditional && (
+                    <div className="mt-2 pl-2 border-l-2 border-blue-200">
+                      <label className="text-xs text-blue-600 block mb-1">
+                        Si se selecciona "{option.text || `Opción ${index + 1}`}
+                        ", ir a:
+                      </label>
+                      <select
+                        value={option.nextQuestionId || ""}
+                        onChange={(e) =>
+                          updateOptionNextQuestion(index, e.target.value)
+                        }
+                        className="p-1.5 border rounded-md text-sm w-full"
+                      >
+                        <option value="">
+                          - Continuar con la siguiente pregunta -
+                        </option>
+                        {allQuestions
+                          .filter(
+                            (q) =>
+                              q.id !== question.id &&
+                              (!initialData || q.id !== initialData.id)
+                          )
+                          .map((q) => (
+                            // Usar el mapa de números calculado
+                            <option key={q.id} value={q.id}>
+                              {`${questionNumberMap[q.id] || "?"}. ${
+                                q.title || "Pregunta sin título"
+                              }`}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -335,7 +466,19 @@ export default function QuestionModal({
       ...question,
       id: question.id || generateUniqueId(),
     };
+
+    // Guardar la pregunta
     onSave(questionToSave);
+
+    // Reiniciar el estado a valores predeterminados vacíos
+    setQuestion(getInitialState(null));
+  };
+
+  // Función para reiniciar el estado al cerrar el modal
+  const handleClose = () => {
+    // Reiniciamos explícitamente al estado inicial antes de cerrar
+    setQuestion(getInitialState(null));
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -385,6 +528,30 @@ export default function QuestionModal({
                     Pregunta obligatoria
                   </label>
                 </div>
+
+                {/* Conditional Question Checkbox - Show for choice-based questions */}
+                {(question.type === QUESTION_TYPES.MULTIPLE_CHOICE ||
+                  question.type === QUESTION_TYPES.SINGLE_CHOICE ||
+                  question.type === QUESTION_TYPES.CHECKBOX) && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="isConditional"
+                      checked={question.isConditional || false}
+                      onChange={(e) =>
+                        setQuestion((prev) => ({
+                          ...prev,
+                          isConditional: e.target.checked,
+                        }))
+                      }
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <label htmlFor="isConditional" className="text-sm">
+                      Pregunta condicional
+                    </label>
+                  </div>
+                )}
+
                 {/* Type Dropdown */}
                 <select
                   value={question.type}
@@ -425,8 +592,23 @@ export default function QuestionModal({
               {renderQuestionOptions()}
             </div>
 
+            {/* Explicación de pregunta condicional */}
+            {question.isConditional && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-200">
+                <h4 className="text-sm font-medium text-blue-800 mb-1">
+                  Información sobre preguntas condicionales
+                </h4>
+                <p className="text-xs text-blue-600">
+                  Has marcado esta como una pregunta condicional. Para cada
+                  opción, puedes especificar qué pregunta debe mostrarse a
+                  continuación si esa opción es seleccionada. Si no seleccionas
+                  ninguna pregunta específica, se seguirá el orden normal.
+                </p>
+              </div>
+            )}
+
             <div className="mt-6 flex justify-end gap-3">
-              <button onClick={onClose} className="btn-action">
+              <button onClick={handleClose} className="btn-action">
                 Cancelar
               </button>
               <button onClick={handleSave} className="btn-primary">

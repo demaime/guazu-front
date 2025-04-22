@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
@@ -86,6 +86,70 @@ const useConfirmNavigation = (shouldConfirm) => {
   }, [shouldConfirm]);
 };
 
+// Helper para encontrar si una pregunta es hija y de quién
+function findParentInfo(targetId, allQuestions) {
+  for (let i = 0; i < allQuestions.length; i++) {
+    const parentQ = allQuestions[i];
+    if (parentQ.isConditional && parentQ.options) {
+      const optionIndex = parentQ.options.findIndex(
+        (opt) => opt.nextQuestionId === targetId
+      );
+      if (optionIndex !== -1) {
+        // Asegurarse que el padre no sea el mismo (evitar ciclos en cálculo)
+        if (parentQ.id !== targetId) {
+          return { parentId: parentQ.id, optionIndex };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Función para calcular números jerárquicos
+function calculateQuestionNumbers(questions) {
+  const questionNumbers = {}; // { questionId: numberString }
+  let mainQuestionCounter = 0;
+
+  questions.forEach((q) => {
+    const parentInfo = findParentInfo(q.id, questions);
+    if (!parentInfo) {
+      mainQuestionCounter++;
+      questionNumbers[q.id] = `${mainQuestionCounter}`;
+    }
+  });
+
+  questions.forEach((q) => {
+    const parentInfo = findParentInfo(q.id, questions);
+    if (parentInfo) {
+      const parentNumber = questionNumbers[parentInfo.parentId];
+      const mainParentNumber = parentNumber ? parentNumber.split(".")[0] : "?";
+      questionNumbers[q.id] = `${mainParentNumber}.${
+        parentInfo.optionIndex + 1
+      }`;
+    }
+  });
+
+  mainQuestionCounter = 0;
+  questions.forEach((q) => {
+    if (!questionNumbers[q.id]) {
+      const parentInfo = findParentInfo(q.id, questions);
+      if (!parentInfo) {
+        mainQuestionCounter++;
+        questionNumbers[q.id] = `${mainQuestionCounter}`;
+      } else {
+        const parentIndexFallback = questions.findIndex(
+          (pq) => pq.id === parentInfo.parentId
+        );
+        questionNumbers[q.id] = `${parentIndexFallback + 1}.${
+          parentInfo.optionIndex + 1
+        }`;
+      }
+    }
+  });
+
+  return questionNumbers;
+}
+
 export default function NuevaEncuesta({
   isEditing = false,
   surveyId = null,
@@ -121,6 +185,12 @@ export default function NuevaEncuesta({
   const [showValidationErrorModal, setShowValidationErrorModal] =
     useState(false);
   const [validationErrorMessage, setValidationErrorMessage] = useState("");
+
+  // Calcular números jerárquicos para la vista previa
+  const questionNumberMap = useMemo(
+    () => calculateQuestionNumbers(surveyData.questions),
+    [surveyData.questions]
+  );
 
   // Function to show validation error modal
   const showValidationError = (message) => {
@@ -250,7 +320,102 @@ export default function NuevaEncuesta({
       setIsLoading(true);
       setError(null);
 
-      // Crear la estructura de la encuesta en el formato esperado por SurveyJS
+      // 1. Crear la estructura base de los elementos SurveyJS
+      const surveyJSElements = surveyData.questions.map((question) => {
+        const baseQuestion = {
+          type: question.type,
+          name: question.id, // Usar nuestro ID como nombre para SurveyJS
+          title: question.title,
+          description: question.description,
+          isRequired: question.required,
+        };
+
+        // Adaptar tipos y opciones (SIN lógica condicional aquí)
+        switch (question.type) {
+          case "multiple_choice":
+            return {
+              ...baseQuestion,
+              type: "checkbox", // SurveyJS usa checkbox para multiple choice
+              choices: question.options.map((opt) => ({
+                value: opt.id, // Usar nuestro ID de opción como valor
+                text: { es: opt.text },
+              })),
+            };
+          case "single_choice":
+            return {
+              ...baseQuestion,
+              type: "radiogroup", // SurveyJS usa radiogroup para single choice
+              choices: question.options.map((opt) => ({
+                value: opt.id,
+                text: { es: opt.text },
+              })),
+            };
+          case "checkbox": // Nuestro tipo Checkbox (que es diferente de multiple_choice)
+            return {
+              ...baseQuestion,
+              type: "checkbox", // Mapea directamente
+              choices: question.options.map((opt) => ({
+                value: opt.id,
+                text: { es: opt.text },
+              })),
+            };
+          case "matrix":
+            return {
+              ...baseQuestion,
+              rows: question.matrixRows.map((row) => ({
+                value: row.id,
+                text: { es: row.text },
+              })),
+              columns: question.matrixColumns.map((col) => ({
+                value: col.id,
+                text: { es: col.text },
+              })),
+            };
+          case "rating":
+            return {
+              ...baseQuestion,
+              rateMin: question.rateMin !== undefined ? question.rateMin : 1,
+              rateMax: question.rateMax || 5,
+            };
+          default:
+            return baseQuestion;
+        }
+      });
+
+      // 2. Añadir reglas visibleIf a los elementos destino
+      surveyJSElements.forEach((element, index) => {
+        const originalQuestionId = element.name; // Nuestro ID original
+        const visibilityConditions = [];
+
+        // Buscar si esta pregunta es destino de alguna condición
+        surveyData.questions.forEach((parentQ) => {
+          if (parentQ.isConditional && parentQ.options) {
+            parentQ.options.forEach((opt) => {
+              if (opt.nextQuestionId === originalQuestionId) {
+                // Determinar operador basado en tipo de pregunta padre
+                let operator = "=";
+                if (parentQ.type === "multiple_choice") {
+                  // SurveyJS usa 'checkbox' para multiple_choice, el operador es 'contains'
+                  operator = "contains";
+                } else if (parentQ.type === "checkbox") {
+                  operator = "contains";
+                } // para single_choice/radiogroup, '=' está bien
+
+                // Construir la condición: {nombre_pregunta_padre} operador 'valor_opcion'
+                const condition = `{${parentQ.id}} ${operator} '${opt.id}'`;
+                visibilityConditions.push(condition);
+              }
+            });
+          }
+        });
+
+        // Si se encontraron condiciones, unirlas con OR y asignarlas
+        if (visibilityConditions.length > 0) {
+          element.visibleIf = visibilityConditions.join(" or ");
+        }
+      });
+
+      // 3. Crear el objeto final para SurveyJS
       const surveyJSFormat = {
         locale: "es",
         title: surveyData.basicInfo.title,
@@ -258,84 +423,29 @@ export default function NuevaEncuesta({
         pages: [
           {
             name: "page1",
-            elements: surveyData.questions.map((question) => {
-              // Convertir el formato interno al formato de SurveyJS
-              const baseQuestion = {
-                type: question.type,
-                name: question.id,
-                title: question.title,
-                description: question.description,
-                isRequired: question.required,
-              };
-
-              // Agregar propiedades específicas según el tipo
-              switch (question.type) {
-                case "multiple_choice":
-                  return {
-                    ...baseQuestion,
-                    type: "checkbox",
-                    choices: question.options.map((opt) => ({
-                      value: opt.id,
-                      text: { es: opt.text },
-                    })),
-                  };
-                case "single_choice":
-                  return {
-                    ...baseQuestion,
-                    type: "radiogroup",
-                    choices: question.options.map((opt) => ({
-                      value: opt.id,
-                      text: { es: opt.text },
-                    })),
-                  };
-                case "checkbox":
-                  return {
-                    ...baseQuestion,
-                    choices: question.options.map((opt) => ({
-                      value: opt.id,
-                      text: { es: opt.text },
-                    })),
-                  };
-                case "matrix":
-                  return {
-                    ...baseQuestion,
-                    rows: question.matrixRows.map((row) => ({
-                      value: row.id,
-                      text: { es: row.text },
-                    })),
-                    columns: question.matrixColumns.map((col) => ({
-                      value: col.id,
-                      text: { es: col.text },
-                    })),
-                  };
-                case "rating":
-                  return {
-                    ...baseQuestion,
-                    rateMin:
-                      question.rateMin !== undefined ? question.rateMin : 1,
-                    rateMax: question.rateMax || 5,
-                  };
-                default:
-                  return baseQuestion;
-              }
-            }),
+            elements: surveyJSElements, // Usar los elementos procesados con visibleIf
           },
         ],
         showProgressBar: "top",
         progressBarType: "questions",
         showPrevButton: true,
-        showQuestionNumbers: "on",
+        showQuestionNumbers: "on", // SurveyJS maneja la numeración
         completeText: "Finalizar",
         pageNextText: "Siguiente",
         pagePrevText: "Anterior",
         requiredText: "(*) Pregunta obligatoria.",
-        questionTitlePattern: "N° {num}. {title}",
+        // questionTitlePattern: "N° {num}. {title}", // Quitar esto si queremos nuestra numeración jerárquica visual, SurveyJS usará la suya interna
         requiredErrorText: "Por favor responda la pregunta.",
-        questionsOnPageMode: "singlePage",
+        questionsOnPageMode: "singlePage", // O "questionPerPage" si prefieres
+        clearInvisibleValues: "onHidden", // Importante para lógica condicional
+        checkErrorsMode: "onNextPage", // O "onValueChanging"
       };
 
+      // 4. Crear objeto para guardar en BD (incluye info extra)
       const dataToSave = {
-        survey: surveyJSFormat,
+        survey: surveyJSFormat, // Guardar el formato que entiende SurveyJS
+        // Guardar también nuestra estructura interna para la edición
+        surveyDefinition: surveyData,
         surveyInfo: {
           startDate: surveyData.basicInfo.startDate,
           endDate: surveyData.basicInfo.endDate,
@@ -669,110 +779,196 @@ export default function NuevaEncuesta({
                   Preguntas de la encuesta
                 </h4>
                 <div className="space-y-2">
-                  {surveyData.questions.map((question, index) => (
-                    <div key={question.id} className="card p-3">
-                      <div className="flex items-start gap-2">
-                        <div className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-sm">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h5 className="font-medium text-sm">
-                                {question.title}
-                              </h5>
-                              {question.description && (
-                                <p className="text-text-secondary text-xs mt-0.5">
-                                  {question.description}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              {/* Use Spanish Label for Type Tag */}
-                              <span className="text-xs text-text-secondary">
-                                {QUESTION_TYPE_LABELS_ES[question.type] ||
-                                  question.type}
-                              </span>
-                              {question.required && (
-                                <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                                  Obligatoria
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                  {surveyData.questions.map((question, index) => {
+                    // Obtener el número calculado
+                    const questionNumber =
+                      questionNumberMap[question.id] || "?";
 
-                          {/* Opciones específicas según el tipo de pregunta */}
-                          {(question.type === "multiple_choice" ||
-                            question.type === "single_choice" ||
-                            question.type === "checkbox") &&
-                            question.options.length > 0 && (
-                              <div className="mt-2">
-                                <span className="text-xs text-text-secondary block mb-1">
-                                  Opciones:
+                    // Información del padre si es hijo condicional
+                    let parentInfoText = "";
+                    const parentInfo = findParentInfo(
+                      question.id,
+                      surveyData.questions
+                    ); // Reutilizar helper localmente si es necesario
+                    if (parentInfo) {
+                      const parentQuestion = surveyData.questions.find(
+                        (q) => q.id === parentInfo.parentId
+                      );
+                      if (parentQuestion) {
+                        const parentNumber =
+                          questionNumberMap[parentQuestion.id] || "?";
+                        parentInfoText = `↳ Se muestra si en pregunta ${parentNumber} se elige "${
+                          parentQuestion.options[parentInfo.optionIndex]
+                            ?.text || "opción"
+                        }"`;
+                      }
+                    }
+
+                    return (
+                      <div key={question.id} className="card p-3">
+                        <div className="flex items-start gap-2">
+                          <div className="bg-primary/10 text-primary rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-sm">
+                            {questionNumber} {/* Número jerárquico */}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h5 className="font-medium text-sm">
+                                  {questionNumber}. {question.title}
+                                </h5>
+                                {parentInfoText && (
+                                  <p className="text-xs text-blue-600 mt-0.5">
+                                    {parentInfoText}
+                                  </p>
+                                )}
+                                {question.description && (
+                                  <p className="text-text-secondary text-xs mt-0.5">
+                                    {question.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                {/* Use Spanish Label for Type Tag */}
+                                <span className="text-xs text-text-secondary">
+                                  {QUESTION_TYPE_LABELS_ES[question.type] ||
+                                    question.type}
                                 </span>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                                  {question.options.map((option) => (
-                                    <div
-                                      key={option.id}
-                                      className="flex items-center gap-1.5"
-                                    >
-                                      <div className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" />
-                                      <span className="text-xs">
-                                        {option.text}
+                                {question.required && (
+                                  <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                                    Obligatoria
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Opciones específicas según el tipo de pregunta */}
+                            {(question.type === "multiple_choice" ||
+                              question.type === "single_choice" ||
+                              question.type === "checkbox") &&
+                              question.options.length > 0 && (
+                                <div className="mt-2">
+                                  <span className="text-xs text-text-secondary block mb-1">
+                                    Opciones:
+                                  </span>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                                    {question.options.map((option) => (
+                                      <div
+                                        key={option.id}
+                                        className="flex items-center gap-1.5"
+                                      >
+                                        <div className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" />
+                                        <span className="text-xs">
+                                          {option.text}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                            {question.type === "matrix" && (
+                              <div className="mt-2">
+                                <div className="space-y-2">
+                                  {question.matrixRows.length > 0 && (
+                                    <div>
+                                      <span className="text-xs text-text-secondary block mb-1">
+                                        Filas:
                                       </span>
+                                      <div className="space-y-0.5">
+                                        {question.matrixRows.map((row) => (
+                                          <div key={row.id} className="text-xs">
+                                            {row.text}
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
-                                  ))}
+                                  )}
+                                  {question.matrixColumns.length > 0 && (
+                                    <div>
+                                      <span className="text-xs text-text-secondary block mb-1">
+                                        Columnas:
+                                      </span>
+                                      <div className="space-y-0.5">
+                                        {question.matrixColumns.map((col) => (
+                                          <div key={col.id} className="text-xs">
+                                            {col.text}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
 
-                          {question.type === "matrix" && (
-                            <div className="mt-2">
-                              <div className="space-y-2">
-                                {question.matrixRows.length > 0 && (
-                                  <div>
-                                    <span className="text-xs text-text-secondary block mb-1">
-                                      Filas:
-                                    </span>
-                                    <div className="space-y-0.5">
-                                      {question.matrixRows.map((row) => (
-                                        <div key={row.id} className="text-xs">
-                                          {row.text}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                                {question.matrixColumns.length > 0 && (
-                                  <div>
-                                    <span className="text-xs text-text-secondary block mb-1">
-                                      Columnas:
-                                    </span>
-                                    <div className="space-y-0.5">
-                                      {question.matrixColumns.map((col) => (
-                                        <div key={col.id} className="text-xs">
-                                          {col.text}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                            {question.type === "rating" && (
+                              <div className="mt-2">
+                                <span className="text-xs text-text-secondary block">
+                                  Escala de 0 a 5 estrellas
+                                </span>
                               </div>
-                            </div>
-                          )}
-
-                          {question.type === "rating" && (
-                            <div className="mt-2">
-                              <span className="text-xs text-text-secondary block">
-                                Escala de 0 a 5 estrellas
-                              </span>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+
+                {/* Diagrama de flujo condicional */}
+                {surveyData.questions.some((q) => q.isConditional) && (
+                  <div className="mt-6 p-4 card">
+                    <h5 className="text-base font-medium mb-3">
+                      Diagrama de flujo condicional
+                    </h5>
+                    <div className="text-sm text-text-secondary">
+                      {surveyData.questions
+                        .filter((q) => q.isConditional)
+                        .map((q) => {
+                          const parentNumber = questionNumberMap[q.id] || "?";
+                          return (
+                            <div
+                              key={q.id}
+                              className="mb-4 pb-3 border-b border-dashed border-gray-200"
+                            >
+                              <p className="font-medium text-primary">
+                                Pregunta {parentNumber}: {q.title}
+                              </p>
+                              <div className="ml-4 mt-2">
+                                {q.options.map((opt, optIdx) => {
+                                  const targetQuestion = opt.nextQuestionId
+                                    ? surveyData.questions.find(
+                                        (que) => que.id === opt.nextQuestionId
+                                      )
+                                    : null;
+                                  const targetQuestionNumber = targetQuestion
+                                    ? questionNumberMap[targetQuestion.id] ||
+                                      "?"
+                                    : null;
+
+                                  return (
+                                    <div
+                                      key={opt.id}
+                                      className="flex items-center gap-2 mb-1"
+                                    >
+                                      <span className="text-xs">
+                                        • Si elige "{opt.text}":
+                                      </span>
+                                      <span className="text-xs text-blue-600">
+                                        {targetQuestionNumber
+                                          ? `→ Va a la pregunta ${targetQuestionNumber}: "${targetQuestion.title}"`
+                                          : "→ Continúa con la siguiente pregunta"}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

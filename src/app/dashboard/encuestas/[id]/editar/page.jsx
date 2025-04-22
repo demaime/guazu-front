@@ -71,6 +71,102 @@ export default function EditarEncuesta() {
     return "";
   };
 
+  // Función para analizar las condiciones visibleIf y extraer las relaciones de preguntas
+  const parseVisibleIfConditions = (elements) => {
+    // Mapa para almacenar las relaciones: { questionId: { parentId, optionValue } }
+    const conditionalRelations = {};
+
+    // Analizar cada elemento para encontrar condiciones visibleIf
+    elements.forEach((element) => {
+      if (element.visibleIf) {
+        try {
+          // Las condiciones visibleIf tienen formato "{parentId} operator 'optionValue'"
+          // o pueden ser múltiples condiciones separadas por "or"
+          const conditions = element.visibleIf.split(" or ");
+
+          // Tomamos la primera condición para simplificar (podría mejorarse para manejar múltiples)
+          const condition = conditions[0].trim();
+
+          // Extraer parentId y optionValue
+          const regex = /\{([^}]+)\}\s*(=|contains)\s*'([^']+)'/;
+          const match = condition.match(regex);
+
+          if (match) {
+            const [_, parentId, operator, optionValue] = match;
+            conditionalRelations[element.name] = {
+              parentId,
+              optionValue,
+              operator,
+            };
+          }
+        } catch (err) {
+          console.warn(
+            "Error parsing visibleIf condition:",
+            element.visibleIf,
+            err
+          );
+        }
+      }
+    });
+
+    return conditionalRelations;
+  };
+
+  // Extraer y construir los datos iniciales para el editor
+  const elements = survey.survey?.pages?.[0]?.elements || [];
+  const conditionalRelations = parseVisibleIfConditions(elements);
+
+  // Procesar las preguntas primero para mantener referencias
+  const processedQuestions = elements.map((question) => ({
+    id: question.name,
+    type:
+      question.type === "checkbox"
+        ? "multiple_choice"
+        : question.type === "radiogroup"
+        ? "single_choice"
+        : question.type,
+    title: getLocalizedText(question.title),
+    description: getLocalizedText(question.description) || "",
+    required: question.isRequired || false,
+    // Inicialmente, marca como no condicional - actualizaremos después
+    isConditional: false,
+    options: (question.choices || []).map((choice) => ({
+      id: choice.value || choice.id,
+      text: getLocalizedText(choice.text),
+      // Sin nextQuestionId inicialmente
+    })),
+    matrixRows: (question.rows || []).map((row) => ({
+      id: row.value || row.id,
+      text: getLocalizedText(row.text),
+    })),
+    matrixColumns: (question.columns || []).map((col) => ({
+      id: col.value || col.id,
+      text: getLocalizedText(col.text),
+    })),
+    rateMin: question.rateMin,
+    rateMax: question.rateMax,
+  }));
+
+  // Ahora, configurar las relaciones condicionales
+  Object.entries(conditionalRelations).forEach(([childId, relation]) => {
+    const parentQuestion = processedQuestions.find(
+      (q) => q.id === relation.parentId
+    );
+    if (parentQuestion) {
+      // Marcar la pregunta padre como condicional
+      parentQuestion.isConditional = true;
+
+      // Encontrar la opción correcta y establecer nextQuestionId
+      const optionIndex = parentQuestion.options.findIndex(
+        (opt) => opt.id === relation.optionValue
+      );
+
+      if (optionIndex !== -1) {
+        parentQuestion.options[optionIndex].nextQuestionId = childId;
+      }
+    }
+  });
+
   const initialData = {
     basicInfo: {
       title: getLocalizedText(survey.survey?.title) || "",
@@ -87,31 +183,7 @@ export default function EditarEncuesta() {
       userIds: survey.userIds || [],
       supervisorsIds: survey.supervisorsIds || [],
     },
-    questions:
-      survey.survey?.pages?.[0]?.elements?.map((question) => ({
-        id: question.name,
-        type:
-          question.type === "checkbox"
-            ? "multiple_choice"
-            : question.type === "radiogroup"
-            ? "single_choice"
-            : question.type,
-        title: getLocalizedText(question.title),
-        description: getLocalizedText(question.description) || "",
-        required: question.isRequired || false,
-        options: (question.choices || []).map((choice) => ({
-          id: choice.value || choice.id,
-          text: getLocalizedText(choice.text),
-        })),
-        matrixRows: (question.rows || []).map((row) => ({
-          id: row.value || row.id,
-          text: getLocalizedText(row.text),
-        })),
-        matrixColumns: (question.columns || []).map((col) => ({
-          id: col.value || col.id,
-          text: getLocalizedText(col.text),
-        })),
-      })) || [],
+    questions: processedQuestions,
   };
 
   console.log("Transformed survey data:", initialData);

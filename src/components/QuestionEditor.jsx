@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Plus,
   Trash2,
@@ -66,6 +66,73 @@ const QUESTION_TYPE_ICONS = {
   [QUESTION_TYPES.MATRIX]: Grid,
 };
 
+// Función para calcular números jerárquicos (Copia la misma función de QuestionModal aquí)
+function calculateQuestionNumbers(questions) {
+  const questionNumbers = {}; // { questionId: numberString }
+  let mainQuestionCounter = 0;
+
+  // Helper para encontrar si una pregunta es hija y de quién
+  function findParentInfo(targetId, allQuestions) {
+    for (let i = 0; i < allQuestions.length; i++) {
+      const parentQ = allQuestions[i];
+      if (parentQ.isConditional && parentQ.options) {
+        const optionIndex = parentQ.options.findIndex(
+          (opt) => opt.nextQuestionId === targetId
+        );
+        if (optionIndex !== -1) {
+          // Asegurarse que el padre no sea el mismo (evitar ciclos en cálculo)
+          if (parentQ.id !== targetId) {
+            return { parentId: parentQ.id, optionIndex };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Asignar números principales primero
+  questions.forEach((q) => {
+    const parentInfo = findParentInfo(q.id, questions);
+    if (!parentInfo) {
+      mainQuestionCounter++;
+      questionNumbers[q.id] = `${mainQuestionCounter}`;
+    }
+  });
+
+  // Asignar números jerárquicos a hijos
+  questions.forEach((q) => {
+    const parentInfo = findParentInfo(q.id, questions);
+    if (parentInfo) {
+      const parentNumber = questionNumbers[parentInfo.parentId];
+      const mainParentNumber = parentNumber ? parentNumber.split(".")[0] : "?";
+      questionNumbers[q.id] = `${mainParentNumber}.${
+        parentInfo.optionIndex + 1
+      }`;
+    }
+  });
+
+  // Fallback
+  mainQuestionCounter = 0;
+  questions.forEach((q) => {
+    if (!questionNumbers[q.id]) {
+      const parentInfo = findParentInfo(q.id, questions);
+      if (!parentInfo) {
+        mainQuestionCounter++;
+        questionNumbers[q.id] = `${mainQuestionCounter}`;
+      } else {
+        const parentIndexFallback = questions.findIndex(
+          (pq) => pq.id === parentInfo.parentId
+        );
+        questionNumbers[q.id] = `${parentIndexFallback + 1}.${
+          parentInfo.optionIndex + 1
+        }`;
+      }
+    }
+  });
+
+  return questionNumbers;
+}
+
 export default function QuestionEditor({
   questions,
   onChange,
@@ -77,6 +144,12 @@ export default function QuestionEditor({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState(null);
 
+  // Calcular números jerárquicos
+  const questionNumberMap = useMemo(
+    () => calculateQuestionNumbers(questions),
+    [questions]
+  );
+
   const handleAddQuestion = () => {
     setEditingQuestion(null);
     setShowModal(true);
@@ -85,6 +158,11 @@ export default function QuestionEditor({
   const handleEditQuestion = (question) => {
     setEditingQuestion(question);
     setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingQuestion(null);
   };
 
   const handleSaveQuestion = (question) => {
@@ -100,8 +178,7 @@ export default function QuestionEditor({
       // Agregar nueva pregunta
       onChange([...questions, question]);
     }
-    setShowModal(false);
-    setEditingQuestion(null);
+    handleCloseModal();
   };
 
   const handleDeleteClick = (question) => {
@@ -137,87 +214,111 @@ export default function QuestionEditor({
       </div>
 
       <AnimatePresence>
-        {questions.map((question, index) => (
-          <motion.div
-            key={question.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="card p-3"
-          >
-            <div className="flex items-start gap-3">
-              {/* Question Type Icon */}
-              <div className="p-1.5 text-gray-500 mt-0.5 flex-shrink-0">
-                {React.createElement(getQuestionTypeIcon(question.type), {
-                  className: "w-4 h-4",
-                })}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-medium text-sm">{question.title}</h4>
-                    {question.description && (
-                      <p className="text-text-secondary text-xs mt-0.5">
-                        {question.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-secondary">
-                      {QUESTION_TYPE_LABELS_ES[question.type] || question.type}
-                    </span>
-                    {question.required && (
-                      <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                        Obligatoria
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handleEditQuestion(question)}
-                      className="p-1.5 text-gray-500 hover:text-gray-700"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(question)}
-                      className="p-1.5 text-red-500 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+        {questions.map((question, index) => {
+          // Obtener el número calculado
+          const questionNumber = questionNumberMap[question.id] || "?";
 
-                {/* Mostrar resumen de opciones si es relevante */}
-                {(question.type === "multiple_choice" ||
-                  question.type === "single_choice" ||
-                  question.type === "checkbox") &&
-                  question.options.length > 0 && (
+          return (
+            <motion.div
+              key={question.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="card p-3"
+            >
+              <div className="flex items-start gap-3">
+                {/* Question Type Icon */}
+                <div className="p-1.5 text-gray-500 mt-0.5 flex-shrink-0">
+                  {React.createElement(getQuestionTypeIcon(question.type), {
+                    className: "w-4 h-4",
+                  })}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-medium text-sm">
+                        <span className="text-primary mr-1">
+                          {questionNumber}.
+                        </span>
+                        {question.title}
+                      </h4>
+                      {question.description && (
+                        <p className="text-text-secondary text-xs mt-0.5">
+                          {question.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-text-secondary">
+                        {QUESTION_TYPE_LABELS_ES[question.type] ||
+                          question.type}
+                      </span>
+                      {question.required && (
+                        <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                          Obligatoria
+                        </span>
+                      )}
+                      {/* Mostrar indicador si es pregunta condicional */}
+                      {question.isConditional && (
+                        <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
+                          Condicional
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleEditQuestion(question)}
+                        className="p-1.5 text-gray-500 hover:text-gray-700"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(question)}
+                        className="p-1.5 text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mostrar resumen de opciones si es relevante */}
+                  {(question.type === "multiple_choice" ||
+                    question.type === "single_choice" ||
+                    question.type === "checkbox") &&
+                    question.options.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-xs text-text-secondary">
+                          {question.options.length} opciones
+                          {/* Mostrar información sobre condiciones si es condicional */}
+                          {question.isConditional && (
+                            <span className="ml-1">
+                              (con lógica condicional)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {question.type === "matrix" && (
                     <div className="mt-2">
                       <div className="text-xs text-text-secondary">
-                        {question.options.length} opciones
+                        {question.matrixRows.length} filas,{" "}
+                        {question.matrixColumns.length} columnas
                       </div>
                     </div>
                   )}
-
-                {question.type === "matrix" && (
-                  <div className="mt-2">
-                    <div className="text-xs text-text-secondary">
-                      {question.matrixRows.length} filas,{" "}
-                      {question.matrixColumns.length} columnas
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
 
       <QuestionModal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={handleCloseModal}
         onSave={handleSaveQuestion}
         initialData={editingQuestion}
         onValidationError={onValidationError}
+        allQuestions={questions} // Pasar todas las preguntas para poder implementar lógica condicional
       />
 
       <ConfirmModal
