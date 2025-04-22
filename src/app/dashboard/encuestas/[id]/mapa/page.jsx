@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import SurveyMap from "@/components/SurveyMap";
+import CasesTable from "@/components/CasesTable";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 
@@ -150,7 +151,7 @@ export default function MapaEncuesta() {
         </div>
       )}
 
-      <div className="bg-[var(--card-background)] rounded-lg shadow-lg p-6">
+      <div className="bg-[var(--card-background)] rounded-lg shadow-lg p-6 w-3/4 mx-auto">
         <SurveyMap
           survey={survey}
           answers={answers}
@@ -158,6 +159,14 @@ export default function MapaEncuesta() {
           selectedUsers={user?.role === "POLLSTER" ? [user._id] : selectedUsers}
         />
       </div>
+
+      {/* Tabla de casos debajo del mapa */}
+      <CasesTable
+        survey={survey}
+        answers={answers}
+        mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
+        selectedUsers={user?.role === "POLLSTER" ? [user._id] : selectedUsers}
+      />
     </div>
   );
 }
