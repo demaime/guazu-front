@@ -1,5 +1,6 @@
 import { SURVEY_ROUTES } from "@/config/routes";
 import { ANSWER_ROUTES } from "@/config/routes";
+import axios from "axios";
 
 class SurveyService {
   async getAllSurveys() {
@@ -444,6 +445,129 @@ class SurveyService {
       );
       // Re-lanzar el error para que el componente lo maneje
       throw error;
+    }
+  }
+
+  async updateQuotas(surveyId, quotas) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("No hay token de autenticación");
+        throw new Error("No hay token de autenticación");
+      }
+
+      const config = {
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+      };
+
+      const API_URL = SURVEY_ROUTES.BASE.split("/survey")[0]; // Obtener la URL base
+
+      const response = await axios.put(
+        `${API_URL}/update-quotas`,
+        { surveyId, quotas },
+        config
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error al actualizar cuotas:", error);
+      throw error;
+    }
+  }
+
+  async checkQuotaAvailability(surveyId, formData) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("No hay token de autenticación");
+        throw new Error("No hay token de autenticación");
+      }
+
+      // Primero obtenemos la encuesta con su información de cuotas
+      const surveyResponse = await fetch(SURVEY_ROUTES.GET(surveyId), {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+      });
+
+      if (!surveyResponse.ok) {
+        throw new Error(`Error al obtener encuesta: ${surveyResponse.status}`);
+      }
+
+      const surveyData = await surveyResponse.json();
+      const survey = surveyData.survey;
+
+      if (
+        !survey ||
+        !survey.surveyInfo ||
+        !survey.surveyInfo.quotas ||
+        !survey.surveyInfo.quotas.length
+      ) {
+        // Si no hay cuotas definidas, consideramos que hay disponibilidad
+        return { available: true, segments: [] };
+      }
+
+      const quotas = survey.surveyInfo.quotas;
+
+      // Análisis local para verificar disponibilidad
+      const segments = [];
+      let allAvailable = true;
+
+      quotas.forEach((quota) => {
+        const category = quota.category.toLowerCase();
+
+        // Buscar la pregunta correspondiente a esta categoría
+        Object.keys(formData).forEach((key) => {
+          const keyLower = key.toLowerCase();
+          if (
+            keyLower.includes(category) ||
+            (category === "género" && keyLower.includes("genero")) ||
+            (category === "genero" && keyLower.includes("género")) ||
+            (category === "educacion" && keyLower.includes("educación")) ||
+            (category === "educación" && keyLower.includes("educacion"))
+          ) {
+            const answer = formData[key];
+
+            // Buscar el segmento correspondiente
+            const matchedSegment = quota.segments.find(
+              (segment) =>
+                segment.name.toLowerCase() === answer.toLowerCase() ||
+                answer.toLowerCase().includes(segment.name.toLowerCase())
+            );
+
+            if (matchedSegment) {
+              const isAvailable =
+                matchedSegment.current < matchedSegment.target;
+
+              segments.push({
+                category: quota.category,
+                segment: matchedSegment.name,
+                available: isAvailable,
+              });
+
+              if (!isAvailable) {
+                allAvailable = false;
+              }
+            }
+          }
+        });
+      });
+
+      return {
+        available: allAvailable,
+        segments,
+      };
+    } catch (error) {
+      console.error("Error al verificar cuotas:", error);
+      // En caso de error, permitimos continuar para no bloquear el proceso
+      return { available: true, segments: [] };
     }
   }
 }

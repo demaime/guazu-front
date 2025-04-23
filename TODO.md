@@ -6,12 +6,12 @@
 - Revisar permisos para los links
 - Confirmar restricción de dispositivos
 - PWA
+
+🟠 FEATURES IMPORTANTES - ¿Qué queremos agregar para mejorar la experiencia y aumentar el precio de la App?
+
 - Control de cuotas: Estricto (cuáles) / Libre.
-
-🟠 FEATURES IMPORTANTES - ¿Qué podemos agregar para mejorar la experiencia y aumentar el precio de la App?
-
 - Desarrollar sistema de planes y suscripciones
-- Perfeccionar Análisis
+- Perfeccionar Análisis (Progreso)
 - Landing: Objetivo, diseño.
 
 🟢 CORRECCIONES Y ADICIONALES - ¿Qué nos gustaría sumar o que funcione mejor?
@@ -24,3 +24,5 @@
 
 - CORS
 - URLS Crear cuenta, olvide pass.
+- DB URI
+- Limpiar consologs

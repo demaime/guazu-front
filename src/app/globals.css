@@ -130,6 +130,24 @@ body {
   padding: 0 50px;
 }
 
+::-webkit-scrollbar {
+  width: 3px;
+  background: var(--background);
+}
+
+::-webkit-scrollbar-track {
+  border-radius: 100px;
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 100px;
+  pointer-events: none;
+  background-color: transparent;
+  background-clip: content-box;
+  background-color: var(--primary);
+}
+
 @media (min-width: 992px) and (max-width: 1199px) {
   .login {
     padding: 0 90px;

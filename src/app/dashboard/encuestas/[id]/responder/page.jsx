@@ -75,6 +75,48 @@ export default function SurveyPage() {
           throw new Error("La encuesta no tiene preguntas configuradas");
         }
 
+        // Check if we have quotas defined in the survey
+        const quotas = response.survey.surveyInfo?.quotas || [];
+
+        // Add quota-based questions at the beginning if quotas exist
+        if (quotas.length > 0) {
+          // Create a new page for quota-based questions
+          const quotaPage = {
+            name: "quota_page",
+            title: "Información del participante",
+            description:
+              "Por favor, seleccione los datos del participante para comenzar la encuesta",
+            elements: [],
+          };
+
+          // Create questions for each quota category
+          quotas.forEach((quota) => {
+            const questionName = `quota_${quota.category
+              .toLowerCase()
+              .replace(/\s+/g, "_")}`;
+
+            // Create a dropdown question for this quota category
+            const quotaQuestion = {
+              type: "dropdown",
+              name: questionName,
+              title: quota.category,
+              isRequired: true,
+              choicesOrder: "asc",
+              placeholder: `Seleccione ${quota.category.toLowerCase()}`,
+              choices: quota.segments.map((segment) => ({
+                value: segment.name,
+                text: segment.name,
+              })),
+            };
+
+            // Add the question to the quota page
+            quotaPage.elements.push(quotaQuestion);
+          });
+
+          // Add this page at the beginning of the survey
+          surveyData.pages.unshift(quotaPage);
+        }
+
         // Process choices for radio, checkbox, and dropdown questions
         surveyData.pages.forEach((page) => {
           if (!page.elements) return;
@@ -239,13 +281,25 @@ export default function SurveyPage() {
       // Transform the answers to use question text as keys
       const transformedAnswers = {};
 
+      // Separate object to track quota responses
+      const quotaAnswers = {};
+
       // Get all questions from the survey
       sender.getAllQuestions().forEach((question) => {
         const questionName = question.name;
         const questionText = question.title;
         const answer = sender.data[questionName];
 
+        // Check if this is a quota question
+        const isQuotaQuestion = questionName.startsWith("quota_");
+
         if (answer !== undefined) {
+          // Save quota answers in a separate object
+          if (isQuotaQuestion) {
+            const quotaCategory = questionText;
+            quotaAnswers[quotaCategory] = answer;
+          }
+
           // Handle different question types
           if (Array.isArray(answer)) {
             // For checkbox questions that have multiple answers
@@ -270,10 +324,62 @@ export default function SurveyPage() {
         }
       });
 
+      // First, check if the quota is still available
+      if (Object.keys(quotaAnswers).length > 0) {
+        try {
+          // Fetch the current survey to check quota availability
+          const surveyResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/survey/${id}`,
+            {
+              headers: {
+                Authorization: localStorage.getItem("token"),
+              },
+            }
+          );
+
+          if (!surveyResponse.ok) {
+            throw new Error("Error al verificar disponibilidad de cuotas");
+          }
+
+          const surveyData = await surveyResponse.json();
+          const survey = surveyData.survey;
+
+          // Check if the selected quota is already full
+          if (survey.surveyInfo && survey.surveyInfo.quotas) {
+            let isQuotaFull = false;
+            let fullQuotaMessage = "";
+
+            survey.surveyInfo.quotas.forEach((quota) => {
+              const selectedSegment = quotaAnswers[quota.category];
+
+              if (selectedSegment) {
+                const segment = quota.segments.find(
+                  (s) => s.name === selectedSegment
+                );
+
+                if (segment && segment.current >= segment.target) {
+                  isQuotaFull = true;
+                  fullQuotaMessage = `La cuota para "${quota.category}: ${selectedSegment}" ya está completa (${segment.current}/${segment.target}).`;
+                }
+              }
+            });
+
+            if (isQuotaFull) {
+              setError(fullQuotaMessage);
+              return;
+            }
+          }
+        } catch (quotaError) {
+          console.error("Error al verificar cuotas:", quotaError);
+          // Continue with submission even if quota check fails
+        }
+      }
+
       const answerData = {
         surveyId: id,
         fullName: user?.fullName,
         answer: transformedAnswers,
+        quotaAnswers: quotaAnswers, // Include quota answers separately
         createdAt: new Date().toISOString(),
       };
 

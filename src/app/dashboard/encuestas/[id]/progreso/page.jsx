@@ -9,10 +9,12 @@ import {
   FileSpreadsheet,
   Calendar,
   Clock,
+  BarChart4,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { Loader } from "@/components/ui/Loader";
+import { QuotaProgress } from "@/components/QuotaProgress";
 
 export default function AnalisisEncuesta() {
   const params = useParams();
@@ -174,6 +176,18 @@ export default function AnalisisEncuesta() {
           </div>
         </div>
       </div>
+
+      {/* Cuotas */}
+      {survey.surveyInfo?.quotas && survey.surveyInfo.quotas.length > 0 && (
+        <div className="card p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart4 className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold">Sistema de Cuotas</h2>
+          </div>
+
+          <QuotaProgress quotas={survey.surveyInfo.quotas} />
+        </div>
+      )}
 
       {/* Placeholder for actual analysis */}
       <div className="card p-6 mb-6">

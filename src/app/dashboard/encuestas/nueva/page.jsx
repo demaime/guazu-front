@@ -14,6 +14,7 @@ import { authService } from "@/services/auth.service";
 import { TransferModal } from "@/components/TransferModal";
 import QuestionEditor from "@/components/QuestionEditor";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { QuotaManager } from "@/components/QuotaManager";
 
 // Constants (Consider moving to a shared file)
 const QUESTION_TYPES = {
@@ -47,9 +48,10 @@ const QUESTION_TYPE_LABELS_ES = {
 // Pasos del wizard
 const STEPS = {
   INFORMACION_BASICA: 0,
-  PARTICIPANTES: 1,
-  PREGUNTAS: 2,
-  VISTA_PREVIA: 3,
+  CUOTAS: 1,
+  PARTICIPANTES: 2,
+  PREGUNTAS: 3,
+  VISTA_PREVIA: 4,
 };
 
 const slideVariants = {
@@ -177,6 +179,7 @@ export default function NuevaEncuesta({
         supervisorsIds: [],
       },
       questions: [],
+      quotas: [],
     }
   );
   const [showPollstersModal, setShowPollstersModal] = useState(false);
@@ -276,26 +279,40 @@ export default function NuevaEncuesta({
 
   // Navegación entre pasos
   const paginate = (newDirection) => {
-    if (page + newDirection >= 0 && page + newDirection <= 3) {
+    if (page + newDirection >= 0 && page + newDirection <= 4) {
       setPage([page + newDirection, newDirection]);
     }
   };
 
   // Validar si se puede avanzar al siguiente paso
   const canProceed = () => {
+    // Validaciones según el paso actual
     switch (page) {
       case STEPS.INFORMACION_BASICA:
+        // Validar que los campos básicos estén completos
         return (
-          surveyData.basicInfo.title &&
-          surveyData.basicInfo.description &&
+          surveyData.basicInfo.title.trim() !== "" &&
           surveyData.basicInfo.startDate &&
-          surveyData.basicInfo.endDate &&
-          surveyData.basicInfo.target > 0
+          surveyData.basicInfo.endDate
         );
+
+      case STEPS.SISTEMA_CUOTAS:
+        // No hay requisitos obligatorios para pasar al siguiente paso
+        // Se puede continuar incluso sin definir cuotas
+        return true;
+
       case STEPS.PARTICIPANTES:
+        // Validar que haya al menos un encuestador seleccionado
         return surveyData.participants.userIds.length > 0;
+
       case STEPS.PREGUNTAS:
+        // Validar que haya al menos una pregunta
         return surveyData.questions.length > 0;
+
+      case STEPS.VISTA_PREVIA:
+        // No hay restricción para finalizar
+        return true;
+
       default:
         return true;
     }
@@ -452,6 +469,7 @@ export default function NuevaEncuesta({
           target: surveyData.basicInfo.target,
           userIds: surveyData.participants.userIds,
           supervisorsIds: surveyData.participants.supervisorsIds,
+          quotas: surveyData.quotas,
         },
       };
 
@@ -488,16 +506,39 @@ export default function NuevaEncuesta({
     router.back();
   };
 
+  // Función para actualizar las cuotas
+  const handleQuotasChange = (quotas) => {
+    // Calcular la meta total sumando todas las cuotas
+    const totalTarget = quotas.reduce((sum, category) => {
+      return (
+        sum +
+        category.segments.reduce(
+          (catSum, segment) => catSum + segment.target,
+          0
+        )
+      );
+    }, 0);
+
+    setSurveyData((prev) => ({
+      ...prev,
+      quotas,
+      basicInfo: {
+        ...prev.basicInfo,
+        target: totalTarget,
+      },
+    }));
+  };
+
   // Renderizar paso actual
   const renderStep = () => {
     switch (page) {
       case STEPS.INFORMACION_BASICA:
         return (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Información Básica</h2>
-            <div className="space-y-3">
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Información Básica</h2>
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-2">
                   Título de la Encuesta
                 </label>
                 <input
@@ -512,14 +553,14 @@ export default function NuevaEncuesta({
                       },
                     }))
                   }
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-3 border rounded-md"
                   placeholder="Ej: Encuesta de Satisfacción 2024"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-2">
                   Descripción
                 </label>
                 <textarea
@@ -533,16 +574,16 @@ export default function NuevaEncuesta({
                       },
                     }))
                   }
-                  className="w-full p-2 border rounded-md"
-                  rows={3}
+                  className="w-full p-3 border rounded-md"
+                  rows={4}
                   placeholder="Describe el propósito de la encuesta"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium mb-2">
                     Fecha de inicio
                   </label>
                   <input
@@ -557,13 +598,13 @@ export default function NuevaEncuesta({
                         },
                       }))
                     }
-                    className="w-full p-2 border rounded-md"
+                    className="w-full p-3 border rounded-md"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium mb-2">
                     Fecha de fin
                   </label>
                   <input
@@ -578,34 +619,63 @@ export default function NuevaEncuesta({
                         },
                       }))
                     }
-                    className="w-full p-2 border rounded-md"
+                    className="w-full p-3 border rounded-md"
                     required
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Meta de respuestas
-                </label>
-                <input
-                  type="number"
-                  value={surveyData.basicInfo.target}
-                  onChange={(e) =>
-                    setSurveyData((prev) => ({
-                      ...prev,
-                      basicInfo: {
-                        ...prev.basicInfo,
-                        target: parseInt(e.target.value),
-                      },
-                    }))
-                  }
-                  className="w-full p-2 border rounded-md"
-                  min="1"
-                  required
-                />
-              </div>
+              {surveyData.quotas.length > 0 && (
+                <div className="mt-4 p-4 bg-[var(--card-background)] rounded-md border border-[var(--card-border)]">
+                  <p className="text-sm text-[var(--text-primary)] flex items-center">
+                    <span className="mr-2">ℹ️</span>
+                    <span>
+                      <strong>Meta total de respuestas:</strong>{" "}
+                      {surveyData.basicInfo.target}
+                      <span className="text-xs ml-2 text-[var(--text-secondary)]">
+                        (Calculado automáticamente a partir de las cuotas
+                        definidas)
+                      </span>
+                    </span>
+                  </p>
+                </div>
+              )}
             </div>
+          </div>
+        );
+
+      case STEPS.CUOTAS:
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">Sistema de Cuotas</h2>
+            <p className="text-[var(--text-secondary)]">
+              Define las categorías y segmentos para tu sistema de cuotas. Las
+              cuotas te permiten establecer cuántas encuestas necesitas de cada
+              segmento de la población.
+            </p>
+
+            <div className="mt-4">
+              <QuotaManager
+                value={surveyData.quotas}
+                onChange={handleQuotasChange}
+              />
+            </div>
+
+            {surveyData.quotas.length > 0 && (
+              <div className="mt-6 p-4 bg-[var(--card-background)] rounded-md border border-[var(--card-border)]">
+                <p className="text-sm text-[var(--text-primary)] flex items-center">
+                  <span className="mr-2">ℹ️</span>
+                  <span>
+                    <strong>Meta total de respuestas:</strong>{" "}
+                    {surveyData.basicInfo.target}
+                    <span className="text-xs ml-2 text-[var(--text-secondary)]">
+                      (Calculado automáticamente a partir de las cuotas
+                      definidas)
+                    </span>
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
         );
 
@@ -1030,8 +1100,9 @@ export default function NuevaEncuesta({
       {/* Contenido principal con scroll */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="container mx-auto max-w-5xl h-full py-4">
-          <div className="overflow-x-hidden h-full">
+          <div className="overflow-x-hidden h-full p-4">
             {page === STEPS.INFORMACION_BASICA && renderStep()}
+            {page === STEPS.CUOTAS && renderStep()}
             {page === STEPS.PARTICIPANTES && renderStep()}
             {page === STEPS.PREGUNTAS && renderStep()}
             {page === STEPS.VISTA_PREVIA && renderStep()}
@@ -1041,7 +1112,7 @@ export default function NuevaEncuesta({
 
       {/* Footer con botones de navegación */}
       <div className="bg-background ">
-        <div className="container mx-auto max-w-5xl flex justify-between items-center">
+        <div className="container mx-auto max-w-5xl flex justify-between items-center p-4">
           <button
             onClick={() => paginate(-1)}
             disabled={page === 0}
@@ -1056,9 +1127,9 @@ export default function NuevaEncuesta({
 
           <button
             onClick={() => paginate(1)}
-            disabled={page === 3 || !canProceed()}
+            disabled={page === 4 || !canProceed()}
             className={`px-3 py-1.5 text-sm ${
-              page === 3 || !canProceed()
+              page === 4 || !canProceed()
                 ? "disabled-button"
                 : "bg-primary text-white rounded-md hover:bg-primary/90 transition-colors cursor-pointer"
             }`}

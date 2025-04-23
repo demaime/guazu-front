@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -9,7 +9,7 @@ import { Loader } from "@/components/ui/Loader";
 
 export default function ActivateAccountPage({ params }) {
   const router = useRouter();
-  const { token } = params;
+  const { token } = React.use(params);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
