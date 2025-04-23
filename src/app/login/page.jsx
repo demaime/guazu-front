@@ -1,20 +1,21 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { authService } from '@/services/auth.service';
-import { Loader } from '@/components/ui/Loader';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { authService } from "@/services/auth.service";
+import { Loader } from "@/components/ui/Loader";
+import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    rememberMe: false
+    email: "",
+    password: "",
+    rememberMe: false,
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isFadingOut, setIsFadingOut] = useState(false);
@@ -23,10 +24,10 @@ export default function LoginPage() {
     const checkAuth = () => {
       try {
         if (authService.isAuthenticated()) {
-          router.replace('/dashboard');
+          router.replace("/dashboard");
         }
       } catch (error) {
-        console.error('Error checking authentication:', error);
+        console.error("Error checking authentication:", error);
       } finally {
         setIsPageLoading(false);
       }
@@ -38,7 +39,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
       await authService.login(
@@ -46,10 +47,10 @@ export default function LoginPage() {
         formData.password,
         formData.rememberMe
       );
-      
+
       setIsFadingOut(true);
       setTimeout(() => {
-        router.replace('/dashboard');
+        router.replace("/dashboard");
       }, 500);
     } catch (err) {
       setError(err.message);
@@ -60,9 +61,9 @@ export default function LoginPage() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -75,19 +76,19 @@ export default function LoginPage() {
   }
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: isFadingOut ? 0 : 1 }}
       transition={{ duration: 0.5 }}
       className="login-page min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
     >
-      <motion.div 
+      <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.4 }}
         className="max-w-xl w-full space-y-8 bg-white/10 backdrop-blur-sm p-8 rounded-2xl shadow-xl"
       >
-        <motion.div 
+        <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.3 }}
@@ -103,12 +104,12 @@ export default function LoginPage() {
             />
           </div>
         </motion.div>
-        
-        <motion.form 
+
+        <motion.form
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.4 }}
-          className="mt-12 space-y-8" 
+          className="mt-12 space-y-8"
           onSubmit={handleSubmit}
         >
           <div className="space-y-4">
@@ -117,7 +118,10 @@ export default function LoginPage() {
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.6, duration: 0.3 }}
             >
-              <label htmlFor="email" className="block text-sm font-medium text-white uppercase">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-white uppercase"
+              >
                 Email
               </label>
               <input
@@ -136,7 +140,10 @@ export default function LoginPage() {
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.7, duration: 0.3 }}
             >
-              <label htmlFor="password" className="block text-sm font-medium text-white uppercase">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-white uppercase"
+              >
                 Contraseña
               </label>
               <input
@@ -152,7 +159,7 @@ export default function LoginPage() {
             </motion.div>
           </div>
 
-          <motion.div 
+          <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.8, duration: 0.3 }}
@@ -167,15 +174,21 @@ export default function LoginPage() {
                 checked={formData.rememberMe}
                 onChange={handleChange}
               />
-              <label htmlFor="rememberMe" className="ml-2 block text-sm text-white/80">
+              <label
+                htmlFor="rememberMe"
+                className="ml-2 block text-sm text-white/80"
+              >
                 Recordarme
               </label>
             </div>
 
             <div className="text-sm">
-              <a href="/forgot-password" className="font-medium text-white/80 hover:text-white">
+              <Link
+                href="/forgot-password"
+                className="font-medium text-white/80 hover:text-white"
+              >
                 ¿Olvidó su contraseña?
-              </a>
+              </Link>
             </div>
           </motion.div>
 
@@ -206,23 +219,26 @@ export default function LoginPage() {
                   <span>Iniciando sesión...</span>
                 </div>
               ) : (
-                'Iniciar sesión'
+                "Iniciar sesión"
               )}
             </button>
           </motion.div>
         </motion.form>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1, duration: 0.3 }}
           className="text-center"
         >
-          <a href="/register" className="text-sm text-white/80 hover:text-white">
+          <Link
+            href="/register"
+            className="text-sm text-white/80 hover:text-white"
+          >
             ¿No tiene una cuenta? Regístrese
-          </a>
+          </Link>
         </motion.div>
       </motion.div>
     </motion.div>
   );
-} 
+}

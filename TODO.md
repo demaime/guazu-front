@@ -5,6 +5,8 @@
 - Revisar gestión de Usuarios
 - Revisar permisos para los links
 - Confirmar restricción de dispositivos
+- PWA
+- Control de cuotas: Estricto (cuáles) / Libre.
 
 🟠 FEATURES IMPORTANTES - ¿Qué podemos agregar para mejorar la experiencia y aumentar el precio de la App?
 
@@ -15,3 +17,10 @@
 🟢 CORRECCIONES Y ADICIONALES - ¿Qué nos gustaría sumar o que funcione mejor?
 
 - Perfeccionar Análisis
+
+---
+
+### AL CAMBIO DE DOMINIO:
+
+- CORS
+- URLS Crear cuenta, olvide pass.

@@ -98,6 +98,91 @@ class AuthService {
     }
   }
 
+  async forgotPassword(email) {
+    try {
+      const response = await fetch(AUTH_ROUTES.FORGOT_PASSWORD, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage =
+          data.validation?.email ||
+          data.message ||
+          "Error al procesar la solicitud";
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      throw error;
+    }
+  }
+
+  async resetPassword(token, password, confirm) {
+    try {
+      const response = await fetch(`${AUTH_ROUTES.RESET_PASSWORD}/${token}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          password,
+          confirm,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage =
+          data.validation?.pwd2 ||
+          data.message ||
+          "Error al restablecer la contraseña";
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Reset password error:", error);
+      throw error;
+    }
+  }
+
+  async activateAccount(token) {
+    try {
+      const response = await fetch(`${AUTH_ROUTES.ACTIVATE_ACCOUNT}/${token}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage =
+          data.validation?.email ||
+          data.message ||
+          "Error al activar la cuenta";
+        throw new Error(errorMessage);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Account activation error:", error);
+      throw error;
+    }
+  }
+
   logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
