@@ -592,9 +592,7 @@ export default function AnalisisEncuesta() {
                       <td className="px-2 py-3">
                         {answer.lat && answer.lng ? (
                           <a
-                            href={`https://maps.google.com/?q=${answer.lat},${answer.lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href={`/dashboard/encuestas/${params.id}/mapa`}
                             className="text-[var(--primary)] hover:underline"
                           >
                             Ver mapa

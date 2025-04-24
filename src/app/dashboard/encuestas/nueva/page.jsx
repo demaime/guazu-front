@@ -1486,7 +1486,7 @@ export default function NuevaEncuesta({
       </div>
 
       {/* Contenido principal con scroll */}
-      <div className="overflow-y-auto h-[calc(100vh-180px)] py-4">
+      <div className="overflow-y-auto h-[calc(100%-180px)] py-4">
         <div className="container mx-auto max-w-5xl px-4">
           {page === STEPS.INFORMACION_BASICA && renderStep()}
           {page === STEPS.CUOTAS && renderStep()}

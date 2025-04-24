@@ -17,10 +17,12 @@ import {
   Hash,
   Phone,
   Grid,
+  Copy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import QuestionModal from "./QuestionModal";
 import { ConfirmModal } from "./ui/ConfirmModal";
+import { toast } from "react-toastify";
 
 const QUESTION_TYPES = {
   TEXT: "text",
@@ -180,6 +182,77 @@ export default function QuestionEditor({
     setShowModal(true);
   };
 
+  const handleCopyQuestion = (question) => {
+    // Crear una copia profunda de la pregunta
+    const questionCopy = JSON.parse(JSON.stringify(question));
+
+    // Generar nuevos IDs para la pregunta copiada y sus opciones/elementos
+    const generateUniqueId = () =>
+      Math.random().toString(36).substr(2, 9) + "_" + Date.now();
+
+    // Crear mapa de IDs viejos a nuevos para referencias condicionales
+    const idMap = {};
+
+    // Asignar nuevo ID a la pregunta
+    idMap[questionCopy.id] = generateUniqueId();
+    questionCopy.id = idMap[questionCopy.id];
+    questionCopy.title = `${questionCopy.title} (copia)`;
+
+    // Para preguntas de selección, actualizar IDs de opciones
+    if (questionCopy.options && Array.isArray(questionCopy.options)) {
+      questionCopy.options = questionCopy.options.map((option) => {
+        const newId = generateUniqueId();
+        idMap[option.id] = newId;
+
+        // Si es una pregunta condicional, no copiamos la referencia a la pregunta siguiente
+        // ya que esa lógica debe ser configurada manualmente para la copia
+        return {
+          ...option,
+          id: newId,
+          nextQuestionId: null, // Eliminar la referencia condicional en la copia
+        };
+      });
+    }
+
+    // Para preguntas tipo matriz, actualizar IDs de filas y columnas
+    if (questionCopy.matrixRows && Array.isArray(questionCopy.matrixRows)) {
+      questionCopy.matrixRows = questionCopy.matrixRows.map((row) => {
+        const newId = generateUniqueId();
+        idMap[row.id] = newId;
+        return {
+          ...row,
+          id: newId,
+        };
+      });
+    }
+
+    if (
+      questionCopy.matrixColumns &&
+      Array.isArray(questionCopy.matrixColumns)
+    ) {
+      questionCopy.matrixColumns = questionCopy.matrixColumns.map((col) => {
+        const newId = generateUniqueId();
+        idMap[col.id] = newId;
+        return {
+          ...col,
+          id: newId,
+        };
+      });
+    }
+
+    // Añadir la pregunta copiada a la lista de preguntas
+    onChange([...questions, questionCopy]);
+
+    // Desplazar la vista hacia la pregunta copiada (al final de la lista)
+    setTimeout(() => {
+      const questionElements = document.querySelectorAll(".card");
+      if (questionElements.length > 0) {
+        const lastElement = questionElements[questionElements.length - 1];
+        lastElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
+  };
+
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingQuestion(null);
@@ -285,14 +358,23 @@ export default function QuestionEditor({
                         </span>
                       )}
                       <button
+                        onClick={() => handleCopyQuestion(question)}
+                        className="p-1.5 text-gray-500 hover:text-gray-700"
+                        title="Copiar pregunta: Crea un duplicado que podrás editar independientemente"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleEditQuestion(question)}
                         className="p-1.5 text-gray-500 hover:text-gray-700"
+                        title="Editar pregunta"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteClick(question)}
                         className="p-1.5 text-red-500 hover:text-red-600"
+                        title="Eliminar pregunta"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

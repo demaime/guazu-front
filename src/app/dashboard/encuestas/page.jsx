@@ -409,19 +409,19 @@ export default function Encuestas() {
                           <div className="flex flex-wrap gap-2">
                             <button
                               onClick={() => handleEditDraft(draft._id)}
-                              className="px-3 py-2 text-sm bg-[var(--primary)] text-white rounded-md hover:bg-opacity-90 transition-colors"
+                              className="cursor-pointer px-3 py-2 text-sm bg-[var(--primary)] text-white rounded-md hover:bg-opacity-90 transition-colors"
                             >
                               Continuar editando
                             </button>
                             <button
                               onClick={() => handlePublishDraft(draft._id)}
-                              className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-opacity-90 transition-colors"
+                              className="cursor-pointer px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-opacity-90 transition-colors"
                             >
                               Publicar
                             </button>
                             <button
                               onClick={() => handleDelete(draft._id)}
-                              className="px-3 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-opacity-90 transition-colors"
+                              className="cursor-pointer px-3 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-opacity-90 transition-colors"
                             >
                               Eliminar
                             </button>

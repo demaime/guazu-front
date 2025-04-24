@@ -474,7 +474,7 @@ export function SurveyList({
               </th>
               <th
                 key="header-desc"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                className="px-6 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
               >
                 Descripción
               </th>
@@ -501,7 +501,7 @@ export function SurveyList({
               </th>
               <th
                 key="header-actions"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                className="px-6 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
               >
                 Acciones
               </th>
