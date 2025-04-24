@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
-import { Loader } from "@/components/ui/Loader";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { QuotaProgress } from "@/components/QuotaProgress";
+import { motion } from "framer-motion";
 
 // Función auxiliar para formatear fechas considerando diferentes formatos
 const formatSurveyDate = (dateValue) => {
@@ -204,11 +205,7 @@ export default function AnalisisEncuesta() {
   }, [params.id, router]);
 
   if (isLoading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <Loader size="lg" />
-      </div>
-    );
+    return <LoaderWrapper />;
   }
 
   if (error) {

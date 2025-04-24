@@ -1,17 +1,35 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { authService } from '@/services/auth.service';
-import { userService } from '@/services/user.service';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Mail, Search, ChevronLeft, ChevronRight, User, MapPin, X, Star, Phone, MessageSquare, Calendar, Award, Trophy, Target, Clock } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { authService } from "@/services/auth.service";
+import { userService } from "@/services/user.service";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Users,
+  Mail,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  MapPin,
+  X,
+  Star,
+  Phone,
+  MessageSquare,
+  Calendar,
+  Award,
+  Trophy,
+  Target,
+  Clock,
+} from "lucide-react";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 // Coordenadas de ciudades comunes
 const CITY_COORDINATES = {
-  'Santa Fe': { lat: -31.6333, lng: -60.7000 },
-  'Encarnación': { lat: -27.3367, lng: -55.8661 },
-  'Posadas': { lat: -27.3667, lng: -55.8968 },
+  "Santa Fe": { lat: -31.6333, lng: -60.7 },
+  Encarnación: { lat: -27.3367, lng: -55.8661 },
+  Posadas: { lat: -27.3667, lng: -55.8968 },
 };
 
 export default function PollstersPage() {
@@ -19,8 +37,8 @@ export default function PollstersPage() {
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterField, setFilterField] = useState('email');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterField, setFilterField] = useState("email");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
@@ -34,7 +52,7 @@ export default function PollstersPage() {
       setUsers(pollsters || []);
       setTotalCount(totalCount || 0);
     } catch (error) {
-      console.error('Error cargando encuestadores:', error);
+      console.error("Error cargando encuestadores:", error);
       setUsers([]);
       setTotalCount(0);
     } finally {
@@ -45,8 +63,8 @@ export default function PollstersPage() {
   useEffect(() => {
     const user = authService.getUser();
     setCurrentUser(user);
-    if (user?.role !== 'ROLE_ADMIN' && user?.role !== 'SUPERVISOR') {
-      router.push('/dashboard');
+    if (user?.role !== "ROLE_ADMIN" && user?.role !== "SUPERVISOR") {
+      router.push("/dashboard");
       return;
     }
     loadPollsters();
@@ -62,12 +80,13 @@ export default function PollstersPage() {
   }, [selectedPollster]);
 
   // Filtrar usuarios por el campo seleccionado
-  const filteredUsers = users?.filter(user => {
-    if (!user || !user[filterField]) return false;
-    const fieldValue = user[filterField].toString().toLowerCase();
-    const searchValue = searchTerm.toLowerCase();
-    return fieldValue.includes(searchValue);
-  }) || [];
+  const filteredUsers =
+    users?.filter((user) => {
+      if (!user || !user[filterField]) return false;
+      const fieldValue = user[filterField].toString().toLowerCase();
+      const searchValue = searchTerm.toLowerCase();
+      return fieldValue.includes(searchValue);
+    }) || [];
 
   // Calcular índices para la paginación
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -79,12 +98,15 @@ export default function PollstersPage() {
   const getPageNumbers = () => {
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, startPage + 4);
-    
+
     if (endPage === totalPages) {
       startPage = Math.max(1, endPage - 4);
     }
 
-    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+    return Array.from(
+      { length: endPage - startPage + 1 },
+      (_, i) => startPage + i
+    );
   };
 
   const handleSearchChange = (event) => {
@@ -103,48 +125,38 @@ export default function PollstersPage() {
 
   const tableVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
+      transition: {
         duration: 0.2,
         when: "beforeChildren",
-        staggerChildren: 0.03
-      }
+        staggerChildren: 0.03,
+      },
     },
-    exit: { 
+    exit: {
       opacity: 0,
       y: -20,
-      transition: { duration: 0.15 }
-    }
+      transition: { duration: 0.15 },
+    },
   };
 
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       x: 0,
-      transition: { duration: 0.15 }
+      transition: { duration: 0.15 },
     },
-    exit: { 
+    exit: {
       opacity: 0,
       x: 10,
-      transition: { duration: 0.15 }
-    }
+      transition: { duration: 0.15 },
+    },
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="flex items-center">
-          <span className="text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
-            <span className="inline-block animate-bounce">.</span>
-            <span className="inline-block animate-bounce" style={{ animationDelay: '0.2s' }}>.</span>
-            <span className="inline-block animate-bounce" style={{ animationDelay: '0.4s' }}>.</span>
-          </span>
-        </div>
-      </div>
-    );
+    return <LoaderWrapper />;
   }
 
   return (
@@ -174,7 +186,13 @@ export default function PollstersPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder={`Buscar por ${filterField === 'name' ? 'Nombre' : filterField === 'lastName' ? 'Apellido' : 'e-mail'}`}
+                  placeholder={`Buscar por ${
+                    filterField === "name"
+                      ? "Nombre"
+                      : filterField === "lastName"
+                      ? "Apellido"
+                      : "e-mail"
+                  }`}
                   value={searchTerm}
                   onChange={handleSearchChange}
                   className="rounded-md border border-[var(--card-border)] bg-[var(--card-background)] pl-9 pr-3 py-1.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary"
@@ -299,7 +317,7 @@ export default function PollstersPage() {
               </>
             )}
 
-            {getPageNumbers().map(pageNum => (
+            {getPageNumbers().map((pageNum) => (
               <motion.button
                 key={pageNum}
                 whileHover={{ scale: 1.05 }}
@@ -307,8 +325,8 @@ export default function PollstersPage() {
                 onClick={() => handlePageChange(pageNum)}
                 className={`px-3 py-1 rounded-md text-sm cursor-pointer ${
                   currentPage === pageNum
-                    ? 'bg-primary text-white'
-                    : 'bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--card-hover)]'
+                    ? "bg-primary text-white"
+                    : "bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--card-hover)]"
                 }`}
               >
                 {pageNum}
@@ -358,11 +376,13 @@ export default function PollstersPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-[var(--card-background)] rounded-lg w-full max-w-5xl h-[90vh] overflow-hidden flex flex-col"
-              onClick={e => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Header del modal */}
               <div className="flex items-center justify-between p-4 border-b border-[var(--card-border)]">
-                <h2 className="text-xl font-semibold text-[var(--text-primary)]">Detalles del Encuestador</h2>
+                <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+                  Detalles del Encuestador
+                </h2>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 hover:bg-[var(--card-hover)] rounded-full transition-colors"
@@ -390,51 +410,72 @@ export default function PollstersPage() {
                               key={star}
                               className={`w-5 h-5 ${
                                 star <= 2.8
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-gray-300'
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-gray-300"
                               }`}
                             />
                           ))}
                         </div>
-                        <span className="text-lg text-[var(--text-secondary)]">2.8</span>
+                        <span className="text-lg text-[var(--text-secondary)]">
+                          2.8
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Información Personal */}
                   <div className="bg-[var(--card-hover)] rounded-lg p-4">
-                    <h4 className="text-lg font-medium text-[var(--text-primary)] mb-4">Información Personal</h4>
+                    <h4 className="text-lg font-medium text-[var(--text-primary)] mb-4">
+                      Información Personal
+                    </h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="flex items-center gap-3">
                         <Mail className="w-5 h-5 text-[var(--text-secondary)]" />
-                        <span className="text-[var(--text-primary)]">{selectedPollster.email}</span>
+                        <span className="text-[var(--text-primary)]">
+                          {selectedPollster.email}
+                        </span>
                       </div>
                       <div className="flex items-center gap-3">
                         <Phone className="w-5 h-5 text-[var(--text-secondary)]" />
-                        <span className="text-[var(--text-primary)]">{selectedPollster.phone || 'No especificado'}</span>
+                        <span className="text-[var(--text-primary)]">
+                          {selectedPollster.phone || "No especificado"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-3">
                         <MapPin className="w-5 h-5 text-[var(--text-secondary)]" />
-                        <span className="text-[var(--text-primary)]">{selectedPollster.city || 'No especificada'}</span>
+                        <span className="text-[var(--text-primary)]">
+                          {selectedPollster.city || "No especificada"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-3">
                         <Calendar className="w-5 h-5 text-[var(--text-secondary)]" />
-                        <span className="text-[var(--text-primary)]">Miembro desde {new Date(selectedPollster.createdAt).toLocaleDateString()}</span>
+                        <span className="text-[var(--text-primary)]">
+                          Miembro desde{" "}
+                          {new Date(
+                            selectedPollster.createdAt
+                          ).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Logros */}
                   <div className="flex flex-col gap-3">
-                    <h4 className="text-lg font-medium text-[var(--text-primary)]">Logros</h4>
+                    <h4 className="text-lg font-medium text-[var(--text-primary)]">
+                      Logros
+                    </h4>
                     <div className="space-y-3">
                       <div className="bg-[var(--card-hover)] p-4 rounded-lg flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                           <Trophy className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                          <h5 className="text-base font-medium text-[var(--text-primary)]">Encuestador Experto</h5>
-                          <p className="text-sm text-[var(--text-secondary)]">Completó más de 100 encuestas</p>
+                          <h5 className="text-base font-medium text-[var(--text-primary)]">
+                            Encuestador Experto
+                          </h5>
+                          <p className="text-sm text-[var(--text-secondary)]">
+                            Completó más de 100 encuestas
+                          </p>
                         </div>
                       </div>
                       <div className="bg-[var(--card-hover)] p-4 rounded-lg flex items-center gap-4">
@@ -442,8 +483,12 @@ export default function PollstersPage() {
                           <Target className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                          <h5 className="text-base font-medium text-[var(--text-primary)]">Precisión Perfecta</h5>
-                          <p className="text-sm text-[var(--text-secondary)]">95% de respuestas completas</p>
+                          <h5 className="text-base font-medium text-[var(--text-primary)]">
+                            Precisión Perfecta
+                          </h5>
+                          <p className="text-sm text-[var(--text-secondary)]">
+                            95% de respuestas completas
+                          </p>
                         </div>
                       </div>
                       <div className="bg-[var(--card-hover)] p-4 rounded-lg flex items-center gap-4">
@@ -451,8 +496,12 @@ export default function PollstersPage() {
                           <Clock className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                          <h5 className="text-base font-medium text-[var(--text-primary)]">Velocidad Suprema</h5>
-                          <p className="text-sm text-[var(--text-secondary)]">15 encuestas en un día</p>
+                          <h5 className="text-base font-medium text-[var(--text-primary)]">
+                            Velocidad Suprema
+                          </h5>
+                          <p className="text-sm text-[var(--text-secondary)]">
+                            15 encuestas en un día
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -468,7 +517,7 @@ export default function PollstersPage() {
                   className="flex-1 bg-[var(--card-hover)] text-[var(--text-primary)] py-3 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-[var(--card-border)] transition-colors"
                   onClick={() => {
                     // Aquí implementaremos la lógica para ver ubicaciones
-                    console.log('Ver ubicaciones');
+                    console.log("Ver ubicaciones");
                   }}
                 >
                   <MapPin className="w-5 h-5" />
@@ -493,4 +542,4 @@ export default function PollstersPage() {
       </AnimatePresence>
     </div>
   );
-} 
+}

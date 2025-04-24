@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import SurveyMap from '@/components/SurveyMap';
-import axios from 'axios';
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import SurveyMap from "@/components/SurveyMap";
+import axios from "axios";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 export default function SurveyDetail() {
   const { id } = useParams();
@@ -16,12 +17,14 @@ export default function SurveyDetail() {
   useEffect(() => {
     const fetchSurveyData = async () => {
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/surveys/${id}`);
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/surveys/${id}`
+        );
         setSurvey(response.data);
         setAnswers(response.data.answers || []);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching survey:', error);
+        console.error("Error fetching survey:", error);
         setLoading(false);
       }
     };
@@ -30,24 +33,24 @@ export default function SurveyDetail() {
   }, [id]);
 
   const handleUserSelection = (userId) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
+    setSelectedUsers((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
         : [...prev, userId]
     );
     setMostrarTodos(false);
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <LoaderWrapper fullScreen />;
   if (!survey) return <div>Survey not found</div>;
 
   // Get unique users from answers
-  const uniqueUsers = [...new Set(answers.map(answer => answer.userId))];
+  const uniqueUsers = [...new Set(answers.map((answer) => answer.userId))];
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">{survey.title}</h1>
-      
+
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-4">Filtrar por encuestador</h2>
         <div className="flex flex-wrap gap-4">
@@ -65,8 +68,8 @@ export default function SurveyDetail() {
             />
             <span>Mostrar todos</span>
           </label>
-          
-          {uniqueUsers.map(userId => (
+
+          {uniqueUsers.map((userId) => (
             <label key={userId} className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -89,4 +92,4 @@ export default function SurveyDetail() {
       </div>
     </div>
   );
-} 
+}

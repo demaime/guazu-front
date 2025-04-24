@@ -9,6 +9,9 @@ import { Plus, ChevronDown, FilePenLine } from "lucide-react";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
+import { Loader } from "@/components/ui/Loader";
 
 // Helper function to check if a survey is active based on dates
 const isSurveyActive = (survey) => {
@@ -34,6 +37,11 @@ export default function Encuestas() {
   const [isCreatingSurvey, setIsCreatingSurvey] = useState(false);
   const [isFinishedExpanded, setIsFinishedExpanded] = useState(false); // State for finished section expansion
   const [activeTab, setActiveTab] = useState("active"); // 'active', 'finished', 'drafts'
+
+  // Confirm modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [selectedSurveyId, setSelectedSurveyId] = useState(null);
 
   // Filter surveys into active and finished lists, excluding drafts from both
   const activeSurveys = surveys.filter(
@@ -97,46 +105,53 @@ export default function Encuestas() {
   };
 
   const handleDelete = async (surveyId) => {
-    if (window.confirm("¿Estás seguro de que deseas eliminar esta encuesta?")) {
-      try {
-        await surveyService.deleteSurvey(surveyId);
-        setSurveys(surveys.filter((survey) => survey._id !== surveyId));
-        setDraftSurveys(
-          draftSurveys.filter((survey) => survey._id !== surveyId)
-        );
-        toast.success("Encuesta eliminada correctamente");
-      } catch (err) {
-        setError(err.message);
-        toast.error("Error al eliminar la encuesta");
-      }
+    setSelectedSurveyId(surveyId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await surveyService.deleteSurvey(selectedSurveyId);
+      setSurveys(surveys.filter((survey) => survey._id !== selectedSurveyId));
+      setDraftSurveys(
+        draftSurveys.filter((survey) => survey._id !== selectedSurveyId)
+      );
+      toast.success("Encuesta eliminada correctamente");
+    } catch (err) {
+      setError(err.message);
+      toast.error("Error al eliminar la encuesta");
+    } finally {
+      setShowDeleteModal(false);
+      setSelectedSurveyId(null);
     }
   };
 
   const handlePublishDraft = async (draftId) => {
-    if (
-      window.confirm(
-        "¿Estás seguro de que deseas publicar este borrador? Una vez publicado, estará disponible para los encuestadores."
-      )
-    ) {
-      try {
-        setIsDraftsLoading(true);
-        await surveyService.publishDraft(draftId);
+    setSelectedSurveyId(draftId);
+    setShowPublishModal(true);
+  };
 
-        // Recargar borradores y encuestas publicadas
-        await loadDrafts();
-        const response = await surveyService.getAllSurveys();
-        const surveysData = Array.isArray(response.surveys)
-          ? response.surveys
-          : [];
-        setSurveys(surveysData);
+  const confirmPublish = async () => {
+    try {
+      setIsDraftsLoading(true);
+      await surveyService.publishDraft(selectedSurveyId);
 
-        toast.success("Borrador publicado correctamente");
-      } catch (err) {
-        console.error("Error al publicar borrador:", err);
-        toast.error(err.message || "Error al publicar el borrador");
-      } finally {
-        setIsDraftsLoading(false);
-      }
+      // Recargar borradores y encuestas publicadas
+      await loadDrafts();
+      const response = await surveyService.getAllSurveys();
+      const surveysData = Array.isArray(response.surveys)
+        ? response.surveys
+        : [];
+      setSurveys(surveysData);
+
+      toast.success("Borrador publicado correctamente");
+    } catch (err) {
+      console.error("Error al publicar borrador:", err);
+      toast.error(err.message || "Error al publicar el borrador");
+    } finally {
+      setIsDraftsLoading(false);
+      setShowPublishModal(false);
+      setSelectedSurveyId(null);
     }
   };
 
@@ -173,15 +188,7 @@ export default function Encuestas() {
   };
 
   if (isLoading) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="p-8 flex items-center justify-center"
-      >
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </motion.div>
-    );
+    return <LoaderWrapper fullScreen />;
   }
 
   return (
@@ -216,8 +223,10 @@ export default function Encuestas() {
           >
             {isCreatingSurvey ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>Cargando...</span>
+                <div className="flex items-center justify-center gap-2">
+                  <LoaderWrapper size="sm" />
+                  <span>Cargando...</span>
+                </div>
               </>
             ) : (
               <>
@@ -376,7 +385,7 @@ export default function Encuestas() {
               >
                 {isDraftsLoading ? (
                   <div className="flex justify-center py-6">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <LoaderWrapper size="default" />
                   </div>
                 ) : draftSurveys.length > 0 ? (
                   <div className="space-y-4">
@@ -431,6 +440,35 @@ export default function Encuestas() {
           </>
         ) : null}
       </motion.div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title="Eliminar encuesta"
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        confirmButtonClass="bg-red-500 text-white hover:bg-red-600"
+      >
+        <p>¿Estás seguro de que deseas eliminar esta encuesta?</p>
+      </ConfirmModal>
+
+      {/* Publish Draft Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showPublishModal}
+        onClose={() => setShowPublishModal(false)}
+        onConfirm={confirmPublish}
+        title="Publicar borrador"
+        confirmText="Publicar"
+        cancelText="Cancelar"
+        confirmButtonClass="bg-green-600 text-white hover:bg-green-700"
+      >
+        <p>
+          ¿Estás seguro de que deseas publicar este borrador? Una vez publicado,
+          estará disponible para los encuestadores.
+        </p>
+      </ConfirmModal>
     </motion.div>
   );
 }

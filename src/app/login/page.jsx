@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { authService } from "@/services/auth.service";
 import { Loader } from "@/components/ui/Loader";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { motion } from "framer-motion";
 
 export default function LoginPage() {
@@ -68,11 +69,7 @@ export default function LoginPage() {
   };
 
   if (isPageLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader size="xl" />
-      </div>
-    );
+    return <LoaderWrapper size="xl" fullScreen />;
   }
 
   return (

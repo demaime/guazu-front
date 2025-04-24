@@ -1,19 +1,29 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { authService } from '@/services/auth.service';
-import { userService } from '@/services/user.service';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Mail, Search, ChevronLeft, ChevronRight, User, Shield, MapPin } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { authService } from "@/services/auth.service";
+import { userService } from "@/services/user.service";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Users,
+  Mail,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Shield,
+  MapPin,
+} from "lucide-react";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 export default function UsersPage() {
   const router = useRouter();
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterField, setFilterField] = useState('email');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterField, setFilterField] = useState("email");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
@@ -25,7 +35,7 @@ export default function UsersPage() {
       setUsers(users);
       setTotalCount(totalCount);
     } catch (error) {
-      console.error('Error cargando usuarios:', error);
+      console.error("Error cargando usuarios:", error);
     } finally {
       setIsLoading(false);
     }
@@ -34,15 +44,15 @@ export default function UsersPage() {
   useEffect(() => {
     const user = authService.getUser();
     setCurrentUser(user);
-    if (user?.role !== 'ROLE_ADMIN' && user?.role !== 'SUPERVISOR') {
-      router.push('/dashboard');
+    if (user?.role !== "ROLE_ADMIN" && user?.role !== "SUPERVISOR") {
+      router.push("/dashboard");
       return;
     }
     loadUsers();
   }, [router]);
 
   // Filtrar usuarios por el campo seleccionado
-  const filteredUsers = users.filter(user =>
+  const filteredUsers = users.filter((user) =>
     user[filterField].toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -56,12 +66,15 @@ export default function UsersPage() {
   const getPageNumbers = () => {
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, startPage + 4);
-    
+
     if (endPage === totalPages) {
       startPage = Math.max(1, endPage - 4);
     }
 
-    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+    return Array.from(
+      { length: endPage - startPage + 1 },
+      (_, i) => startPage + i
+    );
   };
 
   const handleSearchChange = (event) => {
@@ -80,12 +93,12 @@ export default function UsersPage() {
 
   const getRoleName = (role) => {
     switch (role) {
-      case 'ROLE_ADMIN':
-        return 'Administrador';
-      case 'SUPERVISOR':
-        return 'Supervisor';
-      case 'POLLSTER':
-        return 'Encuestador';
+      case "ROLE_ADMIN":
+        return "Administrador";
+      case "SUPERVISOR":
+        return "Supervisor";
+      case "POLLSTER":
+        return "Encuestador";
       default:
         return role;
     }
@@ -93,48 +106,38 @@ export default function UsersPage() {
 
   const tableVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
+      transition: {
         duration: 0.2,
         when: "beforeChildren",
-        staggerChildren: 0.03
-      }
+        staggerChildren: 0.03,
+      },
     },
-    exit: { 
+    exit: {
       opacity: 0,
       y: -20,
-      transition: { duration: 0.15 }
-    }
+      transition: { duration: 0.15 },
+    },
   };
 
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       x: 0,
-      transition: { duration: 0.15 }
+      transition: { duration: 0.15 },
     },
-    exit: { 
+    exit: {
       opacity: 0,
       x: 10,
-      transition: { duration: 0.15 }
-    }
+      transition: { duration: 0.15 },
+    },
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex items-center">
-          <span className="text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
-            <span className="inline-block animate-bounce">.</span>
-            <span className="inline-block animate-bounce" style={{ animationDelay: '0.2s' }}>.</span>
-            <span className="inline-block animate-bounce" style={{ animationDelay: '0.4s' }}>.</span>
-          </span>
-        </div>
-      </div>
-    );
+    return <LoaderWrapper fullScreen />;
   }
 
   return (
@@ -164,7 +167,13 @@ export default function UsersPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder={`Buscar por ${filterField === 'name' ? 'Nombre' : filterField === 'lastName' ? 'Apellido' : 'e-mail'}`}
+                  placeholder={`Buscar por ${
+                    filterField === "name"
+                      ? "Nombre"
+                      : filterField === "lastName"
+                      ? "Apellido"
+                      : "e-mail"
+                  }`}
                   value={searchTerm}
                   onChange={handleSearchChange}
                   className="rounded-md border border-[var(--card-border)] bg-[var(--card-background)] pl-9 pr-3 py-1.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary"
@@ -201,7 +210,7 @@ export default function UsersPage() {
                     </th>
                     <th className="px-6 py-2 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider w-[15%]">
                       <div className="flex items-center gap-2">
-                        {currentUser?.role === 'SUPERVISOR' ? (
+                        {currentUser?.role === "SUPERVISOR" ? (
                           <>
                             <MapPin className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">Ciudad</span>
@@ -244,7 +253,9 @@ export default function UsersPage() {
                           {user.email}
                         </td>
                         <td className="px-6 py-3 text-sm text-[var(--text-primary)] truncate max-w-0">
-                          {currentUser?.role === 'SUPERVISOR' ? user.city : getRoleName(user.role)}
+                          {currentUser?.role === "SUPERVISOR"
+                            ? user.city
+                            : getRoleName(user.role)}
                         </td>
                         <td className="px-6 py-3 text-sm whitespace-nowrap">
                           <motion.button
@@ -296,7 +307,7 @@ export default function UsersPage() {
               </>
             )}
 
-            {getPageNumbers().map(pageNum => (
+            {getPageNumbers().map((pageNum) => (
               <motion.button
                 key={pageNum}
                 whileHover={{ scale: 1.05 }}
@@ -304,8 +315,8 @@ export default function UsersPage() {
                 onClick={() => handlePageChange(pageNum)}
                 className={`px-3 py-1 rounded-md text-sm cursor-pointer ${
                   currentPage === pageNum
-                    ? 'bg-primary text-white'
-                    : 'bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--card-hover)]'
+                    ? "bg-primary text-white"
+                    : "bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--card-hover)]"
                 }`}
               >
                 {pageNum}
@@ -341,4 +352,4 @@ export default function UsersPage() {
       </div>
     </div>
   );
-} 
+}

@@ -9,6 +9,7 @@ import { userService } from "@/services/user.service";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Save, FilePenLine } from "lucide-react";
 import { Loader } from "@/components/ui/Loader";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import "survey-core/survey-core.css";
 import { authService } from "@/services/auth.service";
 import { TransferModal } from "@/components/TransferModal";
@@ -475,25 +476,7 @@ export default function NuevaEncuesta({
 
   // Si está inicializando, mostrar pantalla de carga
   if (isInitializing) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="h-full flex items-center justify-center bg-[var(--background)]"
-      >
-        <motion.div
-          initial={{ y: -20 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="flex flex-col items-center gap-4"
-        >
-          <Loader size="xl" className="text-primary" />
-          <p className="text-[var(--text-secondary)]">
-            Verificando permisos...
-          </p>
-        </motion.div>
-      </motion.div>
-    );
+    return <LoaderWrapper size="xl" text="Verificando permisos..." />;
   }
 
   // Navegación entre pasos

@@ -6,6 +6,7 @@ import SurveyMap from "@/components/SurveyMap";
 import CasesTable from "@/components/CasesTable";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 export default function MapaEncuesta() {
   const router = useRouter();
@@ -73,12 +74,7 @@ export default function MapaEncuesta() {
     setMostrarTodos(false);
   };
 
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+  if (loading) return <LoaderWrapper fullScreen />;
 
   if (error)
     return (

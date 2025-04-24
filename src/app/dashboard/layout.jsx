@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { authService } from "@/services/auth.service";
 import { Loader } from "@/components/ui/Loader";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import {
   Menu,
   X,
@@ -115,15 +116,7 @@ export default function DashboardLayout({ children }) {
   };
 
   if (isLoading) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="min-h-screen flex items-center justify-center"
-      >
-        <Loader size="xl" className="text-primary" />
-      </motion.div>
-    );
+    return <LoaderWrapper size="xl" fullScreen />;
   }
 
   const navItems = getNavItems(user?.role);
