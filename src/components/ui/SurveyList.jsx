@@ -17,6 +17,7 @@ import {
   TestTube2,
   ArrowUp,
   ArrowDown,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
@@ -154,6 +155,9 @@ export function SurveyList({
         break;
       case "map":
         router.push(`/dashboard/encuestas/${surveyId}/mapa`);
+        break;
+      case "preview":
+        router.push(`/dashboard/encuestas/${surveyId}/vista-previa`);
         break;
       case "delete":
         onDelete(surveyId);
@@ -371,6 +375,14 @@ export function SurveyList({
                         >
                           <Map className="w-3 h-3" />
                           Ver Mapa
+                        </button>
+
+                        <button
+                          onClick={() => handleAction("preview", surveyData)}
+                          className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                        >
+                          <FileText className="w-3 h-3" />
+                          Vista Previa
                         </button>
 
                         {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
@@ -663,6 +675,27 @@ export function SurveyList({
                                 <Map className="w-4 h-4" />
                               </button>
 
+                              <button
+                                data-type="action"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAction("preview", surveyData);
+                                }}
+                                onMouseEnter={(e) =>
+                                  handleTooltip(
+                                    `preview-${surveyData._id}`,
+                                    e,
+                                    true
+                                  )
+                                }
+                                onMouseLeave={() =>
+                                  handleTooltip(null, null, false)
+                                }
+                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </button>
+
                               {(role === "ROLE_ADMIN" ||
                                 role === "SUPERVISOR") && (
                                 <>
@@ -778,6 +811,8 @@ export function SurveyList({
                                     : "Responder"
                                   : openTooltipId.includes("map")
                                   ? "Ver Mapa"
+                                  : openTooltipId.includes("preview")
+                                  ? "Vista Previa"
                                   : openTooltipId.includes("progress")
                                   ? "Análisis"
                                   : openTooltipId.includes("pollsters")

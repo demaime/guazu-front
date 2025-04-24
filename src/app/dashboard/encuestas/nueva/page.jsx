@@ -7,7 +7,13 @@ import { Survey } from "survey-react-ui";
 import { surveyService } from "@/services/survey.service";
 import { userService } from "@/services/user.service";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Save, FilePenLine } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  FilePenLine,
+  FileText,
+} from "lucide-react";
 import { Loader } from "@/components/ui/Loader";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import "survey-core/survey-core.css";
@@ -17,6 +23,14 @@ import QuestionEditor from "@/components/QuestionEditor";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { QuotaManager } from "@/components/QuotaManager";
 import { toast } from "react-toastify";
+import dynamic from "next/dynamic";
+import SurveyPDF from "@/components/SurveyPDF";
+
+// Importar PDFDownloadLink de forma dinámica para que sea compatible con SSR
+const PDFDownloadLink = dynamic(
+  () => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
+  { ssr: false }
+);
 
 // Constants (Consider moving to a shared file)
 const QUESTION_TYPES = {
@@ -1117,12 +1131,32 @@ export default function NuevaEncuesta({
             <div className="card p-4">
               {/* Información básica */}
               <div className="mb-4">
-                <h3 className="text-lg font-semibold mb-1">
-                  {surveyData.basicInfo.title}
-                </h3>
-                <p className="text-text-secondary text-sm mb-3">
-                  {surveyData.basicInfo.description}
-                </p>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">
+                      {surveyData.basicInfo.title}
+                    </h3>
+                    <p className="text-text-secondary text-sm">
+                      {surveyData.basicInfo.description}
+                    </p>
+                  </div>
+                  <PDFDownloadLink
+                    document={<SurveyPDF surveyData={surveyData} />}
+                    fileName={`encuesta-${surveyData.basicInfo.title
+                      .toLowerCase()
+                      .replace(/\s+/g, "-")}.pdf`}
+                    className="bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-md flex items-center gap-2 transition-colors"
+                  >
+                    {({ blob, url, loading, error }) => (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>
+                          {loading ? "Generando PDF..." : "Descargar PDF"}
+                        </span>
+                      </>
+                    )}
+                  </PDFDownloadLink>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                   <div className="card p-3">
                     <span className="font-medium block mb-0.5">

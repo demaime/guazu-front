@@ -27,6 +27,7 @@ const nextConfig = {
     ];
   },
   reactStrictMode: true,
+  transpilePackages: ["@react-pdf/renderer"],
   experimental: {
     serverActions: {
       allowedOrigins: ["localhost:3000", "guazu-app.onrender.com"],

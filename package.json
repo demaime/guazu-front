@@ -11,6 +11,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@react-google-maps/api": "^2.20.6",
+    "@react-pdf/renderer": "^4.3.0",
     "@tippyjs/react": "^4.2.6",
     "axios": "^1.8.4",
     "framer-motion": "^12.5.0",
