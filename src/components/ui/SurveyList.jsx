@@ -15,6 +15,8 @@ import {
   ClipboardX,
   ChevronDown,
   TestTube2,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
@@ -38,6 +40,8 @@ export function SurveyList({
   const [showFinishedAlert, setShowFinishedAlert] = useState(false);
   const [showDeleteAnswersModal, setShowDeleteAnswersModal] = useState(false);
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
+  const [sortField, setSortField] = useState(null);
+  const [sortDirection, setSortDirection] = useState("asc");
 
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
@@ -196,10 +200,59 @@ export function SurveyList({
     return `${Math.min(100, Math.round(progress))}%`;
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // If already sorting by this field, toggle the direction
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // If sorting by a new field, set it as the sort field and default to ascending
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const sortedSurveys = [...surveys].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let valueA, valueB;
+
+    switch (sortField) {
+      case "title":
+        valueA = getLocalizedText(a.survey?.title, "").toLowerCase();
+        valueB = getLocalizedText(b.survey?.title, "").toLowerCase();
+        break;
+      case "start":
+        valueA = a.surveyInfo?.startDate || "";
+        valueB = b.surveyInfo?.startDate || "";
+        break;
+      case "end":
+        valueA = a.surveyInfo?.endDate || "";
+        valueB = b.surveyInfo?.endDate || "";
+        break;
+      case "progress":
+        const progressA = a.totalAnswers / (a.surveyInfo?.target || 1);
+        const progressB = b.totalAnswers / (b.surveyInfo?.target || 1);
+        valueA = isNaN(progressA) ? 0 : progressA;
+        valueB = isNaN(progressB) ? 0 : progressB;
+        break;
+      default:
+        return 0;
+    }
+
+    // Compare the values based on sort direction
+    if (valueA < valueB) {
+      return sortDirection === "asc" ? -1 : 1;
+    }
+    if (valueA > valueB) {
+      return sortDirection === "asc" ? 1 : -1;
+    }
+    return 0;
+  });
+
   const renderMobileView = () => {
     return (
       <div className="space-y-3">
-        {surveys.map((item, index) => {
+        {sortedSurveys.map((item, index) => {
           const surveyData = item;
           const surveyInfo = item.surveyInfo || {};
           const isExpanded = expandedCardId === surveyData._id;
@@ -387,6 +440,17 @@ export function SurveyList({
     );
   };
 
+  // Render sort indicator
+  const renderSortIndicator = (field) => {
+    if (sortField !== field) return null;
+
+    return sortDirection === "asc" ? (
+      <ArrowUp className="w-4 h-4 inline-block ml-1" />
+    ) : (
+      <ArrowDown className="w-4 h-4 inline-block ml-1" />
+    );
+  };
+
   return (
     <>
       {isMobile ? (
@@ -403,9 +467,10 @@ export function SurveyList({
               </th>
               <th
                 key="header-title"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("title")}
               >
-                Título
+                Título {renderSortIndicator("title")}
               </th>
               <th
                 key="header-desc"
@@ -415,21 +480,24 @@ export function SurveyList({
               </th>
               <th
                 key="header-start"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("start")}
               >
-                Inicio
+                Inicio {renderSortIndicator("start")}
               </th>
               <th
                 key="header-end"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("end")}
               >
-                Fin
+                Fin {renderSortIndicator("end")}
               </th>
               <th
                 key="header-progress"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("progress")}
               >
-                Progreso
+                Progreso {renderSortIndicator("progress")}
               </th>
               <th
                 key="header-actions"
@@ -440,7 +508,7 @@ export function SurveyList({
             </tr>
           </thead>
           <tbody className="bg-[var(--card-background)] divide-y divide-[var(--card-border)]">
-            {surveys.map((item, index) => {
+            {sortedSurveys.map((item, index) => {
               const surveyData = item;
               const surveyInfo = item.surveyInfo || {};
               return (

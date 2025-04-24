@@ -220,16 +220,6 @@ export function QuotaManager({ value = [], onChange }) {
           ))}
         </div>
       )}
-
-      {categories.length > 0 && (
-        <div className="text-sm text-text-secondary bg-card-background p-3 rounded mt-4 border border-card-border">
-          <p>
-            <strong>Nota:</strong> Asegúrate de incluir estas categorías como
-            preguntas al inicio de tu encuesta para poder clasificar
-            correctamente a los encuestados.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

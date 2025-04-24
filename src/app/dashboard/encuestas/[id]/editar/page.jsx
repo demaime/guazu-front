@@ -112,6 +112,123 @@ export default function EditarEncuesta() {
     return conditionalRelations;
   };
 
+  // Función para aplanar el árbol en el orden correcto
+  const flattenQuestionTree = (nodes, hierarchyMap) => {
+    let result = [];
+
+    for (const node of nodes) {
+      const hierarchyNode = hierarchyMap[node.id];
+      result.push(node);
+
+      // Si tiene hijos, procesar recursivamente
+      if (
+        hierarchyNode &&
+        hierarchyNode.children &&
+        hierarchyNode.children.length > 0
+      ) {
+        result = result.concat(
+          flattenQuestionTree(hierarchyNode.children, hierarchyMap)
+        );
+      }
+    }
+
+    return result;
+  };
+
+  // Función para crear una estructura jerárquica de preguntas
+  const createHierarchicalStructure = (questions) => {
+    // Validación para evitar errores
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return { hierarchyMap: {}, numberMap: {} };
+    }
+
+    // Mapa para almacenar la jerarquía de preguntas
+    const hierarchyMap = {};
+
+    // Primero identificamos las preguntas raíz (sin padre)
+    const rootQuestions = questions.filter((q) => {
+      // Verificamos si esta pregunta es destino de alguna pregunta condicional
+      const isChild = questions.some(
+        (parentQ) =>
+          parentQ &&
+          parentQ.isConditional &&
+          parentQ.options &&
+          parentQ.options.some((opt) => opt && opt.nextQuestionId === q.id)
+      );
+      return !isChild;
+    });
+
+    // Si no hay preguntas raíz, devolver las preguntas originales
+    if (rootQuestions.length === 0) {
+      const defaultMap = {};
+      questions.forEach((q, idx) => {
+        defaultMap[q.id] = `${idx + 1}`;
+      });
+      return { hierarchyMap: {}, numberMap: defaultMap };
+    }
+
+    // Función recursiva para construir el árbol
+    const buildQuestionTree = (question, parentNumber = "") => {
+      if (!question || !question.id) return null;
+
+      // Asignar número basado en el padre
+      let currentNumber;
+
+      if (parentNumber && hierarchyMap[parentNumber]) {
+        currentNumber = `${parentNumber}.${
+          hierarchyMap[parentNumber].children.length + 1
+        }`;
+      } else {
+        const rootIndex = rootQuestions.findIndex((q) => q.id === question.id);
+        currentNumber = `${rootIndex !== -1 ? rootIndex + 1 : 1}`;
+      }
+
+      // Almacenar información jerárquica
+      hierarchyMap[question.id] = {
+        question,
+        children: [],
+        number: currentNumber,
+      };
+
+      // Si es pregunta condicional, buscar sus hijos
+      if (question.isConditional && question.options) {
+        question.options.forEach((opt) => {
+          if (opt && opt.nextQuestionId) {
+            const childQuestion = questions.find(
+              (q) => q && q.id === opt.nextQuestionId
+            );
+            if (childQuestion) {
+              // Añadir a la lista de hijos
+              hierarchyMap[question.id].children.push(childQuestion);
+              // Construir subárbol recursivamente
+              buildQuestionTree(childQuestion, currentNumber);
+            }
+          }
+        });
+      }
+
+      return hierarchyMap[question.id];
+    };
+
+    // Construir el árbol para cada pregunta raíz
+    rootQuestions.forEach((q) => buildQuestionTree(q));
+
+    // Crear el mapa de numeración para todas las preguntas
+    const numberMap = {};
+    Object.entries(hierarchyMap).forEach(([id, data]) => {
+      numberMap[id] = data.number;
+    });
+
+    // Si no todas las preguntas están en el árbol, asignarles números
+    questions.forEach((q) => {
+      if (!numberMap[q.id]) {
+        numberMap[q.id] = `${Object.keys(numberMap).length + 1}`;
+      }
+    });
+
+    return { hierarchyMap, numberMap };
+  };
+
   // Extraer y construir los datos iniciales para el editor
   const elements = survey.survey?.pages?.[0]?.elements || [];
   const conditionalRelations = parseVisibleIfConditions(elements);
@@ -166,6 +283,12 @@ export default function EditarEncuesta() {
       }
     }
   });
+
+  // Crear la estructura jerárquica y obtener la numeración
+  const { numberMap } = createHierarchicalStructure(processedQuestions);
+
+  // Guardar la numeración jerárquica para usarla en la interfaz
+  const questionNumberMap = numberMap;
 
   const initialData = {
     basicInfo: {

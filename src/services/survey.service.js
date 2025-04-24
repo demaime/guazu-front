@@ -281,15 +281,19 @@ class SurveyService {
     }
   }
 
-  async createOrUpdateSurvey(surveyData, surveyId = null) {
+  async createOrUpdateSurvey(surveyData, surveyId = null, isDraft = false) {
     try {
       const token = localStorage.getItem("token");
       const isUpdating = !!surveyId;
 
       // Include the id in the body only when updating
       const requestBody = isUpdating
-        ? { ...surveyData, id: surveyId }
-        : surveyData;
+        ? {
+            ...surveyData,
+            id: surveyId,
+            status: isDraft ? "draft" : "published",
+          }
+        : { ...surveyData, status: isDraft ? "draft" : "published" };
 
       // The backend uses PUT to /api/survey for both creating and updating
       const url = SURVEY_ROUTES.BASE;
@@ -576,6 +580,77 @@ class SurveyService {
       console.error("Error al verificar cuotas:", error);
       // En caso de error, permitimos continuar para no bloquear el proceso
       return { available: true, segments: [] };
+    }
+  }
+
+  async getDrafts() {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(SURVEY_ROUTES.GET_DRAFTS, {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("Draft surveys response:", data);
+
+      if (data.error) {
+        return Promise.reject(data.validation);
+      }
+
+      // Retornar los borradores
+      return { drafts: data.drafts || [] };
+    } catch (error) {
+      console.error("Error in getDrafts:", error);
+      throw error;
+    }
+  }
+
+  async publishDraft(draftId) {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(SURVEY_ROUTES.PUBLISH_DRAFT(draftId), {
+        method: "PUT",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("Publish draft response:", data);
+
+      if (data.error) {
+        return Promise.reject(data.message || "Error al publicar el borrador");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error in publishDraft:", error);
+      throw error;
     }
   }
 }

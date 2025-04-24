@@ -160,81 +160,109 @@ export default function SurveyPage() {
         console.log("Survey model created:", model);
         console.log("Survey pages:", model.pages);
 
+        // Incluir la definición de la encuesta completa para acceder a la numeración
+        try {
+          // Verificar si tenemos datos de surveyDefinition y questionNumberMap
+          if (
+            response.survey.surveyDefinition &&
+            response.survey.surveyDefinition.questionNumberMap
+          ) {
+            model.data = {
+              surveyDefinition: response.survey.surveyDefinition,
+            };
+            console.log("Using hierarchical question numbers from definition");
+          } else {
+            console.log("No hierarchical question numbers found in definition");
+            // Crear una estructura básica para evitar errores
+            model.data = {
+              surveyDefinition: {
+                questionNumberMap: {},
+              },
+            };
+
+            // Crear un mapa básico de numeración
+            const elements = surveyData.pages[0]?.elements || [];
+            elements.forEach((element, index) => {
+              if (model.data.surveyDefinition.questionNumberMap) {
+                model.data.surveyDefinition.questionNumberMap[
+                  element.name
+                ] = `${index + 1}`;
+              }
+            });
+          }
+        } catch (err) {
+          console.error("Error setting up survey definition data:", err);
+          // Fallback
+          model.data = { surveyDefinition: { questionNumberMap: {} } };
+        }
+
         // Basic configuration
         model.locale = "es";
-        model.showQuestionNumbers = false;
+        model.showQuestionNumbers = true;
+        model.questionTitlePattern = "{no}) {title}"; // Formato para numeración personalizada
         model.showProgressBar = "top";
         model.pageNextText = "Siguiente";
         model.pagePrevText = "Anterior";
         model.completeText = "Finalizar";
         model.showPreviewBeforeComplete = "noPreview";
 
-        // Customize CSS classes
-        model.css = {
-          root: "survey-container",
-          header: "survey-header text-sm text-text-secondary mb-4",
-          headerText: "text-base font-normal",
-          description: "hidden",
-          page: {
-            root: "survey-page",
-            title: "hidden",
-          },
-          pageTitle: "hidden",
-          question: {
-            root: "survey-question mb-6",
-            title: "text-lg font-medium text-text-primary mb-3",
-            content: "question-content",
-            mainRoot: "question-main-root",
-            header: "question-header",
-            headerLeft: "question-header-left",
-            headerRight: "question-header-right",
-            contentLeft: "question-content-left",
-            contentRight: "question-content-right",
-          },
-          panel: {
-            title: "panel-title text-base font-medium text-text-primary mb-2",
-            description: "panel-description text-sm text-text-secondary mb-4",
-          },
-          error: {
-            root: "text-red-500 text-sm mt-1",
-            icon: "hidden",
-            item: "text-red-500",
-          },
-          progressBar: {
-            root: "progress-bar-root mb-4",
-            container:
-              "progress-bar-container h-2 bg-card-background rounded-full",
-            bar: "progress-bar h-full bg-primary rounded-full transition-all duration-300",
-          },
-          navigation: {
-            complete: "btn-primary px-6 py-2 rounded-lg",
-            prev: "btn-action px-6 py-2 rounded-lg mr-2",
-            next: "btn-primary px-6 py-2 rounded-lg",
-            start: "btn-primary px-6 py-2 rounded-lg",
-          },
-        };
+        // Conservar el orden jerárquico establecido durante la creación
+        model.questionsOrder = "initial";
 
-        // Wizard configuration
+        // Configurar para mostrar una pregunta por página
         model.questionsOnPageMode = "questionPerPage";
-        model.showPageTitles = false;
-        model.showPageNumbers = false;
-        model.showNavigationButtons = true;
-        model.showPrevButton = true;
-        model.goNextPageAutomatic = false;
-        model.checkErrorsMode = "onNextPage";
-        model.clearInvisibleValues = "onHidden";
 
-        // Completion page configuration
-        model.showCompletedPage = true;
-        model.completedHtml = "<h4>¡Gracias por completar la encuesta!</h4>";
-
-        // Event handlers for navigation
+        // Evitar que se salten preguntas en una rama jerárquica
         model.onCurrentPageChanging.add(function (sender, options) {
-          if (options.isNextPage) {
-            const currentPage = sender.currentPage;
-            if (currentPage && currentPage.hasErrors()) {
-              options.allowChanging = false;
+          try {
+            if (options.isNextPage) {
+              const currentPage = sender.currentPage;
+              if (currentPage && currentPage.hasErrors()) {
+                options.allowChanging = false;
+              }
+
+              // Verificar que todas las preguntas condicionales visibles actuales estén contestadas
+              const visibleQuestions = sender.currentPage.questions.filter(
+                (q) => q.isVisible
+              );
+              const allAnswered = visibleQuestions.every(
+                (q) =>
+                  !q.isRequired ||
+                  (q.value !== undefined && q.value !== null && q.value !== "")
+              );
+
+              if (!allAnswered) {
+                options.allowChanging = false;
+              }
             }
+          } catch (err) {
+            console.error("Error in page changing event:", err);
+            // En caso de error, permitir el cambio para evitar bloquear la encuesta
+            options.allowChanging = true;
+          }
+        });
+
+        // Formatear los números de las preguntas para mostrar la jerarquía
+        model.onProcessTextValue.add(function (sender, options) {
+          try {
+            if (options.name === "no" && options.question) {
+              const questionId = options.question.name;
+              if (
+                sender.data &&
+                sender.data.surveyDefinition &&
+                sender.data.surveyDefinition.questionNumberMap &&
+                sender.data.surveyDefinition.questionNumberMap[questionId]
+              ) {
+                const hierarchicalNumber =
+                  sender.data.surveyDefinition.questionNumberMap[questionId];
+                if (hierarchicalNumber) {
+                  options.value = hierarchicalNumber;
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error processing question number:", err);
+            // En caso de error, dejar que SurveyJS use su numeración predeterminada
           }
         });
 

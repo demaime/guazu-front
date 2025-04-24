@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { SurveyList } from "@/components/ui/SurveyList";
-import { Plus, ChevronDown } from "lucide-react";
+import { Plus, ChevronDown, FilePenLine } from "lucide-react";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
@@ -25,16 +25,23 @@ export default function Encuestas() {
   const router = useRouter();
   const { isMobile } = useWindowSize();
   const [surveys, setSurveys] = useState([]);
+  const [draftSurveys, setDraftSurveys] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDraftsLoading, setIsDraftsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isCreatingSurvey, setIsCreatingSurvey] = useState(false);
   const [isFinishedExpanded, setIsFinishedExpanded] = useState(false); // State for finished section expansion
+  const [activeTab, setActiveTab] = useState("active"); // 'active', 'finished', 'drafts'
 
-  // Filter surveys into active and finished lists
-  const activeSurveys = surveys.filter(isSurveyActive);
-  const finishedSurveys = surveys.filter((survey) => !isSurveyActive(survey));
+  // Filter surveys into active and finished lists, excluding drafts from both
+  const activeSurveys = surveys.filter(
+    (survey) => survey?.status !== "draft" && isSurveyActive(survey)
+  );
+  const finishedSurveys = surveys.filter(
+    (survey) => survey?.status !== "draft" && !isSurveyActive(survey)
+  );
 
   useEffect(() => {
     const loadData = async () => {
@@ -46,6 +53,7 @@ export default function Encuestas() {
         }
         setUser(userData);
 
+        // Cargar encuestas publicadas
         const response = await surveyService.getAllSurveys();
         console.log("Response from service:", response);
 
@@ -55,6 +63,9 @@ export default function Encuestas() {
           : [];
         console.log("Surveys to set:", surveysData);
         setSurveys(surveysData);
+
+        // Cargar borradores separadamente
+        await loadDrafts();
       } catch (err) {
         console.error("Error loading surveys:", err);
         setError(err.message);
@@ -66,15 +77,71 @@ export default function Encuestas() {
     loadData();
   }, []);
 
+  const loadDrafts = async () => {
+    try {
+      setIsDraftsLoading(true);
+      const draftsResponse = await surveyService.getDrafts();
+      console.log("Drafts from service:", draftsResponse);
+
+      const draftsData = Array.isArray(draftsResponse.drafts)
+        ? draftsResponse.drafts
+        : [];
+      console.log("Drafts to set:", draftsData);
+      setDraftSurveys(draftsData);
+    } catch (err) {
+      console.error("Error loading drafts:", err);
+      toast.error("Error al cargar los borradores de encuestas");
+    } finally {
+      setIsDraftsLoading(false);
+    }
+  };
+
   const handleDelete = async (surveyId) => {
     if (window.confirm("¿Estás seguro de que deseas eliminar esta encuesta?")) {
       try {
         await surveyService.deleteSurvey(surveyId);
         setSurveys(surveys.filter((survey) => survey._id !== surveyId));
+        setDraftSurveys(
+          draftSurveys.filter((survey) => survey._id !== surveyId)
+        );
+        toast.success("Encuesta eliminada correctamente");
       } catch (err) {
         setError(err.message);
+        toast.error("Error al eliminar la encuesta");
       }
     }
+  };
+
+  const handlePublishDraft = async (draftId) => {
+    if (
+      window.confirm(
+        "¿Estás seguro de que deseas publicar este borrador? Una vez publicado, estará disponible para los encuestadores."
+      )
+    ) {
+      try {
+        setIsDraftsLoading(true);
+        await surveyService.publishDraft(draftId);
+
+        // Recargar borradores y encuestas publicadas
+        await loadDrafts();
+        const response = await surveyService.getAllSurveys();
+        const surveysData = Array.isArray(response.surveys)
+          ? response.surveys
+          : [];
+        setSurveys(surveysData);
+
+        toast.success("Borrador publicado correctamente");
+      } catch (err) {
+        console.error("Error al publicar borrador:", err);
+        toast.error(err.message || "Error al publicar el borrador");
+      } finally {
+        setIsDraftsLoading(false);
+      }
+    }
+  };
+
+  const handleEditDraft = (draftId) => {
+    router.push(`/dashboard/encuestas/${draftId}/editar`);
   };
 
   const handleDeleteAnswers = async (surveyId) => {
@@ -178,7 +245,48 @@ export default function Encuestas() {
             {error}
           </motion.div>
         )}
-        {!isLoading && surveys.length === 0 && !error ? (
+
+        {/* Tabs para navegar entre encuestas activas, finalizadas y borradores */}
+        <div className="flex border-b border-[var(--card-border)] mb-6">
+          <button
+            onClick={() => setActiveTab("active")}
+            className={`px-4 py-2 font-medium text-sm ${
+              activeTab === "active"
+                ? "border-b-2 border-primary text-primary"
+                : "text-[var(--text-secondary)]"
+            }`}
+          >
+            Activas ({activeSurveys.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("finished")}
+            className={`px-4 py-2 font-medium text-sm ${
+              activeTab === "finished"
+                ? "border-b-2 border-primary text-primary"
+                : "text-[var(--text-secondary)]"
+            }`}
+          >
+            Finalizadas ({finishedSurveys.length})
+          </button>
+          {(user?.role === "ROLE_ADMIN" || user?.role === "SUPERVISOR") && (
+            <button
+              onClick={() => setActiveTab("drafts")}
+              className={`px-4 py-2 font-medium text-sm flex items-center ${
+                activeTab === "drafts"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-[var(--text-secondary)]"
+              }`}
+            >
+              <FilePenLine className="w-4 h-4 mr-1" />
+              Borradores ({draftSurveys.length})
+            </button>
+          )}
+        </div>
+
+        {!isLoading &&
+        surveys.length === 0 &&
+        draftSurveys.length === 0 &&
+        !error ? (
           // Display message when no surveys exist at all
           <motion.div
             initial={{ opacity: 0 }}
@@ -198,121 +306,130 @@ export default function Encuestas() {
             </motion.p>
             {user?.role === "ROLE_ADMIN" && (
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                onClick={() => {
-                  setIsCreatingSurvey(true);
-                  router.push("/dashboard/encuestas/nueva");
-                }}
-                disabled={isCreatingSurvey}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push("/dashboard/encuestas/nueva")}
+                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
               >
-                {isCreatingSurvey ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Cargando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-5 h-5" />
-                    Crear Encuesta
-                  </>
-                )}
+                Crear Encuesta
               </motion.button>
             )}
           </motion.div>
         ) : !isLoading && !error ? (
-          // Display active and finished survey sections if surveys exist
+          // Display active, finished or draft survey sections based on active tab
           <>
-            {/* Active Surveys Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-              className="mb-8" // Add margin between sections
-            >
-              <h2 className="text-xl font-semibold mb-4 text-[var(--text-primary)] border-b border-[var(--card-border)] pb-2">
-                Encuestas Activas ({activeSurveys.length})
-              </h2>
-              {activeSurveys.length > 0 ? (
-                <SurveyList
-                  surveys={activeSurveys}
-                  onDelete={handleDelete}
-                  onDeleteAnswers={handleDeleteAnswers}
-                  role={user?.role}
-                />
-              ) : (
-                <p className="text-[var(--text-secondary)] italic text-center py-4">
-                  No hay encuestas activas disponibles.
-                </p>
-              )}
-            </motion.div>
-
-            {/* Finished Surveys Section */}
-            {finishedSurveys.length > 0 && (
+            {/* Active Surveys */}
+            {activeTab === "active" && (
               <motion.div
-                initial={{ opacity: 0.8 }} // Start slightly faded
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, delay: 0.3 }}
-                className="opacity-80" // Keep base opacity
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="mb-8"
               >
-                <div // Make the header clickable
-                  className="flex justify-between items-center cursor-pointer mb-4 border-b border-[var(--card-border)] pb-2"
-                  onClick={() => setIsFinishedExpanded(!isFinishedExpanded)}
-                >
-                  <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-                    Encuestas Finalizadas ({finishedSurveys.length})
-                  </h2>
-                  <motion.div
-                    animate={{ rotate: isFinishedExpanded ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <ChevronDown className="w-5 h-5 text-[var(--text-secondary)]" />
-                  </motion.div>
-                </div>
-                {/* Animate presence for smooth expand/collapse */}
-                <AnimatePresence>
-                  {isFinishedExpanded && (
-                    <motion.div
-                      key="finished-list" // Need key for AnimatePresence
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }} // Keep height animation for exit
-                      transition={{ duration: 0.3 }}
-                      className="" // No overflow hidden needed here
-                    >
-                      {/* Wrap SurveyList to handle exit animation issues */}
-                      <motion.div
-                        initial={{ opacity: 1 }}
-                        animate={{ opacity: 1 }}
-                        exit={{
-                          opacity: 0,
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                        }} // Fade out and position absolute on exit
-                        transition={{ duration: 0.1 }} // Quick fade out before height collapses
+                {activeSurveys.length > 0 ? (
+                  <SurveyList
+                    surveys={activeSurveys}
+                    onDelete={handleDelete}
+                    onDeleteAnswers={handleDeleteAnswers}
+                    role={user?.role}
+                  />
+                ) : (
+                  <p className="text-[var(--text-secondary)] italic text-center py-4">
+                    No hay encuestas activas disponibles.
+                  </p>
+                )}
+              </motion.div>
+            )}
+
+            {/* Finished Surveys */}
+            {activeTab === "finished" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              >
+                {finishedSurveys.length > 0 ? (
+                  <SurveyList
+                    surveys={finishedSurveys}
+                    onDelete={handleDelete}
+                    onDeleteAnswers={handleDeleteAnswers}
+                    role={user?.role}
+                    isFinished={true}
+                  />
+                ) : (
+                  <p className="text-[var(--text-secondary)] italic text-center py-4">
+                    No hay encuestas finalizadas disponibles.
+                  </p>
+                )}
+              </motion.div>
+            )}
+
+            {/* Draft Surveys */}
+            {activeTab === "drafts" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+              >
+                {isDraftsLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : draftSurveys.length > 0 ? (
+                  <div className="space-y-4">
+                    {draftSurveys.map((draft) => (
+                      <div
+                        key={draft._id}
+                        className="border border-[var(--card-border)] bg-[var(--card-background)] rounded-lg p-4"
                       >
-                        <SurveyList
-                          surveys={finishedSurveys}
-                          onDelete={handleDelete} // Allow deleting finished surveys
-                          onDeleteAnswers={handleDeleteAnswers} // Allow deleting answers from finished surveys
-                          role={user?.role}
-                          isFinished={true} // Pass prop to disable responding
-                        />
-                      </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-lg font-medium">
+                              {draft.survey?.title?.es ||
+                                draft.survey?.title ||
+                                "Borrador sin título"}
+                            </h3>
+                            <p className="text-sm text-[var(--text-secondary)]">
+                              Última edición:{" "}
+                              {new Date(draft.lastEdited).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => handleEditDraft(draft._id)}
+                              className="px-3 py-2 text-sm bg-[var(--primary)] text-white rounded-md hover:bg-opacity-90 transition-colors"
+                            >
+                              Continuar editando
+                            </button>
+                            <button
+                              onClick={() => handlePublishDraft(draft._id)}
+                              className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-opacity-90 transition-colors"
+                            >
+                              Publicar
+                            </button>
+                            <button
+                              onClick={() => handleDelete(draft._id)}
+                              className="px-3 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-opacity-90 transition-colors"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[var(--text-secondary)] italic text-center py-4">
+                    No hay borradores de encuestas disponibles.
+                  </p>
+                )}
               </motion.div>
             )}
           </>
-        ) : null}{" "}
-        {/* Render nothing if loading or error (which are handled above) */}
+        ) : null}
       </motion.div>
     </motion.div>
   );
