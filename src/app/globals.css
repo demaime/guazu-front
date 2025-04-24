@@ -18,10 +18,10 @@
 :root {
   --background: #f8fafc;
   --card-background: #f5f5f5;
-  --input-background: #f4f4f4;
+  --input-background: #e4dfdf;
   --card-border: #e2e8f0;
   --text-primary: #1e293b;
-  --text-secondary: #8e949b;
+  --text-secondary: #828282;
   --text-muted: #64748b;
   --sidebar-bg: #ffffff;
   --header-bg: var(--primary);
@@ -400,6 +400,7 @@ body {
 
 /* Main Content */
 .main-content {
+  height: 100%;
   flex: 1;
   padding: 0.5rem;
   transition: background-color 0.3s ease-in-out;
@@ -411,6 +412,7 @@ body {
   display: flex;
   height: 100%;
   flex: 1;
+  padding-bottom: 5rem;
 }
 
 /* Animaciones */
@@ -588,6 +590,7 @@ button:disabled {
 
 .btn-primary:hover:not(:disabled) {
   background-color: rgba(63, 81, 181, 0.9);
+  color: var(--background);
 }
 
 .btn-primary:disabled {

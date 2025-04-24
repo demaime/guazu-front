@@ -26,3 +26,9 @@
 - URLS Crear cuenta, olvide pass.
 - DB URI
 - Limpiar consologs
+
+---
+
+### REVISAR
+
+- Numeración de preguntas cuando hay condicionales anidados

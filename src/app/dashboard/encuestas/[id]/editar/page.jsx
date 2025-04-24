@@ -184,6 +184,7 @@ export default function EditarEncuesta() {
       supervisorsIds: survey.supervisorsIds || [],
     },
     questions: processedQuestions,
+    quotas: survey.surveyInfo?.quotas || [],
   };
 
   console.log("Transformed survey data:", initialData);

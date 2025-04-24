@@ -425,7 +425,15 @@ class SurveyService {
       // 3. Combinar y devolver
       const combinedData = {
         // Asegurarnos de devolver la estructura correcta de la encuesta
-        survey: surveyData.survey?.survey || surveyData.survey || null,
+        survey: {
+          ...surveyData.survey,
+          // Ensure surveyInfo is preserved correctly
+          surveyInfo: {
+            ...(surveyData.survey?.surveyInfo || {}),
+            quotas: surveyData.survey?.surveyInfo?.quotas || [],
+            target: surveyData.survey?.surveyInfo?.target || 0,
+          },
+        },
         answers: answersData.answersBySurveyId || [],
       };
       console.log("[SurveyService] Combined data:", combinedData);

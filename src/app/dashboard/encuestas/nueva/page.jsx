@@ -508,24 +508,10 @@ export default function NuevaEncuesta({
 
   // Función para actualizar las cuotas
   const handleQuotasChange = (quotas) => {
-    // Calcular la meta total sumando todas las cuotas
-    const totalTarget = quotas.reduce((sum, category) => {
-      return (
-        sum +
-        category.segments.reduce(
-          (catSum, segment) => catSum + segment.target,
-          0
-        )
-      );
-    }, 0);
-
+    // Ya no actualizamos automáticamente la meta total basada en las cuotas
     setSurveyData((prev) => ({
       ...prev,
       quotas,
-      basicInfo: {
-        ...prev.basicInfo,
-        target: totalTarget,
-      },
     }));
   };
 
@@ -625,6 +611,32 @@ export default function NuevaEncuesta({
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Meta (cantidad total de encuestas)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={surveyData.basicInfo.target}
+                  onChange={(e) =>
+                    setSurveyData((prev) => ({
+                      ...prev,
+                      basicInfo: {
+                        ...prev.basicInfo,
+                        target: parseInt(e.target.value) || 0,
+                      },
+                    }))
+                  }
+                  className="w-full p-3 border rounded-md"
+                  placeholder="Ej: 100"
+                  required
+                />
+                <p className="text-xs text-[var(--text-secondary)] mt-2">
+                  Establece la cantidad total de encuestas a realizar.
+                </p>
+              </div>
+
               {surveyData.quotas.length > 0 && (
                 <div className="mt-4 p-4 bg-[var(--card-background)] rounded-md border border-[var(--card-border)]">
                   <p className="text-sm text-[var(--text-primary)] flex items-center">
@@ -633,8 +645,7 @@ export default function NuevaEncuesta({
                       <strong>Meta total de respuestas:</strong>{" "}
                       {surveyData.basicInfo.target}
                       <span className="text-xs ml-2 text-[var(--text-secondary)]">
-                        (Calculado automáticamente a partir de las cuotas
-                        definidas)
+                        (Establecida en el paso de información básica)
                       </span>
                     </span>
                   </p>
@@ -660,22 +671,6 @@ export default function NuevaEncuesta({
                 onChange={handleQuotasChange}
               />
             </div>
-
-            {surveyData.quotas.length > 0 && (
-              <div className="mt-6 p-4 bg-[var(--card-background)] rounded-md border border-[var(--card-border)]">
-                <p className="text-sm text-[var(--text-primary)] flex items-center">
-                  <span className="mr-2">ℹ️</span>
-                  <span>
-                    <strong>Meta total de respuestas:</strong>{" "}
-                    {surveyData.basicInfo.target}
-                    <span className="text-xs ml-2 text-[var(--text-secondary)]">
-                      (Calculado automáticamente a partir de las cuotas
-                      definidas)
-                    </span>
-                  </span>
-                </p>
-              </div>
-            )}
           </div>
         );
 
@@ -1047,9 +1042,9 @@ export default function NuevaEncuesta({
   };
 
   return (
-    <div className="h-full flex flex-col p-2">
+    <div className="h-full relative">
       {/* Header con pasos y botones de acción */}
-      <div className="bg-background border-b">
+      <div className="bg-background border-b sticky top-0 z-10">
         <div className="flex items-center justify-between p-2">
           <div className="flex items-center gap-4">
             {Object.entries(STEPS).map(([key, value]) => (
@@ -1098,21 +1093,19 @@ export default function NuevaEncuesta({
       </div>
 
       {/* Contenido principal con scroll */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="container mx-auto max-w-5xl h-full py-4">
-          <div className="overflow-x-hidden h-full p-4">
-            {page === STEPS.INFORMACION_BASICA && renderStep()}
-            {page === STEPS.CUOTAS && renderStep()}
-            {page === STEPS.PARTICIPANTES && renderStep()}
-            {page === STEPS.PREGUNTAS && renderStep()}
-            {page === STEPS.VISTA_PREVIA && renderStep()}
-          </div>
+      <div className="overflow-y-auto h-[calc(100vh-180px)] py-4">
+        <div className="container mx-auto max-w-5xl px-4">
+          {page === STEPS.INFORMACION_BASICA && renderStep()}
+          {page === STEPS.CUOTAS && renderStep()}
+          {page === STEPS.PARTICIPANTES && renderStep()}
+          {page === STEPS.PREGUNTAS && renderStep()}
+          {page === STEPS.VISTA_PREVIA && renderStep()}
         </div>
       </div>
 
-      {/* Footer con botones de navegación */}
-      <div className="bg-background ">
-        <div className="container mx-auto max-w-5xl flex justify-between items-center p-4">
+      {/* Footer con botones de navegación - fijo en la parte inferior */}
+      <div className="bg-background border-t py-3 fixed bottom-0 left-0 right-0 z-10 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
+        <div className="container mx-auto max-w-5xl flex justify-between items-center px-4">
           <button
             onClick={() => paginate(-1)}
             disabled={page === 0}
