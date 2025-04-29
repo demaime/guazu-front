@@ -8,6 +8,31 @@ const generateUniqueId = () => {
   return Math.random().toString(36).substr(2, 9) + "_" + Date.now();
 };
 
+// Helper function to generate variable name from title
+const generateVariableName = (title) => {
+  if (!title) return "";
+  const normalized = title
+    .toLowerCase()
+    // Remove accents
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    // Replace non-alphanumeric with underscore
+    .replace(/[^a-z0-9_\\s-]/g, "")
+    .replace(/\s+/g, "_") // Replace spaces with underscore
+    .replace(/-+/g, "_") // Replace hyphens with underscore
+    .replace(/_+/g, "_") // Replace multiple underscores with single
+    .replace(/^_+|_+$/g, ""); // Trim leading/trailing underscores
+
+  // Limit length
+  const maxLength = 40;
+  const prefix = "p_";
+  const truncated = normalized.slice(0, maxLength);
+
+  if (!truncated) return ""; // Avoid returning just "p_" if title was non-alphanumeric
+
+  return `${prefix}${truncated}`;
+};
+
 const QUESTION_TYPES = {
   TEXT: "text",
   MULTIPLE_CHOICE: "multiple_choice",
@@ -133,6 +158,8 @@ export default function QuestionModal({
       id: null,
       type: QUESTION_TYPES.TEXT,
       title: "",
+      variable: "", // Add variable field
+      variableManuallySet: false, // Add flag
       description: "",
       required: true,
       rateMin: 1, // Default minimum rating
@@ -143,26 +170,50 @@ export default function QuestionModal({
       isConditional: false,
     };
 
+    let initialState = { ...defaults };
+
     if (data) {
-      // Merge initialData with defaults, ensuring all fields are present
-      const mergedData = { ...defaults, ...data };
+      // Merge initialData with defaults
+      initialState = { ...initialState, ...data };
+
+      // Set variable state based on initialData
+      if (data.variable && data.variable.trim() !== "") {
+        initialState.variable = data.variable;
+        initialState.variableManuallySet = true;
+      } else {
+        initialState.variable = generateVariableName(data.title);
+        initialState.variableManuallySet = false;
+      }
+
       // Ensure description is prefilled if empty based on type
-      mergedData.description =
-        data.description || DESCRIPTION_PLACEHOLDERS[mergedData.type] || "";
-      return mergedData;
+      initialState.description =
+        data.description || DESCRIPTION_PLACEHOLDERS[initialState.type] || "";
     } else {
       // New question, ensure description is prefilled for default type
-      defaults.description = DESCRIPTION_PLACEHOLDERS[defaults.type] || "";
-      return defaults;
+      initialState.description = DESCRIPTION_PLACEHOLDERS[defaults.type] || "";
+      // Variable will be generated based on title later
     }
+    return initialState;
   };
 
   const [question, setQuestion] = useState(() => getInitialState(initialData));
 
   // Asegurarse de que el ID se mantenga al editar y el estado se resetee/inicialice correctamente
   useEffect(() => {
+    // Reset state completely when modal opens or initialData changes
     setQuestion(getInitialState(initialData));
   }, [initialData, isOpen]);
+
+  // Auto-generate variable name when title changes, if not manually set
+  useEffect(() => {
+    if (!question.variableManuallySet && isOpen) {
+      // Only run if modal is open
+      const generatedVariable = generateVariableName(question.title);
+      if (generatedVariable !== question.variable) {
+        setQuestion((prev) => ({ ...prev, variable: generatedVariable }));
+      }
+    }
+  }, [question.title, question.variableManuallySet, isOpen]);
 
   // Calcular números jerárquicos para usar en el selector
   const questionNumberMap = useMemo(
@@ -440,6 +491,20 @@ export default function QuestionModal({
       return; // Prevent saving
     }
 
+    // Ensure variable is set, generate default if needed
+    let finalVariable = question.variable.trim();
+    const questionId = question.id || generateUniqueId(); // Ensure ID exists
+
+    if (!finalVariable) {
+      finalVariable =
+        generateVariableName(question.title) ||
+        `p_${questionId.substring(0, 8)}`;
+      if (!finalVariable) {
+        // Fallback if title generation also failed
+        finalVariable = `p_${questionId.substring(0, 8)}`;
+      }
+    }
+
     // Validation: Check for minimum options for relevant types
     const typesRequiringOptions = [
       QUESTION_TYPES.MULTIPLE_CHOICE,
@@ -464,7 +529,8 @@ export default function QuestionModal({
 
     const questionToSave = {
       ...question,
-      id: question.id || generateUniqueId(),
+      id: questionId, // Use the ensured ID
+      variable: finalVariable, // Use the ensured variable
     };
 
     // Guardar la pregunta
@@ -495,17 +561,52 @@ export default function QuestionModal({
             </h3>
 
             <div className="space-y-4">
-              {/* Title Input - Full Width */}
+              {/* Title */}
               <div>
+                <label
+                  htmlFor="question-title"
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                >
+                  Título de la pregunta
+                </label>
                 <input
+                  id="question-title"
                   type="text"
+                  placeholder="Escribe el título de la pregunta"
                   value={question.title}
                   onChange={(e) =>
                     setQuestion((prev) => ({ ...prev, title: e.target.value }))
                   }
-                  className="w-full p-2 border rounded-md" // Ensure full width
-                  placeholder="Título de la pregunta"
+                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
+              </div>
+
+              {/* Variable Input */}
+              <div>
+                <label
+                  htmlFor="question-variable"
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                >
+                  Variable (identificador único)
+                </label>
+                <input
+                  id="question-variable"
+                  type="text"
+                  placeholder="Ej: p_imagen_candidato"
+                  value={question.variable}
+                  onChange={(e) =>
+                    setQuestion((prev) => ({
+                      ...prev,
+                      variable: e.target.value,
+                      variableManuallySet: true, // Mark as manually set
+                    }))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Se genera automáticamente del título, pero puedes editarlo.
+                  Evita espacios y caracteres especiales.
+                </p>
               </div>
 
               {/* Required Checkbox & Type Dropdown Row */}
@@ -574,19 +675,28 @@ export default function QuestionModal({
                 </select>
               </div>
 
-              {/* Description Textarea - Full Width */}
-              <textarea
-                value={question.description}
-                onChange={(e) =>
-                  setQuestion((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                className="w-full p-2 border rounded-md" // Ensure full width
-                rows={2}
-                placeholder="Descripción (opcional)"
-              />
+              {/* Description */}
+              <div>
+                <label
+                  htmlFor="question-description"
+                  className="block text-xs font-medium text-gray-600 mb-1"
+                >
+                  Descripción de la pregunta
+                </label>
+                <textarea
+                  id="question-description"
+                  placeholder={DESCRIPTION_PLACEHOLDERS[question.type]}
+                  value={question.description}
+                  onChange={(e) =>
+                    setQuestion((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  rows={2}
+                />
+              </div>
 
               {/* Dynamic Question Options */}
               {renderQuestionOptions()}

@@ -3,20 +3,32 @@ import { ANSWER_ROUTES } from "@/config/routes";
 import axios from "axios";
 
 class SurveyService {
-  async getAllSurveys(page = 1, limit = 10) {
+  async getAllSurveys(page = 1, limit = 10, status = null) {
     try {
-      console.log(`Fetching surveys page ${page} limit ${limit}...`);
+      console.log(
+        `Fetching surveys page ${page} limit ${limit} status ${
+          status || "(all published)"
+        }...`
+      );
 
       const user = JSON.parse(localStorage.getItem("user"));
       const token = localStorage.getItem("token");
 
       console.log("User role:", user.role);
 
-      // Construir URL base (sin query params aún)
-      const baseUrl = SURVEY_ROUTES.BY_ID(user._id);
+      // Construir URL base
+      let baseUrl = SURVEY_ROUTES.BY_ID(user._id);
 
-      // Añadir parámetros de paginación a la URL
-      const url = `${baseUrl}?page=${page}&limit=${limit}`;
+      // Añadir parámetros de paginación y estado
+      const queryParams = new URLSearchParams();
+      queryParams.append("page", page.toString());
+      queryParams.append("limit", limit.toString());
+      if (status) {
+        // Añadir status solo si se proporciona
+        queryParams.append("status", status);
+      }
+
+      const url = `${baseUrl}?${queryParams.toString()}`;
 
       console.log("Fetching from URL:", url);
 
@@ -38,23 +50,23 @@ class SurveyService {
       }
 
       const data = await response.json();
-      console.log("Paginated survey response:", data);
+      console.log("Paginated survey response (status: ", status, "):", data);
 
       if (data.error) {
         console.error("Error from API:", data.error);
         throw new Error(data.message || "Error fetching paginated surveys");
       }
 
-      // Devolver directamente la data paginada del backend
-      // Asegurarse que la estructura coincida con lo esperado por el componente
+      // Devolver la estructura completa que ahora incluye totalCounts
       return {
-        surveys: data.surveys || [], // El array de encuestas de esta página
-        totalPages: data.totalPages || 0, // Total de páginas
-        currentPage: data.currentPage || 1, // Página actual
+        surveys: data.surveys || [],
+        totalPages: data.totalPages || 0,
+        currentPage: data.currentPage || 1,
+        totalCounts: data.totalCounts || { active: 0, finished: 0 }, // Devolver counts
       };
     } catch (error) {
       console.error("Error in getAllSurveys (paginated):", error);
-      throw error; // Re-lanzar para que el componente lo maneje
+      throw error;
     }
   }
 

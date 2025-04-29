@@ -565,10 +565,14 @@ export default function NuevaEncuesta({
       const surveyJSElements = [];
 
       try {
-        // Crear estructura jerárquica y obtener el orden correcto de preguntas
-        const { orderedQuestions, numberMap } = organizeQuestionsHierarchically(
-          surveyData.questions
-        );
+        // Ensure questions is an array before processing
+        const questionsToOrganize = Array.isArray(surveyData.questions)
+          ? surveyData.questions
+          : [];
+
+        // Obtener preguntas ordenadas jerárquicamente
+        const { orderedQuestions, numberMap } =
+          organizeQuestionsHierarchically(questionsToOrganize);
 
         // Guardar el mapa de numeración en surveyData para usar en la interfaz
         surveyData.questionNumberMap = numberMap;
@@ -1201,14 +1205,22 @@ export default function NuevaEncuesta({
                 <div className="space-y-2">
                   {(() => {
                     try {
+                      // Ensure questions is an array before processing
+                      const questionsToOrganize = Array.isArray(
+                        surveyData.questions
+                      )
+                        ? surveyData.questions
+                        : [];
+
                       // Obtener preguntas ordenadas jerárquicamente
                       const { orderedQuestions, numberMap } =
-                        organizeQuestionsHierarchically(surveyData.questions);
+                        organizeQuestionsHierarchically(questionsToOrganize);
 
                       // Usar el mapa de numeración para la visualización
                       surveyData.questionNumberMap = numberMap;
 
-                      return orderedQuestions.map((question, index) => {
+                      // Use optional chaining for safety
+                      return orderedQuestions?.map((question, index) => {
                         // Obtener el número jerárquico
                         const questionNumber =
                           question.displayNumber ||
@@ -1366,8 +1378,13 @@ export default function NuevaEncuesta({
                       });
                     } catch (err) {
                       console.error("Error al organizar preguntas:", err);
-                      // Fallback: mostrar las preguntas en el orden original
-                      return surveyData.questions.map((question, index) => (
+                      // Fallback: mostrar las preguntas en el orden original, ensuring it's an array
+                      const questionsToMapFallback = Array.isArray(
+                        surveyData.questions
+                      )
+                        ? surveyData.questions
+                        : [];
+                      return questionsToMapFallback?.map((question, index) => (
                         <div key={question.id} className="card p-3">
                           <div className="flex items-start gap-3">
                             <div className="bg-[var(--primary)] text-white px-2 py-0.5 rounded-md flex-shrink-0 text-sm font-medium min-w-[30px] text-center">

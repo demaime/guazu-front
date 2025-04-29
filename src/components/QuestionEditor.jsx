@@ -165,6 +165,7 @@ export default function QuestionEditor({
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState(null);
+  const [editingOrder, setEditingOrder] = useState({ id: null, value: "" }); // State for inline order editing
 
   // Calcular números jerárquicos
   const questionNumberMap = useMemo(
@@ -288,6 +289,100 @@ export default function QuestionEditor({
     setQuestionToDelete(null);
   };
 
+  // Function to handle reordering of root questions
+  const handleReorder = (questionId, newOrderStr) => {
+    const newOrder = parseInt(newOrderStr, 10);
+
+    // 1. Identify root questions and their current order
+    const rootQuestions = questions.filter((q) => {
+      const num = questionNumberMap[q.id];
+      return num && !num.includes(".");
+    });
+
+    // 2. Validate newOrder
+    if (isNaN(newOrder) || newOrder < 1 || newOrder > rootQuestions.length) {
+      toast.error(
+        `Número de orden inválido. Debe estar entre 1 y ${rootQuestions.length}.`
+      );
+      setEditingOrder({ id: null, value: "" }); // Reset editing state
+      return;
+    }
+
+    // 3. Find current index of the question being moved
+    const currentOrder = parseInt(questionNumberMap[questionId], 10);
+    const currentIndex = currentOrder - 1;
+    const targetIndex = newOrder - 1;
+
+    if (currentIndex === targetIndex) {
+      setEditingOrder({ id: null, value: "" }); // No change needed
+      return;
+    }
+
+    // 4. Reorder root questions
+    const reorderedRootQuestions = [...rootQuestions];
+    const [movedItem] = reorderedRootQuestions.splice(currentIndex, 1);
+    reorderedRootQuestions.splice(targetIndex, 0, movedItem);
+
+    // 5. Reconstruct the full list with descendants
+    const newFullQuestionList = [];
+    const processedIds = new Set();
+
+    reorderedRootQuestions.forEach((rootQ) => {
+      if (!processedIds.has(rootQ.id)) {
+        newFullQuestionList.push(rootQ);
+        processedIds.add(rootQ.id);
+
+        // Find all descendants of this root question recursively
+        const findDescendants = (parentId) => {
+          questions.forEach((q) => {
+            const parentInfo = findParentInfo(q.id, questions);
+            if (
+              parentInfo &&
+              parentInfo.parentId === parentId &&
+              !processedIds.has(q.id)
+            ) {
+              newFullQuestionList.push(q);
+              processedIds.add(q.id);
+              findDescendants(q.id); // Recursively find children of children
+            }
+          });
+        };
+
+        findDescendants(rootQ.id);
+      }
+    });
+
+    // Add any questions that might have been missed (shouldn't happen ideally)
+    questions.forEach((q) => {
+      if (!processedIds.has(q.id)) {
+        newFullQuestionList.push(q);
+      }
+    });
+
+    // 6. Call onChange with the new list
+    onChange(newFullQuestionList);
+    setEditingOrder({ id: null, value: "" }); // Reset editing state
+  };
+
+  const handleOrderEditStart = (questionId, currentOrder) => {
+    // Toggle: If clicking the one already being edited, close it. Otherwise, open the new one.
+    setEditingOrder((prev) => {
+      if (prev.id === questionId) {
+        return { id: null, value: "" }; // Close if clicking the same one
+      } else {
+        return { id: questionId, value: currentOrder }; // Open the new one
+      }
+    });
+  };
+
+  // Handle clicking an item in the custom dropdown
+  const handleDropdownItemClick = (newOrder) => {
+    if (editingOrder.id) {
+      handleReorder(editingOrder.id, newOrder);
+    }
+    setEditingOrder({ id: null, value: "" }); // Reset editing state immediately
+  };
+
   // Helper to get the icon component for a type
   const getQuestionTypeIcon = (type) => {
     return QUESTION_TYPE_ICONS[type] || Type; // Default to 'Type' icon
@@ -310,6 +405,17 @@ export default function QuestionEditor({
         {questions.map((question, index) => {
           // Obtener el número calculado
           const questionNumber = questionNumberMap[question.id] || "?";
+          const isRootQuestion =
+            questionNumber && !questionNumber.includes(".");
+          const rootQuestionsCount = useMemo(
+            () =>
+              questions.filter(
+                (q) =>
+                  questionNumberMap[q.id] &&
+                  !questionNumberMap[q.id].includes(".")
+              ).length,
+            [questions, questionNumberMap]
+          );
 
           return (
             <motion.div
@@ -330,9 +436,66 @@ export default function QuestionEditor({
                   <div className="flex items-start justify-between">
                     <div>
                       <h4 className="font-medium text-sm flex items-center gap-2">
-                        <span className="bg-[var(--primary)] text-white px-2 py-0.5 rounded-md flex-shrink-0 text-xs font-medium min-w-[30px] text-center">
-                          {questionNumber}
-                        </span>
+                        {/* Question Number - Apply conditional background */}
+                        {(() => {
+                          const level = (questionNumber.match(/\./g) || [])
+                            .length;
+                          let opacityClass = ""; // Default for root (level 0)
+                          if (level === 1) {
+                            opacityClass = "opacity-75";
+                          } else if (level >= 2) {
+                            opacityClass = "opacity-50";
+                          }
+
+                          return (
+                            <div
+                              className={`bg-[var(--primary)] ${opacityClass} text-white px-2 py-0.5 rounded-md flex-shrink-0 text-xs font-medium min-w-[35px] text-center relative ${
+                                isRootQuestion
+                                  ? "cursor-pointer hover:bg-primary/80"
+                                  : ""
+                              }`}
+                              onClick={() =>
+                                isRootQuestion &&
+                                handleOrderEditStart(
+                                  question.id,
+                                  questionNumber
+                                )
+                              }
+                              title={
+                                isRootQuestion ? "Clic para cambiar orden" : ""
+                              }
+                            >
+                              {/* Always display the number */}
+                              {questionNumber}
+
+                              {/* Custom Dropdown - Render conditionally */}
+                              {editingOrder.id === question.id && (
+                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-max bg-white border border-gray-300 rounded shadow-lg z-10 overflow-hidden">
+                                  {Array.from(
+                                    { length: rootQuestionsCount },
+                                    (_, i) => i + 1
+                                  ).map((num) => (
+                                    <button
+                                      key={num}
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Prevent click from bubbling to the parent div
+                                        handleDropdownItemClick(num);
+                                      }}
+                                      // Apply primary hover color using var()
+                                      className={`block w-full px-3 py-1 text-left text-sm text-gray-700 hover:bg-[var(--primary)] hover:text-white ${
+                                        num === parseInt(editingOrder.value)
+                                          ? "bg-gray-200"
+                                          : ""
+                                      }`}
+                                    >
+                                      {num}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {question.title}
                       </h4>
                       {question.description && (
