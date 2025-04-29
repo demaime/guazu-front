@@ -3,17 +3,20 @@ import { ANSWER_ROUTES } from "@/config/routes";
 import axios from "axios";
 
 class SurveyService {
-  async getAllSurveys() {
+  async getAllSurveys(page = 1, limit = 10) {
     try {
-      console.log("Fetching surveys...");
+      console.log(`Fetching surveys page ${page} limit ${limit}...`);
 
       const user = JSON.parse(localStorage.getItem("user"));
       const token = localStorage.getItem("token");
 
       console.log("User role:", user.role);
 
-      // Usamos la misma ruta para todos los roles, el backend se encarga de filtrar
-      const url = SURVEY_ROUTES.BY_ID(user._id);
+      // Construir URL base (sin query params aún)
+      const baseUrl = SURVEY_ROUTES.BY_ID(user._id);
+
+      // Añadir parámetros de paginación a la URL
+      const url = `${baseUrl}?page=${page}&limit=${limit}`;
 
       console.log("Fetching from URL:", url);
 
@@ -35,61 +38,23 @@ class SurveyService {
       }
 
       const data = await response.json();
-      console.log("Survey response:", data);
+      console.log("Paginated survey response:", data);
 
       if (data.error) {
         console.error("Error from API:", data.error);
-        return Promise.reject(data.validation);
+        throw new Error(data.message || "Error fetching paginated surveys");
       }
 
-      // Para todos los roles, las encuestas vienen en data.survey
-      let surveys = data.survey || [];
-
-      // Obtener las respuestas para cada encuesta
-      const surveysWithAnswers = await Promise.all(
-        surveys.map(async (survey) => {
-          try {
-            const answersResponse = await fetch(
-              SURVEY_ROUTES.ANSWERS(survey._id),
-              {
-                method: "GET",
-                headers: new Headers({
-                  "Content-Type": "application/json; charset=utf-8",
-                  Authorization: token,
-                }),
-                credentials: "include",
-                mode: "cors",
-              }
-            );
-
-            if (!answersResponse.ok) {
-              console.error(`Error fetching answers for survey ${survey._id}`);
-              return survey;
-            }
-
-            const answersData = await answersResponse.json();
-            const answers = answersData.answersBySurveyId || [];
-
-            return {
-              ...survey,
-              totalAnswers: answers.length,
-              answers: answers,
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching answers for survey ${survey._id}:`,
-              error
-            );
-            return survey;
-          }
-        })
-      );
-
-      console.log("Processed surveys:", surveysWithAnswers);
-      return { surveys: surveysWithAnswers };
+      // Devolver directamente la data paginada del backend
+      // Asegurarse que la estructura coincida con lo esperado por el componente
+      return {
+        surveys: data.surveys || [], // El array de encuestas de esta página
+        totalPages: data.totalPages || 0, // Total de páginas
+        currentPage: data.currentPage || 1, // Página actual
+      };
     } catch (error) {
-      console.error("Error in getAllSurveys:", error);
-      throw error;
+      console.error("Error in getAllSurveys (paginated):", error);
+      throw error; // Re-lanzar para que el componente lo maneje
     }
   }
 

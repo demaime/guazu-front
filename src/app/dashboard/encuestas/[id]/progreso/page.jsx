@@ -332,10 +332,13 @@ export default function AnalisisEncuesta() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">
-              Análisis de Encuesta: {survey.survey?.title}
+              Análisis de Encuesta:{" "}
+              {survey.survey?.title?.es || survey.survey?.title}
             </h1>
             <p className="text-[var(--text-secondary)]">
-              {survey.survey?.description || "Sin descripción"}
+              {survey.survey?.description?.es ||
+                survey.survey?.description ||
+                "Sin descripción"}
             </p>
           </div>
           <button
