@@ -503,25 +503,15 @@ export default function Encuestas() {
                 // Renderizado para activas y finalizadas usando SurveyList
                 <SurveyList
                   surveys={currentSurveys}
-                  userRole={user?.role} // Pasar role
+                  role={user?.role}
                   isFinished={activeTab === "finished"}
                   listType={activeTab}
-                  onDelete={handleDelete} // Pasar handlers
-                  onDeleteAnswers={() => {
-                    /* Implementar o mostrar modal si es necesario */
-                    // Necesitaríamos un ID para esto, quizás desde el menú de acciones
-                    console.warn(
-                      "handleDeleteAnswers clickeado, necesita surveyId"
-                    );
-                    // Ejemplo: abrir modal y pasar selectedSurveyId si viene del menú
-                    // setSelectedSurveyId(id_de_la_encuesta);
-                    // setShowDeleteAnswersModal(true); // Necesitarías un nuevo modal
-                  }}
-                  onEditDraft={handleEditDraft} // No aplica aquí pero SurveyList podría necesitarlo
-                  onPublishDraft={handlePublishDraft} // No aplica aquí
-                  openMenuId={openMenuId} // Pasar estado del menú
-                  setOpenMenuId={setOpenMenuId} // Pasar setter del menú
-                  // Asegúrate que SurveyList reciba y use los handlers y props necesarios
+                  onDelete={handleDelete}
+                  onDeleteAnswers={handleDeleteAnswers}
+                  onEditDraft={handleEditDraft}
+                  onPublishDraft={handlePublishDraft}
+                  openMenuId={openMenuId}
+                  setOpenMenuId={setOpenMenuId}
                 />
               ))}
           </motion.div>
