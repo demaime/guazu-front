@@ -1,0 +1,47 @@
+/* Survey Styles for Guazú */
+
+.sd-root-modern,
+.sd-container-modern__title {
+  background: var(--background-color) !important;
+}
+
+.sd-description {
+  display: none;
+}
+
+.sd-title {
+  font-size: 0.8rem;
+}
+
+.sd-element--with-frame {
+  background: var(--background-color) !important;
+  padding: 0.5rem !important;
+}
+
+.sd-element--with-frame {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Estilos adicionales para asegurar que no se apliquen efectos del frame */
+.sd-element--with-frame:before,
+.sd-element--with-frame:after {
+  display: none !important;
+  content: none !important;
+}
+
+.sd-progress__text {
+  font-size: 0.6rem;
+  padding: 0 !important;
+}
+
+.sv-string-viewer {
+  font-size: 1.5rem !important;
+}
+.sv-string-viewer--multiline {
+  font-size: 1rem !important;
+}

@@ -408,6 +408,12 @@ body {
   overflow-y: auto;
 }
 
+@media (max-width: 640px) {
+  .main-content {
+    padding: 0.25rem;
+  }
+}
+
 .main-wrapper {
   display: flex;
   height: 100%;

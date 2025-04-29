@@ -12,6 +12,7 @@ import { DoubleBorderLight, DoubleBorderDark } from "survey-core/themes";
 // Import SurveyJS styles
 import "survey-core/survey-core.css";
 import "survey-core/i18n/spanish";
+import "@/styles/survey-styles.css"; // Import our custom survey styles
 
 // Spanish localization configuration
 const spanishLocalization = {
@@ -482,56 +483,8 @@ export default function SurveyPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="bg-card-background rounded-lg shadow-sm border border-card-border p-6">
-        <style jsx global>{`
-          .sv_main .sv_container {
-            color: var(--text-primary);
-          }
-
-          .sv_main .sv_body {
-            border: none;
-            background: transparent;
-          }
-
-          .sv_main .sv_q_title {
-            color: var(--text-primary);
-          }
-
-          .sv_main .sv_q_description {
-            color: var(--text-secondary);
-          }
-
-          .sv_main input[type="radio"],
-          .sv_main input[type="checkbox"] {
-            accent-color: var(--primary);
-          }
-
-          .sv_main .sv_q_radiogroup_label,
-          .sv_main .sv_q_checkbox_label,
-          .sv_main .sv_q_rating_item {
-            color: var(--text-primary);
-            transition: all 0.2s ease-in-out;
-          }
-
-          .sv_main .sv_q_radiogroup_label:hover,
-          .sv_main .sv_q_checkbox_label:hover {
-            color: var(--primary);
-          }
-
-          .sv_main .sv_q_rating_item.active {
-            background-color: var(--primary);
-            border-color: var(--primary);
-          }
-
-          .sv_main .sv_progress_bar {
-            background-color: var(--card-background);
-          }
-
-          .sv_main .sv_progress_bar > span {
-            background-color: var(--primary);
-          }
-        `}</style>
+    <div className="container mx-auto px-0 sm:px-4 py-2 sm:py-8">
+      <div className="bg-card-background rounded-lg shadow-sm border border-card-border p-1 sm:p-6">
         <Survey model={surveyModel} onComplete={handleComplete} />
       </div>
     </div>
