@@ -129,29 +129,52 @@ export default function SurveyPage() {
                 question.type === "dropdown") &&
               question.choices
             ) {
-              question.choices.forEach((choice) => {
-                // Handle choice text in Spanish
-                if (
-                  choice.text &&
-                  typeof choice.text === "object" &&
-                  choice.text.es
-                ) {
-                  choice.text = choice.text.es;
-                }
+              question.choices = question.choices
+                .map((choice) => {
+                  let processedChoice = {};
 
-                // Generate value from text if missing
-                if (
-                  typeof choice.value === "undefined" ||
-                  choice.value === null ||
-                  typeof choice.value === "object"
-                ) {
-                  if (choice.text && typeof choice.text === "string") {
-                    choice.value = choice.text
-                      .toLowerCase()
-                      .replace(/\s+/g, "_");
+                  if (typeof choice === "string") {
+                    // Si es un string, convertirlo a objeto
+                    processedChoice = { value: choice, text: choice };
+                  } else if (typeof choice === "object" && choice !== null) {
+                    // Si ya es un objeto, copiarlo y procesarlo
+                    processedChoice = { ...choice };
+
+                    // Handle choice text in Spanish
+                    if (
+                      processedChoice.text &&
+                      typeof processedChoice.text === "object" &&
+                      processedChoice.text.es
+                    ) {
+                      processedChoice.text = processedChoice.text.es;
+                    }
+
+                    // Generate value from text if missing
+                    if (
+                      typeof processedChoice.value === "undefined" ||
+                      processedChoice.value === null ||
+                      typeof processedChoice.value === "object" // Tambien chequear si value es objeto
+                    ) {
+                      if (
+                        processedChoice.text &&
+                        typeof processedChoice.text === "string"
+                      ) {
+                        processedChoice.value = processedChoice.text
+                          .toLowerCase()
+                          .replace(/\s+/g, "_");
+                      } else {
+                        // Fallback si no hay texto para generar valor (poco probable con objetos)
+                        processedChoice.value = String(Math.random());
+                      }
+                    }
+                  } else {
+                    // Ignorar si no es string ni objeto (ej. null, undefined)
+                    return null; // O manejar como error si prefieres
                   }
-                }
-              });
+
+                  return processedChoice;
+                })
+                .filter(Boolean); // Filtrar cualquier null que se haya retornado
             }
           });
         });

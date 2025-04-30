@@ -230,7 +230,23 @@ export default function EditarEncuesta() {
   };
 
   // Extraer y construir los datos iniciales para el editor
-  const elements = survey.survey?.pages?.[0]?.elements || [];
+  let elements = [];
+  if (survey.survey?.pages && Array.isArray(survey.survey.pages)) {
+    if (survey.survey.pages.length > 1) {
+      console.log("Consolidating multiple pages for editing...");
+      // Concatenar elementos de todas las páginas
+      elements = survey.survey.pages.reduce((acc, page) => {
+        if (page && Array.isArray(page.elements)) {
+          return acc.concat(page.elements);
+        }
+        return acc;
+      }, []);
+    } else if (survey.survey.pages.length === 1) {
+      // Usar elementos de la única página existente
+      elements = survey.survey.pages[0]?.elements || [];
+    }
+  }
+
   const conditionalRelations = parseVisibleIfConditions(elements);
 
   // Procesar las preguntas primero para mantener referencias

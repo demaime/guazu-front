@@ -6,6 +6,7 @@
 - Revisar permisos para los links
 - Confirmar restricción de dispositivos
 - PWA
+- Funcionalidad OFFLINE
 
 🟠 FEATURES IMPORTANTES - ¿Qué queremos agregar para mejorar la experiencia y aumentar el precio de la App?
 
@@ -31,4 +32,5 @@
 
 ### REVISAR
 
-- Numeración de preguntas cuando hay condicionales anidados
+Eliminar "prueba local" para encuestas finalizadas
+Revisar respuestas sin opciones en preguntas de encuestas viejas

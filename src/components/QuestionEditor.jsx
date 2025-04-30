@@ -173,6 +173,15 @@ export default function QuestionEditor({
     [questions]
   );
 
+  // --- INICIO MODIFICACIÓN: Mover cálculo fuera del map ---
+  const rootQuestionsCount = useMemo(() => {
+    if (!questions || !questionNumberMap) return 0;
+    return questions.filter(
+      (q) => questionNumberMap[q.id] && !questionNumberMap[q.id].includes(".")
+    ).length;
+  }, [questions, questionNumberMap]);
+  // --- FIN MODIFICACIÓN ---
+
   const handleAddQuestion = () => {
     setEditingQuestion(null);
     setShowModal(true);
@@ -407,15 +416,6 @@ export default function QuestionEditor({
           const questionNumber = questionNumberMap[question.id] || "?";
           const isRootQuestion =
             questionNumber && !questionNumber.includes(".");
-          const rootQuestionsCount = useMemo(
-            () =>
-              questions.filter(
-                (q) =>
-                  questionNumberMap[q.id] &&
-                  !questionNumberMap[q.id].includes(".")
-              ).length,
-            [questions, questionNumberMap]
-          );
 
           return (
             <motion.div
