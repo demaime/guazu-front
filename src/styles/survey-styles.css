@@ -45,3 +45,15 @@
 .sv-string-viewer--multiline {
   font-size: 1rem !important;
 }
+
+.sv-list__item-body > .sv-string-viewer,
+.sd-error > .sv-string-viewer,
+.sd-dropdown__value > .sv-string-viewer,
+.sd-item__control-label > .sv-string-viewer,
+span > .sv-string-viewer {
+  font-size: 0.8rem !important;
+}
+
+.sd-question__required-text {
+  font-size: 0.7rem !important;
+}
