@@ -43,6 +43,12 @@ export function SurveyList({
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
+  const [openDescriptionTooltipId, setOpenDescriptionTooltipId] =
+    useState(null);
+  const [descriptionTooltipPosition, setDescriptionTooltipPosition] = useState({
+    x: 0,
+    y: 0,
+  });
 
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
@@ -113,6 +119,17 @@ export function SurveyList({
       }
     }
     setOpenTooltipId(show ? actionId : null);
+  };
+
+  const handleDescriptionTooltip = (surveyId, e, show) => {
+    if (e) {
+      const buttonRect = e.currentTarget.getBoundingClientRect();
+      setDescriptionTooltipPosition({
+        x: buttonRect.left + buttonRect.width / 2,
+        y: buttonRect.top - 10,
+      });
+    }
+    setOpenDescriptionTooltipId(show ? surveyId : null);
   };
 
   const toggleCardExpansion = (surveyId, e) => {
@@ -539,6 +556,12 @@ export function SurveyList({
                     <div className="flex items-center justify-center relative">
                       <button
                         onClick={(e) => toggleCardExpansion(surveyData._id, e)}
+                        onMouseEnter={(e) =>
+                          handleDescriptionTooltip(surveyData._id, e, true)
+                        }
+                        onMouseLeave={() =>
+                          handleDescriptionTooltip(null, null, false)
+                        }
                         className="p-2 rounded-md hover:bg-[var(--hover-bg)] hover:bg-opacity-50 transition-colors"
                         data-type="description"
                       >
@@ -834,6 +857,25 @@ export function SurveyList({
             })}
           </tbody>
         </table>
+      )}
+
+      {openDescriptionTooltipId && (
+        <div
+          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-gray-900 text-white dark:bg-[var(--card-background)] dark:text-[var(--text-primary)] dark:border dark:border-[var(--card-border)] max-w-xs pointer-events-none"
+          style={{
+            left: `${descriptionTooltipPosition.x}px`,
+            top: `${descriptionTooltipPosition.y}px`,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          {sortedSurveys.find((s) => s._id === openDescriptionTooltipId)
+            ? getLocalizedText(
+                sortedSurveys.find((s) => s._id === openDescriptionTooltipId)
+                  .survey?.description,
+                "Sin descripción"
+              )
+            : "Sin descripción"}
+        </div>
       )}
 
       <ConfirmModal
