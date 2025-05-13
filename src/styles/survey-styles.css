@@ -57,3 +57,137 @@ span > .sv-string-viewer {
 .sd-question__required-text {
   font-size: 0.7rem !important;
 }
+
+/* Estilos para la pantalla de finalización de la encuesta */
+.sd-completedpage {
+  background-color: transparent !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  text-align: center !important;
+  max-width: 500px !important;
+  position: relative !important;
+  overflow: hidden;
+  transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+  top: 0 !important;
+  left: 0 !important;
+  transform: none !important;
+}
+
+.sd-completedpage h3 {
+  color: var(--primary) !important;
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  margin-bottom: 20px !important;
+  position: relative;
+  z-index: 1;
+  transition: color 0.3s ease-in-out;
+}
+
+.dark .sd-completedpage h3 {
+  color: var(--primary-light) !important;
+}
+
+.sd-completedpage__text {
+  color: var(--text-primary) !important;
+  font-size: 18px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  margin-bottom: 25px !important;
+  position: relative;
+  z-index: 1;
+  transition: color 0.3s ease-in-out;
+}
+
+.sd-completedpage .sv-string-viewer {
+  font-size: 18px !important;
+  color: var(--text-primary) !important;
+  font-weight: 500 !important;
+  position: relative;
+  z-index: 1;
+  transition: color 0.3s ease-in-out;
+}
+
+.sd-completedpage__icon {
+  background-color: var(--primary) !important;
+  border-radius: 50% !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 64px !important;
+  height: 64px !important;
+  margin: 0 auto 20px !important;
+  font-size: 32px !important;
+  position: relative;
+  z-index: 1;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.dark .sd-completedpage__icon {
+  background-color: var(--primary-light) !important;
+}
+
+.sd-completedpage__icon::before {
+  content: "✓";
+  font-weight: bold;
+}
+
+/* Estilos para el contador de redirección */
+#survey-countdown {
+  display: block;
+  margin-top: 10px;
+  font-size: 16px !important;
+  font-weight: 500;
+  color: var(--text-secondary) !important;
+  padding: 5px 10px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.03);
+  transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+.dark #survey-countdown {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Centrar el botón de volver */
+.sd-completedpage button {
+  margin: 0 auto !important;
+  display: block !important;
+}
+
+/* Eliminar todos los pseudoelementos en la página de completado */
+.sd-completedpage:before,
+.sd-completedpage:after,
+.sd-body.sd-completedpage:before,
+.sd-body.sd-completedpage:after,
+div.sd-body.sd-completedpage:before,
+div.sd-body.sd-completedpage:after,
+.sd-completedpage *:before,
+.sd-completedpage *:after,
+.sd-completedpage card:before,
+.sd-completedpage card:after,
+.sd-completedpage > *:before,
+.sd-completedpage > *:after,
+div.sd-completedpage:before,
+div.sd-completedpage:after,
+.sd-completedpage-before,
+.sd-completedpage-after,
+.sd-body-before,
+.sd-body-after,
+div.sv-root-modern div:before,
+div.sv-root-modern div:after,
+div[class^="sd-"]:before,
+div[class^="sd-"]:after,
+.sv-root-modern:before,
+.sv-root-modern:after {
+  display: none !important;
+  content: none !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  visibility: hidden !important;
+}
+/* 
+.sd-completedpage > div {
+  margin: auto !important;
+  padding: 15px !important;
+  background-color: transparent !important;
+} */

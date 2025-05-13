@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Model, surveyLocalization, StylesManager } from "survey-core";
 import { Survey } from "survey-react-ui";
@@ -8,6 +8,7 @@ import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { useTheme } from "@/providers/ThemeProvider";
 import { DoubleBorderLight, DoubleBorderDark } from "survey-core/themes";
+import { CheckCircle2 } from "lucide-react";
 
 // Import SurveyJS styles
 import "survey-core/survey-core.css";
@@ -23,6 +24,8 @@ const spanishLocalization = {
   requiredError: "Este campo es obligatorio.",
   emptySurvey: "No hay página visible o pregunta en la encuesta.",
   questionsProgressText: "Respondido {0}/{1} preguntas",
+  completingSurvey: "¡Gracias por completar la encuesta de Santa Fe!",
+  completingSurveyBefore: "Ya has completado esta encuesta anteriormente.",
 };
 
 // Configure Spanish locale
@@ -36,6 +39,22 @@ export default function SurveyPage() {
   const [surveyModel, setSurveyModel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const redirectTimerRef = useRef(null);
+  const countdownIntervalRef = useRef(null);
+  const [surveyCompletedSuccessfully, setSurveyCompletedSuccessfully] =
+    useState(false);
+  const [countdown, setCountdown] = useState(5);
+
+  // Effect to handle redirection when countdown finishes
+  useEffect(() => {
+    if (surveyCompletedSuccessfully && countdown === 0) {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current); // Ensure interval is cleared before navigation
+      }
+      console.log("Countdown finished, redirecting to / from useEffect...");
+      router.push("/");
+    }
+  }, [countdown, surveyCompletedSuccessfully, router]);
 
   // Apply theme when it changes
   useEffect(() => {
@@ -50,6 +69,8 @@ export default function SurveyPage() {
 
   // Load survey data
   useEffect(() => {
+    let modelInstance = null; // To store the model instance for cleanup
+
     const loadSurvey = async () => {
       try {
         // Check authentication
@@ -181,6 +202,8 @@ export default function SurveyPage() {
 
         // Create and configure survey model
         const model = new Model(surveyData);
+        modelInstance = model; // Store for cleanup
+
         console.log("Survey model created:", model);
         console.log("Survey pages:", model.pages);
 
@@ -313,6 +336,16 @@ export default function SurveyPage() {
           model.applyTheme(DoubleBorderLight);
         }
 
+        // Configurar el HTML personalizado para la página de finalización
+        model.completedHtml = `
+        <div style="max-width: 500px; margin: auto; padding: 15px; text-align: center;">
+          <h3 style="color: var(--primary); font-size: 28px; font-weight: 700; margin-bottom: 20px;">Procesando...</h3>
+        </div>
+        `;
+
+        model.showCompletedPage = true;
+        model.navigateToUrl = null; // Deshabilitar la navegación automática
+
         setSurveyModel(model);
       } catch (err) {
         console.error("Error loading survey:", err);
@@ -323,6 +356,20 @@ export default function SurveyPage() {
     };
 
     loadSurvey();
+
+    // Cleanup function for useEffect
+    return () => {
+      if (modelInstance && typeof modelInstance.dispose === "function") {
+        console.log("Disposing survey model instance.");
+        modelInstance.dispose();
+      }
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
   }, [id, router, theme]);
 
   // Handle survey completion
@@ -472,12 +519,135 @@ export default function SurveyPage() {
         throw new Error("Failed to save survey response");
       }
 
-      router.push("/dashboard/encuestas");
+      // Survey saved successfully.
+      // Set state to show custom completion message and start countdown.
+      setSurveyCompletedSuccessfully(true);
+      setCountdown(5); // Reset countdown to 5 seconds
+
+      // Clear any existing redirect timer (though this path might not need it, good practice)
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+      // Clear any existing countdown interval
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown((prevCountdown) => {
+          if (prevCountdown <= 1) {
+            clearInterval(countdownIntervalRef.current);
+            // router.push("/"); // Redirect when countdown finishes - MOVED TO useEffect
+            return 0;
+          }
+          return prevCountdown - 1;
+        });
+      }, 1000);
+
+      // No need for the separate 5s redirectTimer anymore, as the interval handles it.
     } catch (err) {
       console.error("Error saving survey:", err);
       setError("Failed to save survey response");
     }
   };
+
+  if (surveyCompletedSuccessfully) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          padding: "20px",
+          textAlign: "center",
+          backgroundColor: "var(--background)",
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: "#00c951",
+            borderRadius: "50%",
+            width: "64px",
+            height: "64px",
+            margin: "0 auto 20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+            fontSize: "32px",
+          }}
+        >
+          ✓
+        </div>
+        <h3
+          style={{
+            color: "var(--primary)",
+            fontSize: "28px",
+            fontWeight: 700,
+            marginBottom: "20px",
+          }}
+        >
+          ¡Encuesta completada!
+        </h3>
+        <div
+          style={{
+            color: "var(--text-primary)",
+            fontSize: "18px",
+            fontWeight: 500,
+            lineHeight: 1.5,
+            marginBottom: "25px",
+          }}
+        >
+          ¡Muchas gracias por tu tiempo y participación en la encuesta!
+          <br />
+          <br />
+          El caso se guardó correctamente.
+          <br />
+          <br />
+          <span
+            style={{
+              display: "block",
+              marginTop: "10px",
+              fontSize: "16px",
+              color: "var(--text-secondary)",
+              padding: "5px 10px",
+              borderRadius: "4px",
+              backgroundColor: "rgba(0, 0, 0, 0.03)",
+            }}
+            dangerouslySetInnerHTML={{
+              __html:
+                countdown > 0
+                  ? `Serás redirigido al inicio en <strong>${countdown}</strong> segundos...`
+                  : "Redirigiendo...",
+            }}
+          />
+        </div>
+        <button
+          onClick={() => {
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+            }
+            router.push("/");
+          }}
+          style={{
+            backgroundColor: "var(--primary)",
+            color: "white",
+            border: "none",
+            padding: "8px 24px",
+            borderRadius: "6px",
+            fontWeight: 600,
+            cursor: "pointer",
+            margin: "0 auto",
+            display: "block",
+          }}
+        >
+          Volver al Inicio
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
