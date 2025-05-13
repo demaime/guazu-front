@@ -630,6 +630,63 @@ class SurveyService {
       throw error;
     }
   }
+
+  async cloneSurvey(surveyId) {
+    console.log(`Frontend service: Cloning survey ${surveyId}`);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // Handle missing token, perhaps throw an error or return a specific response
+      console.error("Authentication token not found for cloneSurvey.");
+      throw new Error("Token de autenticación no encontrado.");
+    }
+
+    // Construct the URL using SURVEY_ROUTES.BASE, assuming it's like http://localhost:XXXX/api/survey
+    // The backend route is POST /api/survey/:id/clone
+    const cloneUrl = `${SURVEY_ROUTES.BASE}/${surveyId}/clone`;
+
+    try {
+      const response = await fetch(cloneUrl, {
+        method: "POST",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+        // No body is needed for this POST request based on the backend controller structure
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          // If response is not JSON, use text. Removed unused variable 'e'
+          const errorText = await response.text();
+          console.error(
+            `Error cloning survey (non-JSON response ${response.status}):`,
+            errorText
+          );
+          throw new Error(
+            errorText || `Error del servidor: ${response.status}`
+          );
+        }
+        console.error(`Error cloning survey (${response.status}):`, errorData);
+        throw new Error(
+          errorData.message || `Error del servidor: ${response.status}`
+        );
+      }
+
+      const data = await response.json(); // Expect { message: '...', survey: { ... } }
+      console.log("Survey cloned successfully:", data);
+      return { success: true, ...data }; // Pass along message and new survey data
+    } catch (error) {
+      console.error("Error in surveyService.cloneSurvey:", error);
+      // Re-throw or return a structured error for the component to handle
+      // Ensure the error has a message property for the toast notification
+      throw error; // The component will catch this and use error.message
+    }
+  }
 }
 
 export const surveyService = new SurveyService();

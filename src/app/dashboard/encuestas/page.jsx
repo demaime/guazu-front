@@ -58,6 +58,7 @@ export default function Encuestas() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
+  const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
   // --- Función de Carga de Datos --- //
   // Usamos useCallback para evitar re-crear la función en cada render
@@ -185,6 +186,7 @@ export default function Encuestas() {
   const confirmDelete = async () => {
     if (!selectedSurveyId) return;
     try {
+      setIsConfirmLoading(true);
       const tabWhereSurveyWas = draftSurveysData.some(
         (d) => d._id === selectedSurveyId
       )
@@ -212,6 +214,7 @@ export default function Encuestas() {
       setError(err.message);
       toast.error("Error al eliminar la encuesta");
     } finally {
+      setIsConfirmLoading(false);
       setShowDeleteModal(false);
       setSelectedSurveyId(null);
     }
@@ -225,6 +228,7 @@ export default function Encuestas() {
   const confirmPublish = async () => {
     if (!selectedSurveyId) return;
     try {
+      setIsConfirmLoading(true);
       setIsLoading((prev) => ({
         ...prev,
         drafts: true,
@@ -244,6 +248,7 @@ export default function Encuestas() {
       console.error("Error al publicar borrador:", err);
       toast.error(err.message || "Error al publicar el borrador");
     } finally {
+      setIsConfirmLoading(false);
       setShowPublishModal(false);
       setSelectedSurveyId(null);
     }
@@ -556,17 +561,27 @@ export default function Encuestas() {
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
         title="Confirmar Eliminación"
-        message="¿Estás seguro de que deseas eliminar esta encuesta? Esta acción no se puede deshacer."
         confirmButtonClass="bg-red-600 hover:bg-red-700" // Tailwind classes
-      />
+        isLoading={isConfirmLoading}
+      >
+        <p>
+          ¿Estás seguro de que deseas eliminar esta encuesta? Esta acción no se
+          puede deshacer.
+        </p>
+      </ConfirmModal>
       <ConfirmModal
         isOpen={showPublishModal}
         onClose={() => setShowPublishModal(false)}
         onConfirm={confirmPublish}
         title="Confirmar Publicación"
-        message="¿Estás seguro de que deseas publicar este borrador? Una vez publicado, será visible para los encuestadores asignados."
         confirmButtonClass="bg-green-600 hover:bg-green-700" // Tailwind classes
-      />
+        isLoading={isConfirmLoading}
+      >
+        <p>
+          ¿Estás seguro de que deseas publicar este borrador? Una vez publicado,
+          será visible para los encuestadores asignados.
+        </p>
+      </ConfirmModal>
     </motion.div>
   );
 }

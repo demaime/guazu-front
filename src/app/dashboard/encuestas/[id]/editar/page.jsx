@@ -316,7 +316,7 @@ export default function EditarEncuesta() {
       endDate: survey.surveyInfo?.endDate
         ? new Date(survey.surveyInfo.endDate).toISOString().split("T")[0]
         : new Date().toISOString().split("T")[0],
-      target: survey.surveyInfo?.target || 100,
+      target: survey.surveyInfo?.target ?? 0,
     },
     participants: {
       userIds: survey.userIds || [],

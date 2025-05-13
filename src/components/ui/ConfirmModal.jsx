@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 
 export function ConfirmModal({
   isOpen,
@@ -11,6 +11,7 @@ export function ConfirmModal({
   cancelText = "Cancelar",
   confirmButtonClass = "bg-red-500 text-white hover:bg-red-600",
   showCancelButton = true,
+  isLoading = false,
 }) {
   if (!isOpen) return null;
 
@@ -38,7 +39,8 @@ export function ConfirmModal({
             <h2 className="text-lg font-semibold">{title}</h2>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-[var(--hover-bg)] rounded-full transition-colors"
+              disabled={isLoading}
+              className="p-1 hover:bg-[var(--hover-bg)] rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="w-5 h-5" />
             </button>
@@ -54,17 +56,18 @@ export function ConfirmModal({
             {showCancelButton && (
               <button
                 onClick={onClose}
-                className="px-4 py-2 btn-secondary transition-colors"
+                disabled={isLoading}
+                className="px-4 py-2 btn-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {cancelText}
               </button>
             )}
             <button
-              onClick={() => {
-                onConfirm();
-              }}
-              className={`px-4 py-2 rounded-md ${confirmButtonClass} transition-colors`}
+              onClick={onConfirm}
+              disabled={isLoading}
+              className={`px-4 py-2 rounded-md ${confirmButtonClass} transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
             >
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               {confirmText}
             </button>
           </div>

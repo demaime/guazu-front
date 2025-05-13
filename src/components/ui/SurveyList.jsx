@@ -18,11 +18,15 @@ import {
   ArrowUp,
   ArrowDown,
   FileText,
+  Copy,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmModal } from "./ConfirmModal";
+import { surveyService } from "@/services/survey.service";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export function SurveyList({
   surveys,
@@ -30,6 +34,7 @@ export function SurveyList({
   onDeleteAnswers,
   role,
   isFinished,
+  onSurveyListChange,
 }) {
   const router = useRouter();
   const { isMobile } = useWindowSize();
@@ -49,6 +54,8 @@ export function SurveyList({
     x: 0,
     y: 0,
   });
+  const [showCloneSuccessModal, setShowCloneSuccessModal] = useState(false);
+  const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
@@ -139,7 +146,7 @@ export function SurveyList({
     setExpandedCardId(expandedCardId === surveyId ? null : surveyId);
   };
 
-  const handleAction = (action, surveyData) => {
+  const handleAction = async (action, surveyData) => {
     const surveyId = surveyData._id || surveyData.survey?._id;
     if (!surveyId) {
       console.error("No se encontró el ID de la encuesta:", surveyData);
@@ -173,8 +180,21 @@ export function SurveyList({
       case "map":
         router.push(`/dashboard/encuestas/${surveyId}/mapa`);
         break;
-      case "preview":
-        router.push(`/dashboard/encuestas/${surveyId}/vista-previa`);
+      case "clone":
+        try {
+          const result = await surveyService.cloneSurvey(surveyId);
+          if (result && result.success) {
+            setShowCloneSuccessModal(true);
+            if (onSurveyListChange) {
+              onSurveyListChange();
+            }
+          } else {
+            toast.error(result?.message || "Error al clonar la encuesta.");
+          }
+        } catch (error) {
+          console.error("Error cloning survey:", error);
+          toast.error("Error al clonar la encuesta: " + error.message);
+        }
         break;
       case "delete":
         onDelete(surveyId);
@@ -188,12 +208,22 @@ export function SurveyList({
     setOpenTooltipId(null);
   };
 
-  const handleConfirmDeleteAnswers = () => {
+  const handleConfirmDeleteAnswers = async () => {
     if (selectedSurveyId) {
-      onDeleteAnswers(selectedSurveyId);
-      setShowDeleteAnswersModal(false);
-      setSelectedSurveyId(null);
+      try {
+        setIsConfirmLoading(true);
+        await onDeleteAnswers(selectedSurveyId);
+      } finally {
+        setIsConfirmLoading(false);
+        setShowDeleteAnswersModal(false);
+        setSelectedSurveyId(null);
+      }
     }
+  };
+
+  const handleCloneModalClose = () => {
+    setShowCloneSuccessModal(false);
+    toast.success("Encuesta clonada con éxito");
   };
 
   const getLocalizedText = (textObj, defaultText = "Sin definir") => {
@@ -394,14 +424,6 @@ export function SurveyList({
                           Ver Mapa
                         </button>
 
-                        <button
-                          onClick={() => handleAction("preview", surveyData)}
-                          className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                        >
-                          <FileText className="w-3 h-3" />
-                          Vista Previa
-                        </button>
-
                         {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
                           <>
                             <button
@@ -448,6 +470,16 @@ export function SurveyList({
                             </button>
                           </>
                         )}
+
+                        {role === "ROLE_ADMIN" && (
+                          <button
+                            onClick={() => handleAction("clone", surveyData)}
+                            className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
+                          >
+                            <Copy className="w-3 h-3" />
+                            Clonar
+                          </button>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -461,10 +493,13 @@ export function SurveyList({
           onClose={() => setShowFinishedAlert(false)}
           onConfirm={() => setShowFinishedAlert(false)}
           title="Encuesta Finalizada"
-          message="No se pueden ingresar nuevas respuestas en encuestas finalizadas."
           confirmText="Entendido"
           showCancelButton={false}
-        />
+        >
+          <p>
+            No se pueden ingresar nuevas respuestas en encuestas finalizadas.
+          </p>
+        </ConfirmModal>
       </div>
     );
   };
@@ -698,27 +733,6 @@ export function SurveyList({
                                 <Map className="w-4 h-4" />
                               </button>
 
-                              <button
-                                data-type="action"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAction("preview", surveyData);
-                                }}
-                                onMouseEnter={(e) =>
-                                  handleTooltip(
-                                    `preview-${surveyData._id}`,
-                                    e,
-                                    true
-                                  )
-                                }
-                                onMouseLeave={() =>
-                                  handleTooltip(null, null, false)
-                                }
-                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                              >
-                                <FileText className="w-4 h-4" />
-                              </button>
-
                               {(role === "ROLE_ADMIN" ||
                                 role === "SUPERVISOR") && (
                                 <>
@@ -770,6 +784,27 @@ export function SurveyList({
 
                               {role === "ROLE_ADMIN" && (
                                 <>
+                                  <button
+                                    data-type="action"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAction("clone", surveyData);
+                                    }}
+                                    onMouseEnter={(e) =>
+                                      handleTooltip(
+                                        `clone-${surveyData._id}`,
+                                        e,
+                                        true
+                                      )
+                                    }
+                                    onMouseLeave={() =>
+                                      handleTooltip(null, null, false)
+                                    }
+                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </button>
+
                                   <button
                                     data-type="action"
                                     onClick={(e) => {
@@ -834,12 +869,12 @@ export function SurveyList({
                                     : "Responder"
                                   : openTooltipId.includes("map")
                                   ? "Ver Mapa"
-                                  : openTooltipId.includes("preview")
-                                  ? "Vista Previa"
                                   : openTooltipId.includes("progress")
                                   ? "Análisis"
                                   : openTooltipId.includes("pollsters")
                                   ? "Asignar Encuestadores"
+                                  : openTooltipId.includes("clone")
+                                  ? "Clonar"
                                   : openTooltipId.includes("deleteAnswers")
                                   ? "Eliminar Respuestas"
                                   : openTooltipId.includes("delete")
@@ -886,11 +921,30 @@ export function SurveyList({
         }}
         onConfirm={handleConfirmDeleteAnswers}
         title="Borrar respuestas"
-        message="¿Estás seguro que deseas borrar todas las respuestas de esta encuesta? Esta acción no se puede deshacer."
         confirmText="Borrar respuestas"
         cancelText="Cancelar"
         type="warning"
-      />
+        isLoading={isConfirmLoading}
+      >
+        <p>
+          ¿Estás seguro que deseas borrar todas las respuestas de esta encuesta?
+          Esta acción no se puede deshacer.
+        </p>
+      </ConfirmModal>
+
+      <ConfirmModal
+        isOpen={showCloneSuccessModal}
+        onClose={handleCloneModalClose}
+        onConfirm={handleCloneModalClose}
+        title="Encuesta Clonada"
+        confirmText="Entendido"
+        showCancelButton={false}
+      >
+        <p>
+          Encuesta clonada con éxito. Por favor, revise la sección de
+          Borradores.
+        </p>
+      </ConfirmModal>
     </>
   );
 }
