@@ -406,7 +406,7 @@ export default function NuevaEncuesta({
         description: "",
         startDate: new Date().toISOString().split("T")[0],
         endDate: new Date().toISOString().split("T")[0],
-        target: 100,
+        target: "",
       },
       participants: {
         userIds: [],
@@ -509,7 +509,8 @@ export default function NuevaEncuesta({
         return (
           surveyData.basicInfo.title.trim() !== "" &&
           surveyData.basicInfo.startDate &&
-          surveyData.basicInfo.endDate
+          surveyData.basicInfo.endDate &&
+          surveyData.basicInfo.target > 0
         );
 
       case STEPS.SISTEMA_CUOTAS:
@@ -541,6 +542,12 @@ export default function NuevaEncuesta({
       // Validation: Check if title is empty
       if (!surveyData.basicInfo.title.trim()) {
         showValidationError("No es posible crear una encuesta sin título.");
+        return; // Prevent saving
+      }
+
+      // Validation: Check if there is a target value
+      if (!surveyData.basicInfo.target || surveyData.basicInfo.target <= 0) {
+        showValidationError("Debe especificar una meta válida mayor a 0.");
         return; // Prevent saving
       }
 
@@ -915,13 +922,13 @@ export default function NuevaEncuesta({
                     }))
                   }
                   className="w-full p-3 border rounded-md"
-                  rows={4}
+                  rows={1}
                   placeholder="Describe el propósito de la encuesta"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Fecha de inicio
@@ -963,32 +970,33 @@ export default function NuevaEncuesta({
                     required
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Meta (cantidad total de encuestas)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={surveyData.basicInfo.target}
-                  onChange={(e) =>
-                    setSurveyData((prev) => ({
-                      ...prev,
-                      basicInfo: {
-                        ...prev.basicInfo,
-                        target: parseInt(e.target.value) || 0,
-                      },
-                    }))
-                  }
-                  className="w-full p-3 border rounded-md"
-                  placeholder="Ej: 100"
-                  required
-                />
-                <p className="text-xs text-[var(--text-secondary)] mt-2">
-                  Establece la cantidad total de encuestas a realizar.
-                </p>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Meta (total de encuestas){" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={surveyData.basicInfo.target}
+                    onChange={(e) =>
+                      setSurveyData((prev) => ({
+                        ...prev,
+                        basicInfo: {
+                          ...prev.basicInfo,
+                          target: parseInt(e.target.value) || "",
+                        },
+                      }))
+                    }
+                    className="w-full p-3 border rounded-md"
+                    placeholder="Ingrese la meta"
+                    required
+                  />
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    Este valor es obligatorio y se utilizará para las cuotas.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -1008,6 +1016,7 @@ export default function NuevaEncuesta({
               <QuotaManager
                 value={surveyData.quotas}
                 onChange={handleQuotasChange}
+                totalTarget={surveyData.basicInfo.target || 0}
               />
             </div>
           </div>
