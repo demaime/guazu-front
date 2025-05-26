@@ -1,3 +1,5 @@
+import withPWA from "next-pwa";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   env: {
@@ -11,7 +13,10 @@ const nextConfig = {
           { key: "Access-Control-Allow-Credentials", value: "true" },
           {
             key: "Access-Control-Allow-Origin",
-            value: "https://guazu-app.onrender.com",
+            value:
+              process.env.NODE_ENV === "development"
+                ? "http://localhost:3000"
+                : "https://guazu-app.onrender.com",
           },
           {
             key: "Access-Control-Allow-Methods",
@@ -32,8 +37,97 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: ["localhost:3000", "guazu-app.onrender.com"],
     },
-    turbo: {},
   },
 };
 
-export default nextConfig;
+// Configuración optimizada de PWA
+export default withPWA({
+  dest: "public",
+  disable: false,
+  register: true,
+  skipWaiting: true,
+  sw: "/sw.js",
+  importScripts: ["/sw-custom.js"],
+  cacheOnFrontEndNav: true,
+  buildExcludes: [
+    /app-build-manifest\.json$/,
+    /middleware-manifest\.json$/,
+    /middleware-runtime\.js$/,
+  ],
+  publicExcludes: ["!sw-addon.js", "!clear-sw.html", "!clear-sw.js"],
+  runtimeCaching: [
+    {
+      urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+      handler: "CacheFirst",
+      options: {
+        cacheName: "google-fonts",
+        expiration: {
+          maxEntries: 4,
+          maxAgeSeconds: 365 * 24 * 60 * 60,
+        },
+      },
+    },
+    {
+      urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "static-font-assets",
+      },
+    },
+    {
+      urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "static-image-assets",
+      },
+    },
+    {
+      urlPattern: /\/_next\/image\?url=.+$/i,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "next-image",
+      },
+    },
+    {
+      urlPattern: /\.(?:js)$/i,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "static-js-assets",
+      },
+    },
+    {
+      urlPattern: /\.(?:css|less)$/i,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "static-style-assets",
+      },
+    },
+    {
+      urlPattern: /\/_next\/data\/.+\/.+\.json$/i,
+      handler: "StaleWhileRevalidate",
+      options: {
+        cacheName: "next-data",
+      },
+    },
+    {
+      urlPattern: /\/api\/(?!auth\/)/i,
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "apis",
+        networkTimeoutSeconds: 10,
+        expiration: {
+          maxEntries: 50,
+          maxAgeSeconds: 60 * 60, // 1 hora
+        },
+      },
+    },
+    {
+      urlPattern: /\/api\/insert-answer/i,
+      handler: "NetworkOnly",
+      method: "POST",
+      options: {
+        cacheName: "api-answers",
+      },
+    },
+  ],
+})(nextConfig);

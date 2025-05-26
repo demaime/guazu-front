@@ -9,6 +9,9 @@ import { authService } from "@/services/auth.service";
 import { useTheme } from "@/providers/ThemeProvider";
 import { DoubleBorderLight, DoubleBorderDark } from "survey-core/themes";
 import { CheckCircle2 } from "lucide-react";
+import { toast } from "react-toastify";
+import { saveSurveyOffline, initializePouchDB } from "@/lib/pouchdb"; // Import PouchDB functions
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 // Import SurveyJS styles
 import "survey-core/survey-core.css";
@@ -44,6 +47,37 @@ export default function SurveyPage() {
   const [surveyCompletedSuccessfully, setSurveyCompletedSuccessfully] =
     useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [isOffline, setIsOffline] = useState(false);
+  const [showOfflineSaveMessage, setShowOfflineSaveMessage] = useState(false);
+  const [isOfflineForSubmit, setIsOfflineForSubmit] = useState(false);
+
+  useEffect(() => {
+    const initDB = async () => {
+      try {
+        await initializePouchDB();
+        console.log("PouchDB initialized from responder page.");
+      } catch (error) {
+        console.error("Error initializing PouchDB from responder page:", error);
+        toast.error("Error al iniciar la base de datos local.");
+      }
+    };
+    initDB();
+
+    const handleOnline = () => setIsOfflineForSubmit(false);
+    const handleOffline = () => setIsOfflineForSubmit(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    setIsOfflineForSubmit(!navigator.onLine);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Effect to handle redirection when countdown finishes
   useEffect(() => {
@@ -52,7 +86,7 @@ export default function SurveyPage() {
         clearInterval(countdownIntervalRef.current); // Ensure interval is cleared before navigation
       }
       console.log("Countdown finished, redirecting to / from useEffect...");
-      router.push("/");
+      router.push("/"); // O a la página de listado de encuestas dashboard/encuestas
     }
   }, [countdown, surveyCompletedSuccessfully, router]);
 
@@ -374,40 +408,35 @@ export default function SurveyPage() {
 
   // Handle survey completion
   const handleComplete = async (sender) => {
+    setShowOfflineSaveMessage(false);
+    setError(null);
+    setLoading(true); // Start loading
+
     try {
       const user = authService.getUser();
+      const token = localStorage.getItem("token");
 
-      // Transform the answers to use question text as keys
       const transformedAnswers = {};
-
-      // Separate object to track quota responses
       const quotaAnswers = {};
 
-      // Get all questions from the survey
       sender.getAllQuestions().forEach((question) => {
         const questionName = question.name;
-        const questionText = question.title;
+        const questionText = question.title || question.name; // Use name as fallback for title
         const answer = sender.data[questionName];
-
-        // Check if this is a quota question
         const isQuotaQuestion = questionName.startsWith("quota_");
 
         if (answer !== undefined) {
-          // Save quota answers in a separate object
           if (isQuotaQuestion) {
             const quotaCategory = questionText;
             quotaAnswers[quotaCategory] = answer;
           }
 
-          // Handle different question types
           if (Array.isArray(answer)) {
-            // For checkbox questions that have multiple answers
             transformedAnswers[questionText] = answer.map((value) => {
               const choice = question.choices?.find((c) => c.value === value);
               return choice?.text || value;
             });
           } else if (typeof answer === "object" && answer !== null) {
-            // For matrix or panel dynamic questions
             transformedAnswers[questionText] = {};
             Object.entries(answer).forEach(([key, value]) => {
               const row = question.rows?.find((r) => r.value === key);
@@ -416,73 +445,24 @@ export default function SurveyPage() {
                 col?.text || value;
             });
           } else {
-            // For simple questions (radiogroup, text, etc)
             const choice = question.choices?.find((c) => c.value === answer);
             transformedAnswers[questionText] = choice?.text || answer;
           }
         }
       });
 
-      // First, check if the quota is still available
-      if (Object.keys(quotaAnswers).length > 0) {
-        try {
-          // Fetch the current survey to check quota availability
-          const surveyResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/survey/${id}`,
-            {
-              headers: {
-                Authorization: localStorage.getItem("token"),
-              },
-            }
-          );
-
-          if (!surveyResponse.ok) {
-            throw new Error("Error al verificar disponibilidad de cuotas");
-          }
-
-          const surveyData = await surveyResponse.json();
-          const survey = surveyData.survey;
-
-          // Check if the selected quota is already full
-          if (survey.surveyInfo && survey.surveyInfo.quotas) {
-            let isQuotaFull = false;
-            let fullQuotaMessage = "";
-
-            survey.surveyInfo.quotas.forEach((quota) => {
-              const selectedSegment = quotaAnswers[quota.category];
-
-              if (selectedSegment) {
-                const segment = quota.segments.find(
-                  (s) => s.name === selectedSegment
-                );
-
-                if (segment && segment.current >= segment.target) {
-                  isQuotaFull = true;
-                  fullQuotaMessage = `La cuota para "${quota.category}: ${selectedSegment}" ya está completa (${segment.current}/${segment.target}).`;
-                }
-              }
-            });
-
-            if (isQuotaFull) {
-              setError(fullQuotaMessage);
-              return;
-            }
-          }
-        } catch (quotaError) {
-          console.error("Error al verificar cuotas:", quotaError);
-          // Continue with submission even if quota check fails
-        }
-      }
-
       const answerData = {
         surveyId: id,
+        _id: `survey_${id}_${user?._id || "anon"}_${new Date().getTime()}`, // More robust unique ID
         fullName: user?.fullName,
+        userId: user?._id,
         answer: transformedAnswers,
-        quotaAnswers: quotaAnswers, // Include quota answers separately
+        quotaAnswers: quotaAnswers,
         createdAt: new Date().toISOString(),
+        time: sender.timeSpent,
+        authToken: token, // Include token for SW to use during sync
       };
 
-      // Get geolocation if available
       if (navigator.geolocation) {
         try {
           const position = await new Promise((resolve, reject) => {
@@ -492,177 +472,228 @@ export default function SurveyPage() {
               maximumAge: 0,
             });
           });
-
           answerData.lat = position.coords.latitude;
           answerData.lng = position.coords.longitude;
         } catch (geoError) {
-          console.warn("Could not get geolocation:", geoError);
+          console.warn("No se pudo obtener geolocalización:", geoError);
         }
       }
 
-      // Add time spent
-      answerData.time = sender.timeSpent;
+      // --- Intent de Envío de Encuesta ---
+      if (isOfflineForSubmit || !navigator.onLine) {
+        console.log(
+          "Dispositivo offline detectado, guardando en PouchDB y registrando para sync."
+        );
+        try {
+          await saveSurveyOffline(answerData);
+          console.log(
+            "Encuesta guardada en PouchDB para sync:",
+            answerData._id
+          );
+          setShowOfflineSaveMessage(true);
+          setSurveyCompletedSuccessfully(true);
+          toast.info(
+            "Encuesta guardada localmente. Se enviará cuando recuperes la conexión."
+          );
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: localStorage.getItem("token"),
-          },
-          body: JSON.stringify(answerData),
+          // Ahora hacemos el fetch para que BackgroundSyncPlugin lo registre
+          // El SW no devolverá un JSON con offline:true aquí si BackgroundSyncPlugin lo maneja.
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: token, // Token for the initial attempt if online, SW will use stored one
+            },
+            body: JSON.stringify(answerData), // Send the full answerData
+          })
+            .then((response) => {
+              if (response.ok) {
+                console.log(
+                  "CLIENT: Survey submitted successfully online immediately (this pathway might be unexpected if offline was detected)."
+                );
+              } else {
+                console.log(
+                  "CLIENT: Initial POST to /api/insert-answer failed with status: ",
+                  response.status,
+                  ". Background Sync should take over if SW is active and request was eligible."
+                );
+              }
+            })
+            .catch((error) => {
+              console.warn(
+                "CLIENT: Initial POST to /api/insert-answer failed locally (e.g., net::ERR_INTERNET_DISCONNECTED). Error:",
+                error.message,
+                ". Background Sync should take over if SW is active."
+              );
+            });
+
+          startCountdown();
+          setLoading(false);
+          return;
+        } catch (pouchDbError) {
+          console.error("Error al guardar en PouchDB:", pouchDbError);
+          setError(
+            "Error al guardar la encuesta localmente. Intenta de nuevo o contacta a soporte."
+          );
+          toast.error(
+            "Error al guardar la encuesta localmente. Revisa la consola para más detalles."
+          );
+          setLoading(false);
+          return;
         }
-      );
+      }
+
+      // --- Online Submission ---
+      console.log("Dispositivo Online: Intentando envío directo al servidor.");
+      let submitEndpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`;
+      const response = await fetch(submitEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token,
+        },
+        body: JSON.stringify(answerData), // Send the full answerData
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to save survey response");
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: "Error desconocido del servidor." }));
+        console.error(
+          "Error del servidor al enviar la encuesta:",
+          response.status,
+          errorData
+        );
+        // Attempt to save to PouchDB as a fallback if online submission fails
+        try {
+          console.warn(
+            "Online submission failed, attempting to save to PouchDB as fallback."
+          );
+          await saveSurveyOffline(answerData);
+          setShowOfflineSaveMessage(true); // Inform user it's saved locally
+          setSurveyCompletedSuccessfully(true); // Consider it completed from user's perspective
+          toast.error(
+            `El servidor devolvió un error (${response.status}). La encuesta se guardó localmente y se enviará más tarde.`
+          );
+          startCountdown();
+        } catch (fallbackSaveError) {
+          console.error(
+            "Error al guardar en PouchDB como fallback:",
+            fallbackSaveError
+          );
+          setError(
+            `Error del servidor: ${
+              errorData.message || response.statusText
+            }. No se pudo guardar localmente como respaldo.`
+          );
+          toast.error("Falló el envío y el guardado local de respaldo.");
+        }
+        setLoading(false);
+        return;
       }
 
-      // Survey saved successfully.
-      // Set state to show custom completion message and start countdown.
+      const responseData = await response.json();
+      console.log("Encuesta enviada con éxito:", responseData);
       setSurveyCompletedSuccessfully(true);
-      setCountdown(5); // Reset countdown to 5 seconds
-
-      // Clear any existing redirect timer (though this path might not need it, good practice)
-      if (redirectTimerRef.current) {
-        clearTimeout(redirectTimerRef.current);
-      }
-      // Clear any existing countdown interval
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-
-      countdownIntervalRef.current = setInterval(() => {
-        setCountdown((prevCountdown) => {
-          if (prevCountdown <= 1) {
-            clearInterval(countdownIntervalRef.current);
-            // router.push("/"); // Redirect when countdown finishes - MOVED TO useEffect
-            return 0;
-          }
-          return prevCountdown - 1;
-        });
-      }, 1000);
-
-      // No need for the separate 5s redirectTimer anymore, as the interval handles it.
-    } catch (err) {
-      console.error("Error saving survey:", err);
-      setError("Failed to save survey response");
+      toast.success("¡Encuesta enviada con éxito!");
+      startCountdown();
+    } catch (error) {
+      console.error("Error general en handleComplete:", error);
+      setError(
+        error.message || "Ocurrió un error inesperado al procesar la encuesta."
+      );
+      toast.error(error.message || "Ocurrió un error inesperado.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const startCountdown = () => {
+    setCountdown(5);
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownIntervalRef.current);
+          router.push("/dashboard/encuestas");
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   if (surveyCompletedSuccessfully) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-          padding: "20px",
-          textAlign: "center",
-          backgroundColor: "var(--background)",
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: "#00c951",
-            borderRadius: "50%",
-            width: "64px",
-            height: "64px",
-            margin: "0 auto 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontSize: "32px",
-          }}
-        >
-          ✓
+      <div className="p-8 flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="bg-green-50 dark:bg-green-900 p-8 rounded-lg shadow-md max-w-2xl w-full">
+          <div className="mb-4 flex justify-center">
+            <CheckCircle2
+              size={80}
+              className="text-green-500 dark:text-green-400"
+            />
+          </div>
+          <h1 className="text-2xl font-bold mb-4 text-green-700 dark:text-green-300">
+            ¡Encuesta completada con éxito!
+          </h1>
+          <p className="mb-6 text-gray-600 dark:text-gray-300">
+            {showOfflineSaveMessage
+              ? "La encuesta ha sido guardada localmente y se enviará automáticamente cuando recuperes conexión a internet."
+              : "Gracias por tu participación. Tu respuesta ha sido registrada."}
+          </p>
+
+          {isOffline ? (
+            <>
+              <div className="mt-4 bg-yellow-100 p-4 rounded-md border border-yellow-300">
+                <p className="text-yellow-800 font-medium">
+                  Estás en modo offline
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Tu encuesta se ha guardado localmente y se sincronizará cuando
+                  vuelvas a tener conexión.
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Puedes seguir completando otras encuestas en modo offline.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push("/dashboard/encuestas")}
+                className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
+              >
+                Ver otras encuestas
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Redirigiendo a la página principal en {countdown} segundos...
+              </p>
+              <button
+                onClick={() => router.push("/")}
+                className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
+              >
+                Volver ahora
+              </button>
+            </>
+          )}
         </div>
-        <h3
-          style={{
-            color: "var(--primary)",
-            fontSize: "28px",
-            fontWeight: 700,
-            marginBottom: "20px",
-          }}
-        >
-          ¡Encuesta completada!
-        </h3>
-        <div
-          style={{
-            color: "var(--text-primary)",
-            fontSize: "18px",
-            fontWeight: 500,
-            lineHeight: 1.5,
-            marginBottom: "25px",
-          }}
-        >
-          ¡Muchas gracias por tu tiempo y participación en la encuesta!
-          <br />
-          <br />
-          El caso se guardó correctamente.
-          <br />
-          <br />
-          <span
-            style={{
-              display: "block",
-              marginTop: "10px",
-              fontSize: "16px",
-              color: "var(--text-secondary)",
-              padding: "5px 10px",
-              borderRadius: "4px",
-              backgroundColor: "rgba(0, 0, 0, 0.03)",
-            }}
-            dangerouslySetInnerHTML={{
-              __html:
-                countdown > 0
-                  ? `Serás redirigido al inicio en <strong>${countdown}</strong> segundos...`
-                  : "Redirigiendo...",
-            }}
-          />
-        </div>
-        <button
-          onClick={() => {
-            if (countdownIntervalRef.current) {
-              clearInterval(countdownIntervalRef.current);
-            }
-            router.push("/");
-          }}
-          style={{
-            backgroundColor: "var(--primary)",
-            color: "white",
-            border: "none",
-            padding: "8px 24px",
-            borderRadius: "6px",
-            fontWeight: 600,
-            cursor: "pointer",
-            margin: "0 auto",
-            display: "block",
-          }}
-        >
-          Volver al Inicio
-        </button>
       </div>
     );
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
-      </div>
-    );
+    return <div className="p-4">Cargando encuesta...</div>;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
+      <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+        <h2 className="text-lg font-bold mb-2">Error</h2>
+        <p>{error}</p>
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          Volver al panel
+        </button>
       </div>
     );
   }
@@ -676,10 +707,24 @@ export default function SurveyPage() {
   }
 
   return (
-    <div className="container mx-auto px-0 sm:px-4 py-2 sm:py-8">
-      <div className="bg-card-background rounded-lg shadow-sm border border-card-border p-1 sm:p-6">
-        <Survey model={surveyModel} onComplete={handleComplete} />
+    <>
+      {isOffline && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+          <div className="flex">
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                Estás en modo offline. Podrás completar la encuesta y se
+                guardará localmente para sincronizar cuando tengas conexión.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="survey-container p-4">
+        {surveyModel && (
+          <Survey model={surveyModel} onComplete={handleComplete} />
+        )}
       </div>
-    </div>
+    </>
   );
 }

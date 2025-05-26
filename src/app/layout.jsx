@@ -4,6 +4,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { Mulish } from "next/font/google";
 import { ClientThemeWrapper } from "@/components/ClientThemeWrapper";
 import { ToastContainer } from "react-toastify";
+import ServiceWorkerWrapper from "@/components/ServiceWorkerWrapper";
 
 const mulish = Mulish({
   subsets: ["latin"],
@@ -13,8 +14,15 @@ const mulish = Mulish({
 export default function RootLayout({ children }) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/logo-mini.png" />
+        <meta name="theme-color" content="#3B82F6" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      </head>
       <body className={mulish.className}>
         <ClientThemeWrapper>
+          <ServiceWorkerWrapper />
           {children}
           <ToastContainer
             position="bottom-right"
