@@ -189,6 +189,8 @@ async function syncPendingSurveys() {
     `SW-CUSTOM: Found ${pendingSurveysList.length} survey(s) to sync.`
   );
 
+  let successfullySyncedCount = 0;
+
   for (const survey of pendingSurveysList) {
     const surveyIdString = String(survey._id);
     // Exclude PouchDB internal fields and potentially sensitive/redundant fields for the POST body
@@ -245,6 +247,7 @@ async function syncPendingSurveys() {
           `SW-CUSTOM: Survey ${surveyIdString} sent successfully to server. Status: ${response.status}`
         );
         await deleteSurveyOffline(surveyIdString); // Or markAsSubmitted(surveyIdString)
+        successfullySyncedCount++;
       } else {
         const errorBody = await response
           .text()
@@ -280,6 +283,21 @@ async function syncPendingSurveys() {
     }
   }
   console.log("SW-CUSTOM: Pending survey sync process completed.");
+  // Enviar mensaje a los clientes sobre el resultado de la sincronización
+  if (successfullySyncedCount > 0) {
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        if (clients && clients.length) {
+          clients.forEach((client) => {
+            client.postMessage({
+              type: "SURVEYS_SYNCED",
+              count: successfullySyncedCount,
+            });
+          });
+        }
+      });
+  }
 }
 
 self.addEventListener("sync", (event) => {

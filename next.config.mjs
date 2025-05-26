@@ -129,5 +129,17 @@ export default withPWA({
         cacheName: "api-answers",
       },
     },
+    {
+      urlPattern: ({ request }) => request.mode === "navigate",
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "pages-cache",
+        expiration: {
+          maxEntries: 50,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
+        },
+        networkTimeoutSeconds: 5, // Intenta la red por 5 segundos antes de ir a la caché
+      },
+    },
   ],
 })(nextConfig);

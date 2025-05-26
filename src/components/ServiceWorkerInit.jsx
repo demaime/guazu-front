@@ -44,7 +44,6 @@ export default function ServiceWorkerInit() {
               );
               if (e.target.state === "activated") {
                 setSwReady(true);
-                toast.success("Funcionalidad offline activada");
               }
             });
           } else if (registration.waiting) {
@@ -66,9 +65,9 @@ export default function ServiceWorkerInit() {
                 newWorker.state === "installed" &&
                 navigator.serviceWorker.controller
               ) {
-                toast.info(
-                  "Nueva versión disponible. Actualiza la página para aplicar los cambios."
-                );
+                // toast.info(
+                //   "Nueva versión disponible. Actualiza la página para aplicar los cambios."
+                // );
               }
             });
           });
@@ -166,10 +165,35 @@ export default function ServiceWorkerInit() {
     // Establecer estado inicial
     setOfflineMode(!navigator.onLine);
 
+    // Listener para mensajes del Service Worker
+    const handleServiceWorkerMessage = (event) => {
+      if (event.data && event.data.type === "SURVEYS_SYNCED") {
+        const count = event.data.count;
+        if (count === 1) {
+          toast.success(
+            "¡1 encuesta local ha sido sincronizada con el servidor!"
+          );
+        } else {
+          toast.success(
+            `¡${count} encuestas locales han sido sincronizadas con el servidor!`
+          );
+        }
+      }
+    };
+
+    navigator.serviceWorker.addEventListener(
+      "message",
+      handleServiceWorkerMessage
+    );
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("load", initializeServiceWorker);
+      navigator.serviceWorker.removeEventListener(
+        "message",
+        handleServiceWorkerMessage
+      );
     };
   }, []);
 
