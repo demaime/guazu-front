@@ -527,7 +527,7 @@ export default function SurveyPage() {
               );
             });
 
-          startCountdown();
+          // startCountdown(); // Comentado para pruebas en móvil
           setLoading(false);
           return;
         } catch (pouchDbError) {
@@ -538,9 +538,11 @@ export default function SurveyPage() {
           toast.error(
             "Error al guardar la encuesta localmente. Revisa la consola para más detalles."
           );
-          setLoading(false);
-          return;
+          setSurveyCompletedSuccessfully(true); // Consider it completed from user's perspective
+          // startCountdown(); // Comentado para pruebas en móvil
         }
+        setLoading(false);
+        return;
       }
 
       // --- Online Submission ---
@@ -575,7 +577,7 @@ export default function SurveyPage() {
           toast.error(
             `El servidor devolvió un error (${response.status}). La encuesta se guardó localmente y se enviará más tarde.`
           );
-          startCountdown();
+          // startCountdown(); // Comentado para pruebas en móvil
         } catch (fallbackSaveError) {
           console.error(
             "Error al guardar en PouchDB como fallback:",
@@ -596,7 +598,7 @@ export default function SurveyPage() {
       console.log("Encuesta enviada con éxito:", responseData);
       setSurveyCompletedSuccessfully(true);
       toast.success("¡Encuesta enviada con éxito!");
-      startCountdown();
+      // startCountdown(); // Comentado para pruebas en móvil
     } catch (error) {
       console.error("Error general en handleComplete:", error);
       setError(
