@@ -25,9 +25,11 @@ const spanishLocalization = {
   completeText: "Finalizar",
   requiredText: "",
   requiredError: "Este campo es obligatorio.",
+  requiredInAllRowsError:
+    "Por favor responda las preguntas en todas las filas.",
   emptySurvey: "No hay página visible o pregunta en la encuesta.",
   questionsProgressText: "Respondido {0}/{1} preguntas",
-  completingSurvey: "¡Gracias por completar la encuesta de Santa Fe!",
+  completingSurvey: "¡Gracias por completar la encuesta!",
   completingSurveyBefore: "Ya has completado esta encuesta anteriormente.",
 };
 
@@ -722,7 +724,7 @@ export default function SurveyPage() {
           </div>
         </div>
       )}
-      <div className="survey-container p-4">
+      <div className="survey-container">
         {surveyModel && (
           <Survey model={surveyModel} onComplete={handleComplete} />
         )}

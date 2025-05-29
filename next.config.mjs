@@ -43,7 +43,7 @@ const nextConfig = {
 // Configuración optimizada de PWA
 export default withPWA({
   dest: "public",
-  disable: false,
+  disable: process.env.NODE_ENV === "development",
   register: true,
   skipWaiting: true,
   sw: "/sw.js",

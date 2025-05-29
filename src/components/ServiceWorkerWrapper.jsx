@@ -15,6 +15,9 @@ export default function ServiceWorkerWrapper() {
     setIsClient(true);
   }, []);
 
+  // No renderizar nada en desarrollo
+  if (process.env.NODE_ENV === "development") return null;
+
   // Solo renderizar el componente ServiceWorkerInit en el cliente
   if (!isClient) return null;
 

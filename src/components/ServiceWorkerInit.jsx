@@ -12,6 +12,12 @@ export default function ServiceWorkerInit() {
   const [swReady, setSwReady] = useState(false);
 
   useEffect(() => {
+    // Solo inicializar Service Worker en producción
+    if (process.env.NODE_ENV === "development") {
+      console.log("Service Worker deshabilitado en modo desarrollo");
+      return;
+    }
+
     // Inicializar Service Worker
     if ("serviceWorker" in navigator) {
       const initializeServiceWorker = async () => {
