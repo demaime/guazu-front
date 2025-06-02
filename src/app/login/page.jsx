@@ -20,12 +20,15 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       try {
-        if (authService.isAuthenticated()) {
-          router.replace("/dashboard");
+        const isAuth = await authService.isAuthenticated();
+        if (isAuth) {
+          setIsRedirecting(true);
+          router.push("/dashboard");
         }
       } catch (error) {
         console.error("Error checking authentication:", error);
@@ -34,7 +37,7 @@ export default function LoginPage() {
       }
     };
 
-    setTimeout(checkAuth, 100);
+    checkAuth();
   }, [router]);
 
   const handleSubmit = async (e) => {
@@ -43,16 +46,21 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await authService.login(
+      const loginResult = await authService.login(
         formData.email,
         formData.password,
         formData.rememberMe
       );
 
-      setIsFadingOut(true);
-      setTimeout(() => {
-        router.replace("/dashboard");
-      }, 500);
+      if (loginResult) {
+        setIsFadingOut(true);
+        setIsRedirecting(true);
+        // Pequeña pausa para mostrar el estado de redirección
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        router.push("/dashboard");
+      } else {
+        setError("Error de autenticación");
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -68,8 +76,19 @@ export default function LoginPage() {
     }));
   };
 
-  if (isPageLoading) {
-    return <LoaderWrapper size="xl" fullScreen />;
+  if (isPageLoading || isRedirecting) {
+    return (
+      <LoaderWrapper size="xl" fullScreen>
+        {isRedirecting && (
+          <div className="text-[var(--text-primary)] text-center mt-4">
+            <h2 className="text-xl font-semibold mb-2">¡Login exitoso!</h2>
+            <p className="text-[var(--text-secondary)]">
+              Redirigiendo al dashboard...
+            </p>
+          </div>
+        )}
+      </LoaderWrapper>
+    );
   }
 
   return (

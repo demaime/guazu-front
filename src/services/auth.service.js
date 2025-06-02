@@ -49,17 +49,25 @@ class AuthService {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(userData.user));
 
-      document.cookie = `token=${token}; path=/; ${
+      document.cookie = `token=${token}; path=/; SameSite=Strict; ${
         rememberMe ? "max-age=2592000" : ""
       }`;
-      document.cookie = `user=${JSON.stringify(userData.user)}; path=/;`;
+      document.cookie = `user=${JSON.stringify(
+        userData.user
+      )}; path=/; SameSite=Strict;`;
+
+      const storedToken = this.getToken();
+      const storedUser = this.getUser();
+
+      if (!storedToken || !storedUser) {
+        throw new Error("Error al establecer la sesión");
+      }
 
       return {
         token: token,
         user: userData.user,
       };
     } catch (error) {
-      // eslint-disable-next-line no-useless-catch
       this.logout();
       throw error;
     }
@@ -205,9 +213,32 @@ class AuthService {
   }
 
   isAuthenticated() {
-    const token = this.getToken();
-    const user = this.getUser();
-    return Boolean(token && user);
+    try {
+      const token = this.getToken();
+      const user = this.getUser();
+
+      if (!token || !user) {
+        return false;
+      }
+
+      const cookies = document.cookie.split(";").reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        acc[key] = value;
+        return acc;
+      }, {});
+
+      if (!cookies.token || !cookies.user) {
+        document.cookie = `token=${token}; path=/; SameSite=Strict;`;
+        document.cookie = `user=${JSON.stringify(
+          user
+        )}; path=/; SameSite=Strict;`;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error checking authentication:", error);
+      return false;
+    }
   }
 }
 
