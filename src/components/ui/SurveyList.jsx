@@ -19,6 +19,7 @@ import {
   ArrowDown,
   FileText,
   Copy,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
@@ -56,6 +57,145 @@ export function SurveyList({
   });
   const [showCloneSuccessModal, setShowCloneSuccessModal] = useState(false);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
+
+  // Estados para feedback visual de botones
+  const [buttonLoadingStates, setButtonLoadingStates] = useState({});
+  const [buttonClickedStates, setButtonClickedStates] = useState({});
+
+  // Funciones helper para feedback visual
+  const setButtonLoading = (actionKey, isLoading) => {
+    setButtonLoadingStates((prev) => ({ ...prev, [actionKey]: isLoading }));
+  };
+
+  const setButtonClicked = (actionKey, isClicked) => {
+    setButtonClickedStates((prev) => ({ ...prev, [actionKey]: isClicked }));
+  };
+
+  const getButtonKey = (action, surveyId) => `${action}-${surveyId}`;
+
+  const showSuccessFeedback = (actionKey) => {
+    setButtonClicked(actionKey, true);
+
+    setTimeout(() => {
+      setButtonClicked(actionKey, false);
+    }, 800); // Increased duration for better visual feedback
+  };
+
+  // Componente de botón con feedback visual
+  const ActionButton = ({
+    action,
+    surveyData,
+    icon: Icon,
+    text,
+    className = "",
+    variant = "mobile",
+  }) => {
+    const buttonKey = getButtonKey(action, surveyData._id);
+    const isLoading = buttonLoadingStates[buttonKey];
+    const isClicked = buttonClickedStates[buttonKey];
+
+    const baseClasses =
+      variant === "mobile"
+        ? "mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-all duration-200 relative overflow-hidden"
+        : "p-1.5 rounded-md transition-all duration-200 cursor-pointer relative overflow-hidden";
+
+    const iconSize = variant === "mobile" ? "w-3 h-3" : "w-4 h-4";
+    const mobileBackground =
+      action === "answer"
+        ? role === "ROLE_ADMIN" || role === "SUPERVISOR"
+          ? "bg-blue-500/80 hover:bg-blue-500"
+          : "bg-white/10 hover:bg-white/20"
+        : action === "deleteAnswers" || action === "delete"
+        ? "bg-red-500/80 hover:bg-red-500"
+        : "bg-white/10 hover:bg-white/20";
+
+    const successClasses = isClicked
+      ? "bg-green-500 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-400/50"
+      : "";
+
+    const loadingClasses = isLoading
+      ? "opacity-80 cursor-wait"
+      : "hover:scale-105 active:scale-95";
+
+    const finalClassName =
+      variant === "mobile"
+        ? `${baseClasses} ${mobileBackground} text-white ${successClasses} ${loadingClasses} ${className}`
+        : `${baseClasses} ${className} ${successClasses} ${loadingClasses}`;
+
+    return (
+      <motion.button
+        onClick={(e) => {
+          if (variant === "desktop") {
+            e.stopPropagation();
+          }
+          handleAction(action, surveyData);
+        }}
+        className={finalClassName}
+        disabled={isLoading}
+        whileTap={!isLoading ? { scale: 0.95 } : {}}
+        whileHover={!isLoading ? { scale: 1.05 } : {}}
+        animate={
+          isClicked
+            ? {
+                scale: [1, 1.15, 1],
+                rotate: [0, 5, -5, 0],
+                transition: {
+                  duration: 0.5,
+                  ease: "easeInOut",
+                },
+              }
+            : {}
+        }
+        data-type="action"
+      >
+        {/* Ripple effect para el click */}
+        {isClicked && (
+          <motion.div
+            className="absolute inset-0 bg-green-400 rounded-md"
+            initial={{ scale: 0, opacity: 1 }}
+            animate={{ scale: 2, opacity: 0 }}
+            transition={{ duration: 0.6 }}
+          />
+        )}
+
+        {/* Pulse effect para loading */}
+        {isLoading && (
+          <motion.div
+            className="absolute inset-0 bg-blue-400/30 rounded-md"
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.6, 0.3],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        )}
+
+        <div className="relative z-10">
+          {isLoading ? (
+            <Loader2 className={`${iconSize} animate-spin`} />
+          ) : (
+            <Icon className={iconSize} />
+          )}
+        </div>
+
+        {text && variant === "mobile" && (
+          <span className={`relative z-10 ${isLoading ? "opacity-70" : ""}`}>
+            {isLoading
+              ? action === "answer"
+                ? "Cargando..."
+                : action === "clone"
+                ? "Clonando..."
+                : "..."
+              : text}
+          </span>
+        )}
+      </motion.button>
+    );
+  };
 
   const rowVariants = {
     hidden: { opacity: 0, x: -10 },
@@ -153,37 +293,69 @@ export function SurveyList({
       return;
     }
 
-    switch (action) {
-      case "edit":
-        router.push(`/dashboard/encuestas/${surveyId}/editar`);
-        break;
-      case "answer":
-        if (isFinished) {
-          setShowFinishedAlert(true);
-        } else {
-          const isTestMode = role === "ROLE_ADMIN" || role === "SUPERVISOR";
-          const url = `/dashboard/encuestas/${surveyId}/responder${
-            isTestMode ? "?mode=test" : ""
-          }`;
-          router.push(url);
-        }
-        break;
-      case "quotas":
-        router.push(`/dashboard/encuestas/${surveyId}/cuotas`);
-        break;
-      case "progress":
-        router.push(`/dashboard/encuestas/${surveyId}/progreso`);
-        break;
-      case "pollsters":
-        router.push(`/dashboard/encuestas/${surveyId}/encuestadores`);
-        break;
-      case "map":
-        router.push(`/dashboard/encuestas/${surveyId}/mapa`);
-        break;
-      case "clone":
-        try {
+    const buttonKey = getButtonKey(action, surveyId);
+
+    // Mostrar loading para acciones que requieren tiempo
+    if (action === "answer" || action === "clone") {
+      setButtonLoading(buttonKey, true);
+    }
+
+    try {
+      switch (action) {
+        case "edit":
+          setButtonClicked(buttonKey, true);
+          setTimeout(() => {
+            router.push(`/dashboard/encuestas/${surveyId}/editar`);
+          }, 150);
+          break;
+        case "answer":
+          if (isFinished) {
+            setShowFinishedAlert(true);
+            setButtonLoading(buttonKey, false);
+          } else {
+            // Simular un pequeño delay para mostrar feedback
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            const isTestMode = role === "ROLE_ADMIN" || role === "SUPERVISOR";
+            const url = `/dashboard/encuestas/${surveyId}/responder${
+              isTestMode ? "?mode=test" : ""
+            }`;
+            showSuccessFeedback(buttonKey);
+            // Cerrar el menú
+            setExpandedActionsId(null);
+            // Esperar un momento antes de navegar para que se vea el feedback
+            setTimeout(() => {
+              router.push(url);
+            }, 200);
+          }
+          break;
+        case "quotas":
+          setButtonClicked(buttonKey, true);
+          setTimeout(() => {
+            router.push(`/dashboard/encuestas/${surveyId}/cuotas`);
+          }, 150);
+          break;
+        case "progress":
+          setButtonClicked(buttonKey, true);
+          setTimeout(() => {
+            router.push(`/dashboard/encuestas/${surveyId}/progreso`);
+          }, 150);
+          break;
+        case "pollsters":
+          setButtonClicked(buttonKey, true);
+          setTimeout(() => {
+            router.push(`/dashboard/encuestas/${surveyId}/encuestadores`);
+          }, 150);
+          break;
+        case "map":
+          setButtonClicked(buttonKey, true);
+          setTimeout(() => {
+            router.push(`/dashboard/encuestas/${surveyId}/mapa`);
+          }, 150);
+          break;
+        case "clone":
           const result = await surveyService.cloneSurvey(surveyId);
           if (result && result.success) {
+            showSuccessFeedback(buttonKey);
             setShowCloneSuccessModal(true);
             if (onSurveyListChange) {
               onSurveyListChange();
@@ -191,21 +363,26 @@ export function SurveyList({
           } else {
             toast.error(result?.message || "Error al clonar la encuesta.");
           }
-        } catch (error) {
-          console.error("Error cloning survey:", error);
-          toast.error("Error al clonar la encuesta: " + error.message);
-        }
-        break;
-      case "delete":
-        onDelete(surveyId);
-        break;
-      case "deleteAnswers":
-        setSelectedSurveyId(surveyId);
-        setShowDeleteAnswersModal(true);
-        break;
+          break;
+        case "delete":
+          onDelete(surveyId);
+          break;
+        case "deleteAnswers":
+          setSelectedSurveyId(surveyId);
+          setShowDeleteAnswersModal(true);
+          break;
+        default:
+          console.log("Acción no reconocida:", action);
+      }
+    } catch (error) {
+      console.error(`Error en la acción ${action}:`, error);
+      toast.error(`Error al ejecutar la acción: ${error.message}`);
+    } finally {
+      // Limpiar loading state
+      if (action === "answer" || action === "clone") {
+        setButtonLoading(buttonKey, false);
+      }
     }
-    setExpandedActionsId(null);
-    setOpenTooltipId(null);
   };
 
   const handleConfirmDeleteAnswers = async () => {
@@ -388,97 +565,91 @@ export function SurveyList({
                       <div className="grid grid-cols-2 gap-2">
                         {role === "ROLE_ADMIN" && (
                           <>
-                            <button
-                              onClick={() => handleAction("edit", surveyData)}
-                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                            >
-                              <Edit className="w-3 h-3" />
-                              Editar
-                            </button>
+                            <ActionButton
+                              action="edit"
+                              surveyData={surveyData}
+                              icon={Edit}
+                              text="Editar"
+                              variant="mobile"
+                            />
                           </>
                         )}
 
                         {role === "ROLE_ADMIN" || role === "SUPERVISOR" ? (
-                          <button
-                            onClick={() => handleAction("answer", surveyData)}
-                            className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-blue-500/80 hover:bg-blue-500 text-white rounded-md transition-colors"
-                          >
-                            <TestTube2 className="w-3 h-3" />
-                            Prueba Local
-                          </button>
+                          <ActionButton
+                            action="answer"
+                            surveyData={surveyData}
+                            icon={TestTube2}
+                            text="Prueba Local"
+                            variant="mobile"
+                          />
                         ) : (
-                          <button
-                            onClick={() => handleAction("answer", surveyData)}
-                            className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                          >
-                            <Play className="w-3 h-3" />
-                            Responder
-                          </button>
+                          <ActionButton
+                            action="answer"
+                            surveyData={surveyData}
+                            icon={Play}
+                            text="Responder"
+                            variant="mobile"
+                          />
                         )}
 
-                        <button
-                          onClick={() => handleAction("map", surveyData)}
-                          className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                        >
-                          <Map className="w-3 h-3" />
-                          Ver Mapa
-                        </button>
+                        <ActionButton
+                          action="map"
+                          surveyData={surveyData}
+                          icon={Map}
+                          text="Ver Mapa"
+                          variant="mobile"
+                        />
 
                         {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
                           <>
-                            <button
-                              onClick={() =>
-                                handleAction("progress", surveyData)
-                              }
-                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                            >
-                              <BarChart3 className="w-3 h-3" />
-                              Progreso
-                            </button>
+                            <ActionButton
+                              action="progress"
+                              surveyData={surveyData}
+                              icon={BarChart3}
+                              text="Progreso"
+                              variant="mobile"
+                            />
                           </>
                         )}
 
                         {role === "SUPERVISOR" && (
-                          <button
-                            onClick={() =>
-                              handleAction("pollsters", surveyData)
-                            }
-                            className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors col-span-2"
-                          >
-                            <Users className="w-3 h-3" />
-                            Asignar Encuestadores
-                          </button>
+                          <ActionButton
+                            action="pollsters"
+                            surveyData={surveyData}
+                            icon={Users}
+                            text="Asignar Encuestadores"
+                            variant="mobile"
+                            className="col-span-2"
+                          />
                         )}
 
                         {role === "ROLE_ADMIN" && (
                           <>
-                            <button
-                              onClick={() =>
-                                handleAction("deleteAnswers", surveyData)
-                              }
-                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-red-500/80 hover:bg-red-500 text-white rounded-md transition-colors"
-                            >
-                              <ClipboardX className="w-3 h-3" />
-                              Eliminar Respuestas
-                            </button>
-                            <button
-                              onClick={() => handleAction("delete", surveyData)}
-                              className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-red-500/80 hover:bg-red-500 text-white rounded-md transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              Eliminar Encuesta
-                            </button>
-                          </>
-                        )}
+                            <ActionButton
+                              action="clone"
+                              surveyData={surveyData}
+                              icon={Copy}
+                              text="Clonar"
+                              variant="mobile"
+                            />
 
-                        {role === "ROLE_ADMIN" && (
-                          <button
-                            onClick={() => handleAction("clone", surveyData)}
-                            className="mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-md transition-colors"
-                          >
-                            <Copy className="w-3 h-3" />
-                            Clonar
-                          </button>
+                            <ActionButton
+                              action="deleteAnswers"
+                              surveyData={surveyData}
+                              icon={ClipboardX}
+                              text="Eliminar Respuestas"
+                              variant="mobile"
+                            />
+
+                            <ActionButton
+                              action="delete"
+                              surveyData={surveyData}
+                              icon={Trash2}
+                              text="Eliminar Encuesta"
+                              variant="mobile"
+                            />
+                          </>
                         )}
                       </div>
                     </div>
@@ -642,210 +813,91 @@ export function SurveyList({
                             <div className="flex items-center gap-1 px-2 py-1 rounded-md shadow-lg dark:bg-[var(--card-background)] bg-[var(--card-background)] border border-[var(--card-border)] action-buttons">
                               {role === "ROLE_ADMIN" && (
                                 <>
-                                  <button
-                                    data-type="action"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAction("edit", surveyData);
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      handleTooltip(
-                                        `edit-${surveyData._id}`,
-                                        e,
-                                        true
-                                      )
-                                    }
-                                    onMouseLeave={() =>
-                                      handleTooltip(null, null, false)
-                                    }
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
+                                  <ActionButton
+                                    action="edit"
+                                    surveyData={surveyData}
+                                    icon={Edit}
+                                    variant="desktop"
+                                    className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                  />
                                 </>
                               )}
 
                               {role === "ROLE_ADMIN" ||
                               role === "SUPERVISOR" ? (
-                                <button
-                                  data-type="action"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAction("answer", surveyData);
-                                  }}
-                                  onMouseEnter={(e) =>
-                                    handleTooltip(
-                                      `answer-${surveyData._id}`,
-                                      e,
-                                      true
-                                    )
-                                  }
-                                  onMouseLeave={() =>
-                                    handleTooltip(null, null, false)
-                                  }
-                                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-blue-500 cursor-pointer"
-                                >
-                                  <TestTube2 className="w-4 h-4" />
-                                </button>
+                                <ActionButton
+                                  action="answer"
+                                  surveyData={surveyData}
+                                  icon={TestTube2}
+                                  variant="desktop"
+                                  className="hover:bg-[var(--hover-bg)] text-blue-500"
+                                />
                               ) : (
-                                <button
-                                  data-type="action"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAction("answer", surveyData);
-                                  }}
-                                  onMouseEnter={(e) =>
-                                    handleTooltip(
-                                      `answer-${surveyData._id}`,
-                                      e,
-                                      true
-                                    )
-                                  }
-                                  onMouseLeave={() =>
-                                    handleTooltip(null, null, false)
-                                  }
-                                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                                >
-                                  <Play className="w-4 h-4" />
-                                </button>
+                                <ActionButton
+                                  action="answer"
+                                  surveyData={surveyData}
+                                  icon={Play}
+                                  variant="desktop"
+                                  className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                />
                               )}
 
-                              <button
-                                data-type="action"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  router.push(
-                                    `/dashboard/encuestas/${surveyData._id}/mapa`
-                                  );
-                                }}
-                                onMouseEnter={(e) =>
-                                  handleTooltip(
-                                    `map-${surveyData._id}`,
-                                    e,
-                                    true
-                                  )
-                                }
-                                onMouseLeave={() =>
-                                  handleTooltip(null, null, false)
-                                }
-                                className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                              >
-                                <Map className="w-4 h-4" />
-                              </button>
+                              <ActionButton
+                                action="map"
+                                surveyData={surveyData}
+                                icon={Map}
+                                variant="desktop"
+                                className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                              />
 
                               {(role === "ROLE_ADMIN" ||
                                 role === "SUPERVISOR") && (
                                 <>
-                                  <button
-                                    data-type="action"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAction("progress", surveyData);
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      handleTooltip(
-                                        `progress-${surveyData._id}`,
-                                        e,
-                                        true
-                                      )
-                                    }
-                                    onMouseLeave={() =>
-                                      handleTooltip(null, null, false)
-                                    }
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                                  >
-                                    <BarChart3 className="w-4 h-4" />
-                                  </button>
+                                  <ActionButton
+                                    action="progress"
+                                    surveyData={surveyData}
+                                    icon={BarChart3}
+                                    variant="desktop"
+                                    className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                  />
                                 </>
                               )}
 
                               {role === "SUPERVISOR" && (
-                                <button
-                                  data-type="action"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAction("pollsters", surveyData);
-                                  }}
-                                  onMouseEnter={(e) =>
-                                    handleTooltip(
-                                      `pollsters-${surveyData._id}`,
-                                      e,
-                                      true
-                                    )
-                                  }
-                                  onMouseLeave={() =>
-                                    handleTooltip(null, null, false)
-                                  }
-                                  className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                                >
-                                  <Users className="w-4 h-4" />
-                                </button>
+                                <ActionButton
+                                  action="pollsters"
+                                  surveyData={surveyData}
+                                  icon={Users}
+                                  variant="desktop"
+                                  className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                />
                               )}
 
                               {role === "ROLE_ADMIN" && (
                                 <>
-                                  <button
-                                    data-type="action"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAction("clone", surveyData);
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      handleTooltip(
-                                        `clone-${surveyData._id}`,
-                                        e,
-                                        true
-                                      )
-                                    }
-                                    onMouseLeave={() =>
-                                      handleTooltip(null, null, false)
-                                    }
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-primary)] cursor-pointer"
-                                  >
-                                    <Copy className="w-4 h-4" />
-                                  </button>
+                                  <ActionButton
+                                    action="clone"
+                                    surveyData={surveyData}
+                                    icon={Copy}
+                                    variant="desktop"
+                                    className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                  />
 
-                                  <button
-                                    data-type="action"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAction("deleteAnswers", surveyData);
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      handleTooltip(
-                                        `deleteAnswers-${surveyData._id}`,
-                                        e,
-                                        true
-                                      )
-                                    }
-                                    onMouseLeave={() =>
-                                      handleTooltip(null, null, false)
-                                    }
-                                    className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors text-red-400 cursor-pointer"
-                                  >
-                                    <ClipboardX className="w-4 h-4" />
-                                  </button>
+                                  <ActionButton
+                                    action="deleteAnswers"
+                                    surveyData={surveyData}
+                                    icon={ClipboardX}
+                                    variant="desktop"
+                                    className="hover:bg-red-100 dark:hover:bg-red-900/20 text-red-400"
+                                  />
 
-                                  <button
-                                    data-type="action"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAction("delete", surveyData);
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      handleTooltip(
-                                        `delete-${surveyData._id}`,
-                                        e,
-                                        true
-                                      )
-                                    }
-                                    onMouseLeave={() =>
-                                      handleTooltip(null, null, false)
-                                    }
-                                    className="p-1.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-red-500 cursor-pointer"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  <ActionButton
+                                    action="delete"
+                                    surveyData={surveyData}
+                                    icon={Trash2}
+                                    variant="desktop"
+                                    className="hover:bg-[var(--hover-bg)] text-red-500"
+                                  />
                                 </>
                               )}
                             </div>

@@ -684,7 +684,14 @@ export default function SurveyPage() {
   }
 
   if (loading) {
-    return <div className="p-4">Cargando encuesta...</div>;
+    return (
+      <LoaderWrapper
+        size="lg"
+        fullScreen
+        text="Cargando encuesta..."
+        className="text-primary"
+      />
+    );
   }
 
   if (error) {
