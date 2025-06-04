@@ -94,6 +94,9 @@ export function SurveyList({
     const isLoading = buttonLoadingStates[buttonKey];
     const isClicked = buttonClickedStates[buttonKey];
 
+    // Solo aplicar feedback verde en desktop
+    const shouldShowSuccessFeedback = variant === "desktop" && isClicked;
+
     const baseClasses =
       variant === "mobile"
         ? "mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-all duration-200 relative overflow-hidden"
@@ -109,7 +112,7 @@ export function SurveyList({
         ? "bg-red-500/80 hover:bg-red-500"
         : "bg-white/10 hover:bg-white/20";
 
-    const successClasses = isClicked
+    const successClasses = shouldShowSuccessFeedback
       ? "bg-green-500 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-400/50"
       : "";
 
@@ -135,7 +138,7 @@ export function SurveyList({
         whileTap={!isLoading ? { scale: 0.95 } : {}}
         whileHover={!isLoading ? { scale: 1.05 } : {}}
         animate={
-          isClicked
+          shouldShowSuccessFeedback
             ? {
                 scale: [1, 1.15, 1],
                 rotate: [0, 5, -5, 0],
@@ -148,8 +151,8 @@ export function SurveyList({
         }
         data-type="action"
       >
-        {/* Ripple effect para el click */}
-        {isClicked && (
+        {/* Ripple effect para el click - solo en desktop */}
+        {shouldShowSuccessFeedback && (
           <motion.div
             className="absolute inset-0 bg-green-400 rounded-md"
             initial={{ scale: 0, opacity: 1 }}
