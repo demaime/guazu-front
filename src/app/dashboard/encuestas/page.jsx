@@ -11,6 +11,8 @@ import {
   FilePenLine,
   ChevronLeft,
   ChevronRight,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
@@ -48,6 +50,10 @@ export default function Encuestas() {
     drafts: true,
   });
 
+  // Add offline state management
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastFetchAttempt, setLastFetchAttempt] = useState(null);
+
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [limit] = useState(10);
@@ -60,10 +66,45 @@ export default function Encuestas() {
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
+  // Add offline detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      toast.success("Conexión restaurada");
+      // Retry last failed fetch if it exists
+      if (lastFetchAttempt) {
+        const { tabName, page } = lastFetchAttempt;
+        fetchDataForTab(tabName, page);
+        setLastFetchAttempt(null);
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast.warn("Modo offline - Mostrando datos guardados localmente");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    setIsOffline(!navigator.onLine);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [lastFetchAttempt]);
+
   // --- Función de Carga de Datos --- //
   // Usamos useCallback para evitar re-crear la función en cada render
   const fetchDataForTab = useCallback(
     async (tabName, page) => {
+      // If offline, don't attempt to fetch
+      if (!navigator.onLine) {
+        console.log(`Skipping fetch for ${tabName} - offline`);
+        setIsOffline(true);
+        return;
+      }
+
       // Borradores usan un endpoint diferente
       if (tabName === "drafts") {
         setIsLoading((prev) => ({ ...prev, drafts: true }));
@@ -76,8 +117,23 @@ export default function Encuestas() {
           setTabCounts((prev) => ({ ...prev, drafts: drafts.length }));
         } catch (err) {
           console.error(`Error loading data for tab drafts:`, err);
-          setError(err.message); // Podrías tener un estado de error por tab si prefieres
-          setDraftSurveysData([]);
+
+          // Check if it's a network error
+          const isNetworkError =
+            !navigator.onLine ||
+            err.message?.includes("fetch") ||
+            err.message?.includes("Network") ||
+            err.message?.includes("Failed to fetch");
+
+          if (isNetworkError) {
+            setIsOffline(true);
+            setLastFetchAttempt({ tabName, page });
+            console.log("Network error detected, entering offline mode");
+            // Don't clear data when offline, keep existing data
+          } else {
+            setError(err.message);
+            setDraftSurveysData([]);
+          }
         } finally {
           setIsLoading((prev) => ({ ...prev, drafts: false }));
         }
@@ -118,13 +174,28 @@ export default function Encuestas() {
         }
       } catch (err) {
         console.error(`Error loading data for tab ${tabName}:`, err);
-        setError(err.message);
-        if (tabName === "active") {
-          setActiveSurveysData([]);
-          setActiveTotalPages(0);
-        } else if (tabName === "finished") {
-          setFinishedSurveysData([]);
-          setFinishedTotalPages(0);
+
+        // Check if it's a network error
+        const isNetworkError =
+          !navigator.onLine ||
+          err.message?.includes("fetch") ||
+          err.message?.includes("Network") ||
+          err.message?.includes("Failed to fetch");
+
+        if (isNetworkError) {
+          setIsOffline(true);
+          setLastFetchAttempt({ tabName, page });
+          console.log("Network error detected, entering offline mode");
+          // Don't clear data when offline, keep existing data
+        } else {
+          setError(err.message);
+          if (tabName === "active") {
+            setActiveSurveysData([]);
+            setActiveTotalPages(0);
+          } else if (tabName === "finished") {
+            setFinishedSurveysData([]);
+            setFinishedTotalPages(0);
+          }
         }
       } finally {
         setIsLoading((prev) => ({ ...prev, [tabName]: false }));
@@ -344,6 +415,26 @@ export default function Encuestas() {
       animate={{ opacity: 1 }}
       className="space-y-4 p-4"
     >
+      {/* --- Offline Status Indicator --- */}
+      {isOffline && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 rounded-md"
+        >
+          <div className="flex items-center">
+            <WifiOff className="w-5 h-5 text-yellow-600 mr-3" />
+            <div>
+              <p className="text-yellow-800 font-medium">Modo offline</p>
+              <p className="text-sm text-yellow-700 mt-1">
+                Mostrando datos guardados localmente. Los cambios se
+                sincronizarán cuando se restaure la conexión.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* --- Encabezado --- */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

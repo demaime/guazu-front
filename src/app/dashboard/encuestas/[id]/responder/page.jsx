@@ -87,8 +87,16 @@ export default function SurveyPage() {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current); // Ensure interval is cleared before navigation
       }
-      console.log("Countdown finished, redirecting to / from useEffect...");
-      router.push("/"); // O a la página de listado de encuestas dashboard/encuestas
+      console.log("Countdown finished, redirecting from useEffect...");
+
+      // Check if offline and redirect appropriately
+      if (!navigator.onLine) {
+        console.log("Offline detected, redirecting to dashboard/encuestas");
+        router.push("/dashboard/encuestas");
+      } else {
+        console.log("Online, redirecting to dashboard");
+        router.push("/dashboard");
+      }
     }
   }, [countdown, surveyCompletedSuccessfully, router]);
 
@@ -671,7 +679,20 @@ export default function SurveyPage() {
                 Redirigiendo a la página principal en {countdown} segundos...
               </p>
               <button
-                onClick={() => router.push("/")}
+                onClick={() => {
+                  // Check if offline and redirect appropriately
+                  if (!navigator.onLine) {
+                    console.log(
+                      "Manual redirect - Offline detected, redirecting to dashboard/encuestas"
+                    );
+                    router.push("/dashboard/encuestas");
+                  } else {
+                    console.log(
+                      "Manual redirect - Online, redirecting to dashboard"
+                    );
+                    router.push("/dashboard");
+                  }
+                }}
                 className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
               >
                 Volver ahora
