@@ -68,42 +68,76 @@ const QUESTION_TYPE_ICONS = {
   [QUESTION_TYPES.MATRIX]: Grid,
 };
 
-// Helper to find if a question is a child of another
+// Helper para encontrar información del padre - Compatible con ambos formatos
 function findParentInfo(targetId, allQuestions) {
-  for (let i = 0; i < allQuestions.length; i++) {
-    const parentQ = allQuestions[i];
-    if (parentQ.isConditional && parentQ.options) {
-      const optionIndex = parentQ.options.findIndex(
+  if (!allQuestions || !Array.isArray(allQuestions)) return null;
+
+  // Buscar en todas las preguntas
+  for (const question of allQuestions) {
+    if (!question || !question.id) continue;
+
+    // NUEVO FORMATO: Verificar si la pregunta objetivo tiene showCondition
+    const targetQuestion = allQuestions.find((q) => q.id === targetId);
+    if (targetQuestion?.showCondition?.parentQuestionId === question.id) {
+      // Buscar el índice de la opción requerida
+      const optionIndex =
+        question.options?.findIndex(
+          (opt) => opt.id === targetQuestion.showCondition.requiredValue
+        ) ?? -1;
+
+      return {
+        parentId: question.id,
+        optionIndex: optionIndex >= 0 ? optionIndex : 0,
+        format: "new",
+      };
+    }
+
+    // FORMATO LEGACY: Buscar en opciones
+    if (question.isConditional && question.options) {
+      const optionIndex = question.options.findIndex(
         (opt) => opt && opt.nextQuestionId === targetId
       );
-      if (optionIndex !== -1) {
-        // Ensure parent is not the same (avoid cycles)
-        if (parentQ.id !== targetId) {
-          return { parentId: parentQ.id, optionIndex };
-        }
+      if (optionIndex !== -1 && question.id !== targetId) {
+        return {
+          parentId: question.id,
+          optionIndex,
+          format: "legacy",
+        };
       }
     }
   }
   return null;
 }
 
-// Function to calculate hierarchical numbers
+// Función para calcular números jerárquicos - Compatible con ambos formatos
 function calculateQuestionNumbers(questions) {
   if (!questions || !Array.isArray(questions) || questions.length === 0) {
     return {};
   }
 
-  // Primero identificar preguntas raíz (sin padre)
+  // Función helper para verificar si una pregunta es hija
+  const findParentForQuestion = (question) => {
+    // NUEVO FORMATO: Verificar showCondition
+    if (question.showCondition && question.showCondition.parentQuestionId) {
+      return question.showCondition.parentQuestionId;
+    }
+
+    // FORMATO LEGACY: Buscar en opciones de otras preguntas
+    for (const potentialParent of questions) {
+      if (potentialParent.isConditional && potentialParent.options) {
+        for (const opt of potentialParent.options) {
+          if (opt && opt.nextQuestionId === question.id) {
+            return potentialParent.id;
+          }
+        }
+      }
+    }
+    return null;
+  };
+
+  // Identificar preguntas raíz (sin padre)
   const rootQuestions = questions.filter((q) => {
-    // Verificamos si esta pregunta es destino de alguna pregunta condicional
-    const isChild = questions.some(
-      (parentQ) =>
-        parentQ &&
-        parentQ.isConditional &&
-        parentQ.options &&
-        parentQ.options.some((opt) => opt && opt.nextQuestionId === q.id)
-    );
-    return !isChild;
+    return !findParentForQuestion(q);
   });
 
   // Mapa para almacenar los números
@@ -114,18 +148,12 @@ function calculateQuestionNumbers(questions) {
     numberMap[q.id] = `${index + 1}`;
   });
 
-  // Asignar números a las preguntas hijas de manera recursiva
+  // Función recursiva para asignar números a hijos
   const assignChildNumbers = (parentId, parentNumber) => {
-    // Encontrar todas las preguntas hijas de este padre
+    // Encontrar hijos de este padre
     const childQuestions = questions.filter((q) => {
-      for (const parent of questions) {
-        if (parent.id === parentId && parent.isConditional && parent.options) {
-          return parent.options.some(
-            (opt) => opt && opt.nextQuestionId === q.id
-          );
-        }
-      }
-      return false;
+      const parentIdForQ = findParentForQuestion(q);
+      return parentIdForQ === parentId;
     });
 
     // Asignar números a los hijos
@@ -155,6 +183,24 @@ function calculateQuestionNumbers(questions) {
   return numberMap;
 }
 
+// Función para determinar si una pregunta es condicional en cualquier formato
+function isConditionalQuestion(question) {
+  // NUEVO FORMATO: Tiene showCondition
+  if (question.showCondition && question.showCondition.parentQuestionId) {
+    return true;
+  }
+
+  // FORMATO LEGACY: Está marcada como condicional y tiene opciones con nextQuestionId
+  if (
+    question.isConditional &&
+    question.options?.some((opt) => opt.nextQuestionId)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export default function QuestionEditor({
   questions,
   onChange,
@@ -173,14 +219,13 @@ export default function QuestionEditor({
     [questions]
   );
 
-  // --- INICIO MODIFICACIÓN: Mover cálculo fuera del map ---
+  // Calcular conteo de preguntas raíz
   const rootQuestionsCount = useMemo(() => {
     if (!questions || !questionNumberMap) return 0;
     return questions.filter(
       (q) => questionNumberMap[q.id] && !questionNumberMap[q.id].includes(".")
     ).length;
   }, [questions, questionNumberMap]);
-  // --- FIN MODIFICACIÓN ---
 
   const handleAddQuestion = () => {
     setEditingQuestion(null);
@@ -200,67 +245,44 @@ export default function QuestionEditor({
     const generateUniqueId = () =>
       Math.random().toString(36).substr(2, 9) + "_" + Date.now();
 
-    // Crear mapa de IDs viejos a nuevos para referencias condicionales
-    const idMap = {};
+    questionCopy.id = generateUniqueId();
+    questionCopy.title = `${questionCopy.title} (Copia)`;
 
-    // Asignar nuevo ID a la pregunta
-    idMap[questionCopy.id] = generateUniqueId();
-    questionCopy.id = idMap[questionCopy.id];
-    questionCopy.title = `${questionCopy.title} (copia)`;
+    // Limpiar relaciones condicionales
+    if (questionCopy.showCondition) {
+      questionCopy.showCondition = null;
+    }
+    questionCopy.isConditional = false;
 
-    // Para preguntas de selección, actualizar IDs de opciones
-    if (questionCopy.options && Array.isArray(questionCopy.options)) {
-      questionCopy.options = questionCopy.options.map((option) => {
-        const newId = generateUniqueId();
-        idMap[option.id] = newId;
-
-        // Si es una pregunta condicional, no copiamos la referencia a la pregunta siguiente
-        // ya que esa lógica debe ser configurada manualmente para la copia
-        return {
-          ...option,
-          id: newId,
-          nextQuestionId: null, // Eliminar la referencia condicional en la copia
-        };
-      });
+    // Regenerar IDs para opciones si existen
+    if (questionCopy.options && questionCopy.options.length > 0) {
+      questionCopy.options = questionCopy.options.map((opt) => ({
+        ...opt,
+        id: generateUniqueId(),
+        nextQuestionId: null, // Limpiar referencia a siguiente pregunta
+      }));
     }
 
-    // Para preguntas tipo matriz, actualizar IDs de filas y columnas
-    if (questionCopy.matrixRows && Array.isArray(questionCopy.matrixRows)) {
-      questionCopy.matrixRows = questionCopy.matrixRows.map((row) => {
-        const newId = generateUniqueId();
-        idMap[row.id] = newId;
-        return {
-          ...row,
-          id: newId,
-        };
-      });
+    // Regenerar IDs para elementos de matriz si existen
+    if (questionCopy.matrixRows && questionCopy.matrixRows.length > 0) {
+      questionCopy.matrixRows = questionCopy.matrixRows.map((row) => ({
+        ...row,
+        id: generateUniqueId(),
+      }));
     }
 
-    if (
-      questionCopy.matrixColumns &&
-      Array.isArray(questionCopy.matrixColumns)
-    ) {
-      questionCopy.matrixColumns = questionCopy.matrixColumns.map((col) => {
-        const newId = generateUniqueId();
-        idMap[col.id] = newId;
-        return {
-          ...col,
-          id: newId,
-        };
-      });
+    if (questionCopy.matrixColumns && questionCopy.matrixColumns.length > 0) {
+      questionCopy.matrixColumns = questionCopy.matrixColumns.map((col) => ({
+        ...col,
+        id: generateUniqueId(),
+      }));
     }
 
-    // Añadir la pregunta copiada a la lista de preguntas
-    onChange([...questions, questionCopy]);
+    // Agregar la pregunta copiada
+    const updatedQuestions = [...questions, questionCopy];
+    onChange(updatedQuestions);
 
-    // Desplazar la vista hacia la pregunta copiada (al final de la lista)
-    setTimeout(() => {
-      const questionElements = document.querySelectorAll(".card");
-      if (questionElements.length > 0) {
-        const lastElement = questionElements[questionElements.length - 1];
-        lastElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, 100);
+    toast.success("Pregunta copiada exitosamente");
   };
 
   const handleCloseModal = () => {
@@ -269,19 +291,18 @@ export default function QuestionEditor({
   };
 
   const handleSaveQuestion = (question) => {
+    let updatedQuestions = [...questions];
     if (editingQuestion) {
-      // Editar pregunta existente
-      const updatedQuestions = questions.map((q) =>
-        q.id === editingQuestion.id
-          ? { ...question, id: editingQuestion.id }
-          : q
-      );
-      onChange(updatedQuestions);
+      const index = updatedQuestions.findIndex((q) => q.id === question.id);
+      if (index !== -1) {
+        updatedQuestions[index] = question;
+      }
     } else {
-      // Agregar nueva pregunta
-      onChange([...questions, question]);
+      updatedQuestions.push(question);
     }
-    handleCloseModal();
+    onChange(updatedQuestions);
+    setShowModal(false);
+    setEditingQuestion(null);
   };
 
   const handleDeleteClick = (question) => {
@@ -290,111 +311,106 @@ export default function QuestionEditor({
   };
 
   const handleConfirmDelete = () => {
-    const updatedQuestions = questions.filter(
-      (q) => q.id !== questionToDelete.id
-    );
-    onChange(updatedQuestions);
+    if (questionToDelete) {
+      const updatedQuestions = questions.filter(
+        (q) => q.id !== questionToDelete.id
+      );
+      onChange(updatedQuestions);
+    }
     setShowConfirmDelete(false);
     setQuestionToDelete(null);
   };
 
-  // Function to handle reordering of root questions
   const handleReorder = (questionId, newOrderStr) => {
-    const newOrder = parseInt(newOrderStr, 10);
+    const newOrder = parseInt(newOrderStr);
+    if (isNaN(newOrder)) return;
 
-    // 1. Identify root questions and their current order
+    // Find the current question
+    const questionIndex = questions.findIndex((q) => q.id === questionId);
+    if (questionIndex === -1) return;
+
+    const question = questions[questionIndex];
+
+    // Helper function to get all descendants of a given parent
+    const getDescendants = (parentId, questionsArray) => {
+      const descendants = [];
+
+      const findDescendants = (parentId) => {
+        questionsArray.forEach((q) => {
+          const parentInfo = findParentInfo(q.id, questionsArray);
+          if (parentInfo && parentInfo.parentId === parentId) {
+            descendants.push(q);
+            findDescendants(q.id); // Recursively find descendants of this child
+          }
+        });
+      };
+
+      findDescendants(parentId);
+      return descendants;
+    };
+
+    // Get descendants of the current question
+    const descendants = getDescendants(questionId, questions);
+
+    // Get all root questions (questions without parents)
     const rootQuestions = questions.filter((q) => {
-      const num = questionNumberMap[q.id];
-      return num && !num.includes(".");
+      const parentInfo = findParentInfo(q.id, questions);
+      return !parentInfo;
     });
 
-    // 2. Validate newOrder
-    if (isNaN(newOrder) || newOrder < 1 || newOrder > rootQuestions.length) {
-      toast.error(
-        `Número de orden inválido. Debe estar entre 1 y ${rootQuestions.length}.`
+    // Create a new array without the current question and its descendants
+    const questionsWithoutReordered = questions.filter((q) => {
+      return q.id !== questionId && !descendants.find((d) => d.id === q.id);
+    });
+
+    // Recalculate root questions after removal
+    const newRootQuestions = questionsWithoutReordered.filter((q) => {
+      const parentInfo = findParentInfo(q.id, questionsWithoutReordered);
+      return !parentInfo;
+    });
+
+    // Insert the question and its descendants at the new position
+    const insertIndex = newOrder - 1; // Convert to 0-based index
+
+    // Build the final array
+    let reorderedQuestions = [];
+    newRootQuestions.forEach((rootQ, index) => {
+      if (index === insertIndex) {
+        // Insert the reordered question here
+        reorderedQuestions.push(question);
+        descendants.forEach((desc) => reorderedQuestions.push(desc));
+      }
+      reorderedQuestions.push(rootQ);
+      // Add descendants of this root question
+      const rootDescendants = getDescendants(
+        rootQ.id,
+        questionsWithoutReordered
       );
-      setEditingOrder({ id: null, value: "" }); // Reset editing state
-      return;
-    }
-
-    // 3. Find current index of the question being moved
-    const currentOrder = parseInt(questionNumberMap[questionId], 10);
-    const currentIndex = currentOrder - 1;
-    const targetIndex = newOrder - 1;
-
-    if (currentIndex === targetIndex) {
-      setEditingOrder({ id: null, value: "" }); // No change needed
-      return;
-    }
-
-    // 4. Reorder root questions
-    const reorderedRootQuestions = [...rootQuestions];
-    const [movedItem] = reorderedRootQuestions.splice(currentIndex, 1);
-    reorderedRootQuestions.splice(targetIndex, 0, movedItem);
-
-    // 5. Reconstruct the full list with descendants
-    const newFullQuestionList = [];
-    const processedIds = new Set();
-
-    reorderedRootQuestions.forEach((rootQ) => {
-      if (!processedIds.has(rootQ.id)) {
-        newFullQuestionList.push(rootQ);
-        processedIds.add(rootQ.id);
-
-        // Find all descendants of this root question recursively
-        const findDescendants = (parentId) => {
-          questions.forEach((q) => {
-            const parentInfo = findParentInfo(q.id, questions);
-            if (
-              parentInfo &&
-              parentInfo.parentId === parentId &&
-              !processedIds.has(q.id)
-            ) {
-              newFullQuestionList.push(q);
-              processedIds.add(q.id);
-              findDescendants(q.id); // Recursively find children of children
-            }
-          });
-        };
-
-        findDescendants(rootQ.id);
-      }
+      rootDescendants.forEach((desc) => reorderedQuestions.push(desc));
     });
 
-    // Add any questions that might have been missed (shouldn't happen ideally)
-    questions.forEach((q) => {
-      if (!processedIds.has(q.id)) {
-        newFullQuestionList.push(q);
-      }
-    });
+    // If we haven't inserted the question yet (newOrder is beyond current length)
+    if (insertIndex >= newRootQuestions.length) {
+      reorderedQuestions.push(question);
+      descendants.forEach((desc) => reorderedQuestions.push(desc));
+    }
 
-    // 6. Call onChange with the new list
-    onChange(newFullQuestionList);
-    setEditingOrder({ id: null, value: "" }); // Reset editing state
+    onChange(reorderedQuestions);
   };
 
   const handleOrderEditStart = (questionId, currentOrder) => {
-    // Toggle: If clicking the one already being edited, close it. Otherwise, open the new one.
-    setEditingOrder((prev) => {
-      if (prev.id === questionId) {
-        return { id: null, value: "" }; // Close if clicking the same one
-      } else {
-        return { id: questionId, value: currentOrder }; // Open the new one
-      }
-    });
+    setEditingOrder({ id: questionId, value: currentOrder });
   };
 
-  // Handle clicking an item in the custom dropdown
   const handleDropdownItemClick = (newOrder) => {
     if (editingOrder.id) {
-      handleReorder(editingOrder.id, newOrder);
+      handleReorder(editingOrder.id, newOrder.toString());
+      setEditingOrder({ id: null, value: "" });
     }
-    setEditingOrder({ id: null, value: "" }); // Reset editing state immediately
   };
 
-  // Helper to get the icon component for a type
   const getQuestionTypeIcon = (type) => {
-    return QUESTION_TYPE_ICONS[type] || Type; // Default to 'Type' icon
+    return QUESTION_TYPE_ICONS[type] || Type;
   };
 
   return (
@@ -416,6 +432,38 @@ export default function QuestionEditor({
           const questionNumber = questionNumberMap[question.id] || "?";
           const isRootQuestion =
             questionNumber && !questionNumber.includes(".");
+
+          // Determinar si es condicional y su formato
+          const isConditional = isConditionalQuestion(question);
+          const parentInfo = findParentInfo(question.id, questions);
+
+          // Información sobre el padre si es hijo condicional
+          let parentInfoText = "";
+          if (parentInfo) {
+            const parentQuestion = questions.find(
+              (q) => q.id === parentInfo.parentId
+            );
+            if (parentQuestion) {
+              const parentNumber = questionNumberMap[parentQuestion.id] || "?";
+
+              if (parentInfo.format === "new") {
+                // NUEVO FORMATO
+                const requiredOption = parentQuestion.options?.find(
+                  (opt) => opt.id === question.showCondition?.requiredValue
+                );
+                const optionText =
+                  requiredOption?.text ||
+                  question.showCondition?.requiredValue ||
+                  "valor desconocido";
+                parentInfoText = `Se muestra si en P${parentNumber} se elige "${optionText}"`;
+              } else {
+                // FORMATO LEGACY
+                const option = parentQuestion.options?.[parentInfo.optionIndex];
+                const optionText = option?.text || "opción desconocida";
+                parentInfoText = `Se muestra si en P${parentNumber} se elige "${optionText}"`;
+              }
+            }
+          }
 
           return (
             <motion.div
@@ -503,6 +551,21 @@ export default function QuestionEditor({
                           {question.description}
                         </p>
                       )}
+                      {/* Mostrar información del padre si existe */}
+                      {parentInfoText && (
+                        <p
+                          className={`text-xs mt-1 ${
+                            parentInfo?.format === "new"
+                              ? "text-green-600"
+                              : "text-blue-600"
+                          }`}
+                        >
+                          ↳ {parentInfoText}{" "}
+                          {parentInfo?.format === "new"
+                            ? "[NUEVO]"
+                            : "[LEGACY]"}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-text-secondary">
@@ -514,10 +577,18 @@ export default function QuestionEditor({
                           Obligatoria
                         </span>
                       )}
-                      {/* Mostrar indicador si es pregunta condicional */}
-                      {question.isConditional && (
-                        <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">
-                          Condicional
+                      {/* Mostrar indicador si es pregunta condicional - Formato específico */}
+                      {isConditional && (
+                        <span
+                          className={`text-xs px-1.5 py-0.5 rounded ${
+                            question.showCondition?.parentQuestionId
+                              ? "bg-green-100 text-green-600" // Nuevo formato
+                              : "bg-blue-100 text-blue-600" // Legacy formato
+                          }`}
+                        >
+                          {question.showCondition?.parentQuestionId
+                            ? "Condl. (Nuevo)"
+                            : "Condl. (Legacy)"}
                         </span>
                       )}
                       <button
@@ -552,11 +623,21 @@ export default function QuestionEditor({
                       <div className="mt-2">
                         <div className="text-xs text-text-secondary">
                           {question.options.length} opciones
-                          {/* Mostrar información sobre condiciones si es condicional */}
-                          {question.isConditional && (
+                          {/* Mostrar información sobre condiciones - Compatible con ambos formatos */}
+                          {isConditional && (
                             <div className="mt-1">
-                              <span className="text-blue-600 text-xs font-medium">
-                                Pregunta condicional:
+                              <span
+                                className={`text-xs font-medium ${
+                                  question.showCondition?.parentQuestionId
+                                    ? "text-green-600"
+                                    : "text-blue-600"
+                                }`}
+                              >
+                                Pregunta condicional{" "}
+                                {question.showCondition?.parentQuestionId
+                                  ? "(Nuevo formato)"
+                                  : "(Legacy)"}
+                                :
                               </span>
                               <ul className="mt-1 space-y-1">
                                 {question.options.map((opt, idx) => (
@@ -567,6 +648,7 @@ export default function QuestionEditor({
                                     <span className="text-gray-600">
                                       • {opt.text}
                                     </span>
+                                    {/* Solo mostrar flecha para formato legacy */}
                                     {opt.nextQuestionId && (
                                       <span className="ml-1 text-blue-600">
                                         → P
@@ -587,8 +669,8 @@ export default function QuestionEditor({
                   {question.type === "matrix" && (
                     <div className="mt-2">
                       <div className="text-xs text-text-secondary">
-                        {question.matrixRows.length} filas,{" "}
-                        {question.matrixColumns.length} columnas
+                        {question.matrixRows?.length || 0} filas,{" "}
+                        {question.matrixColumns?.length || 0} columnas
                       </div>
                     </div>
                   )}

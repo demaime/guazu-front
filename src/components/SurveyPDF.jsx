@@ -213,7 +213,7 @@ const translateQuestionType = (type) => {
   return types[type] || type;
 };
 
-// Función para buscar información de dependencias (preguntas que dependen de esta)
+// Función para buscar información de dependencias (preguntas que dependen de esta) - Compatible con ambos formatos
 const findDependencies = (question, allQuestions) => {
   const dependencies = [];
 
@@ -221,16 +221,36 @@ const findDependencies = (question, allQuestions) => {
     return dependencies;
 
   allQuestions.forEach((q) => {
-    // Si esta pregunta tiene una condición de visualización basada en otra
+    // NUEVO FORMATO: Si esta pregunta tiene showCondition que referencia a la pregunta actual
+    if (q.showCondition && q.showCondition.parentQuestionId === question.id) {
+      // Buscar el texto de la opción requerida
+      const requiredOption = question.options?.find(
+        (opt) => opt.id === q.showCondition.requiredValue
+      );
+      const optionText =
+        requiredOption?.text ||
+        q.showCondition.requiredValue ||
+        "Valor desconocido";
+
+      dependencies.push({
+        id: q.id,
+        title: q.title,
+        fromOption: optionText,
+        format: "new",
+      });
+    }
+
+    // FORMATO LEGACY: Si esta pregunta tiene una condición de visualización basada en otra (SurveyJS)
     if (q.visibleIf && q.visibleIf.includes(question.id)) {
       dependencies.push({
         id: q.id,
         title: q.title,
         condition: q.visibleIf,
+        format: "legacy",
       });
     }
 
-    // Si tiene opciones que llevan a otra pregunta
+    // FORMATO LEGACY: Si tiene opciones que llevan a otra pregunta
     if (q.options && Array.isArray(q.options)) {
       q.options.forEach((option) => {
         if (option.nextQuestionId === question.id) {
@@ -238,6 +258,7 @@ const findDependencies = (question, allQuestions) => {
             id: q.id,
             title: q.title,
             fromOption: option.text || option.value || "Opción desconocida",
+            format: "legacy",
           });
         }
       });
@@ -247,11 +268,46 @@ const findDependencies = (question, allQuestions) => {
   return dependencies;
 };
 
-// Función para buscar información sobre el padre de una pregunta
+// Función para buscar información sobre el padre de una pregunta - Compatible con ambos formatos
 const findParentInfo = (question, allQuestions, surveyData) => {
   if (!allQuestions || !Array.isArray(allQuestions) || !question) return null;
 
-  // Buscar si hay alguna pregunta que en sus opciones apunte a esta
+  // NUEVO FORMATO: Verificar si la pregunta tiene showCondition
+  if (question.showCondition && question.showCondition.parentQuestionId) {
+    const parentQuestion = allQuestions.find(
+      (q) => q.id === question.showCondition.parentQuestionId
+    );
+    if (parentQuestion) {
+      // Buscar el texto de la opción requerida
+      const requiredOption = parentQuestion.options?.find(
+        (opt) => opt.id === question.showCondition.requiredValue
+      );
+      const optionText =
+        requiredOption?.text ||
+        question.showCondition.requiredValue ||
+        "Valor desconocido";
+
+      // Obtener número de pregunta padre
+      const parentIndex = allQuestions.findIndex(
+        (item) => item.id === parentQuestion.id
+      );
+      const displayNumber =
+        parentQuestion.displayNumber ||
+        (surveyData?.questionNumberMap &&
+          surveyData.questionNumberMap[parentQuestion.id]) ||
+        `${parentIndex + 1}`;
+
+      return {
+        id: parentQuestion.id,
+        title: parentQuestion.title,
+        option: optionText,
+        number: displayNumber,
+        format: "new",
+      };
+    }
+  }
+
+  // FORMATO LEGACY: Buscar si hay alguna pregunta que en sus opciones apunte a esta
   for (const q of allQuestions) {
     if (q.options && Array.isArray(q.options)) {
       for (const option of q.options) {
@@ -269,6 +325,7 @@ const findParentInfo = (question, allQuestions, surveyData) => {
             title: q.title,
             option: option.text || option.value || "Opción desconocida",
             number: displayNumber,
+            format: "legacy",
           };
         }
       }

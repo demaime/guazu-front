@@ -49,7 +49,6 @@ export default function SurveyPage() {
   const [surveyCompletedSuccessfully, setSurveyCompletedSuccessfully] =
     useState(false);
   const [countdown, setCountdown] = useState(5);
-  const [isOffline, setIsOffline] = useState(false);
   const [showOfflineSaveMessage, setShowOfflineSaveMessage] = useState(false);
   const [isOfflineForSubmit, setIsOfflineForSubmit] = useState(false);
 
@@ -537,7 +536,7 @@ export default function SurveyPage() {
               );
             });
 
-          // startCountdown(); // Comentado para pruebas en móvil
+          setSurveyCompletedSuccessfully(true); // Consider it completed from user's perspective
           setLoading(false);
           return;
         } catch (pouchDbError) {
@@ -549,10 +548,9 @@ export default function SurveyPage() {
             "Error al guardar la encuesta localmente. Revisa la consola para más detalles."
           );
           setSurveyCompletedSuccessfully(true); // Consider it completed from user's perspective
-          // startCountdown(); // Comentado para pruebas en móvil
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-        return;
       }
 
       // --- Online Submission ---
@@ -587,7 +585,8 @@ export default function SurveyPage() {
           toast.error(
             `El servidor devolvió un error (${response.status}). La encuesta se guardó localmente y se enviará más tarde.`
           );
-          // startCountdown(); // Comentado para pruebas en móvil
+          setLoading(false);
+          return;
         } catch (fallbackSaveError) {
           console.error(
             "Error al guardar en PouchDB como fallback:",
@@ -599,34 +598,43 @@ export default function SurveyPage() {
             }. No se pudo guardar localmente como respaldo.`
           );
           toast.error("Falló el envío y el guardado local de respaldo.");
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-        return;
       }
 
       const responseData = await response.json();
       console.log("Encuesta enviada con éxito:", responseData);
       setSurveyCompletedSuccessfully(true);
       toast.success("¡Encuesta enviada con éxito!");
-      // startCountdown(); // Comentado para pruebas en móvil
+      // Solo ejecutar countdown cuando estamos online y el envío fue exitoso
+      if (navigator.onLine) {
+        console.log("Online detected, calling startCountdown");
+        startCountdown();
+      } else {
+        console.log("Offline detected, NOT calling startCountdown");
+      }
+      setLoading(false);
     } catch (error) {
       console.error("Error general en handleComplete:", error);
       setError(
         error.message || "Ocurrió un error inesperado al procesar la encuesta."
       );
       toast.error(error.message || "Ocurrió un error inesperado.");
-    } finally {
       setLoading(false);
     }
   };
 
   const startCountdown = () => {
+    console.log("startCountdown called, setting countdown to 5");
     setCountdown(5);
     countdownIntervalRef.current = setInterval(() => {
       setCountdown((prev) => {
+        console.log("Countdown interval tick, current value:", prev);
         if (prev <= 1) {
+          console.log("Countdown reached 0, clearing interval");
           clearInterval(countdownIntervalRef.current);
-          router.push("/dashboard/encuestas");
+          return 0; // Solo cambiar el estado a 0, el useEffect se encargará de la navegación
         }
         return prev - 1;
       });
@@ -648,11 +656,11 @@ export default function SurveyPage() {
           </h1>
           <p className="mb-6 text-gray-600 dark:text-gray-300">
             {showOfflineSaveMessage
-              ? "La encuesta ha sido guardada localmente y se enviará automáticamente cuando recuperes conexión a internet."
+              ? "Intenta conectarte nuevamente para sincronizar tus resultados."
               : "Gracias por tu participación. Tu respuesta ha sido registrada."}
           </p>
 
-          {isOffline ? (
+          {isOfflineForSubmit || !navigator.onLine ? (
             <>
               <div className="mt-4 bg-yellow-100 p-4 rounded-md border border-yellow-300">
                 <p className="text-yellow-800 font-medium">
@@ -670,7 +678,7 @@ export default function SurveyPage() {
                 onClick={() => router.push("/dashboard/encuestas")}
                 className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
               >
-                Ver otras encuestas
+                Volver al inicio
               </button>
             </>
           ) : (
@@ -740,7 +748,7 @@ export default function SurveyPage() {
 
   return (
     <>
-      {isOffline && (
+      {isOfflineForSubmit && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <div className="flex">
             <div className="ml-3">
