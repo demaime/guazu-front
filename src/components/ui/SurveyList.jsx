@@ -41,9 +41,6 @@ export function SurveyList({
   const { isMobile } = useWindowSize();
   const [expandedCardId, setExpandedCardId] = useState(null);
   const [expandedActionsId, setExpandedActionsId] = useState(null);
-  const [openTooltipId, setOpenTooltipId] = useState(null);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const tooltipRef = useRef(null);
   const [showFinishedAlert, setShowFinishedAlert] = useState(false);
   const [showDeleteAnswersModal, setShowDeleteAnswersModal] = useState(false);
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
@@ -55,6 +52,12 @@ export function SurveyList({
     x: 0,
     y: 0,
   });
+  const [openActionTooltipId, setOpenActionTooltipId] = useState(null);
+  const [actionTooltipPosition, setActionTooltipPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const tooltipTimeoutRef = useRef(null);
   const [showCloneSuccessModal, setShowCloneSuccessModal] = useState(false);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
@@ -79,6 +82,32 @@ export function SurveyList({
     setTimeout(() => {
       setButtonClicked(actionKey, false);
     }, 800); // Increased duration for better visual feedback
+  };
+
+  // Función para obtener el texto del tooltip
+  const getTooltipText = (action, role) => {
+    switch (action) {
+      case "edit":
+        return "Editar";
+      case "answer":
+        return role === "ROLE_ADMIN" || role === "SUPERVISOR"
+          ? "Prueba Local"
+          : "Responder";
+      case "map":
+        return "Ver Mapa";
+      case "progress":
+        return "Análisis";
+      case "pollsters":
+        return "Asignar Encuestadores";
+      case "clone":
+        return "Clonar";
+      case "deleteAnswers":
+        return "Eliminar Respuestas";
+      case "delete":
+        return "Eliminar Encuesta";
+      default:
+        return "";
+    }
   };
 
   // Componente de botón con feedback visual
@@ -125,7 +154,7 @@ export function SurveyList({
         ? `${baseClasses} ${mobileBackground} text-white ${successClasses} ${loadingClasses} ${className}`
         : `${baseClasses} ${className} ${successClasses} ${loadingClasses}`;
 
-    return (
+    const button = (
       <motion.button
         onClick={(e) => {
           if (variant === "desktop") {
@@ -133,6 +162,16 @@ export function SurveyList({
           }
           handleAction(action, surveyData);
         }}
+        onMouseEnter={
+          variant === "desktop" && !isLoading
+            ? (e) => handleActionTooltip(`${action}-${surveyData._id}`, e, true)
+            : undefined
+        }
+        onMouseLeave={
+          variant === "desktop" && !isLoading
+            ? () => handleActionTooltip(null, null, false)
+            : undefined
+        }
         className={finalClassName}
         disabled={isLoading}
         whileTap={!isLoading ? { scale: 0.95 } : {}}
@@ -198,6 +237,8 @@ export function SurveyList({
         )}
       </motion.button>
     );
+
+    return button;
   };
 
   const rowVariants = {
@@ -239,7 +280,7 @@ export function SurveyList({
         !event.target.closest('button[data-type="action"]')
       ) {
         setExpandedActionsId(null);
-        setOpenTooltipId(null);
+        setOpenActionTooltipId(null);
       }
       if (!event.target.closest(".survey-card-mobile")) {
         setExpandedCardId(null);
@@ -249,26 +290,15 @@ export function SurveyList({
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+      }
     };
   }, [expandedActionsId]);
 
   const toggleActions = (surveyId) => {
     const newId = expandedActionsId === surveyId ? null : surveyId;
     setExpandedActionsId(newId);
-  };
-
-  const handleTooltip = (actionId, e, show) => {
-    if (e) {
-      const buttonRect = e.currentTarget.getBoundingClientRect();
-      const actionButtons = e.currentTarget.closest(".action-buttons");
-      if (actionButtons) {
-        setTooltipPosition({
-          x: buttonRect.left + buttonRect.width / 2,
-          y: buttonRect.top - 10,
-        });
-      }
-    }
-    setOpenTooltipId(show ? actionId : null);
   };
 
   const handleDescriptionTooltip = (surveyId, e, show) => {
@@ -280,6 +310,31 @@ export function SurveyList({
       });
     }
     setOpenDescriptionTooltipId(show ? surveyId : null);
+  };
+
+  const handleActionTooltip = (actionId, e, show) => {
+    // Limpiar timeout previo
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current);
+      tooltipTimeoutRef.current = null;
+    }
+
+    if (show) {
+      if (e) {
+        const buttonRect = e.currentTarget.getBoundingClientRect();
+        setActionTooltipPosition({
+          x: buttonRect.left + buttonRect.width / 2,
+          y: buttonRect.top - 10,
+        });
+      }
+      // Agregar delay de 500ms para mostrar
+      tooltipTimeoutRef.current = setTimeout(() => {
+        setOpenActionTooltipId(actionId);
+      }, 0);
+    } else {
+      // Ocultar inmediatamente
+      setOpenActionTooltipId(null);
+    }
   };
 
   const toggleCardExpansion = (surveyId, e) => {
@@ -904,39 +959,6 @@ export function SurveyList({
                                 </>
                               )}
                             </div>
-
-                            {openTooltipId && (
-                              <div
-                                ref={tooltipRef}
-                                className="fixed z-[9999] px-2 py-1 text-xs rounded-md shadow-lg bg-gray-900 text-white dark:bg-[var(--card-background)] dark:text-[var(--text-primary)] dark:border dark:border-[var(--card-border)] whitespace-nowrap pointer-events-none"
-                                style={{
-                                  left: `${tooltipPosition.x}px`,
-                                  top: `${tooltipPosition.y}px`,
-                                  transform: "translate(-50%, -100%)",
-                                }}
-                              >
-                                {openTooltipId.includes("edit")
-                                  ? "Editar"
-                                  : openTooltipId.includes("answer")
-                                  ? role === "ROLE_ADMIN" ||
-                                    role === "SUPERVISOR"
-                                    ? "Prueba Local"
-                                    : "Responder"
-                                  : openTooltipId.includes("map")
-                                  ? "Ver Mapa"
-                                  : openTooltipId.includes("progress")
-                                  ? "Análisis"
-                                  : openTooltipId.includes("pollsters")
-                                  ? "Asignar Encuestadores"
-                                  : openTooltipId.includes("clone")
-                                  ? "Clonar"
-                                  : openTooltipId.includes("deleteAnswers")
-                                  ? "Eliminar Respuestas"
-                                  : openTooltipId.includes("delete")
-                                  ? "Eliminar Encuesta"
-                                  : ""}
-                              </div>
-                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -965,6 +987,37 @@ export function SurveyList({
                 "Sin descripción"
               )
             : "Sin descripción"}
+        </div>
+      )}
+
+      {openActionTooltipId && (
+        <div
+          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-gray-900 text-white dark:bg-[var(--card-background)] dark:text-[var(--text-primary)] dark:border dark:border-[var(--card-border)] max-w-xs pointer-events-none"
+          style={{
+            left: `${actionTooltipPosition.x}px`,
+            top: `${actionTooltipPosition.y}px`,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          {openActionTooltipId.includes("edit")
+            ? "Editar"
+            : openActionTooltipId.includes("answer")
+            ? role === "ROLE_ADMIN" || role === "SUPERVISOR"
+              ? "Prueba Local"
+              : "Responder"
+            : openActionTooltipId.includes("map")
+            ? "Ver Mapa"
+            : openActionTooltipId.includes("progress")
+            ? "Análisis"
+            : openActionTooltipId.includes("pollsters")
+            ? "Asignar Encuestadores"
+            : openActionTooltipId.includes("clone")
+            ? "Clonar"
+            : openActionTooltipId.includes("deleteAnswers")
+            ? "Eliminar Respuestas"
+            : openActionTooltipId.includes("delete")
+            ? "Eliminar Encuesta"
+            : ""}
         </div>
       )}
 

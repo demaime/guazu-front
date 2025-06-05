@@ -250,35 +250,50 @@ export default function EditarEncuesta() {
   const conditionalRelations = parseVisibleIfConditions(elements);
 
   // Procesar las preguntas primero para mantener referencias
-  const processedQuestions = elements.map((question) => ({
-    id: question.name,
-    type:
-      question.type === "checkbox"
-        ? "multiple_choice"
-        : question.type === "radiogroup"
-        ? "single_choice"
-        : question.type,
-    title: getLocalizedText(question.title),
-    description: getLocalizedText(question.description) || "",
-    required: question.isRequired || false,
-    // Inicialmente, marca como no condicional - actualizaremos después
-    isConditional: false,
-    options: (question.choices || []).map((choice) => ({
-      id: choice.value || choice.id,
-      text: getLocalizedText(choice.text),
-      // Sin nextQuestionId inicialmente
-    })),
-    matrixRows: (question.rows || []).map((row) => ({
-      id: row.value || row.id,
-      text: getLocalizedText(row.text),
-    })),
-    matrixColumns: (question.columns || []).map((col) => ({
-      id: col.value || col.id,
-      text: getLocalizedText(col.text),
-    })),
-    rateMin: question.rateMin,
-    rateMax: question.rateMax,
-  }));
+  const processedQuestions = elements.map((question) => {
+    // Buscar si esta pregunta tiene una condición para ser mostrada
+    const conditionalRelation = conditionalRelations[question.name];
+    let showCondition = null;
+
+    if (conditionalRelation) {
+      showCondition = {
+        parentQuestionId: conditionalRelation.parentId,
+        requiredValue: conditionalRelation.optionValue,
+      };
+    }
+
+    return {
+      id: question.name,
+      type:
+        question.type === "checkbox"
+          ? "multiple_choice"
+          : question.type === "radiogroup"
+          ? "single_choice"
+          : question.type,
+      title: getLocalizedText(question.title),
+      description: getLocalizedText(question.description) || "",
+      required: question.isRequired || false,
+      // Agregar showCondition si existe
+      ...(showCondition && { showCondition }),
+      // Inicialmente, marca como no condicional - actualizaremos después
+      isConditional: false,
+      options: (question.choices || []).map((choice) => ({
+        id: choice.value || choice.id,
+        text: getLocalizedText(choice.text),
+        // Sin nextQuestionId inicialmente
+      })),
+      matrixRows: (question.rows || []).map((row) => ({
+        id: row.value || row.id,
+        text: getLocalizedText(row.text),
+      })),
+      matrixColumns: (question.columns || []).map((col) => ({
+        id: col.value || col.id,
+        text: getLocalizedText(col.text),
+      })),
+      rateMin: question.rateMin,
+      rateMax: question.rateMax,
+    };
+  });
 
   // Ahora, configurar las relaciones condicionales
   Object.entries(conditionalRelations).forEach(([childId, relation]) => {
@@ -326,7 +341,17 @@ export default function EditarEncuesta() {
     quotas: survey.surveyInfo?.quotas || [],
   };
 
-  console.log("Transformed survey data:", initialData);
+  console.log("=== DEBUGGING SURVEY LOAD ===");
+  console.log("Raw survey data:", survey);
+  console.log("Elements from survey:", elements);
+  console.log("Conditional relations found:", conditionalRelations);
+  console.log("Processed questions:", processedQuestions);
+  console.log(
+    "Questions with showCondition:",
+    processedQuestions.filter((q) => q.showCondition)
+  );
+  console.log("Initial data for editor:", initialData);
+  console.log("=== END DEBUG ===");
 
   return (
     <NuevaEncuesta

@@ -86,10 +86,44 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 4,
   },
+  legendContainer: {
+    backgroundColor: "#F9FAFB",
+    padding: 10,
+    marginBottom: 20,
+    borderRadius: 5,
+    border: "1px solid #E5E7EB",
+  },
+  legendTitle: {
+    fontSize: 11,
+    fontWeight: "bold",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  legendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  legendIcon: {
+    width: 20,
+    height: 8,
+    backgroundColor: "#FEFEFE",
+    marginRight: 8,
+    borderRadius: 2,
+    border: "1px solid #D1D5DB",
+  },
+  legendText: {
+    fontSize: 9,
+    color: "#4B5563",
+  },
   questionContainer: {
     marginBottom: 20,
     borderBottom: "1px solid #E5E7EB",
     paddingBottom: 15,
+    backgroundColor: "#FEFEFE",
+    padding: 12,
+    borderRadius: 6,
+    border: "1px solid #F3F4F6",
   },
   questionHeader: {
     flexDirection: "row",
@@ -171,6 +205,49 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginLeft: 4,
   },
+  conditionalContainer: {
+    backgroundColor: "#FEF3C7",
+    padding: 8,
+    marginLeft: 33,
+    marginBottom: 8,
+    borderLeft: "3px solid #F59E0B",
+    borderRadius: 3,
+  },
+  conditionalTitle: {
+    fontSize: 8,
+    fontWeight: "bold",
+    color: "#92400E",
+    marginBottom: 3,
+  },
+  childQuestionsContainer: {
+    backgroundColor: "#DBEAFE",
+    padding: 8,
+    marginLeft: 33,
+    marginTop: 8,
+    borderLeft: "3px solid #3B82F6",
+    borderRadius: 3,
+  },
+  childQuestionsTitle: {
+    fontSize: 9,
+    fontWeight: "bold",
+    color: "#1E40AF",
+    marginBottom: 6,
+  },
+  childQuestionRow: {
+    marginBottom: 4,
+  },
+  childQuestionText: {
+    fontSize: 9,
+    color: "#1E40AF",
+    fontWeight: "bold",
+  },
+  childQuestionCondition: {
+    fontSize: 8,
+    color: "#3730A3",
+    fontStyle: "italic",
+    marginTop: 2,
+    paddingLeft: 8,
+  },
   footer: {
     position: "absolute",
     bottom: 30,
@@ -221,7 +298,7 @@ const findDependencies = (question, allQuestions) => {
     return dependencies;
 
   allQuestions.forEach((q) => {
-    // NUEVO FORMATO: Si esta pregunta tiene showCondition que referencia a la pregunta actual
+    // Si esta pregunta tiene showCondition que referencia a la pregunta actual
     if (q.showCondition && q.showCondition.parentQuestionId === question.id) {
       // Buscar el texto de la opción requerida
       const requiredOption = question.options?.find(
@@ -236,31 +313,7 @@ const findDependencies = (question, allQuestions) => {
         id: q.id,
         title: q.title,
         fromOption: optionText,
-        format: "new",
-      });
-    }
-
-    // FORMATO LEGACY: Si esta pregunta tiene una condición de visualización basada en otra (SurveyJS)
-    if (q.visibleIf && q.visibleIf.includes(question.id)) {
-      dependencies.push({
-        id: q.id,
-        title: q.title,
-        condition: q.visibleIf,
-        format: "legacy",
-      });
-    }
-
-    // FORMATO LEGACY: Si tiene opciones que llevan a otra pregunta
-    if (q.options && Array.isArray(q.options)) {
-      q.options.forEach((option) => {
-        if (option.nextQuestionId === question.id) {
-          dependencies.push({
-            id: q.id,
-            title: q.title,
-            fromOption: option.text || option.value || "Opción desconocida",
-            format: "legacy",
-          });
-        }
+        questionNumber: allQuestions.findIndex((qq) => qq.id === q.id) + 1,
       });
     }
   });
@@ -268,11 +321,11 @@ const findDependencies = (question, allQuestions) => {
   return dependencies;
 };
 
-// Función para buscar información sobre el padre de una pregunta - Compatible con ambos formatos
+// Función para buscar información sobre el padre de una pregunta
 const findParentInfo = (question, allQuestions, surveyData) => {
   if (!allQuestions || !Array.isArray(allQuestions) || !question) return null;
 
-  // NUEVO FORMATO: Verificar si la pregunta tiene showCondition
+  // Verificar si la pregunta tiene showCondition
   if (question.showCondition && question.showCondition.parentQuestionId) {
     const parentQuestion = allQuestions.find(
       (q) => q.id === question.showCondition.parentQuestionId
@@ -302,33 +355,7 @@ const findParentInfo = (question, allQuestions, surveyData) => {
         title: parentQuestion.title,
         option: optionText,
         number: displayNumber,
-        format: "new",
       };
-    }
-  }
-
-  // FORMATO LEGACY: Buscar si hay alguna pregunta que en sus opciones apunte a esta
-  for (const q of allQuestions) {
-    if (q.options && Array.isArray(q.options)) {
-      for (const option of q.options) {
-        if (option.nextQuestionId === question.id) {
-          // Usar la misma lógica para el número de pregunta que se usa en el componente
-          const qIndex = allQuestions.findIndex((item) => item.id === q.id);
-          const displayNumber =
-            q.displayNumber ||
-            (surveyData?.questionNumberMap &&
-              surveyData.questionNumberMap[q.id]) ||
-            `${qIndex + 1}`;
-
-          return {
-            id: q.id,
-            title: q.title,
-            option: option.text || option.value || "Opción desconocida",
-            number: displayNumber,
-            format: "legacy",
-          };
-        }
-      }
     }
   }
 
@@ -394,6 +421,38 @@ const SurveyPDF = ({ surveyData }) => {
 
         <Text style={styles.sectionTitle}>Preguntas de la encuesta</Text>
 
+        <View style={styles.legendContainer}>
+          <Text style={styles.legendTitle}>Leyenda:</Text>
+          <View style={styles.legendRow}>
+            <View style={styles.legendIcon} />
+            <Text style={styles.legendText}>
+              Pregunta normal (se muestra siempre)
+            </Text>
+          </View>
+          <View style={styles.legendRow}>
+            <View
+              style={[
+                styles.legendIcon,
+                { backgroundColor: "#FEF3C7", borderLeft: "3px solid #F59E0B" },
+              ]}
+            />
+            <Text style={styles.legendText}>
+              Pregunta condicional (se muestra solo si se cumple una condición)
+            </Text>
+          </View>
+          <View style={styles.legendRow}>
+            <View
+              style={[
+                styles.legendIcon,
+                { backgroundColor: "#DBEAFE", borderLeft: "3px solid #3B82F6" },
+              ]}
+            />
+            <Text style={styles.legendText}>
+              Esta pregunta controla la visualización de otras preguntas
+            </Text>
+          </View>
+        </View>
+
         {questions.map((question, index) => {
           // Buscar información sobre el padre de esta pregunta (si existe)
           const parentInfo = findParentInfo(question, questions, surveyData);
@@ -431,10 +490,16 @@ const SurveyPDF = ({ surveyData }) => {
               )}
 
               {parentInfo && (
-                <Text style={styles.dependencyInfo}>
-                  - Se muestra si en pregunta {parentInfo.number || "?"} se
-                  selecciona "{parentInfo.option}"
-                </Text>
+                <View style={styles.conditionalContainer}>
+                  <Text style={styles.conditionalTitle}>
+                    PREGUNTA CONDICIONAL
+                  </Text>
+                  <Text style={styles.dependencyInfo}>
+                    ↳ Solo se muestra si en la pregunta{" "}
+                    {parentInfo.number || "?"} se selecciona: "
+                    {parentInfo.option}"
+                  </Text>
+                </View>
               )}
 
               {question.options && question.options.length > 0 && (
@@ -523,33 +588,17 @@ const SurveyPDF = ({ surveyData }) => {
               )}
 
               {childQuestions.length > 0 && (
-                <View style={styles.optionsContainer}>
-                  <Text
-                    style={[
-                      styles.optionLabel,
-                      { fontWeight: "bold", marginBottom: 6, color: "#2563EB" },
-                    ]}
-                  >
-                    Determina la visualización de:
+                <View style={styles.childQuestionsContainer}>
+                  <Text style={styles.childQuestionsTitle}>
+                    🔗 CONTROLA LA VISUALIZACIÓN DE:
                   </Text>
                   {childQuestions.map((childQ, childIndex) => (
-                    <View key={childIndex} style={styles.optionRow}>
-                      <View
-                        style={[
-                          styles.optionMarker,
-                          { backgroundColor: "#2563EB" },
-                        ]}
-                      />
-                      <Text style={[styles.optionLabel, { color: "#2563EB" }]}>
-                        Pregunta{" "}
-                        {questions.find((q) => q.id === childQ.id)
-                          ?.displayNumber ||
-                          (surveyData.questionNumberMap &&
-                            surveyData.questionNumberMap[childQ.id]) ||
-                          "?"}
-                        {childQ.fromOption
-                          ? ` (si se selecciona "${childQ.fromOption}")`
-                          : ""}
+                    <View key={childIndex} style={styles.childQuestionRow}>
+                      <Text style={styles.childQuestionText}>
+                        → Pregunta {childQ.questionNumber}: "{childQ.title}"
+                      </Text>
+                      <Text style={styles.childQuestionCondition}>
+                        (aparece cuando se selecciona: "{childQ.fromOption}")
                       </Text>
                     </View>
                   ))}

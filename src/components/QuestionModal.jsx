@@ -3,13 +3,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
-// Importar funciones de migración
-import {
-  detectSurveyFormat,
-  needsMigration,
-  migrateSurveyToNewFormat,
-} from "@/lib/conditional-logic-migration.js";
-
 // Función para generar IDs únicos
 const generateUniqueId = () => {
   return Math.random().toString(36).substr(2, 9) + "_" + Date.now();
@@ -84,50 +77,21 @@ const QUESTION_TYPE_LABELS = {
   [QUESTION_TYPES.MATRIX]: "Matriz",
 };
 
-// Función para calcular números jerárquicos (compatible con ambos formatos)
+// Función para calcular números jerárquicos (formato nuevo)
 function calculateQuestionNumbers(questions) {
   const questionNumbers = {}; // { questionId: numberString }
   let mainQuestionCounter = 0;
 
-  // Helper para encontrar si una pregunta es hija y de quién (formato legacy)
-  function findParentInfoLegacy(targetId, allQuestions) {
-    for (let i = 0; i < allQuestions.length; i++) {
-      const parentQ = allQuestions[i];
-      if (parentQ.isConditional && parentQ.options) {
-        const optionIndex = parentQ.options.findIndex(
-          (opt) => opt.nextQuestionId === targetId
-        );
-        if (optionIndex !== -1) {
-          // Asegurarse que el padre no sea el mismo (evitar ciclos en cálculo)
-          if (parentQ.id !== targetId) {
-            return { parentId: parentQ.id, optionIndex };
-          }
-        }
-      }
-    }
-    return null;
-  }
-
-  // Helper para encontrar si una pregunta es hija y de quién (formato nuevo)
-  function findParentInfoNew(targetId, allQuestions) {
+  // Helper para encontrar si una pregunta es hija y de quién
+  function findParentInfo(targetId, allQuestions) {
     const targetQuestion = allQuestions.find((q) => q.id === targetId);
     if (targetQuestion && targetQuestion.showCondition) {
       return {
         parentId: targetQuestion.showCondition.parentQuestionId,
-        optionIndex: 0, // En el nuevo formato no hay índice específico
+        optionIndex: 0,
       };
     }
     return null;
-  }
-
-  // Función unificada que funciona con ambos formatos
-  function findParentInfo(targetId, allQuestions) {
-    // Intentar formato nuevo primero
-    const newFormatResult = findParentInfoNew(targetId, allQuestions);
-    if (newFormatResult) return newFormatResult;
-
-    // Fallback a formato legacy
-    return findParentInfoLegacy(targetId, allQuestions);
   }
 
   // Asignar números principales primero
@@ -149,25 +113,6 @@ function calculateQuestionNumbers(questions) {
       questionNumbers[q.id] = `${mainParentNumber}.${
         parentInfo.optionIndex + 1
       }`;
-    }
-  });
-
-  // Fallback por si algo no se calculó (no debería pasar con la lógica actual)
-  mainQuestionCounter = 0;
-  questions.forEach((q) => {
-    if (!questionNumbers[q.id]) {
-      const parentInfo = findParentInfo(q.id, questions);
-      if (!parentInfo) {
-        mainQuestionCounter++;
-        questionNumbers[q.id] = `${mainQuestionCounter}`;
-      } else {
-        const parentIndexFallback = questions.findIndex(
-          (pq) => pq.id === parentInfo.parentId
-        );
-        questionNumbers[q.id] = `${parentIndexFallback + 1}.${
-          parentInfo.optionIndex + 1
-        }`;
-      }
     }
   });
 
@@ -197,7 +142,7 @@ export default function QuestionModal({
       matrixRows: [],
       matrixColumns: [],
       isConditional: false,
-      // Nuevo formato: agregar showCondition
+
       showCondition: null,
     };
 
@@ -220,21 +165,11 @@ export default function QuestionModal({
       initialState.description =
         data.description || DESCRIPTION_PLACEHOLDERS[initialState.type] || "";
 
-      // Manejar compatibilidad entre formatos
+      // Configurar pregunta condicional
       if (data.showCondition) {
-        // Formato nuevo: la pregunta tiene showCondition
         initialState.isConditional = true;
         initialState.showCondition = data.showCondition;
-      } else if (
-        data.isConditional &&
-        data.options &&
-        data.options.some((opt) => opt.nextQuestionId)
-      ) {
-        // Formato legacy: la pregunta es condicional con nextQuestionId en opciones
-        initialState.isConditional = true;
-        initialState.showCondition = null;
       } else {
-        // No es condicional
         initialState.isConditional = false;
         initialState.showCondition = null;
       }
@@ -247,23 +182,6 @@ export default function QuestionModal({
   };
 
   const [question, setQuestion] = useState(() => getInitialState(initialData));
-
-  // Detectar si estamos trabajando con formato nuevo o legacy
-  const isNewFormat = useMemo(() => {
-    if (allQuestions.length === 0) return true; // Para nuevas encuestas, usar formato nuevo
-
-    // Detectar formato basado en las preguntas existentes
-    const hasShowCondition = allQuestions.some((q) => q.showCondition);
-    const hasNextQuestionId = allQuestions.some(
-      (q) => q.options && q.options.some((opt) => opt.nextQuestionId)
-    );
-
-    if (hasShowCondition && !hasNextQuestionId) return true; // Formato nuevo
-    if (!hasShowCondition && hasNextQuestionId) return false; // Formato legacy
-
-    // Formato mixto o sin preguntas condicionales - preferir nuevo
-    return true;
-  }, [allQuestions]);
 
   // Asegurarse de que el ID se mantenga al editar y el estado se resetee/inicialice correctamente
   useEffect(() => {
@@ -291,10 +209,7 @@ export default function QuestionModal({
   const addOption = () => {
     setQuestion((prev) => ({
       ...prev,
-      options: [
-        ...prev.options,
-        { id: generateUniqueId(), text: "", nextQuestionId: null },
-      ],
+      options: [...prev.options, { id: generateUniqueId(), text: "" }],
     }));
   };
 
@@ -302,18 +217,6 @@ export default function QuestionModal({
     setQuestion((prev) => {
       const newOptions = [...prev.options];
       newOptions[optionIndex].text = value;
-      return { ...prev, options: newOptions };
-    });
-  };
-
-  // Función para actualizar la pregunta siguiente para una opción (formato legacy)
-  const updateOptionNextQuestion = (optionIndex, nextQuestionId) => {
-    setQuestion((prev) => {
-      const newOptions = [...prev.options];
-      newOptions[optionIndex] = {
-        ...newOptions[optionIndex],
-        nextQuestionId: nextQuestionId === "" ? null : nextQuestionId,
-      };
       return { ...prev, options: newOptions };
     });
   };
@@ -409,42 +312,6 @@ export default function QuestionModal({
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-
-                  {/* Lógica condicional - mostrar UI según formato */}
-                  {question.isConditional && !isNewFormat && (
-                    // Formato Legacy: Selector de pregunta siguiente por opción
-                    <div className="mt-2 pl-2 border-l-2 border-blue-200">
-                      <label className="text-xs text-blue-600 block mb-1">
-                        Si se selecciona "{option.text || `Opción ${index + 1}`}
-                        ", ir a:
-                      </label>
-                      <select
-                        value={option.nextQuestionId || ""}
-                        onChange={(e) =>
-                          updateOptionNextQuestion(index, e.target.value)
-                        }
-                        className="p-1.5 border rounded-md text-sm w-full"
-                      >
-                        <option value="">
-                          - Continuar con la siguiente pregunta -
-                        </option>
-                        {allQuestions
-                          .filter(
-                            (q) =>
-                              q.id !== question.id &&
-                              (!initialData || q.id !== initialData.id)
-                          )
-                          .map((q) => (
-                            // Usar el mapa de números calculado
-                            <option key={q.id} value={q.id}>
-                              {`${questionNumberMap[q.id] || "?"}. ${
-                                q.title || "Pregunta sin título"
-                              }`}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -620,9 +487,8 @@ export default function QuestionModal({
       return; // Prevent saving
     }
 
-    // Validaciones específicas según formato
-    if (isNewFormat && question.isConditional) {
-      // Validaciones para formato nuevo
+    // Validaciones para preguntas condicionales
+    if (question.isConditional) {
       if (!question.showCondition || !question.showCondition.parentQuestionId) {
         if (onValidationError) {
           onValidationError(
@@ -650,29 +516,16 @@ export default function QuestionModal({
       }
     }
 
-    // Preparar datos para guardar según formato
+    // Preparar datos para guardar
     let questionToSave = {
       ...question,
       id: questionId, // Use the ensured ID
       variable: finalVariable, // Use the ensured variable
     };
 
-    if (isNewFormat) {
-      // Formato nuevo: limpiar campos legacy si existen
-      if (questionToSave.options) {
-        questionToSave.options = questionToSave.options.map((opt) => {
-          const { nextQuestionId, ...cleanOpt } = opt;
-          return cleanOpt;
-        });
-      }
-
-      // Si no es condicional, limpiar showCondition
-      if (!questionToSave.isConditional) {
-        questionToSave.showCondition = null;
-      }
-    } else {
-      // Formato legacy: limpiar campos del nuevo formato
-      questionToSave.showCondition = undefined;
+    // Si no es condicional, limpiar showCondition
+    if (!questionToSave.isConditional) {
+      questionToSave.showCondition = null;
     }
 
     // Guardar la pregunta
@@ -771,37 +624,27 @@ export default function QuestionModal({
                     Pregunta obligatoria
                   </label>
                 </div>
-
-                {/* Conditional Question Checkbox - Show for all questions in new format, choice-based in legacy */}
-                {(isNewFormat ||
-                  question.type === QUESTION_TYPES.MULTIPLE_CHOICE ||
-                  question.type === QUESTION_TYPES.SINGLE_CHOICE ||
-                  question.type === QUESTION_TYPES.CHECKBOX) && (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="isConditional"
-                      checked={question.isConditional || false}
-                      onChange={(e) => {
-                        const isChecked = e.target.checked;
-                        setQuestion((prev) => ({
-                          ...prev,
-                          isConditional: isChecked,
-                          // Limpiar showCondition si se desmarca en formato nuevo
-                          showCondition:
-                            isNewFormat && !isChecked
-                              ? null
-                              : prev.showCondition,
-                        }));
-                      }}
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <label htmlFor="isConditional" className="text-sm">
-                      Pregunta condicional
-                    </label>
-                  </div>
-                )}
-
+                {/* Conditional Question Checkbox */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isConditional"
+                    checked={question.isConditional || false}
+                    onChange={(e) => {
+                      const isChecked = e.target.checked;
+                      setQuestion((prev) => ({
+                        ...prev,
+                        isConditional: isChecked,
+                        // Limpiar showCondition si se desmarca
+                        showCondition: !isChecked ? null : prev.showCondition,
+                      }));
+                    }}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="isConditional" className="text-sm">
+                    Pregunta condicional
+                  </label>
+                </div>
                 {/* Type Dropdown */}
                 <select
                   value={question.type}
@@ -850,11 +693,11 @@ export default function QuestionModal({
               {/* Dynamic Question Options */}
               {renderQuestionOptions()}
 
-              {/* Nueva UI para configurar condición de visualización (formato nuevo) */}
-              {isNewFormat && question.isConditional && (
+              {/* Configurar condición de visualización */}
+              {question.isConditional && (
                 <div className="mt-4 p-4 bg-green-50 rounded-md border border-green-200">
                   <h4 className="text-sm font-medium text-green-800 mb-2">
-                    🔥 Configurar condición de visualización (Nuevo formato)
+                    🔥 Configurar condición de visualización
                   </h4>
                   <p className="text-xs text-green-600 mb-3">
                     Esta pregunta se mostrará solo cuando se cumpla la condición
@@ -964,22 +807,6 @@ export default function QuestionModal({
                         </div>
                       )}
                   </div>
-                </div>
-              )}
-
-              {/* Explicación de pregunta condicional para formato legacy */}
-              {!isNewFormat && question.isConditional && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-200">
-                  <h4 className="text-sm font-medium text-blue-800 mb-1">
-                    Información sobre preguntas condicionales (Formato Legacy)
-                  </h4>
-                  <p className="text-xs text-blue-600">
-                    Has marcado esta como una pregunta condicional. Para cada
-                    opción, puedes especificar qué pregunta debe mostrarse a
-                    continuación si esa opción es seleccionada. Si no
-                    seleccionas ninguna pregunta específica, se seguirá el orden
-                    normal.
-                  </p>
                 </div>
               )}
             </div>

@@ -106,19 +106,12 @@ const useConfirmNavigation = (shouldConfirm) => {
 
 // Helper para encontrar si una pregunta es hija y de quién
 function findParentInfo(targetId, allQuestions) {
-  for (let i = 0; i < allQuestions.length; i++) {
-    const parentQ = allQuestions[i];
-    if (parentQ.isConditional && parentQ.options) {
-      const optionIndex = parentQ.options.findIndex(
-        (opt) => opt.nextQuestionId === targetId
-      );
-      if (optionIndex !== -1) {
-        // Asegurarse que el padre no sea el mismo (evitar ciclos en cálculo)
-        if (parentQ.id !== targetId) {
-          return { parentId: parentQ.id, optionIndex };
-        }
-      }
-    }
+  const targetQuestion = allQuestions.find((q) => q.id === targetId);
+  if (targetQuestion?.showCondition?.parentQuestionId) {
+    return {
+      parentId: targetQuestion.showCondition.parentQuestionId,
+      optionIndex: 0,
+    };
   }
   return null;
 }
@@ -215,15 +208,8 @@ const createHierarchicalStructure = (questions) => {
 
   // Primero identificamos las preguntas raíz (sin padre)
   const rootQuestions = questions.filter((q) => {
-    // Verificamos si esta pregunta es destino de alguna pregunta condicional
-    const isChild = questions.some(
-      (parentQ) =>
-        parentQ &&
-        parentQ.isConditional &&
-        parentQ.options &&
-        parentQ.options.some((opt) => opt && opt.nextQuestionId === q.id)
-    );
-    return !isChild;
+    // Verificamos si esta pregunta tiene showCondition
+    return !q.showCondition?.parentQuestionId;
   });
 
   // Si no hay preguntas raíz, devolver las preguntas originales
@@ -258,22 +244,17 @@ const createHierarchicalStructure = (questions) => {
       number: currentNumber,
     };
 
-    // Si es pregunta condicional, buscar sus hijos
-    if (question.isConditional && question.options) {
-      question.options.forEach((opt) => {
-        if (opt && opt.nextQuestionId) {
-          const childQuestion = questions.find(
-            (q) => q && q.id === opt.nextQuestionId
-          );
-          if (childQuestion) {
-            // Añadir a la lista de hijos
-            hierarchyMap[question.id].children.push(childQuestion);
-            // Construir subárbol recursivamente
-            buildQuestionTree(childQuestion, currentNumber);
-          }
-        }
-      });
-    }
+    // Buscar preguntas hijas que tienen este ID como padre
+    const childQuestions = questions.filter(
+      (q) => q.showCondition?.parentQuestionId === question.id
+    );
+
+    childQuestions.forEach((childQuestion) => {
+      // Añadir a la lista de hijos
+      hierarchyMap[question.id].children.push(childQuestion);
+      // Construir subárbol recursivamente
+      buildQuestionTree(childQuestion, currentNumber);
+    });
 
     return hierarchyMap[question.id];
   };
@@ -316,22 +297,10 @@ const organizeQuestionsHierarchically = (questions) => {
 
   // Función helper para verificar si una pregunta es hija
   const findParentForQuestion = (question) => {
-    // NUEVO FORMATO: Verificar showCondition
+    // Verificar showCondition
     if (question.showCondition && question.showCondition.parentQuestionId) {
       return question.showCondition.parentQuestionId;
     }
-
-    // FORMATO LEGACY: Buscar en opciones de otras preguntas
-    for (const potentialParent of questions) {
-      if (potentialParent.isConditional && potentialParent.options) {
-        for (const opt of potentialParent.options) {
-          if (opt && opt.nextQuestionId === question.id) {
-            return potentialParent.id;
-          }
-        }
-      }
-    }
-
     return null;
   };
 
@@ -763,7 +732,7 @@ export default function NuevaEncuesta({
 
           // Buscar si esta pregunta es destino de alguna condición
           if (surveyData.questions && Array.isArray(surveyData.questions)) {
-            // 🆕 NUEVO FORMATO: Buscar si esta pregunta tiene showCondition
+            // Buscar si esta pregunta tiene showCondition
             const currentQuestion = surveyData.questions.find(
               (q) => q.id === originalQuestionId
             );
@@ -787,54 +756,19 @@ export default function NuevaEncuesta({
                   operator = "contains";
                 }
 
-                // Construir la condición para el nuevo formato
+                // Construir la condición
                 const condition = `{${parentId}} ${operator} '${requiredValue}'`;
                 visibilityConditions.push(condition);
 
-                console.log("✅ NUEVO FORMATO - Condición generada:", {
+                console.log("✅ Condición generada:", {
                   questionId: originalQuestionId,
                   condition: condition,
                   parentId: parentId,
                   requiredValue: requiredValue,
+                  originalShowCondition: currentQuestion.showCondition,
                 });
               }
             }
-
-            // 📋 FORMATO LEGACY: Buscar en opciones de otras preguntas (mantener compatibilidad)
-            surveyData.questions.forEach((parentQ) => {
-              if (!parentQ) return; // Skip if parent question is undefined
-
-              if (
-                parentQ.isConditional &&
-                parentQ.options &&
-                Array.isArray(parentQ.options)
-              ) {
-                parentQ.options.forEach((opt) => {
-                  if (!opt) return; // Skip if option is undefined
-
-                  if (opt.nextQuestionId === originalQuestionId) {
-                    // Determinar operador basado en tipo de pregunta padre
-                    let operator = "=";
-                    if (parentQ.type === "multiple_choice") {
-                      operator = "contains";
-                    } else if (parentQ.type === "checkbox") {
-                      operator = "contains";
-                    }
-
-                    // Construir la condición
-                    const condition = `{${parentQ.id}} ${operator} '${opt.id}'`;
-                    visibilityConditions.push(condition);
-
-                    console.log("📋 LEGACY FORMATO - Condición generada:", {
-                      questionId: originalQuestionId,
-                      condition: condition,
-                      parentId: parentQ.id,
-                      optionId: opt.id,
-                    });
-                  }
-                });
-              }
-            });
           }
 
           // Si se encontraron condiciones, unirlas con OR y asignarlas
@@ -889,6 +823,15 @@ export default function NuevaEncuesta({
           quotas: surveyData.quotas || [],
         },
       };
+
+      console.log("=== DEBUGGING SAVE ===");
+      console.log("SurveyData questions before save:", surveyData.questions);
+      console.log(
+        "Questions with showCondition before save:",
+        surveyData.questions.filter((q) => q.showCondition)
+      );
+      console.log("Data to save:", dataToSave);
+      console.log("=== END SAVE DEBUG ===");
 
       await surveyService.createOrUpdateSurvey(
         dataToSave,
@@ -1302,7 +1245,7 @@ export default function NuevaEncuesta({
                         let parentInfoText = "";
                         let parentQuestion = null;
 
-                        // NUEVO FORMATO: Verificar showCondition
+                        // Verificar showCondition
                         if (
                           question.showCondition &&
                           question.showCondition.parentQuestionId
@@ -1325,26 +1268,7 @@ export default function NuevaEncuesta({
 
                             parentInfoText = `↳ Se muestra si en pregunta ${
                               numberMap[parentQuestion.id] || "?"
-                            } se elige "${optionText}" [NUEVO FORMATO]`;
-                          }
-                        } else {
-                          // FORMATO LEGACY: Buscar padre en opciones de otras preguntas
-                          for (const q of surveyData.questions) {
-                            if (q.isConditional && q.options) {
-                              const optionIndex = q.options.findIndex(
-                                (opt) =>
-                                  opt && opt.nextQuestionId === question.id
-                              );
-                              if (optionIndex !== -1) {
-                                parentQuestion = q;
-                                parentInfoText = `↳ Se muestra si en pregunta ${
-                                  numberMap[q.id] || "?"
-                                } se elige "${
-                                  q.options[optionIndex]?.text || "opción"
-                                }" [LEGACY]`;
-                                break;
-                              }
-                            }
+                            } se elige "${optionText}"`;
                           }
                         }
 
@@ -1400,46 +1324,24 @@ export default function NuevaEncuesta({
                                           // Determinar si esta opción lleva a una pregunta específica
                                           let conditionInfo = null;
 
-                                          // FORMATO LEGACY: buscar nextQuestionId
-                                          if (option.nextQuestionId) {
-                                            const targetQuestion =
-                                              surveyData.questions.find(
-                                                (q) =>
-                                                  q.id === option.nextQuestionId
-                                              );
-                                            if (targetQuestion) {
-                                              conditionInfo = {
-                                                questionNumber:
-                                                  numberMap[
-                                                    option.nextQuestionId
-                                                  ] || "?",
-                                                questionTitle:
-                                                  targetQuestion.title,
-                                                format: "legacy",
-                                              };
-                                            }
-                                          } else {
-                                            // FORMATO NUEVO: buscar si alguna pregunta hace referencia a esta opción
-                                            const childQuestion =
-                                              surveyData.questions.find(
-                                                (q) =>
-                                                  q.showCondition
-                                                    ?.parentQuestionId ===
-                                                    question.id &&
-                                                  q.showCondition
-                                                    ?.requiredValue ===
-                                                    option.id
-                                              );
-                                            if (childQuestion) {
-                                              conditionInfo = {
-                                                questionNumber:
-                                                  numberMap[childQuestion.id] ||
-                                                  "?",
-                                                questionTitle:
-                                                  childQuestion.title,
-                                                format: "new",
-                                              };
-                                            }
+                                          // Buscar si alguna pregunta hace referencia a esta opción
+                                          const childQuestion =
+                                            surveyData.questions.find(
+                                              (q) =>
+                                                q.showCondition
+                                                  ?.parentQuestionId ===
+                                                  question.id &&
+                                                q.showCondition
+                                                  ?.requiredValue === option.id
+                                            );
+                                          if (childQuestion) {
+                                            conditionInfo = {
+                                              questionNumber:
+                                                numberMap[childQuestion.id] ||
+                                                "?",
+                                              questionTitle:
+                                                childQuestion.title,
+                                            };
                                           }
 
                                           return (
@@ -1452,14 +1354,7 @@ export default function NuevaEncuesta({
                                                 {option.text}
                                               </span>
                                               {conditionInfo && (
-                                                <span
-                                                  className={`text-xs font-medium ${
-                                                    conditionInfo.format ===
-                                                    "new"
-                                                      ? "text-green-600"
-                                                      : "text-blue-600"
-                                                  }`}
-                                                >
+                                                <span className="text-xs font-medium text-green-600">
                                                   → P
                                                   {conditionInfo.questionNumber}
                                                 </span>
@@ -1557,15 +1452,7 @@ export default function NuevaEncuesta({
                 {(() => {
                   // Función helper para determinar si una pregunta es padre condicional
                   const isConditionalParent = (question) => {
-                    // FORMATO LEGACY: tiene isConditional y opciones con nextQuestionId
-                    if (
-                      question.isConditional &&
-                      question.options?.some((opt) => opt.nextQuestionId)
-                    ) {
-                      return true;
-                    }
-
-                    // FORMATO NUEVO: otras preguntas hacen referencia a esta
+                    // Verificar si otras preguntas hacen referencia a esta
                     const hasChildren = surveyData.questions.some(
                       (q) => q.showCondition?.parentQuestionId === question.id
                     );
@@ -1576,28 +1463,7 @@ export default function NuevaEncuesta({
                   const getChildQuestions = (parentQuestion) => {
                     const children = [];
 
-                    // FORMATO LEGACY: buscar en opciones con nextQuestionId
-                    if (
-                      parentQuestion.isConditional &&
-                      parentQuestion.options
-                    ) {
-                      parentQuestion.options.forEach((opt) => {
-                        if (opt.nextQuestionId) {
-                          const childQ = surveyData.questions.find(
-                            (q) => q.id === opt.nextQuestionId
-                          );
-                          if (childQ) {
-                            children.push({
-                              question: childQ,
-                              option: opt,
-                              format: "legacy",
-                            });
-                          }
-                        }
-                      });
-                    }
-
-                    // FORMATO NUEVO: buscar preguntas con showCondition que referencian esta
+                    // Buscar preguntas con showCondition que referencian esta
                     surveyData.questions.forEach((q) => {
                       if (
                         q.showCondition?.parentQuestionId === parentQuestion.id
@@ -1610,7 +1476,6 @@ export default function NuevaEncuesta({
                           option: parentOption || {
                             text: q.showCondition.requiredValue,
                           },
-                          format: "new",
                         });
                       }
                     });
@@ -1639,56 +1504,18 @@ export default function NuevaEncuesta({
 
                           if (childQuestions.length === 0) return null;
 
-                          // Determinar si es mixto (tiene ambos formatos)
-                          const hasLegacy = childQuestions.some(
-                            (c) => c.format === "legacy"
-                          );
-                          const hasNew = childQuestions.some(
-                            (c) => c.format === "new"
-                          );
-                          const isMixed = hasLegacy && hasNew;
-
                           return (
                             <div
                               key={parentQ.id}
-                              className={`p-3 rounded-lg border-l-4 ${
-                                isMixed
-                                  ? "border-yellow-400 bg-yellow-50"
-                                  : hasNew
-                                  ? "border-green-400 bg-green-50"
-                                  : "border-blue-400 bg-blue-50"
-                              }`}
+                              className="p-3 rounded-lg border-l-4 border-green-400 bg-green-50"
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <span
-                                  className={`px-2 py-1 rounded text-xs font-medium ${
-                                    isMixed
-                                      ? "bg-yellow-200 text-yellow-800"
-                                      : hasNew
-                                      ? "bg-green-200 text-green-800"
-                                      : "bg-blue-200 text-blue-800"
-                                  }`}
-                                >
+                                <span className="px-2 py-1 rounded text-xs font-medium bg-green-200 text-green-800">
                                   P{questionNumber}
                                 </span>
                                 <p className="font-medium text-gray-800">
                                   {parentQ.title}
                                 </p>
-                                <span
-                                  className={`text-xs px-2 py-1 rounded ${
-                                    isMixed
-                                      ? "bg-yellow-100 text-yellow-700"
-                                      : hasNew
-                                      ? "bg-green-100 text-green-700"
-                                      : "bg-blue-100 text-blue-700"
-                                  }`}
-                                >
-                                  {isMixed
-                                    ? "MIXTO"
-                                    : hasNew
-                                    ? "NUEVO"
-                                    : "LEGACY"}
-                                </span>
                               </div>
 
                               <div className="ml-6 space-y-1">
@@ -1706,26 +1533,9 @@ export default function NuevaEncuesta({
                                       <span className="text-gray-600">
                                         • Si elige "{child.option.text}":
                                       </span>
-                                      <span
-                                        className={`font-medium ${
-                                          child.format === "new"
-                                            ? "text-green-600"
-                                            : "text-blue-600"
-                                        }`}
-                                      >
+                                      <span className="font-medium text-green-600">
                                         → P{childNumber} ({child.question.title}
                                         )
-                                      </span>
-                                      <span
-                                        className={`text-xs px-1 py-0.5 rounded ${
-                                          child.format === "new"
-                                            ? "bg-green-100 text-green-600"
-                                            : "bg-blue-100 text-blue-600"
-                                        }`}
-                                      >
-                                        {child.format === "new"
-                                          ? "NUEVO"
-                                          : "LEGACY"}
                                       </span>
                                     </div>
                                   );
@@ -1734,27 +1544,6 @@ export default function NuevaEncuesta({
                             </div>
                           );
                         })}
-
-                        {/* Leyenda */}
-                        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                          <p className="text-xs font-medium text-gray-600 mb-2">
-                            Leyenda:
-                          </p>
-                          <div className="flex flex-wrap gap-3 text-xs">
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-3 bg-green-400 rounded"></div>
-                              <span>Nuevo formato (showCondition)</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-3 bg-blue-400 rounded"></div>
-                              <span>Legacy (nextQuestionId)</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-3 h-3 bg-yellow-400 rounded"></div>
-                              <span>Mixto (ambos formatos)</span>
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   );

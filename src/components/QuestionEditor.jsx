@@ -68,48 +68,34 @@ const QUESTION_TYPE_ICONS = {
   [QUESTION_TYPES.MATRIX]: Grid,
 };
 
-// Helper para encontrar información del padre - Compatible con ambos formatos
+// Helper para encontrar información del padre
 function findParentInfo(targetId, allQuestions) {
   if (!allQuestions || !Array.isArray(allQuestions)) return null;
 
-  // Buscar en todas las preguntas
-  for (const question of allQuestions) {
-    if (!question || !question.id) continue;
-
-    // NUEVO FORMATO: Verificar si la pregunta objetivo tiene showCondition
-    const targetQuestion = allQuestions.find((q) => q.id === targetId);
-    if (targetQuestion?.showCondition?.parentQuestionId === question.id) {
+  // Verificar si la pregunta objetivo tiene showCondition
+  const targetQuestion = allQuestions.find((q) => q.id === targetId);
+  if (targetQuestion?.showCondition?.parentQuestionId) {
+    const parentQuestion = allQuestions.find(
+      (q) => q.id === targetQuestion.showCondition.parentQuestionId
+    );
+    if (parentQuestion) {
       // Buscar el índice de la opción requerida
       const optionIndex =
-        question.options?.findIndex(
+        parentQuestion.options?.findIndex(
           (opt) => opt.id === targetQuestion.showCondition.requiredValue
         ) ?? -1;
 
       return {
-        parentId: question.id,
+        parentId: parentQuestion.id,
         optionIndex: optionIndex >= 0 ? optionIndex : 0,
-        format: "new",
       };
     }
-
-    // FORMATO LEGACY: Buscar en opciones
-    if (question.isConditional && question.options) {
-      const optionIndex = question.options.findIndex(
-        (opt) => opt && opt.nextQuestionId === targetId
-      );
-      if (optionIndex !== -1 && question.id !== targetId) {
-        return {
-          parentId: question.id,
-          optionIndex,
-          format: "legacy",
-        };
-      }
-    }
   }
+
   return null;
 }
 
-// Función para calcular números jerárquicos - Compatible con ambos formatos
+// Función para calcular números jerárquicos
 function calculateQuestionNumbers(questions) {
   if (!questions || !Array.isArray(questions) || questions.length === 0) {
     return {};
@@ -117,20 +103,9 @@ function calculateQuestionNumbers(questions) {
 
   // Función helper para verificar si una pregunta es hija
   const findParentForQuestion = (question) => {
-    // NUEVO FORMATO: Verificar showCondition
+    // Verificar showCondition
     if (question.showCondition && question.showCondition.parentQuestionId) {
       return question.showCondition.parentQuestionId;
-    }
-
-    // FORMATO LEGACY: Buscar en opciones de otras preguntas
-    for (const potentialParent of questions) {
-      if (potentialParent.isConditional && potentialParent.options) {
-        for (const opt of potentialParent.options) {
-          if (opt && opt.nextQuestionId === question.id) {
-            return potentialParent.id;
-          }
-        }
-      }
     }
     return null;
   };
@@ -183,18 +158,10 @@ function calculateQuestionNumbers(questions) {
   return numberMap;
 }
 
-// Función para determinar si una pregunta es condicional en cualquier formato
+// Función para determinar si una pregunta es condicional
 function isConditionalQuestion(question) {
-  // NUEVO FORMATO: Tiene showCondition
+  // Tiene showCondition
   if (question.showCondition && question.showCondition.parentQuestionId) {
-    return true;
-  }
-
-  // FORMATO LEGACY: Está marcada como condicional y tiene opciones con nextQuestionId
-  if (
-    question.isConditional &&
-    question.options?.some((opt) => opt.nextQuestionId)
-  ) {
     return true;
   }
 
@@ -445,23 +412,14 @@ export default function QuestionEditor({
             );
             if (parentQuestion) {
               const parentNumber = questionNumberMap[parentQuestion.id] || "?";
-
-              if (parentInfo.format === "new") {
-                // NUEVO FORMATO
-                const requiredOption = parentQuestion.options?.find(
-                  (opt) => opt.id === question.showCondition?.requiredValue
-                );
-                const optionText =
-                  requiredOption?.text ||
-                  question.showCondition?.requiredValue ||
-                  "valor desconocido";
-                parentInfoText = `Se muestra si en P${parentNumber} se elige "${optionText}"`;
-              } else {
-                // FORMATO LEGACY
-                const option = parentQuestion.options?.[parentInfo.optionIndex];
-                const optionText = option?.text || "opción desconocida";
-                parentInfoText = `Se muestra si en P${parentNumber} se elige "${optionText}"`;
-              }
+              const requiredOption = parentQuestion.options?.find(
+                (opt) => opt.id === question.showCondition?.requiredValue
+              );
+              const optionText =
+                requiredOption?.text ||
+                question.showCondition?.requiredValue ||
+                "valor desconocido";
+              parentInfoText = `Se muestra si en P${parentNumber} se elige "${optionText}"`;
             }
           }
 
@@ -553,17 +511,8 @@ export default function QuestionEditor({
                       )}
                       {/* Mostrar información del padre si existe */}
                       {parentInfoText && (
-                        <p
-                          className={`text-xs mt-1 ${
-                            parentInfo?.format === "new"
-                              ? "text-green-600"
-                              : "text-blue-600"
-                          }`}
-                        >
-                          ↳ {parentInfoText}{" "}
-                          {parentInfo?.format === "new"
-                            ? "[NUEVO]"
-                            : "[LEGACY]"}
+                        <p className="text-xs mt-1 text-green-600">
+                          ↳ {parentInfoText}
                         </p>
                       )}
                     </div>
@@ -577,18 +526,10 @@ export default function QuestionEditor({
                           Obligatoria
                         </span>
                       )}
-                      {/* Mostrar indicador si es pregunta condicional - Formato específico */}
+                      {/* Mostrar indicador si es pregunta condicional */}
                       {isConditional && (
-                        <span
-                          className={`text-xs px-1.5 py-0.5 rounded ${
-                            question.showCondition?.parentQuestionId
-                              ? "bg-green-100 text-green-600" // Nuevo formato
-                              : "bg-blue-100 text-blue-600" // Legacy formato
-                          }`}
-                        >
-                          {question.showCondition?.parentQuestionId
-                            ? "Condl. (Nuevo)"
-                            : "Condl. (Legacy)"}
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-600">
+                          Condicional
                         </span>
                       )}
                       <button
@@ -623,21 +564,11 @@ export default function QuestionEditor({
                       <div className="mt-2">
                         <div className="text-xs text-text-secondary">
                           {question.options.length} opciones
-                          {/* Mostrar información sobre condiciones - Compatible con ambos formatos */}
+                          {/* Mostrar información sobre condiciones */}
                           {isConditional && (
                             <div className="mt-1">
-                              <span
-                                className={`text-xs font-medium ${
-                                  question.showCondition?.parentQuestionId
-                                    ? "text-green-600"
-                                    : "text-blue-600"
-                                }`}
-                              >
-                                Pregunta condicional{" "}
-                                {question.showCondition?.parentQuestionId
-                                  ? "(Nuevo formato)"
-                                  : "(Legacy)"}
-                                :
+                              <span className="text-xs font-medium text-green-600">
+                                Pregunta condicional:
                               </span>
                               <ul className="mt-1 space-y-1">
                                 {question.options.map((opt, idx) => (
@@ -648,15 +579,6 @@ export default function QuestionEditor({
                                     <span className="text-gray-600">
                                       • {opt.text}
                                     </span>
-                                    {/* Solo mostrar flecha para formato legacy */}
-                                    {opt.nextQuestionId && (
-                                      <span className="ml-1 text-blue-600">
-                                        → P
-                                        {questionNumberMap[
-                                          opt.nextQuestionId
-                                        ] || "?"}
-                                      </span>
-                                    )}
                                   </li>
                                 ))}
                               </ul>
