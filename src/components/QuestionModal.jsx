@@ -696,9 +696,7 @@ export default function QuestionModal({
               {/* Configurar condición de visualización */}
               {question.isConditional && (
                 <div className="mt-4 p-4 bg-green-50 rounded-md border border-green-200">
-                  <h4 className="text-sm font-medium text-green-800 mb-2">
-                    🔥 Configurar condición de visualización
-                  </h4>
+   
                   <p className="text-xs text-green-600 mb-3">
                     Esta pregunta se mostrará solo cuando se cumpla la condición
                     especificada.

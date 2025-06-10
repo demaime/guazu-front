@@ -973,7 +973,7 @@ export function SurveyList({
 
       {openDescriptionTooltipId && (
         <div
-          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-gray-900 text-white dark:bg-[var(--card-background)] dark:text-[var(--text-primary)] dark:border dark:border-[var(--card-border)] max-w-xs pointer-events-none"
+          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] max-w-xs pointer-events-none"
           style={{
             left: `${descriptionTooltipPosition.x}px`,
             top: `${descriptionTooltipPosition.y}px`,
@@ -992,7 +992,7 @@ export function SurveyList({
 
       {openActionTooltipId && (
         <div
-          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-gray-900 text-white dark:bg-[var(--card-background)] dark:text-[var(--text-primary)] dark:border dark:border-[var(--card-border)] max-w-xs pointer-events-none"
+          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] max-w-xs pointer-events-none"
           style={{
             left: `${actionTooltipPosition.x}px`,
             top: `${actionTooltipPosition.y}px`,

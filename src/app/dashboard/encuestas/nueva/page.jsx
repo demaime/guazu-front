@@ -1507,13 +1507,13 @@ export default function NuevaEncuesta({
                           return (
                             <div
                               key={parentQ.id}
-                              className="p-3 rounded-lg border-l-4 border-green-400 bg-green-50"
+                              className="p-3 rounded-lg border-l-4 border-green-400 bg-[var(--card-background)] border border-[var(--card-border)]"
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="px-2 py-1 rounded text-xs font-medium bg-green-200 text-green-800">
+                                <span className="px-2 py-1 rounded text-xs font-medium bg-green-500 text-white">
                                   P{questionNumber}
                                 </span>
-                                <p className="font-medium text-gray-800">
+                                <p className="font-medium text-[var(--text-primary)]">
                                   {parentQ.title}
                                 </p>
                               </div>
@@ -1530,7 +1530,7 @@ export default function NuevaEncuesta({
                                       key={idx}
                                       className="flex items-center gap-2 text-sm"
                                     >
-                                      <span className="text-gray-600">
+                                      <span className="text-[var(--text-secondary)]">
                                         • Si elige "{child.option.text}":
                                       </span>
                                       <span className="font-medium text-green-600">
