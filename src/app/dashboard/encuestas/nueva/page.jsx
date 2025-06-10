@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Model } from "survey-core";
 import { Survey } from "survey-react-ui";
@@ -402,6 +402,9 @@ export default function NuevaEncuesta({
     useState(false);
   const [validationErrorMessage, setValidationErrorMessage] = useState("");
 
+  // Referencia para el input de la meta
+  const targetInputRef = useRef(null);
+
   // Calcular números jerárquicos para la vista previa
   const questionNumberMap = useMemo(
     () => calculateQuestionNumbers(surveyData.questions),
@@ -412,6 +415,27 @@ export default function NuevaEncuesta({
   const showValidationError = (message) => {
     setValidationErrorMessage(message);
     setShowValidationErrorModal(true);
+  };
+
+  // Function to handle validation error modal confirmation
+  const handleValidationErrorConfirm = () => {
+    setShowValidationErrorModal(false);
+
+    // Si el error es sobre la meta, navegar al paso 1 y hacer focus
+    if (validationErrorMessage.includes("meta válida mayor a 0")) {
+      // Navegar al paso INFORMACION_BASICA
+      const targetStep = STEPS.INFORMACION_BASICA;
+      const direction = targetStep - page;
+      setPage([targetStep, direction]);
+
+      // Hacer focus al input después de un pequeño delay para que el DOM se actualice
+      setTimeout(() => {
+        if (targetInputRef.current) {
+          targetInputRef.current.focus();
+          targetInputRef.current.select(); // También seleccionar el texto si existe
+        }
+      }, 100);
+    }
   };
 
   // Mover el hook useConfirmNavigation aquí, antes de cualquier efecto condicional
@@ -981,6 +1005,7 @@ export default function NuevaEncuesta({
                     <span className="text-red-500">*</span>
                   </label>
                   <input
+                    ref={targetInputRef}
                     type="number"
                     min="1"
                     value={surveyData.basicInfo.target}
@@ -1731,7 +1756,7 @@ export default function NuevaEncuesta({
       <ConfirmModal
         isOpen={showValidationErrorModal}
         onClose={() => setShowValidationErrorModal(false)}
-        onConfirm={() => setShowValidationErrorModal(false)}
+        onConfirm={handleValidationErrorConfirm}
         title="Error de Validación"
         confirmText="Aceptar"
         showCancelButton={false}
