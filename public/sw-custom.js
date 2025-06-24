@@ -4,30 +4,37 @@ importScripts("/pouchdb.min.js"); // Load PouchDB library first
 console.log("SW-CUSTOM: Loaded");
 
 const DB_NAME = "pending-surveys";
+const RESPONSES_DB_NAME = "responses_db";
 const API_INSERT_ANSWER_ENDPOINT =
   "https://test-guazu-back-25fc1ea7c2f7.herokuapp.com/api/insert-answer"; // Full Heroku URL
 let db;
+let responsesDb;
 
 const initializePouchDB = () => {
   if (!db || db.constructor.name === "Promise") {
     // Check if db is a promise (still initializing)
     console.log("[SW-CUSTOM/PouchDB] Initializing PouchDB...");
     db = new PouchDB(DB_NAME); // PouchDB should be globally available here
-    return db
-      .info()
-      .then((info) => {
+    responsesDb = new PouchDB(RESPONSES_DB_NAME); // Initialize responses DB too
+
+    return Promise.all([db.info(), responsesDb.info()])
+      .then(([dbInfo, responsesInfo]) => {
         console.log(
-          `[SW-CUSTOM/PouchDB] '${DB_NAME}\' initialized. Docs: ${info.doc_count}`
+          `[SW-CUSTOM/PouchDB] '${DB_NAME}' initialized. Docs: ${dbInfo.doc_count}`
         );
-        return db;
+        console.log(
+          `[SW-CUSTOM/PouchDB] '${RESPONSES_DB_NAME}' initialized. Docs: ${responsesInfo.doc_count}`
+        );
+        return { db, responsesDb };
       })
       .catch((error) => {
         console.error("[SW-CUSTOM/PouchDB] Error initializing PouchDB:", error);
         db = null; // Reset on error
+        responsesDb = null;
         throw error;
       });
   }
-  return Promise.resolve(db);
+  return Promise.resolve({ db, responsesDb });
 };
 
 // Initialize DB when the script loads
@@ -93,7 +100,8 @@ const getGuaranteedDb = async () => {
   if (!db || db.constructor.name === "Promise") {
     console.log("[SW-CUSTOM/PouchDB] DB not ready, awaiting initialization...");
     try {
-      return await dbInitializationPromise;
+      const result = await dbInitializationPromise;
+      return result.db || result; // Handle both new and old return formats
     } catch (e) {
       console.error(
         "[SW-CUSTOM/PouchDB] DB initialization failed permanently for this operation.",
@@ -158,6 +166,42 @@ const markSurveyAsSubmitted = async (surveyId) => {
       error
     );
     throw error;
+  }
+};
+
+// New function to mark responses as synced in responses_db
+const markResponseAsSynced = async (surveyId) => {
+  if (!responsesDb) {
+    console.warn(
+      `[SW-CUSTOM/PouchDB] Responses DB not available for marking ${surveyId} as synced`
+    );
+    return;
+  }
+
+  try {
+    // Find response documents for this survey
+    const result = await responsesDb.allDocs({ include_docs: true });
+    const responseDocs = result.rows
+      .map((row) => row.doc)
+      .filter((doc) => doc.surveyId === surveyId && !doc.synced);
+
+    console.log(
+      `[SW-CUSTOM/PouchDB] Found ${responseDocs.length} response(s) to mark as synced for survey ${surveyId}`
+    );
+
+    // Mark all responses for this survey as synced
+    for (const responseDoc of responseDocs) {
+      responseDoc.synced = true;
+      await responsesDb.put(responseDoc);
+      console.log(
+        `[SW-CUSTOM/PouchDB] Response ${responseDoc._id} marked as synced`
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[SW-CUSTOM/PouchDB] Error marking responses as synced for survey ${surveyId}:`,
+      error
+    );
   }
 };
 
@@ -246,7 +290,8 @@ async function syncPendingSurveys() {
         console.log(
           `SW-CUSTOM: Survey ${surveyIdString} sent successfully to server. Status: ${response.status}`
         );
-        await deleteSurveyOffline(surveyIdString); // Or markAsSubmitted(surveyIdString)
+        await deleteSurveyOffline(surveyIdString); // Remove from legacy DB
+        await markResponseAsSynced(surveyIdString); // Mark as synced in responses DB
         successfullySyncedCount++;
       } else {
         const errorBody = await response
@@ -456,4 +501,95 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   console.log("SW-CUSTOM: Activate event");
   // event.waitUntil(self.clients.claim()); // next-pwa usually handles this
+});
+
+// Manejar mensajes del cliente para funcionalidades offline
+self.addEventListener("message", (event) => {
+  const { type, surveyId, data } = event.data;
+
+  console.log("SW-CUSTOM: Received message:", type, { surveyId, data });
+
+  switch (type) {
+    case "PRECACHE_SURVEY_ROUTE":
+      // Pre-cachear ruta específica de encuesta
+      if (surveyId) {
+        const surveyUrl = `/dashboard/encuestas/${surveyId}/responder`;
+        console.log("SW-CUSTOM: Pre-caching survey route:", surveyUrl);
+
+        // Intentar cachear la ruta proactivamente
+        fetch(surveyUrl)
+          .then((response) => {
+            if (response.ok) {
+              console.log(
+                "SW-CUSTOM: Successfully pre-cached survey route:",
+                surveyUrl
+              );
+            }
+          })
+          .catch((err) => {
+            console.warn("SW-CUSTOM: Could not pre-cache survey route:", err);
+          });
+      }
+      break;
+
+    case "CLEAR_CACHE":
+      // Limpiar caches específicos
+      const cacheNames = ["survey-pages", "dashboard-pages", "pages-cache"];
+      Promise.all(
+        cacheNames.map((cacheName) =>
+          caches.delete(cacheName).then((deleted) => {
+            console.log(
+              `SW-CUSTOM: Cache ${cacheName} ${
+                deleted ? "cleared" : "not found"
+              }`
+            );
+            return deleted;
+          })
+        )
+      ).then(() => {
+        event.ports[0]?.postMessage({
+          success: true,
+          message: "Caches cleared",
+        });
+      });
+      break;
+
+    case "GET_CACHE_STATUS":
+      // Enviar estado de los caches
+      Promise.all([
+        caches.has("survey-pages"),
+        caches.has("dashboard-pages"),
+        caches.has("pages-cache"),
+      ]).then(([surveyPages, dashboardPages, pagesCache]) => {
+        event.ports[0]?.postMessage({
+          cacheStatus: {
+            surveyPages,
+            dashboardPages,
+            pagesCache,
+          },
+        });
+      });
+      break;
+
+    case "FORCE_SYNC":
+      // Forzar sincronización inmediata
+      console.log("SW-CUSTOM: Force sync requested");
+      dbInitializationPromise
+        .then(() => syncPendingSurveys())
+        .then(() => {
+          event.ports[0]?.postMessage({
+            success: true,
+            message: "Sync completed",
+          });
+        })
+        .catch((err) => {
+          console.error("SW-CUSTOM: Force sync failed:", err);
+          event.ports[0]?.postMessage({ success: false, error: err.message });
+        });
+      break;
+
+    default:
+      console.log("SW-CUSTOM: Unknown message type:", type);
+      break;
+  }
 });

@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmModal } from "./ConfirmModal";
 import { surveyService } from "@/services/survey.service";
 import { toast } from "react-toastify";
+import { OfflineDownloadButton } from "./OfflineIndicator";
 import "react-toastify/dist/ReactToastify.css";
 
 export function SurveyList({
@@ -709,6 +710,16 @@ export function SurveyList({
                             />
                           </>
                         )}
+
+                        {/* Botón de descarga offline */}
+                        <div className="col-span-2 mt-2">
+                          <OfflineDownloadButton
+                            surveyId={surveyData._id}
+                            surveyData={surveyData}
+                            size="sm"
+                            variant="outline"
+                          />
+                        </div>
                       </div>
                     </div>
                   </motion.div>
@@ -958,6 +969,19 @@ export function SurveyList({
                                   />
                                 </>
                               )}
+
+                              {/* Separador visual */}
+                              <div className="w-px h-6 bg-[var(--card-border)] mx-1"></div>
+
+                              {/* Botón de descarga offline */}
+                              <div className="flex items-center">
+                                <OfflineDownloadButton
+                                  surveyId={surveyData._id}
+                                  surveyData={surveyData}
+                                  size="sm"
+                                  variant="outline"
+                                />
+                              </div>
                             </div>
                           </motion.div>
                         )}

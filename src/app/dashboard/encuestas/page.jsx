@@ -20,10 +20,18 @@ import { toast } from "react-toastify";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { Loader } from "@/components/ui/Loader";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { usePouchDB } from "@/hooks/usePouchDB";
+import {
+  OfflineIndicator,
+  OfflineDownloadButton,
+} from "@/components/ui/OfflineIndicator";
 
 export default function Encuestas() {
   const router = useRouter();
   const { isMobile } = useWindowSize();
+  const { isOnline, isOffline } = useNetworkStatus();
+  const { offlineSurveys, isInitialized } = usePouchDB();
   const [activeTab, setActiveTab] = useState("active"); // 'active', 'finished', 'drafts'
 
   // --- Estados por Pestaña --- //
@@ -50,8 +58,7 @@ export default function Encuestas() {
     drafts: true,
   });
 
-  // Add offline state management
-  const [isOffline, setIsOffline] = useState(false);
+  // Offline state management - usar useNetworkStatus
   const [lastFetchAttempt, setLastFetchAttempt] = useState(null);
 
   const [error, setError] = useState(null);
@@ -66,42 +73,24 @@ export default function Encuestas() {
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
-  // Add offline detection
+  // Manejo de recuperación de conexión
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOffline(false);
-      toast.success("Conexión restaurada");
-      // Retry last failed fetch if it exists
-      if (lastFetchAttempt) {
-        const { tabName, page } = lastFetchAttempt;
-        fetchDataForTab(tabName, page);
-        setLastFetchAttempt(null);
-      }
-    };
-
-    const handleOffline = () => {
-      setIsOffline(true);
-      toast.warn("Modo offline - Mostrando datos guardados localmente");
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    setIsOffline(!navigator.onLine);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [lastFetchAttempt]);
+    if (isOnline && lastFetchAttempt) {
+      const { tabName, page } = lastFetchAttempt;
+      toast.success("Conexión restaurada - Actualizando datos");
+      fetchDataForTab(tabName, page);
+      setLastFetchAttempt(null);
+    }
+  }, [isOnline, lastFetchAttempt]);
 
   // --- Función de Carga de Datos --- //
   // Usamos useCallback para evitar re-crear la función en cada render
   const fetchDataForTab = useCallback(
     async (tabName, page) => {
-      // If offline, don't attempt to fetch
-      if (!navigator.onLine) {
-        console.log(`Skipping fetch for ${tabName} - offline`);
-        setIsOffline(true);
+      // If offline, load from offline storage
+      if (isOffline) {
+        console.log(`Loading ${tabName} from offline storage`);
+        await loadOfflineDataForTab(tabName);
         return;
       }
 
@@ -120,15 +109,14 @@ export default function Encuestas() {
 
           // Check if it's a network error
           const isNetworkError =
-            !navigator.onLine ||
+            isOffline ||
             err.message?.includes("fetch") ||
             err.message?.includes("Network") ||
             err.message?.includes("Failed to fetch");
 
           if (isNetworkError) {
-            setIsOffline(true);
             setLastFetchAttempt({ tabName, page });
-            console.log("Network error detected, entering offline mode");
+            console.log("Network error detected, staying offline mode");
             // Don't clear data when offline, keep existing data
           } else {
             setError(err.message);
@@ -177,15 +165,14 @@ export default function Encuestas() {
 
         // Check if it's a network error
         const isNetworkError =
-          !navigator.onLine ||
+          isOffline ||
           err.message?.includes("fetch") ||
           err.message?.includes("Network") ||
           err.message?.includes("Failed to fetch");
 
         if (isNetworkError) {
-          setIsOffline(true);
           setLastFetchAttempt({ tabName, page });
-          console.log("Network error detected, entering offline mode");
+          console.log("Network error detected, staying offline mode");
           // Don't clear data when offline, keep existing data
         } else {
           setError(err.message);
@@ -201,8 +188,91 @@ export default function Encuestas() {
         setIsLoading((prev) => ({ ...prev, [tabName]: false }));
       }
     },
-    [limit]
+    [limit, isOffline, offlineSurveys]
   ); // useCallback dependency
+
+  // --- Función para cargar datos offline --- //
+  const loadOfflineDataForTab = useCallback(
+    async (tabName) => {
+      if (!isInitialized || !offlineSurveys) return;
+
+      setIsLoading((prev) => ({ ...prev, [tabName]: true }));
+      setError(null);
+
+      try {
+        console.log("Loading offline surveys:", offlineSurveys);
+
+        if (tabName === "drafts") {
+          // Los borradores no están disponibles offline por el momento
+          setDraftSurveysData([]);
+          setTabCounts((prev) => ({ ...prev, drafts: 0 }));
+        } else {
+          // Filtrar encuestas offline por estado (activas/finalizadas)
+          const now = new Date();
+          const filteredSurveys = offlineSurveys.filter((offlineSurvey) => {
+            console.log("Processing offline survey:", offlineSurvey);
+
+            // Si no hay surveyInfo, incluir en activas por defecto
+            if (
+              !offlineSurvey.surveyInfo ||
+              !offlineSurvey.surveyInfo.startDate ||
+              !offlineSurvey.surveyInfo.endDate
+            ) {
+              console.log("No surveyInfo or dates, including in active");
+              return tabName === "active";
+            }
+
+            const startDate = new Date(offlineSurvey.surveyInfo.startDate);
+            const endDate = new Date(offlineSurvey.surveyInfo.endDate);
+            const isActive = now >= startDate && now <= endDate;
+
+            console.log(
+              `Survey ${offlineSurvey.title}: isActive=${isActive}, tabName=${tabName}`
+            );
+
+            return tabName === "active" ? isActive : !isActive;
+          });
+
+          console.log(`Filtered ${tabName} offline surveys:`, filteredSurveys);
+
+          // Convertir formato offline a formato esperado por la UI
+          const formattedSurveys = filteredSurveys.map((offlineSurvey) => ({
+            _id: offlineSurvey.surveyId,
+            title: offlineSurvey.title,
+            description: offlineSurvey.description,
+            survey: offlineSurvey.survey,
+            surveyInfo: offlineSurvey.surveyInfo,
+            availableOffline: true, // Marcar como disponible offline
+            totalAnswers: 0, // En offline no tenemos respuestas sincronizadas
+          }));
+
+          if (tabName === "active") {
+            setActiveSurveysData(formattedSurveys);
+            setActiveTotalPages(1); // En offline solo mostramos una página
+            setActiveCurrentPage(1);
+          } else if (tabName === "finished") {
+            setFinishedSurveysData(formattedSurveys);
+            setFinishedTotalPages(1); // En offline solo mostramos una página
+            setFinishedCurrentPage(1);
+          }
+
+          // Actualizar conteos
+          setTabCounts((prev) => ({
+            ...prev,
+            [tabName]: formattedSurveys.length,
+          }));
+        }
+
+        console.log(`Loaded ${tabName} offline data successfully`);
+      } catch (err) {
+        console.error(`Error loading offline data for ${tabName}:`, err);
+        setError("Error al cargar datos offline");
+      } finally {
+        setIsLoading((prev) => ({ ...prev, [tabName]: false }));
+      }
+    },
+    [isInitialized, offlineSurveys]
+  );
 
   // --- useEffect para Carga Inicial --- //
   useEffect(() => {
@@ -216,6 +286,22 @@ export default function Encuestas() {
     fetchDataForTab("active", 1);
     fetchDataForTab("drafts", 1); // Carga inicial de borradores (page no usada)
   }, [fetchDataForTab, router]); // Incluir fetchDataForTab y router
+
+  // --- useEffect para manejar cambios en datos offline --- //
+  useEffect(() => {
+    if (isOffline && isInitialized && offlineSurveys) {
+      console.log(
+        "Offline state detected, loading offline surveys for current tab"
+      );
+      loadOfflineDataForTab(activeTab);
+    }
+  }, [
+    isOffline,
+    isInitialized,
+    offlineSurveys,
+    activeTab,
+    loadOfflineDataForTab,
+  ]);
 
   // --- useEffect para Cambios de Tab --- //
   useEffect(() => {
@@ -673,6 +759,9 @@ export default function Encuestas() {
           será visible para los encuestadores asignados.
         </p>
       </ConfirmModal>
+
+      {/* Indicador offline */}
+      <OfflineIndicator />
     </motion.div>
   );
 }

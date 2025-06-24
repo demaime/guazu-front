@@ -11,6 +11,8 @@ import { DoubleBorderLight, DoubleBorderDark } from "survey-core/themes";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { saveSurveyOffline, initializePouchDB } from "@/lib/pouchdb"; // Import PouchDB functions
+import { usePouchDB } from "@/hooks/usePouchDB";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 // Import SurveyJS styles
@@ -41,6 +43,9 @@ export default function SurveyPage() {
   const router = useRouter();
   const { id } = useParams();
   const { theme } = useTheme();
+  const { isOnline, isOffline } = useNetworkStatus();
+  const { getSurveyOffline, saveResponseOffline, isSurveyAvailableOffline } =
+    usePouchDB();
   const [surveyModel, setSurveyModel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,6 +56,7 @@ export default function SurveyPage() {
   const [countdown, setCountdown] = useState(5);
   const [showOfflineSaveMessage, setShowOfflineSaveMessage] = useState(false);
   const [isOfflineForSubmit, setIsOfflineForSubmit] = useState(false);
+  const [loadedFromOffline, setLoadedFromOffline] = useState(false);
 
   useEffect(() => {
     const initDB = async () => {
@@ -125,8 +131,45 @@ export default function SurveyPage() {
         }
 
         console.log("Loading survey with ID:", id);
-        const response = await surveyService.getSurvey(id);
-        console.log("Survey response:", response);
+
+        // Intentar cargar desde offline primero si está disponible
+        let response = null;
+        const isAvailableOffline = await isSurveyAvailableOffline(id);
+
+        if (isOffline || isAvailableOffline) {
+          try {
+            const offlineSurvey = await getSurveyOffline(id);
+            if (offlineSurvey) {
+              console.log("Survey loaded from offline storage:", offlineSurvey);
+              response = offlineSurvey;
+              setLoadedFromOffline(true);
+              if (isOffline) {
+                toast.info("Encuesta cargada desde almacenamiento offline");
+              }
+            }
+          } catch (offlineError) {
+            console.warn("Could not load survey from offline:", offlineError);
+          }
+        }
+
+        // Si no se cargó desde offline y hay conexión, cargar desde servidor
+        if (!response && isOnline) {
+          try {
+            response = await surveyService.getSurvey(id);
+            console.log("Survey response from server:", response);
+            setLoadedFromOffline(false);
+          } catch (networkError) {
+            console.error("Network error loading survey:", networkError);
+            throw networkError;
+          }
+        }
+
+        // Si no hay response en este punto, lanzar error
+        if (!response) {
+          throw new Error(
+            "No se pudo cargar la encuesta. Verifique que esté disponible offline o que tenga conexión a internet."
+          );
+        }
 
         if (!response?.survey) {
           throw new Error("Survey not found");
@@ -489,20 +532,32 @@ export default function SurveyPage() {
       }
 
       // --- Intent de Envío de Encuesta ---
-      if (isOfflineForSubmit || !navigator.onLine) {
+      if (isOffline || !navigator.onLine) {
         console.log(
-          "Dispositivo offline detectado, guardando en PouchDB y registrando para sync."
+          "Dispositivo offline detectado, guardando respuesta localmente."
         );
         try {
+          await saveResponseOffline(id, transformedAnswers, {
+            quotaAnswers,
+            fullName: user?.fullName,
+            userId: user?._id,
+            time: sender.timeSpent,
+            lat: answerData.lat,
+            lng: answerData.lng,
+            authToken: token,
+          });
+
+          // También guardar en el sistema legacy para compatibilidad con SW
           await saveSurveyOffline(answerData);
+
           console.log(
-            "Encuesta guardada en PouchDB para sync:",
+            "Respuesta guardada localmente para sync:",
             answerData._id
           );
           setShowOfflineSaveMessage(true);
           setSurveyCompletedSuccessfully(true);
-          toast.info(
-            "Encuesta guardada localmente. Se enviará cuando recuperes la conexión."
+          toast.success(
+            "Respuesta guardada localmente. Se enviará cuando recuperes la conexión."
           );
 
           // Ahora hacemos el fetch para que BackgroundSyncPlugin lo registre
@@ -748,7 +803,8 @@ export default function SurveyPage() {
 
   return (
     <>
-      {isOfflineForSubmit && (
+      {/* Indicador de estado offline */}
+      {isOffline && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <div className="flex">
             <div className="ml-3">
@@ -760,6 +816,21 @@ export default function SurveyPage() {
           </div>
         </div>
       )}
+
+      {/* Indicador de encuesta cargada desde offline */}
+      {loadedFromOffline && !isOffline && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+          <div className="flex">
+            <div className="ml-3">
+              <p className="text-sm text-blue-700">
+                Esta encuesta se cargó desde almacenamiento offline. Los datos
+                están actualizados desde la última descarga.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="survey-container">
         {surveyModel && (
           <Survey model={surveyModel} onComplete={handleComplete} />

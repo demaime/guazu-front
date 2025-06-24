@@ -43,7 +43,7 @@ const nextConfig = {
 // Configuración optimizada de PWA
 export default withPWA({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  disable: false, // Permitir PWA en desarrollo para testing offline
   register: true,
   skipWaiting: true,
   sw: "/sw.js",
@@ -139,6 +139,30 @@ export default withPWA({
           maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
         },
         networkTimeoutSeconds: 5, // Intenta la red por 5 segundos antes de ir a la caché
+      },
+    },
+    // Cache específico para rutas de encuestas
+    {
+      urlPattern: /\/dashboard\/encuestas\/.*\/responder$/,
+      handler: "CacheFirst",
+      options: {
+        cacheName: "survey-pages",
+        expiration: {
+          maxEntries: 20,
+          maxAgeSeconds: 7 * 24 * 60 * 60, // 7 días
+        },
+      },
+    },
+    {
+      urlPattern: /\/dashboard\/encuestas$/,
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "dashboard-pages",
+        networkTimeoutSeconds: 3,
+        expiration: {
+          maxEntries: 10,
+          maxAgeSeconds: 24 * 60 * 60, // 1 día
+        },
       },
     },
   ],
