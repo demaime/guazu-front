@@ -24,7 +24,18 @@ const isActiveSurvey = (survey) => {
   const now = new Date();
   const startDate = new Date(survey.surveyInfo.startDate);
   const endDate = new Date(survey.surveyInfo.endDate);
-  return now >= startDate && now <= endDate;
+
+  // Verificar si está fuera del rango de fechas
+  const isWithinDateRange = now >= startDate && now <= endDate;
+
+  // Verificar si el progreso llegó al 100%
+  const totalAnswers = survey.totalAnswers || 0;
+  const target = survey.surveyInfo.target || 0;
+  const progressPercentage = target > 0 ? (totalAnswers / target) * 100 : 0;
+  const isCompleted = progressPercentage >= 100;
+
+  // La encuesta está activa si está dentro del rango de fechas Y no está completada
+  return isWithinDateRange && !isCompleted;
 };
 
 const DotsLoader = () => (
@@ -173,6 +184,12 @@ export default function DashboardPage() {
         });
 
         setUser(userData);
+
+        // Redirigir pollsters directamente a su página de encuestas
+        if (userData?.role === "POLLSTER") {
+          router.replace("/dashboard/encuestas");
+          return;
+        }
 
         if (userData) {
           await loadData(userData);

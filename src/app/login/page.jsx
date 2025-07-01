@@ -28,7 +28,11 @@ export default function LoginPage() {
         const isAuth = await authService.isAuthenticated();
         if (isAuth) {
           setIsRedirecting(true);
-          router.push("/dashboard");
+          const user = authService.getUser();
+          // Redirigir según el rol
+          const redirectPath =
+            user?.role === "POLLSTER" ? "/dashboard/encuestas" : "/dashboard";
+          router.push(redirectPath);
         }
       } catch (error) {
         console.error("Error checking authentication:", error);
@@ -57,7 +61,11 @@ export default function LoginPage() {
         setIsRedirecting(true);
         // Pequeña pausa para mostrar el estado de redirección
         await new Promise((resolve) => setTimeout(resolve, 500));
-        router.push("/dashboard");
+        const user = authService.getUser();
+        // Redirigir según el rol
+        const redirectPath =
+          user?.role === "POLLSTER" ? "/dashboard/encuestas" : "/dashboard";
+        router.push(redirectPath);
       } else {
         setError("Error de autenticación");
       }

@@ -336,6 +336,10 @@ export default function EditarEncuesta() {
     participants: {
       userIds: survey.userIds || [],
       supervisorsIds: survey.supervisorsIds || [],
+      pollsterAssignments:
+        survey.pollsterAssignments ||
+        survey.surveyInfo?.pollsterAssignments ||
+        [], // ✅ CORREGIDO: buscar en raíz primero, luego en surveyInfo
     },
     questions: processedQuestions,
     quotas: survey.surveyInfo?.quotas || [],
@@ -343,14 +347,21 @@ export default function EditarEncuesta() {
 
   console.log("=== DEBUGGING SURVEY LOAD ===");
   console.log("Raw survey data:", survey);
-  console.log("Elements from survey:", elements);
-  console.log("Conditional relations found:", conditionalRelations);
-  console.log("Processed questions:", processedQuestions);
   console.log(
-    "Questions with showCondition:",
-    processedQuestions.filter((q) => q.showCondition)
+    "🔍 PollsterAssignments en nivel raíz:",
+    survey.pollsterAssignments
   );
+  console.log(
+    "🔍 PollsterAssignments en surveyInfo:",
+    survey.surveyInfo?.pollsterAssignments
+  );
+  console.log("UserIds:", survey.userIds);
+  console.log("SupervisorsIds:", survey.supervisorsIds);
   console.log("Initial data for editor:", initialData);
+  console.log(
+    "✅ PollsterAssignments cargadas en participants:",
+    initialData.participants.pollsterAssignments
+  );
   console.log("=== END DEBUG ===");
 
   return (

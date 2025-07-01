@@ -19,9 +19,16 @@ export function middleware(request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Si hay token y estamos en login, redirigir a dashboard
+  // Si hay token y estamos en login, redirigir según el rol
   if (token && request.nextUrl.pathname === "/login") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const redirectPath =
+      user?.role === "POLLSTER" ? "/dashboard/encuestas" : "/dashboard";
+    return NextResponse.redirect(new URL(redirectPath, request.url));
+  }
+
+  // Redirigir pollsters de /dashboard a /dashboard/encuestas
+  if (user?.role === "POLLSTER" && request.nextUrl.pathname === "/dashboard") {
+    return NextResponse.redirect(new URL("/dashboard/encuestas", request.url));
   }
 
   // Verificar permisos para rutas protegidas
@@ -31,8 +38,10 @@ export function middleware(request) {
 
     // Si la ruta está protegida y el usuario no tiene el rol adecuado
     if (allowedRoles && !allowedRoles.includes(user.role)) {
-      // Redirigir a dashboard si no tiene permisos
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      // Redirigir según el rol si no tiene permisos
+      const redirectPath =
+        user.role === "POLLSTER" ? "/dashboard/encuestas" : "/dashboard";
+      return NextResponse.redirect(new URL(redirectPath, request.url));
     }
   }
 
@@ -40,5 +49,5 @@ export function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/dashboard", "/login"],
 };

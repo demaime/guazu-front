@@ -81,11 +81,6 @@ export default function DashboardLayout({ children }) {
 
   // Definir las opciones de navegación según el rol
   const getNavItems = (userRole) => {
-    // Items base que todos los usuarios pueden ver
-    const baseItems = [
-      { path: "", label: "Inicio", icon: Home },
-      { path: "encuestas", label: "Encuestas", icon: ClipboardList },
-    ];
 
     // Item de configuración que siempre irá al final
     const configItem = {
@@ -94,23 +89,37 @@ export default function DashboardLayout({ children }) {
       icon: Settings,
     };
 
-    let items = [...baseItems];
+    let items = [];
 
-    if (userRole === "ROLE_ADMIN") {
-      items.push(
-        { path: "usuarios", label: "Usuarios", icon: Users },
-        { path: "encuestadores", label: "Encuestadores", icon: UserRoundPen }
-      );
-    } else if (userRole === "SUPERVISOR") {
-      items.push({
-        path: "encuestadores",
-        label: "Encuestadores",
-        icon: UserRoundPen,
-      });
+    if (userRole === "POLLSTER") {
+      // Pollsters solo ven Encuestas y Configuración
+      items = [
+        { path: "encuestas", label: "Encuestas", icon: ClipboardList },
+        configItem,
+      ];
+    } else {
+      // Otros roles tienen el menú completo
+      items = [
+        { path: "", label: "Inicio", icon: Home },
+        { path: "encuestas", label: "Encuestas", icon: ClipboardList },
+      ];
+
+      if (userRole === "ROLE_ADMIN") {
+        items.push(
+          { path: "usuarios", label: "Usuarios", icon: Users },
+          { path: "encuestadores", label: "Encuestadores", icon: UserRoundPen }
+        );
+      } else if (userRole === "SUPERVISOR") {
+        items.push({
+          path: "encuestadores",
+          label: "Encuestadores",
+          icon: UserRoundPen,
+        });
+      }
+
+      // Agregar Configuración al final para no-pollsters
+      items.push(configItem);
     }
-
-    // Agregar Configuración al final
-    items.push(configItem);
 
     return items;
   };

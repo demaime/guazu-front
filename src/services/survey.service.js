@@ -687,6 +687,137 @@ class SurveyService {
       throw error; // The component will catch this and use error.message
     }
   }
+
+  // Métodos para progreso de pollsters
+  async getPollsterProgress(surveyId, pollsterId) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token de autenticación no encontrado");
+      }
+
+      const response = await fetch(
+        SURVEY_ROUTES.POLLSTER_PROGRESS(surveyId, pollsterId),
+        {
+          method: "GET",
+          headers: new Headers({
+            "Content-Type": "application/json; charset=utf-8",
+            Authorization: token,
+          }),
+          credentials: "include",
+          mode: "cors",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("Pollster progress response:", data);
+
+      if (data.error) {
+        throw new Error(
+          data.message || "Error al obtener progreso del encuestador"
+        );
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error in getPollsterProgress:", error);
+      throw error;
+    }
+  }
+
+  async getAllPollsterProgress(surveyId) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token de autenticación no encontrado");
+      }
+
+      const response = await fetch(
+        SURVEY_ROUTES.ALL_POLLSTER_PROGRESS(surveyId),
+        {
+          method: "GET",
+          headers: new Headers({
+            "Content-Type": "application/json; charset=utf-8",
+            Authorization: token,
+          }),
+          credentials: "include",
+          mode: "cors",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("All pollster progress response:", data);
+
+      if (data.error) {
+        throw new Error(
+          data.message || "Error al obtener progreso de encuestadores"
+        );
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error in getAllPollsterProgress:", error);
+      throw error;
+    }
+  }
+
+  async updatePollsterAssignments(surveyId, pollsterAssignments) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token de autenticación no encontrado");
+      }
+
+      const response = await fetch(SURVEY_ROUTES.UPDATE_POLLSTER_ASSIGNMENTS, {
+        method: "PUT",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+        body: JSON.stringify({
+          surveyId,
+          pollsterAssignments,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("Update pollster assignments response:", data);
+
+      if (data.error) {
+        throw new Error(
+          data.message || "Error al actualizar asignaciones de encuestadores"
+        );
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error in updatePollsterAssignments:", error);
+      throw error;
+    }
+  }
 }
 
 export const surveyService = new SurveyService();

@@ -390,6 +390,7 @@ export default function NuevaEncuesta({
       participants: {
         userIds: [],
         supervisorsIds: [],
+        pollsterAssignments: [], // Array de { pollsterId, assignedCases }
       },
       questions: [],
       quotas: [],
@@ -445,6 +446,18 @@ export default function NuevaEncuesta({
       surveyData.participants.userIds.length > 0 ||
       surveyData.questions.length > 0
   );
+
+  // Normalizar estructura de participants para evitar errores
+  useEffect(() => {
+    setSurveyData((prev) => ({
+      ...prev,
+      participants: {
+        userIds: prev.participants?.userIds || [],
+        supervisorsIds: prev.participants?.supervisorsIds || [],
+        pollsterAssignments: prev.participants?.pollsterAssignments || [],
+      },
+    }));
+  }, []); // Solo se ejecuta una vez al montar el componente
 
   // Verificar permisos al cargar el componente
   useEffect(() => {
@@ -523,7 +536,20 @@ export default function NuevaEncuesta({
 
       case STEPS.PARTICIPANTES:
         // Validar que haya al menos un encuestador seleccionado
-        return surveyData.participants.userIds.length > 0;
+        if (surveyData.participants.userIds.length === 0) {
+          return false;
+        }
+
+        // Validar que todos los pollsters tengan casos asignados
+        const hasAllAssignments = surveyData.participants.userIds.every(
+          (pollsterId) => getAssignedCases(pollsterId) > 0
+        );
+
+        // Validar que la suma de casos asignados no exceda la meta
+        const totalAssigned = getTotalAssignedCases();
+        const target = surveyData.basicInfo.target || 0;
+
+        return hasAllAssignments && totalAssigned <= target;
 
       case STEPS.PREGUNTAS:
         // Validar que haya al menos una pregunta
@@ -845,17 +871,22 @@ export default function NuevaEncuesta({
           userIds: surveyData.participants.userIds || [],
           supervisorsIds: surveyData.participants.supervisorsIds || [],
           quotas: surveyData.quotas || [],
+          pollsterAssignments:
+            surveyData.participants.pollsterAssignments || [], // ✅ AGREGADO: asignaciones de casos por pollster
+        },
+        participants: {
+          userIds: surveyData.participants.userIds || [],
+          supervisorsIds: surveyData.participants.supervisorsIds || [],
+          pollsterAssignments:
+            surveyData.participants.pollsterAssignments || [], // ✅ TAMBIÉN en participants para el backend
         },
       };
 
-      console.log("=== DEBUGGING SAVE ===");
-      console.log("SurveyData questions before save:", surveyData.questions);
       console.log(
-        "Questions with showCondition before save:",
-        surveyData.questions.filter((q) => q.showCondition)
+        "🔍 SAVE DEBUG - PollsterAssignments:",
+        surveyData.participants.pollsterAssignments
       );
-      console.log("Data to save:", dataToSave);
-      console.log("=== END SAVE DEBUG ===");
+      console.log("🔍 SAVE DEBUG - Full surveyInfo:", dataToSave.surveyInfo);
 
       await surveyService.createOrUpdateSurvey(
         dataToSave,
@@ -902,6 +933,66 @@ export default function NuevaEncuesta({
       ...prev,
       quotas,
     }));
+  };
+
+  // Función para manejar cambios en asignaciones de casos por pollster
+  const handlePollsterAssignmentChange = (pollsterId, assignedCases) => {
+    setSurveyData((prev) => {
+      // Verificación defensiva para evitar errores cuando participants no está definido
+      const currentAssignments = prev.participants?.pollsterAssignments || [];
+      const updatedAssignments = [...currentAssignments];
+      const existingIndex = updatedAssignments.findIndex(
+        (assignment) => assignment.pollsterId === pollsterId
+      );
+
+      if (existingIndex >= 0) {
+        // Actualizar asignación existente
+        updatedAssignments[existingIndex] = { pollsterId, assignedCases };
+      } else {
+        // Agregar nueva asignación
+        updatedAssignments.push({ pollsterId, assignedCases });
+      }
+
+      return {
+        ...prev,
+        participants: {
+          ...prev.participants,
+          pollsterAssignments: updatedAssignments,
+        },
+      };
+    });
+  };
+
+  // Función para calcular el total de casos asignados
+  const getTotalAssignedCases = () => {
+    // Verificación defensiva para evitar errores cuando participants no está definido
+    if (
+      !surveyData.participants ||
+      !surveyData.participants.pollsterAssignments
+    ) {
+      return 0;
+    }
+
+    return surveyData.participants.pollsterAssignments.reduce(
+      (total, assignment) => total + (assignment.assignedCases || 0),
+      0
+    );
+  };
+
+  // Función para obtener casos asignados a un pollster específico
+  const getAssignedCases = (pollsterId) => {
+    // Verificación defensiva para evitar errores cuando participants no está definido
+    if (
+      !surveyData.participants ||
+      !surveyData.participants.pollsterAssignments
+    ) {
+      return 0;
+    }
+
+    const assignment = surveyData.participants.pollsterAssignments.find(
+      (assignment) => assignment.pollsterId === pollsterId
+    );
+    return assignment ? assignment.assignedCases || 0 : 0;
   };
 
   // Renderizar paso actual
@@ -1074,13 +1165,51 @@ export default function NuevaEncuesta({
                 </button>
               </div>
 
-              {/* Lista de encuestadores seleccionados */}
+              {/* Lista de encuestadores seleccionados y asignación de casos */}
               {surveyData.participants.userIds.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium mb-1">
-                    Encuestadores seleccionados:
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">
+                    Asignación de Casos por Encuestador:
                   </h4>
-                  <div className="space-y-1">
+
+                  {/* Indicador de progreso de asignación */}
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="flex justify-between items-center text-sm">
+                      <span>Casos asignados:</span>
+                      <span
+                        className={`font-medium ${
+                          getTotalAssignedCases() >
+                          (surveyData.basicInfo.target || 0)
+                            ? "text-red-600"
+                            : getTotalAssignedCases() ===
+                              (surveyData.basicInfo.target || 0)
+                            ? "text-green-600"
+                            : "text-orange-600"
+                        }`}
+                      >
+                        {getTotalAssignedCases()} /{" "}
+                        {surveyData.basicInfo.target || 0}
+                      </span>
+                    </div>
+                    {getTotalAssignedCases() >
+                      (surveyData.basicInfo.target || 0) && (
+                      <p className="text-xs text-red-600 mt-1">
+                        ⚠️ Los casos asignados exceden la meta total
+                      </p>
+                    )}
+                    {getTotalAssignedCases() <
+                      (surveyData.basicInfo.target || 0) && (
+                      <p className="text-xs text-orange-600 mt-1">
+                        Faltan{" "}
+                        {(surveyData.basicInfo.target || 0) -
+                          getTotalAssignedCases()}{" "}
+                        casos por asignar
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Lista de encuestadores con inputs de asignación */}
+                  <div className="space-y-3">
                     {users
                       .filter((user) =>
                         surveyData.participants.userIds.includes(user._id)
@@ -1088,13 +1217,65 @@ export default function NuevaEncuesta({
                       .map((user) => (
                         <div
                           key={user._id}
-                          className="flex items-center text-sm"
+                          className="flex items-center justify-between bg-white border rounded-lg p-3"
                         >
-                          <span>
-                            {user.name} {user.lastName}
-                          </span>
+                          <div className="flex-1">
+                            <span className="font-medium">
+                              {user.name} {user.lastName}
+                            </span>
+                            <p className="text-xs text-gray-500">
+                              {user.email}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium">
+                              Casos:
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max={surveyData.basicInfo.target || 100}
+                              value={getAssignedCases(user._id)}
+                              onChange={(e) =>
+                                handlePollsterAssignmentChange(
+                                  user._id,
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              className="w-20 px-2 py-1 border rounded text-center text-sm"
+                              placeholder="0"
+                            />
+                          </div>
                         </div>
                       ))}
+                  </div>
+
+                  {/* Botón de distribución automática */}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const pollsters = surveyData.participants.userIds;
+                        const totalTarget = surveyData.basicInfo.target || 0;
+                        const casesPerPollster = Math.floor(
+                          totalTarget / pollsters.length
+                        );
+                        const remainder = totalTarget % pollsters.length;
+
+                        pollsters.forEach((pollsterId, index) => {
+                          // Los primeros 'remainder' pollsters reciben un caso extra
+                          const assignedCases =
+                            casesPerPollster + (index < remainder ? 1 : 0);
+                          handlePollsterAssignmentChange(
+                            pollsterId,
+                            assignedCases
+                          );
+                        });
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Distribuir automáticamente
+                    </button>
                   </div>
                 </div>
               )}
@@ -1718,13 +1899,36 @@ export default function NuevaEncuesta({
           surveyData.participants.userIds.includes(user._id)
         )}
         onSave={(selectedPollsters) => {
-          setSurveyData((prev) => ({
-            ...prev,
-            participants: {
-              ...prev.participants,
-              userIds: selectedPollsters.map((pollster) => pollster._id),
-            },
-          }));
+          const newUserIds = selectedPollsters.map((pollster) => pollster._id);
+
+          setSurveyData((prev) => {
+            // Limpiar asignaciones de pollsters que ya no están seleccionados
+            // Verificación defensiva para evitar errores cuando participants no está definido
+            const currentAssignments =
+              prev.participants?.pollsterAssignments || [];
+            const updatedAssignments = currentAssignments.filter((assignment) =>
+              newUserIds.includes(assignment.pollsterId)
+            );
+
+            // Agregar asignaciones iniciales para nuevos pollsters (con 0 casos)
+            newUserIds.forEach((pollsterId) => {
+              const existingAssignment = updatedAssignments.find(
+                (assignment) => assignment.pollsterId === pollsterId
+              );
+              if (!existingAssignment) {
+                updatedAssignments.push({ pollsterId, assignedCases: 0 });
+              }
+            });
+
+            return {
+              ...prev,
+              participants: {
+                ...prev.participants,
+                userIds: newUserIds,
+                pollsterAssignments: updatedAssignments,
+              },
+            };
+          });
           setShowPollstersModal(false);
         }}
       />

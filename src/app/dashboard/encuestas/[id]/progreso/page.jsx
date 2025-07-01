@@ -139,6 +139,9 @@ export default function AnalisisEncuesta() {
   const [answers, setAnswers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pollsterProgress, setPollsterProgress] = useState([]);
+  const [pollsterProgressLoading, setPollsterProgressLoading] = useState(false);
+  const [showAllPollstersModal, setShowAllPollstersModal] = useState(false);
 
   useEffect(() => {
     // Comprobar permisos - solo admin y supervisor pueden ver análisis
@@ -203,6 +206,34 @@ export default function AnalisisEncuesta() {
       fetchSurveyData();
     }
   }, [params.id, router]);
+
+  // Efecto para cargar progreso individual de pollsters
+  useEffect(() => {
+    const fetchPollsterProgress = async () => {
+      if (!survey || !params.id) return;
+
+      try {
+        setPollsterProgressLoading(true);
+        const progressData = await surveyService.getAllPollsterProgress(
+          params.id
+        );
+
+        // El backend devuelve un objeto con pollsterProgress array
+        console.log("Pollster Progress Data:", progressData);
+        setPollsterProgress(progressData.pollsterProgress || []);
+      } catch (error) {
+        console.error("Error loading pollster progress:", error);
+        // En caso de error, establecer array vacío
+        setPollsterProgress([]);
+      } finally {
+        setPollsterProgressLoading(false);
+      }
+    };
+
+    if (survey) {
+      fetchPollsterProgress();
+    }
+  }, [survey, params.id]);
 
   if (isLoading) {
     return <LoaderWrapper />;
@@ -542,6 +573,269 @@ export default function AnalisisEncuesta() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Progreso Individual por Pollster */}
+        <div>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5 text-[var(--primary)]" />
+            Progreso Individual por Pollster
+          </h2>
+
+          {/* Resumen del progreso de pollsters */}
+          {!pollsterProgressLoading && pollsterProgress.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="card p-3 text-center">
+                <div className="text-sm text-[var(--text-secondary)]">
+                  Total Pollsters
+                </div>
+                <div className="text-xl font-semibold text-[var(--primary)]">
+                  {pollsterProgress.length}
+                </div>
+              </div>
+              <div className="card p-3 text-center">
+                <div className="text-sm text-[var(--text-secondary)]">
+                  Completados
+                </div>
+                <div className="text-xl font-semibold text-[#00c853]">
+                  {
+                    pollsterProgress.filter(
+                      (p) =>
+                        p.assignedCases > 0 &&
+                        p.completedAnswers >= p.assignedCases
+                    ).length
+                  }
+                </div>
+              </div>
+              <div className="card p-3 text-center">
+                <div className="text-sm text-[var(--text-secondary)]">
+                  En Progreso
+                </div>
+                <div className="text-xl font-semibold text-[#ffc107]">
+                  {
+                    pollsterProgress.filter(
+                      (p) =>
+                        p.assignedCases > 0 &&
+                        p.completedAnswers < p.assignedCases
+                    ).length
+                  }
+                </div>
+              </div>
+            </div>
+          )}
+
+          {pollsterProgressLoading ? (
+            <div className="card p-4 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--primary)]"></div>
+                <span className="text-[var(--text-secondary)]">
+                  Cargando progreso individual...
+                </span>
+              </div>
+            </div>
+          ) : pollsterProgress.length > 0 ? (
+            <div className="space-y-3">
+              {/* Mostrar solo los primeros 5 pollsters */}
+              {pollsterProgress.slice(0, 5).map((pollster, index) => {
+                const progressPercentage =
+                  pollster.assignedCases > 0
+                    ? Math.min(
+                        100,
+                        Math.round(
+                          (pollster.completedAnswers / pollster.assignedCases) *
+                            100
+                        )
+                      )
+                    : 0;
+
+                const isCompleted = progressPercentage >= 100;
+                const remaining = Math.max(
+                  0,
+                  pollster.assignedCases - pollster.completedAnswers
+                );
+
+                return (
+                  <div key={index} className="card p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium text-base">
+                        {pollster.pollsterName ||
+                          `Pollster ${pollster.pollsterId}`}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold">
+                          {pollster.completedAnswers}/{pollster.assignedCases}
+                        </span>
+                        <span
+                          className={`text-xs px-1.5 py-0.5 rounded ${
+                            isCompleted
+                              ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
+                              : progressPercentage > 50
+                              ? "bg-[rgba(255,193,7,0.2)] text-[#ffc107] dark:bg-[rgba(255,193,7,0.3)] dark:text-[#ffecb3]"
+                              : "bg-[rgba(63,81,181,0.2)] text-[var(--primary)] dark:bg-[rgba(128,145,245,0.3)] dark:text-[var(--primary-light)]"
+                          }`}
+                        >
+                          {progressPercentage}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-[var(--input-background)] rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            isCompleted
+                              ? "bg-[#00c853]"
+                              : progressPercentage > 50
+                              ? "bg-[#ffc107]"
+                              : "bg-[var(--primary)]"
+                          }`}
+                          style={{ width: `${progressPercentage}%` }}
+                        ></div>
+                      </div>
+
+                      {remaining > 0 && !isCompleted && (
+                        <span className="text-xs bg-[rgba(244,67,54,0.2)] text-[#f44336] dark:bg-[rgba(244,67,54,0.3)] dark:text-[#ff867c] px-2 py-1 rounded whitespace-nowrap">
+                          Faltan: {remaining}
+                        </span>
+                      )}
+
+                      {isCompleted && (
+                        <span className="text-xs bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82] px-2 py-1 rounded whitespace-nowrap">
+                          ✓ Completado
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Botón Ver Todos si hay más de 5 pollsters */}
+              {pollsterProgress.length > 5 && (
+                <div className="text-center pt-2">
+                  <button
+                    onClick={() => setShowAllPollstersModal(true)}
+                    className="text-[var(--primary)] hover:text-[var(--primary-dark)] text-sm font-medium hover:underline"
+                  >
+                    Ver todos ({pollsterProgress.length} encuestadores)
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="card p-4 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <Users className="w-8 h-8 text-[var(--text-secondary)]" />
+                <p className="text-[var(--text-secondary)]">
+                  No hay datos de progreso individual disponibles
+                </p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Los pollsters aparecerán aquí una vez que se les asignen casos
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Modal para ver todos los pollsters */}
+          {showAllPollstersModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-[var(--card-background)] rounded-lg w-full max-w-4xl max-h-[80vh] overflow-hidden">
+                <div className="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">
+                    Progreso de Todos los Encuestadores (
+                    {pollsterProgress.length})
+                  </h2>
+                  <button
+                    onClick={() => setShowAllPollstersModal(false)}
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-2xl"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="p-4 overflow-y-auto max-h-[calc(80vh-80px)]">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {pollsterProgress.map((pollster, index) => {
+                      const progressPercentage =
+                        pollster.assignedCases > 0
+                          ? Math.min(
+                              100,
+                              Math.round(
+                                (pollster.completedAnswers /
+                                  pollster.assignedCases) *
+                                  100
+                              )
+                            )
+                          : 0;
+
+                      const isCompleted = progressPercentage >= 100;
+                      const remaining = Math.max(
+                        0,
+                        pollster.assignedCases - pollster.completedAnswers
+                      );
+
+                      return (
+                        <div
+                          key={index}
+                          className="border border-[var(--card-border)] rounded-lg p-3"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-medium text-base">
+                              {pollster.pollsterName ||
+                                `Pollster ${pollster.pollsterId}`}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold">
+                                {pollster.completedAnswers}/
+                                {pollster.assignedCases}
+                              </span>
+                              <span
+                                className={`text-xs px-1.5 py-0.5 rounded ${
+                                  isCompleted
+                                    ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
+                                    : progressPercentage > 50
+                                    ? "bg-[rgba(255,193,7,0.2)] text-[#ffc107] dark:bg-[rgba(255,193,7,0.3)] dark:text-[#ffecb3]"
+                                    : "bg-[rgba(63,81,181,0.2)] text-[var(--primary)] dark:bg-[rgba(128,145,245,0.3)] dark:text-[var(--primary-light)]"
+                                }`}
+                              >
+                                {progressPercentage}%
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-[var(--input-background)] rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full transition-all duration-300 ${
+                                  isCompleted
+                                    ? "bg-[#00c853]"
+                                    : progressPercentage > 50
+                                    ? "bg-[#ffc107]"
+                                    : "bg-[var(--primary)]"
+                                }`}
+                                style={{ width: `${progressPercentage}%` }}
+                              ></div>
+                            </div>
+
+                            {remaining > 0 && !isCompleted && (
+                              <span className="text-xs bg-[rgba(244,67,54,0.2)] text-[#f44336] dark:bg-[rgba(244,67,54,0.3)] dark:text-[#ff867c] px-2 py-1 rounded whitespace-nowrap">
+                                Faltan: {remaining}
+                              </span>
+                            )}
+
+                            {isCompleted && (
+                              <span className="text-xs bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82] px-2 py-1 rounded whitespace-nowrap">
+                                ✓ Completado
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Últimas respuestas */}

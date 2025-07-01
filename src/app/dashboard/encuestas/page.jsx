@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { SurveyList } from "@/components/ui/SurveyList";
+import { PollsterSurveyList } from "@/components/ui/PollsterSurveyList";
 import {
   Plus,
   ChevronDown,
@@ -141,7 +142,6 @@ export default function Encuestas() {
           limit,
           currentStatus
         );
-        console.log(`Response for tab ${tabName}, page ${safePage}:`, response);
 
         if (tabName === "active") {
           setActiveSurveysData(response.surveys || []);
@@ -224,10 +224,26 @@ export default function Encuestas() {
 
             const startDate = new Date(offlineSurvey.surveyInfo.startDate);
             const endDate = new Date(offlineSurvey.surveyInfo.endDate);
-            const isActive = now >= startDate && now <= endDate;
+
+            // Verificar si está dentro del rango de fechas
+            const isWithinDateRange = now >= startDate && now <= endDate;
+
+            // Verificar si el progreso llegó al 100%
+            const totalAnswers = offlineSurvey.totalAnswers || 0;
+            const target = offlineSurvey.surveyInfo.target || 0;
+            const progressPercentage =
+              target > 0 ? (totalAnswers / target) * 100 : 0;
+            const isCompleted = progressPercentage >= 100;
+
+            // La encuesta está activa si está dentro del rango de fechas Y no está completada
+            const isActive = isWithinDateRange && !isCompleted;
 
             console.log(
-              `Survey ${offlineSurvey.title}: isActive=${isActive}, tabName=${tabName}`
+              `Survey ${
+                offlineSurvey.title
+              }: isActive=${isActive}, tabName=${tabName}, progress=${progressPercentage.toFixed(
+                1
+              )}%`
             );
 
             return tabName === "active" ? isActive : !isActive;
@@ -533,7 +549,7 @@ export default function Encuestas() {
           animate={{ opacity: 1 }}
           className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]"
         >
-          Encuestas
+          {user?.role === "POLLSTER" ? "Mis Encuestas" : "Encuestas"}
         </motion.h1>
         {user?.role === "ROLE_ADMIN" && (
           <motion.button
@@ -681,8 +697,14 @@ export default function Encuestas() {
                     </div>
                   ))}
                 </div>
+              ) : // Renderizado para activas y finalizadas - diferentes para pollsters
+              user?.role === "POLLSTER" ? (
+                <PollsterSurveyList
+                  surveys={currentSurveys}
+                  isFinished={activeTab === "finished"}
+                  currentUser={user}
+                />
               ) : (
-                // Renderizado para activas y finalizadas usando SurveyList
                 <SurveyList
                   surveys={currentSurveys}
                   role={user?.role}

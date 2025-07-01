@@ -160,12 +160,24 @@ export const OfflineIndicator = () => {
           {/* Badges de contadores */}
           <div className="flex gap-1">
             {offlineSurveys.length > 0 && (
-              <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full">
+              <span
+                className="text-xs px-2 py-1 rounded-full"
+                style={{
+                  backgroundColor: "var(--primary)",
+                  color: "white",
+                }}
+              >
                 {offlineSurveys.length} offline
               </span>
             )}
             {pendingCount > 0 && (
-              <span className="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 text-xs px-2 py-1 rounded-full">
+              <span
+                className="text-xs px-2 py-1 rounded-full"
+                style={{
+                  backgroundColor: "#f97316",
+                  color: "white",
+                }}
+              >
                 {pendingCount} pendientes
               </span>
             )}
@@ -241,7 +253,7 @@ export const OfflineIndicator = () => {
                     disabled={
                       !isOnline || syncStatus === "syncing" || isLoading
                     }
-                    className="flex items-center gap-1 px-3 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="btn-primary flex items-center gap-1 text-sm rounded-md transition-colors"
                   >
                     <RotateCcw
                       className={`w-3 h-3 ${
@@ -316,7 +328,10 @@ export const OfflineDownloadButton = ({
   if (checking) {
     return (
       <div className="animate-pulse">
-        <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        <div
+          className="h-8 w-24 rounded"
+          style={{ backgroundColor: "var(--disabled-bg)" }}
+        ></div>
       </div>
     );
   }
@@ -327,13 +342,20 @@ export const OfflineDownloadButton = ({
     lg: "px-6 py-3 text-base",
   };
 
-  const variantClasses = {
-    outline: isAvailable
-      ? "border border-blue-500 text-white bg-blue-500 hover:bg-blue-600"
-      : "border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700",
-    filled: isAvailable
-      ? "bg-blue-500 text-white hover:bg-blue-600"
-      : "bg-blue-500 text-white hover:bg-blue-600",
+  const getVariantStyles = () => {
+    if (isAvailable) {
+      return {
+        backgroundColor: "var(--primary)",
+        color: "white",
+        border: `1px solid var(--primary)`,
+      };
+    } else {
+      return {
+        backgroundColor: "var(--card-background)",
+        color: "var(--text-primary)",
+        border: `1px solid var(--card-border)`,
+      };
+    }
   };
 
   return (
@@ -343,10 +365,20 @@ export const OfflineDownloadButton = ({
       className={`
         flex items-center gap-2 rounded-md transition-colors
         ${sizeClasses[size]}
-        ${variantClasses[variant]}
         ${isLoading ? "opacity-50 cursor-not-allowed" : ""}
       `}
+      style={getVariantStyles()}
       title={isAvailable ? "Eliminar de offline" : "Descargar para offline"}
+      onMouseEnter={(e) => {
+        if (!isLoading) {
+          e.target.style.opacity = "0.8";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isLoading) {
+          e.target.style.opacity = "1";
+        }
+      }}
     >
       {isLoading ? (
         <RotateCcw className="w-4 h-4 animate-spin" />
