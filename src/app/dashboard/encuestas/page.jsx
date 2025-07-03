@@ -61,6 +61,7 @@ export default function Encuestas() {
 
   // Offline state management - usar useNetworkStatus
   const [lastFetchAttempt, setLastFetchAttempt] = useState(null);
+  const [isRetrying, setIsRetrying] = useState(false); // Nueva bandera para evitar bucles
 
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
@@ -74,15 +75,35 @@ export default function Encuestas() {
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
-  // Manejo de recuperación de conexión
+  // Manejo de recuperación de conexión con debounce y prevención de bucles
   useEffect(() => {
-    if (isOnline && lastFetchAttempt) {
+    if (isOnline && lastFetchAttempt && !isRetrying) {
       const { tabName, page } = lastFetchAttempt;
-      toast.success("Conexión restaurada - Actualizando datos");
-      fetchDataForTab(tabName, page);
-      setLastFetchAttempt(null);
+
+      // Prevenir múltiples ejecuciones simultáneas
+      setIsRetrying(true);
+
+      // Debounce de 1 segundo para evitar múltiples llamadas rápidas
+      const timeoutId = setTimeout(async () => {
+        try {
+          toast.success("Conexión restaurada - Actualizando datos");
+          await fetchDataForTab(tabName, page);
+          setLastFetchAttempt(null); // Solo limpiar si fue exitoso
+        } catch (error) {
+          console.error("Error during network recovery retry:", error);
+          // Si falla nuevamente, esperar más tiempo antes del próximo intento
+          setTimeout(() => setIsRetrying(false), 5000); // 5 segundos de espera
+          return;
+        }
+        setIsRetrying(false);
+      }, 1000);
+
+      return () => {
+        clearTimeout(timeoutId);
+        setIsRetrying(false);
+      };
     }
-  }, [isOnline, lastFetchAttempt]);
+  }, [isOnline, lastFetchAttempt, isRetrying]);
 
   // --- Función de Carga de Datos --- //
   // Usamos useCallback para evitar re-crear la función en cada render
@@ -116,7 +137,10 @@ export default function Encuestas() {
             err.message?.includes("Failed to fetch");
 
           if (isNetworkError) {
-            setLastFetchAttempt({ tabName, page });
+            // Solo establecer lastFetchAttempt si no estamos ya reintentando
+            if (!isRetrying) {
+              setLastFetchAttempt({ tabName, page });
+            }
             console.log("Network error detected, staying offline mode");
             // Don't clear data when offline, keep existing data
           } else {
@@ -171,7 +195,10 @@ export default function Encuestas() {
           err.message?.includes("Failed to fetch");
 
         if (isNetworkError) {
-          setLastFetchAttempt({ tabName, page });
+          // Solo establecer lastFetchAttempt si no estamos ya reintentando
+          if (!isRetrying) {
+            setLastFetchAttempt({ tabName, page });
+          }
           console.log("Network error detected, staying offline mode");
           // Don't clear data when offline, keep existing data
         } else {
