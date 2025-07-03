@@ -459,32 +459,36 @@ export default function Encuestas() {
   };
 
   const handleDeleteAnswers = async (surveyId) => {
-    if (!selectedSurveyId) return;
+    if (!surveyId) {
+      console.error("No se proporcionó surveyId para eliminar respuestas");
+      return;
+    }
+
     try {
       const tabToReload = activeTab;
       const pageToReload =
         tabToReload === "active" ? activeCurrentPage : finishedCurrentPage;
       setIsLoading((prev) => ({ ...prev, [tabToReload]: true }));
+
       const result = await surveyService.deleteAnswers(surveyId);
+
       if (result.noAnswersFound) {
         toast.info("No se encontraron respuestas para eliminar.");
-        setIsLoading((prev) => ({ ...prev, [tabToReload]: false }));
       } else if (result.success) {
         toast.success(result.message || "Respuestas eliminadas con éxito");
-        await fetchDataForTab(tabToReload, pageToReload); // Recargar explícitamente
+        // Recargar datos después de eliminar respuestas
+        await fetchDataForTab(tabToReload, pageToReload);
       } else {
         console.error("Error deleting answers:", result.message);
         toast.error(result.message || "Error al eliminar las respuestas");
         setError(result.message);
-        setIsLoading((prev) => ({ ...prev, [tabToReload]: false }));
       }
     } catch (err) {
       console.error("Unexpected error in handleDeleteAnswers:", err);
       toast.error("Ocurrió un error inesperado al procesar la solicitud.");
       setError(err.message);
-      setIsLoading((prev) => ({ ...prev, [activeTab]: false }));
     } finally {
-      setSelectedSurveyId(null);
+      setIsLoading((prev) => ({ ...prev, [activeTab]: false }));
     }
   };
 
