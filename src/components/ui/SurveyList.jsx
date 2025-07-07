@@ -485,8 +485,17 @@ export function SurveyList({
 
   const calculateProgress = (totalAnswers, target) => {
     if (!target || target === 0) return "0%";
-    const progress = (totalAnswers / target) * 100;
-    return `${Math.min(100, Math.round(progress))}%`;
+    const percentage = (totalAnswers / target) * 100;
+    // Cap at 100% for display
+    return `${Math.min(Math.round(percentage), 100)}%`;
+  };
+
+  const getProgressColor = (completed, target) => {
+    if (!target) return "bg-gray-400";
+    const percentage = Math.min((completed / target) * 100, 100); // Cap at 100% for color
+    if (percentage >= 80) return "bg-green-500";
+    if (percentage >= 50) return "bg-yellow-500";
+    return "bg-red-500";
   };
 
   const handleSort = (field) => {
@@ -617,12 +626,17 @@ export function SurveyList({
                         </div>
                         <div className="w-full bg-black/20 rounded-full h-1.5 mt-1">
                           <div
-                            className="bg-green-500 h-1.5 rounded-full"
+                            className={`h-full ${getProgressColor(
+                              item.totalAnswers || 0,
+                              surveyInfo.target || 0
+                            )}`}
                             style={{
-                              width: calculateProgress(
-                                item.totalAnswers,
-                                surveyInfo.target
-                              ),
+                              width: `${Math.min(
+                                ((item.totalAnswers || 0) /
+                                  (surveyInfo.target || 1)) *
+                                  100,
+                                100
+                              )}%`,
                             }}
                           ></div>
                         </div>
@@ -732,15 +746,22 @@ export function SurveyList({
                           </>
                         )}
 
-                        {/* Botón de descarga offline */}
-                        <div className="col-span-2 mt-2">
-                          <OfflineDownloadButton
-                            surveyId={surveyData._id}
-                            surveyData={surveyData}
-                            size="sm"
-                            variant="outline"
-                          />
-                        </div>
+                        {/* Separador visual - solo si hay botón offline */}
+                        {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
+                          <div className="w-px h-6 bg-[var(--card-border)] mx-1"></div>
+                        )}
+
+                        {/* Botón de descarga offline - solo para pollsters */}
+                        {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
+                          <div className="flex items-center">
+                            <OfflineDownloadButton
+                              surveyId={surveyData._id}
+                              surveyData={surveyData}
+                              size="sm"
+                              variant="outline"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -824,7 +845,7 @@ export function SurveyList({
                   className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort("progress")}
                 >
-                  Progreso {renderSortIndicator("progress")}
+                  Casos Recolectados {renderSortIndicator("progress")}
                 </th>
               )}
               <th
@@ -877,7 +898,42 @@ export function SurveyList({
                   {/* Solo mostrar celda de progreso cuando esté online */}
                   {!isOffline && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                      {calculateProgress(item.totalAnswers, surveyInfo.target)}
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span>
+                              {item.totalAnswers || 0} /{" "}
+                              {surveyInfo.target || 0}
+                            </span>
+                            <span className="text-[var(--text-secondary)]">
+                              (
+                              {calculateProgress(
+                                item.totalAnswers,
+                                surveyInfo.target
+                              )}
+                              )
+                            </span>
+                          </div>
+                          <motion.div className="w-24 h-1 bg-[var(--card-border)] rounded-full mt-1 overflow-hidden">
+                            <motion.div
+                              className={`h-full ${getProgressColor(
+                                item.totalAnswers || 0,
+                                surveyInfo.target || 0
+                              )}`}
+                              initial={{ width: 0 }}
+                              animate={{
+                                width: `${Math.min(
+                                  ((item.totalAnswers || 0) /
+                                    (surveyInfo.target || 1)) *
+                                    100,
+                                  100
+                                )}%`,
+                              }}
+                              transition={{ duration: 0.5, ease: "easeOut" }}
+                            />
+                          </motion.div>
+                        </div>
+                      </div>
                     </td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
@@ -939,15 +995,16 @@ export function SurveyList({
                               )}
 
                               {/* Solo mostrar mapa para pollsters, admins ya tienen mapa integrado en análisis */}
-                              {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
-                                <ActionButton
-                                  action="map"
-                                  surveyData={surveyData}
-                                  icon={Map}
-                                  variant="desktop"
-                                  className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
-                                />
-                              )}
+                              {role !== "ROLE_ADMIN" &&
+                                role !== "SUPERVISOR" && (
+                                  <ActionButton
+                                    action="map"
+                                    surveyData={surveyData}
+                                    icon={Map}
+                                    variant="desktop"
+                                    className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                  />
+                                )}
 
                               {(role === "ROLE_ADMIN" ||
                                 role === "SUPERVISOR") && (
@@ -1000,18 +1057,24 @@ export function SurveyList({
                                 </>
                               )}
 
-                              {/* Separador visual */}
-                              <div className="w-px h-6 bg-[var(--card-border)] mx-1"></div>
+                              {/* Separador visual - solo si hay botón offline */}
+                              {role !== "ROLE_ADMIN" &&
+                                role !== "SUPERVISOR" && (
+                                  <div className="w-px h-6 bg-[var(--card-border)] mx-1"></div>
+                                )}
 
-                              {/* Botón de descarga offline */}
-                              <div className="flex items-center">
-                                <OfflineDownloadButton
-                                  surveyId={surveyData._id}
-                                  surveyData={surveyData}
-                                  size="sm"
-                                  variant="outline"
-                                />
-                              </div>
+                              {/* Botón de descarga offline - solo para pollsters */}
+                              {role !== "ROLE_ADMIN" &&
+                                role !== "SUPERVISOR" && (
+                                  <div className="flex items-center">
+                                    <OfflineDownloadButton
+                                      surveyId={surveyData._id}
+                                      surveyData={surveyData}
+                                      size="sm"
+                                      variant="outline"
+                                    />
+                                  </div>
+                                )}
                             </div>
                           </motion.div>
                         )}

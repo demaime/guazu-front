@@ -12,7 +12,7 @@ const libraries = ["places"];
 
 const mapContainerStyle = {
   width: "100%",
-  height: "600px",
+  height: "400px",
 };
 
 const defaultCenter = {
@@ -117,6 +117,18 @@ const darkMapStyle = [
   },
 ];
 
+const defaultOptions = {
+  scrollwheel: false,
+  streetViewControl: false,
+  mapTypeControlOptions: {
+    position: 2,
+  },
+  fullscreenControl: true,
+  fullscreenControlOptions: {
+    position: 7,
+  },
+};
+
 // Función auxiliar para obtener la respuesta legible
 const getReadableAnswer = (survey, questionKey, answerValue) => {
   if (!survey?.pages?.[0]?.elements) {
@@ -190,6 +202,7 @@ const SurveyMap = ({
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(14);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isMapInteractive, setIsMapInteractive] = useState(false);
 
   const { isLoaded } = useLoadScript({
     id: "google-map-script",
@@ -292,9 +305,21 @@ const SurveyMap = ({
 
   const onMapLoad = (map) => {
     setMapRef(map);
+    // Agregar listener para activar interacción al primer click/touch
+    map.addListener("click", () => {
+      if (!isMapInteractive) {
+        setIsMapInteractive(true);
+        map.setOptions({ scrollwheel: true });
+      }
+    });
   };
 
-  if (!isLoaded) return <div>Loading...</div>;
+  if (!isLoaded)
+    return (
+      <div className="w-full h-[400px] bg-[var(--card-background)] rounded-lg flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]"></div>
+      </div>
+    );
 
   // Procesar las respuestas para asegurar que tengan la estructura correcta
   const processedAnswers = answers
@@ -308,154 +333,138 @@ const SurveyMap = ({
     .filter((answer) => !isNaN(answer.lat) && !isNaN(answer.lng));
 
   return (
-    <div className="w-full">
-      <div className="mb-4 flex flex-wrap gap-2">
-        {Object.entries(userColors).map(([userId, color]) => {
-          const user = answers.find((a) => a.userId === userId);
-          if (!user) return null;
+    <div className="relative w-full">
+      <GoogleMap
+        id="survey-map"
+        mapContainerStyle={mapContainerStyle}
+        zoom={mapZoom}
+        center={mapCenter}
+        options={{
+          ...defaultOptions,
+          styles: isDarkMode ? darkMapStyle : [],
+        }}
+        onLoad={onMapLoad}
+      >
+        {processedAnswers.map((mark) => {
+          if (!mostrarTodos && !selectedUsers.includes(mark.userId))
+            return null;
+
+          const iconUrl = `http://maps.google.com/mapfiles/ms/icons/${
+            userColors[mark.userId]
+          }-dot.png`;
+
           return (
-            <button
-              key={userId}
-              onClick={() => centerOnUser(userId)}
-              className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-[var(--card-background)] shadow-sm border border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary)] dark:focus:ring-[var(--primary-light)]"
-            >
-              <span
-                className="w-3 h-3 rounded-full mr-2 ring-2 ring-[var(--card-background)] shadow-sm"
-                style={{ backgroundColor: color }}
-              />
-              <span className="truncate max-w-[200px] text-[var(--text-primary)]">
-                {user.fullName || `Encuestador ${userId}`}
-              </span>
-            </button>
+            <Marker
+              key={mark._id}
+              position={{ lat: mark.lat, lng: mark.lng }}
+              onClick={() => handleMarkerClick(mark)}
+              icon={{
+                url: iconUrl,
+                scaledSize: new window.google.maps.Size(30, 30),
+              }}
+              label={{
+                text: mark.index.toString(),
+                color: "white",
+                fontSize: "12px",
+              }}
+            />
           );
         })}
-      </div>
 
-      <div className="h-[600px]">
-        <GoogleMap
-          mapContainerStyle={mapContainerStyle}
-          zoom={mapZoom}
-          center={mapCenter}
-          onLoad={onMapLoad}
-          options={{
-            scrollwheel: true, // Habilitamos el zoom con la rueda del mouse
-            streetViewControl: true,
-            mapTypeControl: true,
-            mapTypeControlOptions: {
-              position: window.google?.maps?.ControlPosition.TOP_RIGHT,
-            },
-            zoomControl: true,
-            zoomControlOptions: {
-              position: window.google?.maps?.ControlPosition.RIGHT_CENTER,
-            },
-            // Aplicar estilo oscuro condicionalmente
-            styles: isDarkMode ? darkMapStyle : [],
+        {selectedMarker && (
+          <InfoWindow
+            position={{ lat: selectedMarker.lat, lng: selectedMarker.lng }}
+            onCloseClick={() => setSelectedMarker(null)}
+          >
+            <div className="p-2 max-w-sm text-gray-800">
+              <div className="border-b pb-2 mb-2 border-[var(--card-border)]">
+                <p className="font-semibold text-sm">
+                  Encuesta #{selectedMarker.index}
+                </p>
+                <p className="text-sm">Por: {selectedMarker.fullName}</p>
+                <p className="text-xs">
+                  {selectedMarker.createdAt &&
+                    formatDate(selectedMarker.createdAt)}
+                  {selectedMarker.offline && " (Offline)"}
+                </p>
+                {selectedMarker.time && (
+                  <p className="text-xs">
+                    Tiempo: {selectedMarker.time} segundos
+                  </p>
+                )}
+              </div>
+              {selectedMarker.answer &&
+                Object.keys(selectedMarker.answer).length > 0 && (
+                  <div className="text-sm">
+                    <p className="font-medium mb-1">Respuestas:</p>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {Object.entries(selectedMarker.answer).map(
+                        ([key, value]) => {
+                          // Removed the logic relying on getReadableAnswer for displaying the value
+                          // const question = survey?.pages?.[0]?.elements?.find(
+                          //   (q) => q.name === key
+                          // );
+                          // const questionTitle = question?.title || key;
+                          // const readableValue = getReadableAnswer(
+                          //   survey,
+                          //   key,
+                          //   value
+                          // );
+
+                          // Direct rendering logic
+                          let displayValue;
+                          if (
+                            typeof value === "object" &&
+                            value !== null &&
+                            !Array.isArray(value)
+                          ) {
+                            // Format object values (e.g., matrix)
+                            displayValue = Object.entries(value)
+                              .map(
+                                ([objKey, objValue]) => `${objKey}: ${objValue}`
+                              )
+                              .join(", ");
+                          } else if (Array.isArray(value)) {
+                            // Format array values (e.g., multiple choice)
+                            displayValue = value.join(", ");
+                          } else {
+                            // Display other values directly
+                            displayValue = String(value);
+                          }
+
+                          return (
+                            <div key={key} className="ml-2">
+                              <span className="font-medium">{key}:</span>{" "}
+                              <span>{displayValue}</span>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                )}
+            </div>
+          </InfoWindow>
+        )}
+      </GoogleMap>
+      {!isMapInteractive && (
+        <div
+          className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-lg cursor-pointer"
+          onClick={() => {
+            setIsMapInteractive(true);
+            mapRef?.setOptions({ scrollwheel: true });
           }}
         >
-          {processedAnswers.map((mark) => {
-            if (!mostrarTodos && !selectedUsers.includes(mark.userId))
-              return null;
-
-            const iconUrl = `http://maps.google.com/mapfiles/ms/icons/${
-              userColors[mark.userId]
-            }-dot.png`;
-
-            return (
-              <Marker
-                key={mark._id}
-                position={{ lat: mark.lat, lng: mark.lng }}
-                onClick={() => handleMarkerClick(mark)}
-                icon={{
-                  url: iconUrl,
-                  scaledSize: new window.google.maps.Size(30, 30),
-                }}
-                label={{
-                  text: mark.index.toString(),
-                  color: "white",
-                  fontSize: "12px",
-                }}
-              />
-            );
-          })}
-
-          {selectedMarker && (
-            <InfoWindow
-              position={{ lat: selectedMarker.lat, lng: selectedMarker.lng }}
-              onCloseClick={() => setSelectedMarker(null)}
-            >
-              <div className="p-2 max-w-sm text-gray-800">
-                <div className="border-b pb-2 mb-2 border-[var(--card-border)]">
-                  <p className="font-semibold text-sm">
-                    Encuesta #{selectedMarker.index}
-                  </p>
-                  <p className="text-sm">Por: {selectedMarker.fullName}</p>
-                  <p className="text-xs">
-                    {selectedMarker.createdAt &&
-                      formatDate(selectedMarker.createdAt)}
-                    {selectedMarker.offline && " (Offline)"}
-                  </p>
-                  {selectedMarker.time && (
-                    <p className="text-xs">
-                      Tiempo: {selectedMarker.time} segundos
-                    </p>
-                  )}
-                </div>
-                {selectedMarker.answer &&
-                  Object.keys(selectedMarker.answer).length > 0 && (
-                    <div className="text-sm">
-                      <p className="font-medium mb-1">Respuestas:</p>
-                      <div className="max-h-40 overflow-y-auto space-y-1">
-                        {Object.entries(selectedMarker.answer).map(
-                          ([key, value]) => {
-                            // Removed the logic relying on getReadableAnswer for displaying the value
-                            // const question = survey?.pages?.[0]?.elements?.find(
-                            //   (q) => q.name === key
-                            // );
-                            // const questionTitle = question?.title || key;
-                            // const readableValue = getReadableAnswer(
-                            //   survey,
-                            //   key,
-                            //   value
-                            // );
-
-                            // Direct rendering logic
-                            let displayValue;
-                            if (
-                              typeof value === "object" &&
-                              value !== null &&
-                              !Array.isArray(value)
-                            ) {
-                              // Format object values (e.g., matrix)
-                              displayValue = Object.entries(value)
-                                .map(
-                                  ([objKey, objValue]) =>
-                                    `${objKey}: ${objValue}`
-                                )
-                                .join(", ");
-                            } else if (Array.isArray(value)) {
-                              // Format array values (e.g., multiple choice)
-                              displayValue = value.join(", ");
-                            } else {
-                              // Display other values directly
-                              displayValue = String(value);
-                            }
-
-                            return (
-                              <div key={key} className="ml-2">
-                                <span className="font-medium">{key}:</span>{" "}
-                                <span>{displayValue}</span>
-                              </div>
-                            );
-                          }
-                        )}
-                      </div>
-                    </div>
-                  )}
-              </div>
-            </InfoWindow>
-          )}
-        </GoogleMap>
-      </div>
+          <div className="bg-white/90 dark:bg-[var(--card-background)] p-4 rounded-lg shadow-lg text-center">
+            <p className="text-sm font-medium mb-1">
+              Haz clic para interactuar con el mapa
+            </p>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Podrás hacer zoom y desplazarte
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

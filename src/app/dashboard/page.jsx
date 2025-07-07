@@ -28,14 +28,9 @@ const isActiveSurvey = (survey) => {
   // Verificar si está fuera del rango de fechas
   const isWithinDateRange = now >= startDate && now <= endDate;
 
-  // Verificar si el progreso llegó al 100%
-  const totalAnswers = survey.totalAnswers || 0;
-  const target = survey.surveyInfo.target || 0;
-  const progressPercentage = target > 0 ? (totalAnswers / target) * 100 : 0;
-  const isCompleted = progressPercentage >= 100;
-
-  // La encuesta está activa si está dentro del rango de fechas Y no está completada
-  return isWithinDateRange && !isCompleted;
+  // Una encuesta está activa solo si está dentro del rango de fechas
+  // Ya no se considera el progreso como limitante
+  return isWithinDateRange;
 };
 
 const DotsLoader = () => (

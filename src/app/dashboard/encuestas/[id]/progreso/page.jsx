@@ -302,9 +302,9 @@ export default function AnalisisEncuesta() {
   const totalAnswers = answers.length;
   const completionRate =
     surveyInfo.target && surveyInfo.target > 0
-      ? Math.min(100, Math.round((totalAnswers / surveyInfo.target) * 100))
+      ? Math.round((totalAnswers / surveyInfo.target) * 100)
       : 0;
-  const remainingRate = 100 - completionRate;
+  // Ya no calculamos remainingRate basado en completionRate porque puede ser > 100%
 
   // Ordenar las respuestas por fecha (más recientes primero)
   const sortedAnswers = [...answers].sort(
@@ -713,7 +713,8 @@ export default function AnalisisEncuesta() {
                       )
                     : 0;
 
-                const isCompleted = progressPercentage >= 100;
+                // Mantener visualización de progreso pero no como limitante
+                const hasCompletedAssigned = progressPercentage >= 100;
                 const remaining = Math.max(
                   0,
                   pollster.assignedCases - pollster.completedAnswers
@@ -732,7 +733,7 @@ export default function AnalisisEncuesta() {
                         </span>
                         <span
                           className={`text-xs px-1.5 py-0.5 rounded ${
-                            isCompleted
+                            hasCompletedAssigned
                               ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
                               : progressPercentage > 50
                               ? "bg-[rgba(255,193,7,0.2)] text-[#ffc107] dark:bg-[rgba(255,193,7,0.3)] dark:text-[#ffecb3]"
@@ -748,7 +749,7 @@ export default function AnalisisEncuesta() {
                       <div className="flex-1 bg-[var(--input-background)] rounded-full h-2">
                         <div
                           className={`h-2 rounded-full transition-all duration-300 ${
-                            isCompleted
+                            hasCompletedAssigned
                               ? "bg-[#00c853]"
                               : progressPercentage > 50
                               ? "bg-[#ffc107]"
@@ -758,15 +759,15 @@ export default function AnalisisEncuesta() {
                         ></div>
                       </div>
 
-                      {remaining > 0 && !isCompleted && (
+                      {remaining > 0 && !hasCompletedAssigned && (
                         <span className="text-xs bg-[rgba(244,67,54,0.2)] text-[#f44336] dark:bg-[rgba(244,67,54,0.3)] dark:text-[#ff867c] px-2 py-1 rounded whitespace-nowrap">
                           Faltan: {remaining}
                         </span>
                       )}
 
-                      {isCompleted && (
+                      {hasCompletedAssigned && (
                         <span className="text-xs bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82] px-2 py-1 rounded whitespace-nowrap">
-                          ✓ Completado
+                          ✓ Meta inicial alcanzada
                         </span>
                       )}
                     </div>
@@ -832,7 +833,7 @@ export default function AnalisisEncuesta() {
                             )
                           : 0;
 
-                      const isCompleted = progressPercentage >= 100;
+                      const hasCompletedAssigned = progressPercentage >= 100;
                       const remaining = Math.max(
                         0,
                         pollster.assignedCases - pollster.completedAnswers
@@ -855,7 +856,7 @@ export default function AnalisisEncuesta() {
                               </span>
                               <span
                                 className={`text-xs px-1.5 py-0.5 rounded ${
-                                  isCompleted
+                                  hasCompletedAssigned
                                     ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
                                     : progressPercentage > 50
                                     ? "bg-[rgba(255,193,7,0.2)] text-[#ffc107] dark:bg-[rgba(255,193,7,0.3)] dark:text-[#ffecb3]"
@@ -871,7 +872,7 @@ export default function AnalisisEncuesta() {
                             <div className="flex-1 bg-[var(--input-background)] rounded-full h-2">
                               <div
                                 className={`h-2 rounded-full transition-all duration-300 ${
-                                  isCompleted
+                                  hasCompletedAssigned
                                     ? "bg-[#00c853]"
                                     : progressPercentage > 50
                                     ? "bg-[#ffc107]"
@@ -881,15 +882,15 @@ export default function AnalisisEncuesta() {
                               ></div>
                             </div>
 
-                            {remaining > 0 && !isCompleted && (
+                            {remaining > 0 && !hasCompletedAssigned && (
                               <span className="text-xs bg-[rgba(244,67,54,0.2)] text-[#f44336] dark:bg-[rgba(244,67,54,0.3)] dark:text-[#ff867c] px-2 py-1 rounded whitespace-nowrap">
                                 Faltan: {remaining}
                               </span>
                             )}
 
-                            {isCompleted && (
+                            {hasCompletedAssigned && (
                               <span className="text-xs bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82] px-2 py-1 rounded whitespace-nowrap">
-                                ✓ Completado
+                                ✓ Meta inicial alcanzada
                               </span>
                             )}
                           </div>

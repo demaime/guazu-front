@@ -227,33 +227,62 @@ export default function Encuestas() {
         return;
       }
 
-      const currentStatus = tabName;
       setIsLoading((prev) => ({ ...prev, [tabName]: true }));
       setError(null);
 
       try {
         const safePage = Math.max(1, page);
+        // No enviar status al backend, obtener todas las encuestas y filtrar por fechas en frontend
         const response = await surveyService.getAllSurveys(
           safePage,
           limit,
-          currentStatus
+          null // Sin filtro de status en backend
         );
+
+        // Filtrar encuestas por fechas en el frontend
+        const now = new Date();
+        const allSurveys = response.surveys || [];
+
+        const activeSurveys = allSurveys.filter((survey) => {
+          if (!survey.surveyInfo?.startDate || !survey.surveyInfo?.endDate) {
+            // Si no tiene fechas definidas, considerar como activa
+            return true;
+          }
+          const startDate = new Date(survey.surveyInfo.startDate);
+          const endDate = new Date(survey.surveyInfo.endDate);
+          return now >= startDate && now <= endDate;
+        });
+
+        const finishedSurveys = allSurveys.filter((survey) => {
+          if (!survey.surveyInfo?.startDate || !survey.surveyInfo?.endDate) {
+            // Si no tiene fechas definidas, no incluir en finalizadas
+            return false;
+          }
+          const startDate = new Date(survey.surveyInfo.startDate);
+          const endDate = new Date(survey.surveyInfo.endDate);
+          return now > endDate;
+        });
+
+        // Asignar las encuestas filtradas según la pestaña solicitada
+        const filteredSurveys =
+          tabName === "active" ? activeSurveys : finishedSurveys;
+
         if (tabName === "active") {
-          setActiveSurveysData(response.surveys || []);
+          setActiveSurveysData(filteredSurveys);
           setActiveTotalPages(response.totalPages || 0);
           setActiveCurrentPage(response.currentPage || 1);
         } else if (tabName === "finished") {
-          setFinishedSurveysData(response.surveys || []);
+          setFinishedSurveysData(filteredSurveys);
           setFinishedTotalPages(response.totalPages || 0);
           setFinishedCurrentPage(response.currentPage || 1);
         }
-        if (response.totalCounts) {
-          setTabCounts((prev) => ({
-            ...prev,
-            active: response.totalCounts.active ?? prev.active,
-            finished: response.totalCounts.finished ?? prev.finished,
-          }));
-        }
+
+        // Actualizar contadores con los valores filtrados por fecha, no del backend
+        setTabCounts((prev) => ({
+          ...prev,
+          active: activeSurveys.length,
+          finished: finishedSurveys.length,
+        }));
       } catch (err) {
         console.error(`Error loading data for tab ${tabName}:`, err);
         const isNetworkError =

@@ -84,7 +84,7 @@ export function QuotaProgress({ quotas = [] }) {
                       <th className="text-left py-2">Segmento</th>
                       <th className="text-center py-2">Actual</th>
                       <th className="text-center py-2">Objetivo</th>
-                      <th className="text-center py-2">Restante</th>
+                      <th className="text-center py-2">Diferencia</th>
                       <th className="text-right py-2">Progreso</th>
                     </tr>
                   </thead>
@@ -94,10 +94,7 @@ export function QuotaProgress({ quotas = [] }) {
                         segment.target > 0
                           ? Math.round((segment.current / segment.target) * 100)
                           : 0;
-                      const remaining = Math.max(
-                        0,
-                        segment.target - segment.current
-                      );
+                      const remaining = segment.target - segment.current;
 
                       return (
                         <tr key={segmentIndex} className="border-b">
@@ -106,7 +103,15 @@ export function QuotaProgress({ quotas = [] }) {
                             {segment.current}
                           </td>
                           <td className="text-center py-3">{segment.target}</td>
-                          <td className="text-center py-3">{remaining}</td>
+                          <td className="text-center py-3">
+                            {remaining > 0 ? (
+                              <span className="text-orange-600">Faltan: {remaining}</span>
+                            ) : remaining < 0 ? (
+                              <span className="text-green-600">Exceso: {Math.abs(remaining)}</span>
+                            ) : (
+                              <span className="text-green-600">Meta alcanzada</span>
+                            )}
+                          </td>
                           <td className="text-right py-3">
                             <div className="flex items-center justify-end">
                               <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
@@ -118,9 +123,9 @@ export function QuotaProgress({ quotas = [] }) {
                                   } h-2 rounded-full`}
                                   style={{
                                     width: `${Math.min(
-                                      100,
+                                      150,
                                       segmentPercentage
-                                    )}%`,
+                                    )}%`, // Permitir hasta 150% visual
                                   }}
                                 ></div>
                               </div>
