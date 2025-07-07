@@ -10,12 +10,17 @@ import {
   Calendar,
   Clock,
   BarChart4,
+  Map,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { QuotaProgress } from "@/components/QuotaProgress";
 import { motion } from "framer-motion";
+import ExportControls from "@/components/ExportControls/ExportControls";
+import SurveyMap from "@/components/SurveyMap";
+import CasesTable from "@/components/CasesTable";
+import MapModal from "@/components/MapModal";
 
 // Función auxiliar para formatear fechas considerando diferentes formatos
 const formatSurveyDate = (dateValue) => {
@@ -143,6 +148,20 @@ export default function AnalisisEncuesta() {
   const [pollsterProgressLoading, setPollsterProgressLoading] = useState(false);
   const [showAllPollstersModal, setShowAllPollstersModal] = useState(false);
 
+  // Estados para el mapa
+  const [mostrarTodos, setMostrarTodos] = useState(true);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [user, setUser] = useState(null);
+
+  // Estados para el modal del mapa individual
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [modalMapData, setModalMapData] = useState({
+    lat: null,
+    lng: null,
+    pollsterName: "",
+    date: null,
+  });
+
   useEffect(() => {
     // Comprobar permisos - solo admin y supervisor pueden ver análisis
     const checkPermissions = () => {
@@ -171,6 +190,10 @@ export default function AnalisisEncuesta() {
 
         setIsLoading(true);
         const surveyId = params.id;
+
+        // Obtener información del usuario
+        const userData = authService.getUser();
+        setUser(userData);
 
         // Fetch survey data with answers in one call
         const surveyData = await surveyService.getSurveyWithAnswers(surveyId);
@@ -355,6 +378,48 @@ export default function AnalisisEncuesta() {
     startDateRaw: surveyInfo?.startDate,
     endDateRaw: surveyInfo?.endDate,
   });
+
+  // Funciones para el manejo del mapa
+  const handleUserSelection = (userId) => {
+    setSelectedUsers((prev) => {
+      const newSelection = prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId];
+      return newSelection;
+    });
+    setMostrarTodos(false);
+  };
+
+  const openMapModal = (lat, lng, pollsterName, date) => {
+    setModalMapData({
+      lat,
+      lng,
+      pollsterName,
+      date,
+    });
+    setShowMapModal(true);
+  };
+
+  const closeMapModal = () => {
+    setShowMapModal(false);
+    setModalMapData({
+      lat: null,
+      lng: null,
+      pollsterName: "",
+      date: null,
+    });
+  };
+
+  // Obtener encuestadores únicos para los filtros del mapa
+  const uniqueUsers = answers.reduce((acc, answer) => {
+    if (!acc.find((u) => u.id === answer.userId)) {
+      acc.push({
+        id: answer.userId,
+        name: answer.fullName || `Encuestador ${answer.userId}`,
+      });
+    }
+    return acc;
+  }, []);
 
   return (
     <div className="h-full overflow-y-auto py-4 px-4">
@@ -888,12 +953,19 @@ export default function AnalisisEncuesta() {
                       </td>
                       <td className="px-2 py-3">
                         {answer.lat && answer.lng ? (
-                          <a
-                            href={`/dashboard/encuestas/${params.id}/mapa`}
-                            className="text-[var(--primary)] hover:underline"
+                          <button
+                            onClick={() =>
+                              openMapModal(
+                                answer.lat,
+                                answer.lng,
+                                answer.fullName,
+                                answer.createdAt
+                              )
+                            }
+                            className="text-[var(--primary)] hover:underline cursor-pointer"
                           >
                             Ver mapa
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-xs text-[var(--text-secondary)]">
                             No disponible
@@ -961,7 +1033,115 @@ export default function AnalisisEncuesta() {
             </div>
           </div>
         </div>
+
+        {/* Sección del Mapa Completo */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="card p-4"
+        >
+          <div className="flex items-center gap-2 pb-3 border-b border-[var(--card-border)]">
+            <Map className="w-5 h-5 text-[var(--primary)]" />
+            <h2 className="text-xl font-semibold">Mapa de Casos</h2>
+          </div>
+
+          {/* Solo mostrar filtros si no es encuestador */}
+          {user?.role !== "POLLSTER" && uniqueUsers.length > 0 && (
+            <div className="mt-4 mb-6">
+              <h3 className="text-lg font-semibold mb-4">
+                Filtrar por encuestador
+              </h3>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={mostrarTodos}
+                    onChange={(e) => {
+                      const newValue = e.target.checked;
+                      setMostrarTodos(newValue);
+                      if (newValue) {
+                        setSelectedUsers([]);
+                      }
+                    }}
+                    className="form-checkbox h-5 w-5 text-blue-600"
+                  />
+                  <span>Mostrar todos</span>
+                </label>
+
+                {uniqueUsers.map((userItem) => (
+                  <label
+                    key={userItem.id}
+                    className="flex items-center space-x-2"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(userItem.id)}
+                      onChange={() => handleUserSelection(userItem.id)}
+                      className="form-checkbox h-5 w-5 text-blue-600"
+                    />
+                    <span>{userItem.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-[var(--card-background)] rounded-lg shadow-lg p-6">
+            <SurveyMap
+              survey={survey}
+              answers={answers}
+              mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
+              selectedUsers={
+                user?.role === "POLLSTER" ? [user._id] : selectedUsers
+              }
+            />
+          </div>
+        </motion.div>
+
+        {/* Tabla de casos debajo del mapa */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.5 }}
+          className="card p-0"
+        >
+          <CasesTable
+            survey={survey}
+            answers={answers}
+            mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
+            selectedUsers={
+              user?.role === "POLLSTER" ? [user._id] : selectedUsers
+            }
+          />
+        </motion.div>
+
+        {/* Sección de Exportar Datos */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.5 }}
+          className="card p-4"
+        >
+          <div className="flex items-center gap-2 pb-3 border-b border-[var(--card-border)]">
+            <FileSpreadsheet className="w-5 h-5 text-[var(--primary)]" />
+            <h2 className="text-xl font-semibold">Exportar Datos</h2>
+          </div>
+          <div className="mt-4">
+            <ExportControls answers={answers} titleSurvey={survey?.title} />
+          </div>
+        </motion.div>
       </div>
+
+      {/* Modal para mapa individual */}
+      <MapModal
+        isOpen={showMapModal}
+        onClose={closeMapModal}
+        lat={modalMapData.lat}
+        lng={modalMapData.lng}
+        pollsterName={modalMapData.pollsterName}
+        date={modalMapData.date}
+      />
     </div>
   );
 }

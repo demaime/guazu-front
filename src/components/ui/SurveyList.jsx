@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmModal } from "./ConfirmModal";
 import { surveyService } from "@/services/survey.service";
@@ -40,6 +41,7 @@ export function SurveyList({
 }) {
   const router = useRouter();
   const { isMobile } = useWindowSize();
+  const { isOffline } = useNetworkStatus();
   const [expandedCardId, setExpandedCardId] = useState(null);
   const [expandedActionsId, setExpandedActionsId] = useState(null);
   const [showFinishedAlert, setShowFinishedAlert] = useState(false);
@@ -408,7 +410,7 @@ export function SurveyList({
         case "map":
           setButtonClicked(buttonKey, true);
           setTimeout(() => {
-            router.push(`/dashboard/encuestas/${surveyId}/mapa`);
+            router.push(`/dashboard/encuestas/${surveyId}/progreso`);
           }, 150);
           break;
         case "clone":
@@ -517,6 +519,8 @@ export function SurveyList({
         valueB = b.surveyInfo?.endDate || "";
         break;
       case "progress":
+        // No permitir ordenamiento por progreso cuando esté offline
+        if (isOffline) return 0;
         const progressA = a.totalAnswers / (a.surveyInfo?.target || 1);
         const progressB = b.totalAnswers / (b.surveyInfo?.target || 1);
         valueA = isNaN(progressA) ? 0 : progressA;
@@ -599,26 +603,40 @@ export function SurveyList({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span>
-                        Progreso:{" "}
-                        {calculateProgress(
-                          item.totalAnswers,
-                          surveyInfo.target
-                        )}
-                      </span>
-                    </div>
-                    <div className="w-full bg-black/20 rounded-full h-1.5 mt-1">
-                      <div
-                        className="bg-green-500 h-1.5 rounded-full"
-                        style={{
-                          width: calculateProgress(
-                            item.totalAnswers,
-                            surveyInfo.target
-                          ),
-                        }}
-                      ></div>
-                    </div>
+                    {/* Solo mostrar progreso cuando esté online */}
+                    {!isOffline && (
+                      <>
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <span>
+                            Progreso:{" "}
+                            {calculateProgress(
+                              item.totalAnswers,
+                              surveyInfo.target
+                            )}
+                          </span>
+                        </div>
+                        <div className="w-full bg-black/20 rounded-full h-1.5 mt-1">
+                          <div
+                            className="bg-green-500 h-1.5 rounded-full"
+                            style={{
+                              width: calculateProgress(
+                                item.totalAnswers,
+                                surveyInfo.target
+                              ),
+                            }}
+                          ></div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Mostrar indicador offline cuando esté offline */}
+                    {isOffline && (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-yellow-300">
+                          🔄 Modo offline - Sin datos de progreso
+                        </span>
+                      </div>
+                    )}
 
                     <div className="mt-3 border-t border-[var(--card-border)] pt-3">
                       <div className="grid grid-cols-2 gap-2">
@@ -652,13 +670,16 @@ export function SurveyList({
                           />
                         )}
 
-                        <ActionButton
-                          action="map"
-                          surveyData={surveyData}
-                          icon={Map}
-                          text="Ver Mapa"
-                          variant="mobile"
-                        />
+                        {/* Solo mostrar mapa para pollsters, admins ya tienen mapa integrado en análisis */}
+                        {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
+                          <ActionButton
+                            action="map"
+                            surveyData={surveyData}
+                            icon={Map}
+                            text="Ver Mapa"
+                            variant="mobile"
+                          />
+                        )}
 
                         {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
                           <>
@@ -796,13 +817,16 @@ export function SurveyList({
               >
                 Fin {renderSortIndicator("end")}
               </th>
-              <th
-                key="header-progress"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort("progress")}
-              >
-                Progreso {renderSortIndicator("progress")}
-              </th>
+              {/* Solo mostrar columna de progreso cuando esté online */}
+              {!isOffline && (
+                <th
+                  key="header-progress"
+                  className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleSort("progress")}
+                >
+                  Progreso {renderSortIndicator("progress")}
+                </th>
+              )}
               <th
                 key="header-actions"
                 className="px-6 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
@@ -850,9 +874,12 @@ export function SurveyList({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     {formatDate(surveyInfo.endDate)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    {calculateProgress(item.totalAnswers, surveyInfo.target)}
-                  </td>
+                  {/* Solo mostrar celda de progreso cuando esté online */}
+                  {!isOffline && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
+                      {calculateProgress(item.totalAnswers, surveyInfo.target)}
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     <div className="flex items-center justify-end relative">
                       <button
@@ -911,13 +938,16 @@ export function SurveyList({
                                 />
                               )}
 
-                              <ActionButton
-                                action="map"
-                                surveyData={surveyData}
-                                icon={Map}
-                                variant="desktop"
-                                className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
-                              />
+                              {/* Solo mostrar mapa para pollsters, admins ya tienen mapa integrado en análisis */}
+                              {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
+                                <ActionButton
+                                  action="map"
+                                  surveyData={surveyData}
+                                  icon={Map}
+                                  variant="desktop"
+                                  className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                />
+                              )}
 
                               {(role === "ROLE_ADMIN" ||
                                 role === "SUPERVISOR") && (

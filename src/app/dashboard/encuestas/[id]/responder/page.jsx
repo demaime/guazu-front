@@ -96,8 +96,10 @@ export default function SurveyPage() {
 
       // Check if offline and redirect appropriately
       if (!navigator.onLine) {
-        console.log("Offline detected, redirecting to dashboard/encuestas");
-        router.push("/dashboard/encuestas");
+        console.log(
+          "Offline detected, redirecting to dashboard/encuestas with offline flag"
+        );
+        router.push("/dashboard/encuestas?showOffline=true");
       } else {
         console.log("Online, redirecting to dashboard");
         router.push("/dashboard");
@@ -730,7 +732,9 @@ export default function SurveyPage() {
                 </p>
               </div>
               <button
-                onClick={() => router.push("/dashboard/encuestas")}
+                onClick={() =>
+                  router.push("/dashboard/encuestas?showOffline=true")
+                }
                 className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
               >
                 Volver al inicio
@@ -746,9 +750,9 @@ export default function SurveyPage() {
                   // Check if offline and redirect appropriately
                   if (!navigator.onLine) {
                     console.log(
-                      "Manual redirect - Offline detected, redirecting to dashboard/encuestas"
+                      "Manual redirect - Offline detected, redirecting to dashboard/encuestas with offline flag"
                     );
-                    router.push("/dashboard/encuestas");
+                    router.push("/dashboard/encuestas?showOffline=true");
                   } else {
                     console.log(
                       "Manual redirect - Online, redirecting to dashboard"

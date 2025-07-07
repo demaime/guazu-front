@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react"; // Añadir useCallback
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { SurveyList } from "@/components/ui/SurveyList";
@@ -30,6 +30,7 @@ import {
 
 export default function Encuestas() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isMobile } = useWindowSize();
   const { isOnline, isOffline } = useNetworkStatus();
   const { offlineSurveys, isInitialized } = usePouchDB();
@@ -66,6 +67,9 @@ export default function Encuestas() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [limit] = useState(10);
+
+  // NEW: Estado para controlar cuando mostrar encuestas offline
+  const [showOfflineSurveys, setShowOfflineSurveys] = useState(false);
 
   // --- Estados existentes que se mantienen --- //
   const [openMenuId, setOpenMenuId] = useState(null); // Considerar si aún es necesario
@@ -105,44 +109,114 @@ export default function Encuestas() {
     }
   }, [isOnline, lastFetchAttempt, isRetrying]);
 
+  // --- REORDENADO: Función para cargar datos offline --- //
+  // Definida ANTES de fetchDataForTab para evitar ReferenceError
+  const loadOfflineDataForTab = useCallback(
+    async (tabName) => {
+      if (!isInitialized || !offlineSurveys) return;
+
+      setIsLoading((prev) => ({ ...prev, [tabName]: true }));
+      setError(null);
+
+      try {
+        console.log("Loading offline surveys:", offlineSurveys);
+
+        if (tabName === "drafts") {
+          setDraftSurveysData([]);
+          setTabCounts((prev) => ({ ...prev, drafts: 0 }));
+        } else {
+          const now = new Date();
+          const filteredSurveys = offlineSurveys.filter((offlineSurvey) => {
+            console.log("Processing offline survey:", offlineSurvey);
+            if (
+              !offlineSurvey.surveyInfo ||
+              !offlineSurvey.surveyInfo.startDate ||
+              !offlineSurvey.surveyInfo.endDate
+            ) {
+              return tabName === "active";
+            }
+            const startDate = new Date(offlineSurvey.surveyInfo.startDate);
+            const endDate = new Date(offlineSurvey.surveyInfo.endDate);
+            const isWithinDateRange = now >= startDate && now <= endDate;
+            const isActive = isWithinDateRange;
+            console.log(
+              `Survey ${offlineSurvey.title}: isActive=${isActive}, tabName=${tabName} (offline mode - no progress tracking)`
+            );
+            return tabName === "active" ? isActive : !isActive;
+          });
+
+          console.log(`Filtered ${tabName} offline surveys:`, filteredSurveys);
+
+          const formattedSurveys = filteredSurveys.map((offlineSurvey) => ({
+            _id: offlineSurvey.surveyId,
+            title: offlineSurvey.title,
+            description: offlineSurvey.description,
+            survey: offlineSurvey.survey,
+            surveyInfo: offlineSurvey.surveyInfo,
+            availableOffline: true,
+          }));
+
+          if (tabName === "active") {
+            setActiveSurveysData(formattedSurveys);
+            setActiveTotalPages(1);
+            setActiveCurrentPage(1);
+          } else if (tabName === "finished") {
+            setFinishedSurveysData(formattedSurveys);
+            setFinishedTotalPages(1);
+            setFinishedCurrentPage(1);
+          }
+
+          setTabCounts((prev) => ({
+            ...prev,
+            [tabName]: formattedSurveys.length,
+          }));
+        }
+        console.log(`Loaded ${tabName} offline data successfully`);
+      } catch (err) {
+        console.error(`Error loading offline data for ${tabName}:`, err);
+        setError("Error al cargar datos offline");
+      } finally {
+        setIsLoading((prev) => ({ ...prev, [tabName]: false }));
+      }
+    },
+    [isInitialized, offlineSurveys]
+  );
+
   // --- Función de Carga de Datos --- //
-  // Usamos useCallback para evitar re-crear la función en cada render
   const fetchDataForTab = useCallback(
     async (tabName, page) => {
-      // If offline, load from offline storage
-      if (isOffline) {
+      if (isOffline && showOfflineSurveys) {
         console.log(`Loading ${tabName} from offline storage`);
         await loadOfflineDataForTab(tabName);
         return;
       }
+      if (isOffline && !showOfflineSurveys) {
+        console.log(
+          `Offline but not showing offline surveys yet for ${tabName}`
+        );
+        return;
+      }
 
-      // Borradores usan un endpoint diferente
       if (tabName === "drafts") {
         setIsLoading((prev) => ({ ...prev, drafts: true }));
         setError(null);
         try {
           const response = await surveyService.getDrafts();
-          console.log(`Response for tab drafts:`, response);
           const drafts = response.drafts || [];
           setDraftSurveysData(drafts);
           setTabCounts((prev) => ({ ...prev, drafts: drafts.length }));
         } catch (err) {
           console.error(`Error loading data for tab drafts:`, err);
-
-          // Check if it's a network error
           const isNetworkError =
             isOffline ||
             err.message?.includes("fetch") ||
             err.message?.includes("Network") ||
             err.message?.includes("Failed to fetch");
-
           if (isNetworkError) {
-            // Solo establecer lastFetchAttempt si no estamos ya reintentando
             if (!isRetrying) {
               setLastFetchAttempt({ tabName, page });
             }
             console.log("Network error detected, staying offline mode");
-            // Don't clear data when offline, keep existing data
           } else {
             setError(err.message);
             setDraftSurveysData([]);
@@ -150,23 +224,20 @@ export default function Encuestas() {
         } finally {
           setIsLoading((prev) => ({ ...prev, drafts: false }));
         }
-        return; // Salir temprano para borradores
+        return;
       }
 
-      // Para activas y finalizadas
-      const currentStatus = tabName; // 'active' o 'finished'
+      const currentStatus = tabName;
       setIsLoading((prev) => ({ ...prev, [tabName]: true }));
       setError(null);
 
       try {
-        // Asegurarse que la página sea válida
         const safePage = Math.max(1, page);
         const response = await surveyService.getAllSurveys(
           safePage,
           limit,
           currentStatus
         );
-
         if (tabName === "active") {
           setActiveSurveysData(response.surveys || []);
           setActiveTotalPages(response.totalPages || 0);
@@ -176,7 +247,6 @@ export default function Encuestas() {
           setFinishedTotalPages(response.totalPages || 0);
           setFinishedCurrentPage(response.currentPage || 1);
         }
-        // Actualizar los conteos globales con la info de la respuesta
         if (response.totalCounts) {
           setTabCounts((prev) => ({
             ...prev,
@@ -186,21 +256,16 @@ export default function Encuestas() {
         }
       } catch (err) {
         console.error(`Error loading data for tab ${tabName}:`, err);
-
-        // Check if it's a network error
         const isNetworkError =
           isOffline ||
           err.message?.includes("fetch") ||
           err.message?.includes("Network") ||
           err.message?.includes("Failed to fetch");
-
         if (isNetworkError) {
-          // Solo establecer lastFetchAttempt si no estamos ya reintentando
           if (!isRetrying) {
             setLastFetchAttempt({ tabName, page });
           }
           console.log("Network error detected, staying offline mode");
-          // Don't clear data when offline, keep existing data
         } else {
           setError(err.message);
           if (tabName === "active") {
@@ -215,106 +280,7 @@ export default function Encuestas() {
         setIsLoading((prev) => ({ ...prev, [tabName]: false }));
       }
     },
-    [limit, isOffline, offlineSurveys]
-  ); // useCallback dependency
-
-  // --- Función para cargar datos offline --- //
-  const loadOfflineDataForTab = useCallback(
-    async (tabName) => {
-      if (!isInitialized || !offlineSurveys) return;
-
-      setIsLoading((prev) => ({ ...prev, [tabName]: true }));
-      setError(null);
-
-      try {
-        console.log("Loading offline surveys:", offlineSurveys);
-
-        if (tabName === "drafts") {
-          // Los borradores no están disponibles offline por el momento
-          setDraftSurveysData([]);
-          setTabCounts((prev) => ({ ...prev, drafts: 0 }));
-        } else {
-          // Filtrar encuestas offline por estado (activas/finalizadas)
-          const now = new Date();
-          const filteredSurveys = offlineSurveys.filter((offlineSurvey) => {
-            console.log("Processing offline survey:", offlineSurvey);
-
-            // Si no hay surveyInfo, incluir en activas por defecto
-            if (
-              !offlineSurvey.surveyInfo ||
-              !offlineSurvey.surveyInfo.startDate ||
-              !offlineSurvey.surveyInfo.endDate
-            ) {
-              console.log("No surveyInfo or dates, including in active");
-              return tabName === "active";
-            }
-
-            const startDate = new Date(offlineSurvey.surveyInfo.startDate);
-            const endDate = new Date(offlineSurvey.surveyInfo.endDate);
-
-            // Verificar si está dentro del rango de fechas
-            const isWithinDateRange = now >= startDate && now <= endDate;
-
-            // Verificar si el progreso llegó al 100%
-            const totalAnswers = offlineSurvey.totalAnswers || 0;
-            const target = offlineSurvey.surveyInfo.target || 0;
-            const progressPercentage =
-              target > 0 ? (totalAnswers / target) * 100 : 0;
-            const isCompleted = progressPercentage >= 100;
-
-            // La encuesta está activa si está dentro del rango de fechas Y no está completada
-            const isActive = isWithinDateRange && !isCompleted;
-
-            console.log(
-              `Survey ${
-                offlineSurvey.title
-              }: isActive=${isActive}, tabName=${tabName}, progress=${progressPercentage.toFixed(
-                1
-              )}%`
-            );
-
-            return tabName === "active" ? isActive : !isActive;
-          });
-
-          console.log(`Filtered ${tabName} offline surveys:`, filteredSurveys);
-
-          // Convertir formato offline a formato esperado por la UI
-          const formattedSurveys = filteredSurveys.map((offlineSurvey) => ({
-            _id: offlineSurvey.surveyId,
-            title: offlineSurvey.title,
-            description: offlineSurvey.description,
-            survey: offlineSurvey.survey,
-            surveyInfo: offlineSurvey.surveyInfo,
-            availableOffline: true, // Marcar como disponible offline
-            totalAnswers: 0, // En offline no tenemos respuestas sincronizadas
-          }));
-
-          if (tabName === "active") {
-            setActiveSurveysData(formattedSurveys);
-            setActiveTotalPages(1); // En offline solo mostramos una página
-            setActiveCurrentPage(1);
-          } else if (tabName === "finished") {
-            setFinishedSurveysData(formattedSurveys);
-            setFinishedTotalPages(1); // En offline solo mostramos una página
-            setFinishedCurrentPage(1);
-          }
-
-          // Actualizar conteos
-          setTabCounts((prev) => ({
-            ...prev,
-            [tabName]: formattedSurveys.length,
-          }));
-        }
-
-        console.log(`Loaded ${tabName} offline data successfully`);
-      } catch (err) {
-        console.error(`Error loading offline data for ${tabName}:`, err);
-        setError("Error al cargar datos offline");
-      } finally {
-        setIsLoading((prev) => ({ ...prev, [tabName]: false }));
-      }
-    },
-    [isInitialized, offlineSurveys]
+    [limit, isOffline, showOfflineSurveys, isRetrying, loadOfflineDataForTab]
   );
 
   // --- useEffect para Carga Inicial --- //
@@ -325,16 +291,15 @@ export default function Encuestas() {
       return;
     }
     setUser(userData);
-    // Cargar datos iniciales para la primera pestaña (activas) y borradores
     fetchDataForTab("active", 1);
-    fetchDataForTab("drafts", 1); // Carga inicial de borradores (page no usada)
-  }, [fetchDataForTab, router]); // Incluir fetchDataForTab y router
+    fetchDataForTab("drafts", 1);
+  }, [fetchDataForTab, router]);
 
   // --- useEffect para manejar cambios en datos offline --- //
   useEffect(() => {
-    if (isOffline && isInitialized && offlineSurveys) {
+    if (isOffline && isInitialized && offlineSurveys && showOfflineSurveys) {
       console.log(
-        "Offline state detected, loading offline surveys for current tab"
+        "Offline state detected and showOfflineSurveys is true, loading offline surveys for current tab"
       );
       loadOfflineDataForTab(activeTab);
     }
@@ -343,8 +308,24 @@ export default function Encuestas() {
     isInitialized,
     offlineSurveys,
     activeTab,
+    showOfflineSurveys,
     loadOfflineDataForTab,
   ]);
+
+  // --- useEffect para detectar parámetro showOffline en URL --- //
+  useEffect(() => {
+    const showOfflineParam = searchParams.get("showOffline");
+    if (showOfflineParam === "true" && isOffline && isInitialized) {
+      console.log(
+        "URL parameter showOffline=true detected, showing offline surveys"
+      );
+      setShowOfflineSurveys(true);
+      // Limpiar el parámetro de la URL sin causar navegación
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete("showOffline");
+      window.history.replaceState({}, "", newUrl.toString());
+    }
+  }, [searchParams, isOffline, isInitialized]);
 
   // --- useEffect para Cambios de Tab --- //
   useEffect(() => {
@@ -664,24 +645,67 @@ export default function Encuestas() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            {currentLoadingState && (
+            {/* Mostrar botón de encuestas offline cuando esté offline y no se hayan cargado */}
+            {isOffline && !showOfflineSurveys && activeTab !== "drafts" && (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="text-center max-w-md">
+                  <WifiOff className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+                    Sin conexión a internet
+                  </h3>
+                  <p className="text-[var(--text-secondary)] mb-6">
+                    No hay conexión disponible para cargar las encuestas desde
+                    el servidor.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowOfflineSurveys(true);
+                      fetchDataForTab(activeTab, 1);
+                    }}
+                    className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 mx-auto"
+                  >
+                    <WifiOff className="w-5 h-5" />
+                    Mostrar encuestas disponibles sin conexión
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Mostrar estado de carga cuando esté offline y se estén cargando las encuestas */}
+            {isOffline && showOfflineSurveys && currentLoadingState && (
               <div className="flex justify-center py-10">
                 <Loader size="lg" />
               </div>
             )}
-            {!currentLoadingState && currentSurveys.length === 0 && (
-              <p className="text-[var(--text-secondary)] italic text-center py-4">
-                No hay encuestas{" "}
-                {activeTab === "drafts"
-                  ? "borradores"
-                  : activeTab === "active"
-                  ? "activas"
-                  : "finalizadas"}{" "}
-                disponibles.
-              </p>
+
+            {/* Estado de carga normal (online) */}
+            {!isOffline && currentLoadingState && (
+              <div className="flex justify-center py-10">
+                <Loader size="lg" />
+              </div>
             )}
+
+            {/* Mostrar mensaje cuando no hay encuestas */}
+            {!currentLoadingState &&
+              currentSurveys.length === 0 &&
+              !(isOffline && !showOfflineSurveys && activeTab !== "drafts") && (
+                <p className="text-[var(--text-secondary)] italic text-center py-4">
+                  No hay encuestas{" "}
+                  {activeTab === "drafts"
+                    ? "borradores"
+                    : activeTab === "active"
+                    ? "activas"
+                    : "finalizadas"}{" "}
+                  {isOffline && showOfflineSurveys
+                    ? "disponibles offline"
+                    : "disponibles"}
+                  .
+                </p>
+              )}
+            {/* Mostrar contenido de encuestas */}
             {!currentLoadingState &&
               currentSurveys.length > 0 &&
+              !(isOffline && !showOfflineSurveys && activeTab !== "drafts") &&
               (activeTab === "drafts" ? (
                 // Renderizado específico para borradores
                 <div className="space-y-4">
@@ -755,7 +779,8 @@ export default function Encuestas() {
         {/* --- Controles de Paginación --- */}
         {activeTab !== "drafts" &&
           !currentLoadingState &&
-          currentTotalPages > 1 && (
+          currentTotalPages > 1 &&
+          !(isOffline && !showOfflineSurveys) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -8,8 +8,8 @@ export default function SurveyPage() {
   const params = useParams();
 
   useEffect(() => {
-    // Redirigir a la vista de mapa por defecto
-    router.replace(`/dashboard/encuestas/${params.id}/mapa`);
+    // Redirigir a la vista de progreso/análisis por defecto
+    router.replace(`/dashboard/encuestas/${params.id}/progreso`);
   }, [params.id]);
 
   return null;

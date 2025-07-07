@@ -428,11 +428,11 @@ export function PollsterSurveyList({
                 {/* Botón de mapa */}
                 <motion.button
                   onClick={() =>
-                    router.push(`/dashboard/encuestas/${survey._id}/mapa`)
+                    router.push(`/dashboard/encuestas/${survey._id}/progreso`)
                   }
                   className="flex items-center justify-center w-12 h-12 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] rounded-lg transition-all duration-200"
                   whileTap={{ scale: 0.98 }}
-                  title="Ver mapa"
+                  title="Ver análisis"
                 >
                   <MapPin className="w-5 h-5" />
                 </motion.button>
