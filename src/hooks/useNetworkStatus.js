@@ -63,9 +63,8 @@ export function useNetworkError(error) {
 /**
  * Custom hook para retry de operaciones cuando se recupera la conexión
  * @param {function} operation - Function to retry when coming back online
- * @param {array} deps - Dependencies array for the operation
  */
-export function useOnlineRetry(operation, deps = []) {
+export function useOnlineRetry(operation) {
   const { isOnline, wasOffline } = useNetworkStatus();
 
   useEffect(() => {
