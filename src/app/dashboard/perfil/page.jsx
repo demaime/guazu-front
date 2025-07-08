@@ -7,6 +7,8 @@ import { userService } from "@/services/user.service";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Loader } from "@/components/ui/Loader";
+import { User, Mail, Phone, MapPin } from "lucide-react";
+import ProfilePhotoUpload from "@/components/ProfilePhotoUpload";
 
 export default function PerfilPage() {
   const router = useRouter();
@@ -40,6 +42,7 @@ export default function PerfilPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [modalAction, setModalAction] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (originalFormData) {
@@ -253,6 +256,10 @@ export default function PerfilPage() {
     );
   };
 
+  const handlePhotoUpdate = (updatedUser) => {
+    setUser(updatedUser);
+  };
+
   if (isInitializing) {
     return (
       <motion.div
@@ -266,127 +273,176 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="space-y-6"
-      >
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-            Mi Perfil
-          </h1>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-2xl font-bold mb-8 text-[var(--text-primary)]">
+          Mi Perfil
+        </h1>
+
+        {/* Sección de foto de perfil */}
+        <div className="bg-[var(--card-background)] rounded-lg p-6 mb-8 shadow-sm border border-[var(--card-border)]">
+          <h2 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">
+            Foto de Perfil
+          </h2>
+          <ProfilePhotoUpload
+            currentUser={user}
+            onPhotoUpdate={handlePhotoUpdate}
+          />
         </div>
 
-        <div className="bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg shadow-sm">
-          <div className="p-6">
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md"
-              >
-                {error}
-              </motion.div>
-            )}
+        {/* Sección de información personal */}
+        <div className="bg-[var(--card-background)] rounded-lg p-6 shadow-sm border border-[var(--card-border)]">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+              Información Personal
+            </h2>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsEditing(!isEditing)}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+            >
+              {isEditing ? "Cancelar" : "Editar"}
+            </motion.button>
+          </div>
 
-            {successMessage && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md"
-              >
-                {successMessage}
-              </motion.div>
-            )}
-
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-              {/* Sección de imagen de perfil */}
-              <div className="flex items-center space-x-6">
-                <div className="relative w-24 h-24">
-                  {user?.image ? (
-                    <Image
-                      src={user.image}
-                      alt="Foto de perfil"
-                      fill
-                      className="rounded-full object-cover"
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-6">
+              {/* Nombre y Apellido */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Nombre
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     />
                   ) : (
-                    <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-white text-2xl font-bold">
-                      {user?.name ? user.name[0].toUpperCase() : "U"}
+                    <div className="flex items-center">
+                      <User className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
+                      <span className="text-[var(--text-primary)]">
+                        {user.name}
+                      </span>
                     </div>
                   )}
                 </div>
                 <div>
-                  <input
-                    type="file"
-                    id="image"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor="image"
-                    className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark transition-colors cursor-pointer"
-                  >
-                    Cambiar foto
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Apellido
                   </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, lastName: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    />
+                  ) : (
+                    <div className="flex items-center">
+                      <User className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
+                      <span className="text-[var(--text-primary)]">
+                        {user.lastName}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Campos del formulario */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {renderField("name", "Nombre")}
-                {renderField("lastName", "Apellido")}
-                {renderField("email", "Correo electrónico", "email")}
-                {renderField("phone", "Teléfono")}
-                {renderField("cellular", "Celular")}
-                {renderField("address", "Dirección")}
-                {renderField("addressNumber", "Número")}
-                {renderField("addressUnity", "Unidad")}
-                {renderField("city", "Ciudad")}
-                {renderField("province", "Provincia")}
-                {renderField("section", "Sección")}
-                {renderField("dni", "DNI")}
-                {renderField("job", "Ocupación")}
-                {renderField("study", "Estudios")}
-                {renderField("birthDate", "Fecha de nacimiento", "date")}
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Email
+                </label>
+                {isEditing ? (
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  />
+                ) : (
+                  <div className="flex items-center">
+                    <Mail className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
+                    <span className="text-[var(--text-primary)]">
+                      {user.email}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Botones de acción - Siempre visibles pero deshabilitados si no hay cambios */}
-              <div className="flex justify-end space-x-4 mt-6">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  disabled={!hasUnsavedChanges}
-                  className={`px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-[var(--button-secondary)] rounded-md transition-colors ${
-                    !hasUnsavedChanges
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:bg-opacity-80"
-                  }`}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={!hasUnsavedChanges || isSaving}
-                  className={`px-4 py-2 text-sm font-medium text-white bg-primary rounded-md transition-colors ${
-                    !hasUnsavedChanges || isSaving
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:bg-primary-dark"
-                  }`}
-                >
-                  {isSaving ? "Guardando..." : "Guardar cambios"}
-                </button>
+              {/* Teléfono */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Teléfono
+                </label>
+                {isEditing ? (
+                  <input
+                    type="tel"
+                    value={formData.cellular}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cellular: e.target.value })
+                    }
+                    className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  />
+                ) : (
+                  <div className="flex items-center">
+                    <Phone className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
+                    <span className="text-[var(--text-primary)]">
+                      {user.cellular || "No especificado"}
+                    </span>
+                  </div>
+                )}
               </div>
-            </form>
-          </div>
+
+              {/* Dirección */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Dirección
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address: e.target.value })
+                    }
+                    className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  />
+                ) : (
+                  <div className="flex items-center">
+                    <MapPin className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
+                    <span className="text-[var(--text-primary)]">
+                      {user.address || "No especificada"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón de guardar */}
+              {isEditing && (
+                <div className="flex justify-end">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    type="submit"
+                    className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors"
+                  >
+                    Guardar Cambios
+                  </motion.button>
+                </div>
+              )}
+            </div>
+          </form>
         </div>
-      </motion.div>
+      </div>
 
       {/* Modal de confirmación */}
       <AnimatePresence>

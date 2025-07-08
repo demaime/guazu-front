@@ -380,7 +380,7 @@ export function PollsterSurveyList({
                     style={{
                       width: isProgressLoading
                         ? "30%"
-                        : `${Math.min(progressValue, 100)}%`, // Cap at 100%
+                        : `${Math.min(progressValue, 100)}%`,
                     }}
                   />
                 </div>
@@ -396,23 +396,31 @@ export function PollsterSurveyList({
                 {/* Botón principal - Responder */}
                 <motion.button
                   onClick={() => handleResponder(survey)}
-                  disabled={isLoading || isFinished}
+                  disabled={isLoading || isFinished || progressValue >= 100}
                   className={`
                     flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-lg font-medium text-sm transition-all duration-200
                     ${
-                      isFinished
+                      isFinished || progressValue >= 100
                         ? "bg-[var(--disabled-bg)] text-[var(--disabled-text)] cursor-not-allowed"
                         : "bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white shadow-sm hover:shadow-md active:scale-[0.98]"
                     }
                   `}
-                  whileTap={!isFinished && !isLoading ? { scale: 0.98 } : {}}
+                  whileTap={
+                    !isFinished && !isLoading && progressValue < 100
+                      ? { scale: 0.98 }
+                      : {}
+                  }
                 >
                   {isLoading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
                       <Play className="w-4 h-4" />
-                      {isFinished ? "Finalizada" : "Responder"}
+                      {progressValue >= 100
+                        ? "Completada"
+                        : isFinished
+                        ? "Finalizada"
+                        : "Responder"}
                     </>
                   )}
                 </motion.button>
@@ -429,17 +437,15 @@ export function PollsterSurveyList({
                   <MapPin className="w-5 h-5" />
                 </motion.button>
 
-                {/* Botón offline - solo para pollsters */}
-                {currentUser?.role === "POLLSTER" && (
-                  <div className="flex items-center h-12">
-                    <OfflineDownloadButton
-                      surveyId={survey._id}
-                      surveyData={survey}
-                      size="sm"
-                      variant="outline"
-                    />
-                  </div>
-                )}
+                {/* Botón offline */}
+                <div className="flex items-center h-12">
+                  <OfflineDownloadButton
+                    surveyId={survey._id}
+                    surveyData={survey}
+                    size="sm"
+                    variant="outline"
+                  />
+                </div>
               </div>
             </div>
           </motion.div>

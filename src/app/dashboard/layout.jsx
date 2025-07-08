@@ -81,7 +81,6 @@ export default function DashboardLayout({ children }) {
 
   // Definir las opciones de navegación según el rol
   const getNavItems = (userRole) => {
-
     // Item de configuración que siempre irá al final
     const configItem = {
       path: "configuracion",
@@ -117,7 +116,7 @@ export default function DashboardLayout({ children }) {
         });
       }
 
-      // Agregar Configuración al final para no-pollsters
+      // Agregar Configuración al final
       items.push(configItem);
     }
 
