@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
-import { userService } from "@/services/user.service";
+import { userService, updateUserProfile } from "@/services/user.service";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Loader } from "@/components/ui/Loader";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { User, Mail, Phone, MapPin } from "lucide-react";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload";
+import { toast } from "react-toastify";
 
 export default function PerfilPage() {
   const router = useRouter();
@@ -35,13 +37,16 @@ export default function PerfilPage() {
     aboutSurvey: "",
   });
 
-  const [pendingImage, setPendingImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [imageBase64, setImageBase64] = useState(null);
+
+  // Estados para modales
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNavigationModal, setShowNavigationModal] = useState(false);
+  const [pendingNavigationUrl, setPendingNavigationUrl] = useState("");
 
   useEffect(() => {
     if (originalFormData) {
@@ -50,10 +55,10 @@ export default function PerfilPage() {
         const currentValue = String(formData[key] || "");
         return originalValue !== currentValue;
       });
-      const hasImageChanges = pendingImage !== null;
+      const hasImageChanges = imageBase64 !== null;
       setHasUnsavedChanges(hasDataChanges || hasImageChanges || isEditing);
     }
-  }, [formData, originalFormData, pendingImage, isEditing]);
+  }, [formData, originalFormData, imageBase64, isEditing]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -70,14 +75,80 @@ export default function PerfilPage() {
     };
   }, [hasUnsavedChanges]);
 
+  // Interceptar navegación programática
+  useEffect(() => {
+    const handleRouteChange = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        const target = e.target.closest("a");
+        if (target && target.href) {
+          const url = new URL(target.href);
+          setPendingNavigationUrl(url.pathname);
+          setShowNavigationModal(true);
+        }
+      }
+    };
+
+    // Interceptar clics en todos los enlaces
+    const links = document.querySelectorAll('a[href^="/dashboard"]');
+    links.forEach((link) => {
+      link.addEventListener("click", handleRouteChange);
+    });
+
+    return () => {
+      links.forEach((link) => {
+        link.removeEventListener("click", handleRouteChange);
+      });
+    };
+  }, [hasUnsavedChanges]);
+
+  // Escuchar cambios de pathname para intercepción más robusta
+  useEffect(() => {
+    const originalPush = router.push;
+    const originalReplace = router.replace;
+
+    router.push = async (...args) => {
+      if (hasUnsavedChanges) {
+        setPendingNavigationUrl(args[0]);
+        setShowNavigationModal(true);
+        return;
+      }
+      return originalPush.apply(router, args);
+    };
+
+    router.replace = async (...args) => {
+      if (hasUnsavedChanges) {
+        setPendingNavigationUrl(args[0]);
+        setShowNavigationModal(true);
+        return;
+      }
+      return originalReplace.apply(router, args);
+    };
+
+    return () => {
+      router.push = originalPush;
+      router.replace = originalReplace;
+    };
+  }, [hasUnsavedChanges, router]);
+
   const handleNavigation = (url) => {
     if (hasUnsavedChanges) {
-      if (confirm("Hay cambios sin guardar. ¿Deseas descartarlos?")) {
-        router.push(url);
-      }
+      setPendingNavigationUrl(url);
+      setShowNavigationModal(true);
     } else {
       router.push(url);
     }
+  };
+
+  const confirmNavigation = () => {
+    setShowNavigationModal(false);
+    router.push(pendingNavigationUrl);
+    setPendingNavigationUrl("");
+  };
+
+  const cancelNavigation = () => {
+    setShowNavigationModal(false);
+    setPendingNavigationUrl("");
   };
 
   useEffect(() => {
@@ -171,73 +242,112 @@ export default function PerfilPage() {
     }));
   };
 
-  const handlePhotoChange = (file, preview) => {
-    setPendingImage(file);
-    setPreviewUrl(preview);
+  const handlePhotoChange = (file, base64) => {
+    if (base64) {
+      setImageBase64(base64);
+    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleRemovePhoto = async () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmRemovePhoto = async () => {
+    setShowDeleteModal(false);
+
     setIsSaving(true);
-    setError("");
-    setSuccessMessage("");
 
     try {
-      const token = authService.getToken();
-      const userId = user._id;
+      const userId = user?._id;
+      const token = localStorage.getItem("token");
 
-      // Subir imagen si hay una pendiente
-      let updatedUserWithImage = user;
-      if (pendingImage) {
-        try {
-          console.log("Subiendo imagen...", {
-            userId,
-            fileName: pendingImage.name,
-          });
-          updatedUserWithImage = await userService.updateImage(
-            userId,
-            pendingImage,
-            token
-          );
-          console.log("Imagen subida exitosamente:", {
-            userId: updatedUserWithImage._id,
-            imageName: updatedUserWithImage.image,
-            fullUser: updatedUserWithImage,
-          });
-        } catch (imageError) {
-          console.error("Error al subir imagen:", imageError);
-          throw new Error("Error al subir la imagen: " + imageError.message);
-        }
+      if (!userId || !token) {
+        throw new Error("Usuario o token no disponible");
       }
 
-      // Actualizar datos del perfil
-      await userService.updateProfile(userId, formData, token);
-
-      // Combinar todos los datos actualizados
-      const finalUserData = {
-        ...user,
-        ...formData,
-        ...(updatedUserWithImage.image && {
-          image: updatedUserWithImage.image,
-        }),
+      // Enviar actualización para eliminar imagen
+      const updateData = {
+        name: user.name,
+        lastName: user.lastName,
+        email: user.email,
+        cellular: user.cellular,
+        image: "", // Eliminar imagen
       };
 
-      // Actualizar estados
-      setUser(finalUserData);
-      setOriginalFormData(formData);
-      setHasUnsavedChanges(false);
-      setIsEditing(false);
+      const response = await updateUserProfile(userId, updateData, token);
 
-      // Limpiar imagen pendiente
-      setPendingImage(null);
-      setPreviewUrl(null);
+      if (response.user) {
+        // Actualizar localStorage
+        localStorage.setItem("user", JSON.stringify(response.user));
 
-      // Actualizar localStorage para que se refleje en el sidebar
-      localStorage.setItem("user", JSON.stringify(finalUserData));
+        // Actualizar contexto local
+        setUser(response.user);
 
-      setSuccessMessage("Perfil actualizado correctamente");
-    } catch (err) {
-      setError(err.message || "Error al actualizar el perfil");
+        // Limpiar estados locales
+        setImageBase64(null);
+        setHasUnsavedChanges(false);
+
+        // Mostrar éxito con toast
+        toast.success("Foto de perfil eliminada correctamente");
+      }
+    } catch (error) {
+      console.error("Error eliminando foto:", error);
+      toast.error("Error al eliminar la foto de perfil");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const cancelRemovePhoto = () => {
+    setShowDeleteModal(false);
+  };
+
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    setError("");
+
+    try {
+      const userId = user?._id;
+      const token = localStorage.getItem("token");
+
+      if (!userId || !token) {
+        throw new Error("Usuario o token no disponible");
+      }
+
+      // Preparar los datos a actualizar
+      const updateData = {
+        name: formData.name,
+        lastName: formData.lastName,
+        email: formData.email,
+        cellular: formData.cellular,
+      };
+
+      // Si hay una nueva imagen, agregarla como base64
+      if (imageBase64) {
+        updateData.image = imageBase64;
+      }
+
+      // Usar la nueva función para actualizar el perfil
+      const response = await updateUserProfile(userId, updateData, token);
+
+      if (response.user) {
+        // Actualizar localStorage
+        localStorage.setItem("user", JSON.stringify(response.user));
+
+        // Actualizar contexto
+        setUser(response.user);
+
+        // Resetear estados
+        setHasUnsavedChanges(false);
+        setImageBase64(null);
+
+        // Mostrar éxito con toast
+        toast.success("Perfil actualizado correctamente");
+      }
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      setError(error.message || "Error al guardar los cambios");
+      toast.error("Error al guardar los cambios");
     } finally {
       setIsSaving(false);
     }
@@ -275,8 +385,7 @@ export default function PerfilPage() {
 
   const handleCancelChanges = () => {
     setFormData(originalFormData);
-    setPendingImage(null);
-    setPreviewUrl(null);
+    setImageBase64(null);
     setHasUnsavedChanges(false);
     setIsEditing(false);
   };
@@ -308,21 +417,12 @@ export default function PerfilPage() {
           <ProfilePhotoUpload
             currentUser={user}
             onPhotoChange={handlePhotoChange}
-            pendingImage={pendingImage}
-            previewUrl={previewUrl}
+            onRemovePhoto={handleRemovePhoto}
+            isLoading={isSaving}
           />
         </div>
 
         {/* Mensajes de éxito y error */}
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6"
-          >
-            {successMessage}
-          </motion.div>
-        )}
         {error && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -354,7 +454,12 @@ export default function PerfilPage() {
             </motion.button>
           </div>
 
-          <form onSubmit={handleSubmit}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveChanges();
+            }}
+          >
             <div className="space-y-6">
               {/* Nombre y Apellido */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -505,6 +610,36 @@ export default function PerfilPage() {
           </form>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showDeleteModal && (
+          <ConfirmModal
+            isOpen={showDeleteModal}
+            onClose={() => setShowDeleteModal(false)}
+            onConfirm={confirmRemovePhoto}
+            title="Eliminar Foto de Perfil"
+            confirmText="Eliminar"
+            cancelText="Cancelar"
+            confirmButtonClass="bg-red-500 text-white hover:bg-red-600"
+          >
+            ¿Estás seguro de que quieres eliminar tu foto de perfil?
+          </ConfirmModal>
+        )}
+        {showNavigationModal && (
+          <ConfirmModal
+            isOpen={showNavigationModal}
+            onClose={() => setShowNavigationModal(false)}
+            onConfirm={confirmNavigation}
+            title="Cambios sin Guardar"
+            confirmText="Descartar y Navegar"
+            cancelText="Cancelar"
+            confirmButtonClass="bg-orange-500 text-white hover:bg-orange-600"
+          >
+            Hay cambios sin guardar. ¿Deseas descartarlos y navegar a esta
+            página?
+          </ConfirmModal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

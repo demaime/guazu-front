@@ -79,19 +79,26 @@ export default function DashboardLayout({ children }) {
   // Verificar si la imagen del usuario existe
   useEffect(() => {
     if (user?.image && user.image !== "null" && user.image !== "") {
-      const imageUrl = `${API_URL}/uploads/users/${user.image}`;
-      console.log("Verificando imagen de usuario en sidebar:", imageUrl);
-      
-      const img = new window.Image();
-      img.onload = () => {
-        console.log("Imagen de usuario en sidebar cargada exitosamente");
+      // Si es base64, está lista para usar
+      if (user.image.startsWith('data:image/')) {
+        console.log("Imagen base64 detectada en sidebar");
         setUserImageExists(true);
-      };
-      img.onerror = () => {
-        console.log("Error al cargar imagen de usuario en sidebar");
-        setUserImageExists(false);
-      };
-      img.src = imageUrl;
+      } else {
+        // Si es una URL/nombre de archivo, verificar si existe
+        const imageUrl = `${API_URL}/uploads/users/${user.image}`;
+        console.log("Verificando imagen de archivo en sidebar:", imageUrl);
+
+        const img = new window.Image();
+        img.onload = () => {
+          console.log("Imagen de archivo en sidebar cargada exitosamente");
+          setUserImageExists(true);
+        };
+        img.onerror = () => {
+          console.log("Error al cargar imagen de archivo en sidebar");
+          setUserImageExists(false);
+        };
+        img.src = imageUrl;
+      }
     } else {
       setUserImageExists(false);
     }
@@ -293,7 +300,7 @@ export default function DashboardLayout({ children }) {
                 >
                   {user?.image && userImageExists ? (
                     <Image
-                      src={`${API_URL}/uploads/users/${user.image}`}
+                      src={user.image.startsWith('data:image/') ? user.image : `${API_URL}/uploads/users/${user.image}`}
                       alt="Foto de perfil"
                       width={40}
                       height={40}

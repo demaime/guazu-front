@@ -1,4 +1,5 @@
 import { USER_ROUTES } from "@/config/routes";
+import { API_URL } from "@/config/constants";
 
 class UserService {
   async getProfile(userId, token) {
@@ -341,3 +342,27 @@ class UserService {
 }
 
 export const userService = new UserService();
+
+export const updateUserProfile = async (userId, userData, token) => {
+  try {
+    const response = await fetch(`${API_URL}/api/update/${userId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+      body: JSON.stringify(userData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Error al actualizar perfil");
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    throw error;
+  }
+};
