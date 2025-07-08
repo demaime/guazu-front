@@ -45,5 +45,5 @@ export const USER_ROUTES = {
   DELETE_USER: `${API_URL}/api/deleteUser`,
   UPDATE: `${API_URL}/api/update`,
   UPDATE_PASSWORD: `${API_URL}/api/changepassword`,
-  UPDATE_IMAGE: `${API_URL}/api/upload-image`,
+  UPDATE_IMAGE: `${API_URL}/api/upload-image-user`,
 };
