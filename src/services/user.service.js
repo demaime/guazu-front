@@ -128,7 +128,7 @@ class UserService {
       formData.append("image", imageFile, imageFile.name);
 
       const response = await fetch(`${USER_ROUTES.UPDATE_IMAGE}/${userId}/1`, {
-        method: "POST",
+        method: "PUT",
         headers: {
           Authorization: token,
         },
