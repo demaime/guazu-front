@@ -4,6 +4,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Upload, X, Camera } from "lucide-react";
 import Image from "next/image";
+import { userService } from "@/services/user.service";
+import { authService } from "@/services/auth.service";
 
 const ProfilePhotoUpload = ({ currentUser, onPhotoUpdate }) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -50,28 +52,13 @@ const ProfilePhotoUpload = ({ currentUser, onPhotoUpdate }) => {
     // Subir archivo
     try {
       setIsUploading(true);
-      const formData = new FormData();
-      formData.append("image", file);
-
-      const response = await fetch(
-        `/api/upload-image/${currentUser._id}/${
-          (currentUser.imageQty || 0) + 1
-        }`,
-        {
-          method: "PUT",
-          body: formData,
-          headers: {
-            Authorization: localStorage.getItem("token"),
-          },
-        }
+      const token = authService.getToken();
+      const updatedUser = await userService.updateImage(
+        currentUser._id,
+        file,
+        token
       );
-
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.message);
-      }
-
-      onPhotoUpdate(data.user);
+      onPhotoUpdate(updatedUser);
     } catch (error) {
       setError(error.message || "Error al subir la imagen");
       setPreviewUrl(null);
@@ -95,22 +82,14 @@ const ProfilePhotoUpload = ({ currentUser, onPhotoUpdate }) => {
   const handleRemovePhoto = async () => {
     try {
       setIsUploading(true);
-      const response = await fetch(`/api/update/${currentUser._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: localStorage.getItem("token"),
-        },
-        body: JSON.stringify({ image: null }),
-      });
-
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.message);
-      }
-
+      const token = authService.getToken();
+      const updatedUser = await userService.updateProfile(
+        currentUser._id,
+        { image: null },
+        token
+      );
       setPreviewUrl(null);
-      onPhotoUpdate(data.user);
+      onPhotoUpdate(updatedUser);
     } catch (error) {
       setError(error.message || "Error al eliminar la imagen");
     } finally {
