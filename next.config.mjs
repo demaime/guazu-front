@@ -16,7 +16,7 @@ const nextConfig = {
             value:
               process.env.NODE_ENV === "development"
                 ? "http://localhost:3000"
-                : "https://guazu-app.onrender.com",
+                : "https://guazu2.vercel.app",
           },
           {
             key: "Access-Control-Allow-Methods",
@@ -35,7 +35,7 @@ const nextConfig = {
   transpilePackages: ["@react-pdf/renderer"],
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000", "guazu-app.onrender.com"],
+      allowedOrigins: ["localhost:3000", "guazu2.vercel.app"],
     },
   },
 };
