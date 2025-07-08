@@ -48,6 +48,30 @@ export default function DashboardLayout({ children }) {
     };
 
     checkAuth();
+
+    // Escuchar cambios en localStorage para actualizar la imagen de perfil
+    const handleStorageChange = () => {
+      const updatedUser = authService.getUser();
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // También escuchar cambios locales al localStorage
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function (key, value) {
+      originalSetItem.apply(this, arguments);
+      if (key === "user") {
+        handleStorageChange();
+      }
+    };
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      localStorage.setItem = originalSetItem;
+    };
   }, []);
 
   useEffect(() => {
@@ -240,11 +264,23 @@ export default function DashboardLayout({ children }) {
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-lg flex-shrink-0 ${
+                  className={`w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-lg flex-shrink-0 overflow-hidden ${
                     isSidebarCollapsed ? "mx-auto" : ""
                   }`}
                 >
-                  {user?.name ? user.name[0].toUpperCase() : "U"}
+                  {user?.image ? (
+                    <Image
+                      src={`/uploads/users/${user.image}`}
+                      alt="Foto de perfil"
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : user?.name ? (
+                    user.name[0].toUpperCase()
+                  ) : (
+                    "U"
+                  )}
                 </div>
                 <div
                   className={`flex-1 min-w-0 transition-all ${

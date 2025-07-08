@@ -198,7 +198,8 @@ export default function PerfilPage() {
     setShowConfirmModal(false);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setIsSaving(true);
     setError("");
     setSuccessMessage("");
@@ -207,18 +208,16 @@ export default function PerfilPage() {
       const token = authService.getToken();
       const userId = user._id;
 
-      if (selectedImage) {
-        await userService.updateImage(userId, selectedImage, token);
-      }
-
       await userService.updateProfile(userId, formData, token);
       setSuccessMessage("Perfil actualizado correctamente");
       setOriginalFormData(formData);
-      setSelectedImage(null);
       setHasUnsavedChanges(false);
+      setIsEditing(false);
 
-      const updatedUser = authService.getUser();
-      setUser(updatedUser);
+      // Actualizar usuario en el estado local y localStorage
+      const updatedUserData = { ...user, ...formData };
+      setUser(updatedUserData);
+      localStorage.setItem("user", JSON.stringify(updatedUserData));
     } catch (err) {
       setError(err.message || "Error al actualizar el perfil");
     } finally {
@@ -258,6 +257,10 @@ export default function PerfilPage() {
 
   const handlePhotoUpdate = (updatedUser) => {
     setUser(updatedUser);
+    // Actualizar también el usuario en localStorage para que se refleje en el sidebar
+    const currentUser = authService.getUser();
+    const mergedUser = { ...currentUser, ...updatedUser };
+    localStorage.setItem("user", JSON.stringify(mergedUser));
   };
 
   if (isInitializing) {
@@ -290,6 +293,26 @@ export default function PerfilPage() {
           />
         </div>
 
+        {/* Mensajes de éxito y error */}
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6"
+          >
+            {successMessage}
+          </motion.div>
+        )}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6"
+          >
+            {error}
+          </motion.div>
+        )}
+
         {/* Sección de información personal */}
         <div className="bg-[var(--card-background)] rounded-lg p-6 shadow-sm border border-[var(--card-border)]">
           <div className="flex justify-between items-center mb-6">
@@ -298,7 +321,14 @@ export default function PerfilPage() {
             </h2>
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => {
+                if (isEditing) {
+                  // Restaurar datos originales
+                  setFormData(originalFormData);
+                  setHasUnsavedChanges(false);
+                }
+                setIsEditing(!isEditing);
+              }}
               className="px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
             >
               {isEditing ? "Cancelar" : "Editar"}
@@ -429,13 +459,30 @@ export default function PerfilPage() {
 
               {/* Botón de guardar */}
               {isEditing && (
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={() => {
+                      setFormData(originalFormData);
+                      setHasUnsavedChanges(false);
+                      setIsEditing(false);
+                    }}
+                    disabled={isSaving}
+                    className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     type="submit"
-                    className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors"
+                    disabled={isSaving || !hasUnsavedChanges}
+                    className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Guardar Cambios
+                    {isSaving && (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    )}
+                    {isSaving ? "Guardando..." : "Guardar Cambios"}
                   </motion.button>
                 </div>
               )}

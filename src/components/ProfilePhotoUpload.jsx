@@ -10,6 +10,7 @@ import { authService } from "@/services/auth.service";
 const ProfilePhotoUpload = ({ currentUser, onPhotoUpdate }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [pendingFile, setPendingFile] = useState(null);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
@@ -38,7 +39,7 @@ const ProfilePhotoUpload = ({ currentUser, onPhotoUpdate }) => {
     return true;
   };
 
-  const handleFile = async (file) => {
+  const handleFile = (file) => {
     setError("");
     if (!validateFile(file)) return;
 
@@ -46,25 +47,36 @@ const ProfilePhotoUpload = ({ currentUser, onPhotoUpdate }) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewUrl(reader.result);
+      setPendingFile(file);
     };
     reader.readAsDataURL(file);
+  };
 
-    // Subir archivo
+  const handleConfirmUpload = async () => {
+    if (!pendingFile) return;
+
     try {
       setIsUploading(true);
       const token = authService.getToken();
       const updatedUser = await userService.updateImage(
         currentUser._id,
-        file,
+        pendingFile,
         token
       );
       onPhotoUpdate(updatedUser);
+      setPendingFile(null);
+      setPreviewUrl(null);
     } catch (error) {
       setError(error.message || "Error al subir la imagen");
-      setPreviewUrl(null);
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleCancelUpload = () => {
+    setPreviewUrl(null);
+    setPendingFile(null);
+    setError("");
   };
 
   const handleDrop = (e) => {
@@ -118,41 +130,76 @@ const ProfilePhotoUpload = ({ currentUser, onPhotoUpdate }) => {
               fill
               className="rounded-full object-cover"
             />
+            {!pendingFile && (
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleRemovePhoto}
+                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+              >
+                <X className="w-4 h-4" />
+              </motion.button>
+            )}
+          </div>
+        )}
+
+        {/* Botones de confirmar/cancelar para imagen pendiente */}
+        {pendingFile && (
+          <div className="flex gap-2 justify-center mb-4">
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={handleRemovePhoto}
-              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+              onClick={handleConfirmUpload}
+              disabled={isUploading}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 text-sm"
             >
-              <X className="w-4 h-4" />
+              {isUploading ? "Guardando..." : "Confirmar"}
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCancelUpload}
+              disabled={isUploading}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 text-sm"
+            >
+              Cancelar
             </motion.button>
           </div>
         )}
 
         {/* Área de drop/upload */}
-        <label className="block cursor-pointer">
-          <input
-            type="file"
-            className="hidden"
-            accept="image/png,image/jpeg,image/jpg"
-            onChange={handleFileInput}
-          />
-          <div className="flex flex-col items-center gap-2">
-            {isUploading ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
-            ) : (
-              <>
-                {!previewUrl && !currentUser.image && (
-                  <Camera className="w-8 h-8 text-[var(--text-secondary)]" />
-                )}
-                <p className="text-sm text-[var(--text-secondary)]">
-                  {previewUrl || currentUser.image
-                    ? "Haz clic o arrastra una nueva foto"
-                    : "Haz clic o arrastra una foto"}
-                </p>
-              </>
-            )}
+        {!pendingFile && (
+          <label className="block cursor-pointer">
+            <input
+              type="file"
+              className="hidden"
+              accept="image/png,image/jpeg,image/jpg"
+              onChange={handleFileInput}
+            />
+            <div className="flex flex-col items-center gap-2">
+              {isUploading ? (
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)]" />
+              ) : (
+                <>
+                  {!previewUrl && !currentUser.image && (
+                    <Camera className="w-8 h-8 text-[var(--text-secondary)]" />
+                  )}
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {previewUrl || currentUser.image
+                      ? "Haz clic o arrastra una nueva foto"
+                      : "Haz clic o arrastra una foto"}
+                  </p>
+                </>
+              )}
+            </div>
+          </label>
+        )}
+
+        {/* Mensaje para imagen pendiente */}
+        {pendingFile && (
+          <div className="text-center">
+            <p className="text-sm text-[var(--text-secondary)]">
+              ¿Confirmar nueva foto de perfil?
+            </p>
           </div>
-        </label>
+        )}
 
         {/* Error message */}
         {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
