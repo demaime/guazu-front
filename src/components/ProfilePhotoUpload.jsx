@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, Camera } from "lucide-react";
 import Image from "next/image";
@@ -14,6 +14,35 @@ const ProfilePhotoUpload = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState("");
+  const [imageExists, setImageExists] = useState(true);
+
+  // Verificar si la imagen existe cuando cambia
+  useEffect(() => {
+    if (
+      currentUser?.image &&
+      currentUser.image !== "null" &&
+      currentUser.image !== ""
+    ) {
+      const imageUrl = `${API_URL}/uploads/users/${currentUser.image}`;
+      console.log("Verificando existencia de imagen:", imageUrl);
+
+      // Crear una imagen temporal para verificar si se puede cargar
+      const img = new window.Image();
+      img.onload = () => {
+        console.log("Imagen cargada exitosamente");
+        setImageExists(true);
+      };
+      img.onerror = () => {
+        console.log(
+          "Error al cargar imagen, imagen no existe o no es accesible"
+        );
+        setImageExists(false);
+      };
+      img.src = imageUrl;
+    } else {
+      setImageExists(false);
+    }
+  }, [currentUser?.image]);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -81,7 +110,7 @@ const ProfilePhotoUpload = ({
         onDrop={handleDrop}
       >
         {/* Vista previa o imagen actual */}
-        {(previewUrl || currentUser?.image) && (
+        {(previewUrl || (currentUser?.image && imageExists)) && (
           <div className="relative w-32 h-32 mx-auto mb-4">
             <Image
               src={
@@ -91,6 +120,10 @@ const ProfilePhotoUpload = ({
               width={128}
               height={128}
               className="w-full h-full rounded-full object-cover"
+              onError={(e) => {
+                console.log("Error cargando imagen:", e);
+                e.target.style.display = "none";
+              }}
             />
             <motion.button
               whileTap={{ scale: 0.95 }}
@@ -115,7 +148,7 @@ const ProfilePhotoUpload = ({
               <Camera className="w-8 h-8 text-[var(--text-secondary)]" />
             )}
             <p className="text-sm text-[var(--text-secondary)]">
-              {previewUrl || currentUser?.image
+              {previewUrl || (currentUser?.image && imageExists)
                 ? "Haz clic o arrastra una nueva foto"
                 : "Haz clic o arrastra una foto"}
             </p>

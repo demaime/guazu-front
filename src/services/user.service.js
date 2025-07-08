@@ -136,20 +136,26 @@ class UserService {
       });
 
       const data = await response.json();
+      console.log("Respuesta del servidor al subir imagen:", data);
 
       if (data.error) {
+        console.error("Error del servidor:", data);
         throw new Error(
-          data.validation?.error ||
+          data.message ||
+            data.validation?.error ||
             data.validation ||
             "Error al actualizar la imagen"
         );
       }
 
-      const currentUser = JSON.parse(localStorage.getItem("user"));
-      const updatedUser = { ...currentUser, image: data.user.image };
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      if (!data.user) {
+        console.error("No se recibió usuario en la respuesta:", data);
+        throw new Error("Respuesta inválida del servidor");
+      }
 
-      return updatedUser;
+      console.log("Usuario actualizado recibido:", data.user);
+      // Retornar el usuario actualizado del backend
+      return data.user;
     } catch (error) {
       throw new Error(error.message || "Error al actualizar la imagen");
     }

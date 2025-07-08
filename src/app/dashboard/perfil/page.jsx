@@ -189,16 +189,41 @@ export default function PerfilPage() {
       // Subir imagen si hay una pendiente
       let updatedUserWithImage = user;
       if (pendingImage) {
-        updatedUserWithImage = await userService.updateImage(
-          userId,
-          pendingImage,
-          token
-        );
+        try {
+          console.log("Subiendo imagen...", {
+            userId,
+            fileName: pendingImage.name,
+          });
+          updatedUserWithImage = await userService.updateImage(
+            userId,
+            pendingImage,
+            token
+          );
+          console.log("Imagen subida exitosamente:", {
+            userId: updatedUserWithImage._id,
+            imageName: updatedUserWithImage.image,
+            fullUser: updatedUserWithImage,
+          });
+        } catch (imageError) {
+          console.error("Error al subir imagen:", imageError);
+          throw new Error("Error al subir la imagen: " + imageError.message);
+        }
       }
 
       // Actualizar datos del perfil
       await userService.updateProfile(userId, formData, token);
-      setSuccessMessage("Perfil actualizado correctamente");
+
+      // Combinar todos los datos actualizados
+      const finalUserData = {
+        ...user,
+        ...formData,
+        ...(updatedUserWithImage.image && {
+          image: updatedUserWithImage.image,
+        }),
+      };
+
+      // Actualizar estados
+      setUser(finalUserData);
       setOriginalFormData(formData);
       setHasUnsavedChanges(false);
       setIsEditing(false);
@@ -207,10 +232,10 @@ export default function PerfilPage() {
       setPendingImage(null);
       setPreviewUrl(null);
 
-      // Actualizar usuario en el estado local y localStorage
-      const updatedUserData = { ...updatedUserWithImage, ...formData };
-      setUser(updatedUserData);
-      localStorage.setItem("user", JSON.stringify(updatedUserData));
+      // Actualizar localStorage para que se refleje en el sidebar
+      localStorage.setItem("user", JSON.stringify(finalUserData));
+
+      setSuccessMessage("Perfil actualizado correctamente");
     } catch (err) {
       setError(err.message || "Error al actualizar el perfil");
     } finally {

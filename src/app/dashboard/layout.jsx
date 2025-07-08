@@ -31,6 +31,7 @@ export default function DashboardLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [user, setUser] = useState(null);
+  const [userImageExists, setUserImageExists] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -74,6 +75,27 @@ export default function DashboardLayout({ children }) {
       localStorage.setItem = originalSetItem;
     };
   }, []);
+
+  // Verificar si la imagen del usuario existe
+  useEffect(() => {
+    if (user?.image && user.image !== "null" && user.image !== "") {
+      const imageUrl = `${API_URL}/uploads/users/${user.image}`;
+      console.log("Verificando imagen de usuario en sidebar:", imageUrl);
+      
+      const img = new window.Image();
+      img.onload = () => {
+        console.log("Imagen de usuario en sidebar cargada exitosamente");
+        setUserImageExists(true);
+      };
+      img.onerror = () => {
+        console.log("Error al cargar imagen de usuario en sidebar");
+        setUserImageExists(false);
+      };
+      img.src = imageUrl;
+    } else {
+      setUserImageExists(false);
+    }
+  }, [user?.image]);
 
   useEffect(() => {
     console.log("Pathname actual:", pathname);
@@ -269,13 +291,17 @@ export default function DashboardLayout({ children }) {
                     isSidebarCollapsed ? "mx-auto" : ""
                   }`}
                 >
-                  {user?.image ? (
+                  {user?.image && userImageExists ? (
                     <Image
                       src={`${API_URL}/uploads/users/${user.image}`}
                       alt="Foto de perfil"
                       width={40}
                       height={40}
                       className="w-full h-full object-cover rounded-full"
+                      onError={(e) => {
+                        console.log("Error cargando imagen en sidebar:", e);
+                        e.target.style.display = "none";
+                      }}
                     />
                   ) : user?.name ? (
                     user.name[0].toUpperCase()
