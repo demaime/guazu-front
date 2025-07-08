@@ -35,25 +35,25 @@ export default function PerfilPage() {
     aboutSurvey: "",
   });
 
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [pendingImage, setPendingImage] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [modalAction, setModalAction] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (originalFormData) {
-      const hasChanges = Object.keys(formData).some((key) => {
+      const hasDataChanges = Object.keys(formData).some((key) => {
         const originalValue = String(originalFormData[key] || "");
         const currentValue = String(formData[key] || "");
         return originalValue !== currentValue;
       });
-      setHasUnsavedChanges(hasChanges || selectedImage !== null);
+      const hasImageChanges = pendingImage !== null;
+      setHasUnsavedChanges(hasDataChanges || hasImageChanges || isEditing);
     }
-  }, [formData, originalFormData, selectedImage]);
+  }, [formData, originalFormData, pendingImage, isEditing]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -171,31 +171,9 @@ export default function PerfilPage() {
     }));
   };
 
-  const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedImage(e.target.files[0]);
-    }
-  };
-
-  const handleConfirm = () => {
-    setShowConfirmModal(true);
-    setModalAction("save");
-  };
-
-  const handleCancel = () => {
-    setShowConfirmModal(true);
-    setModalAction("cancel");
-  };
-
-  const handleModalConfirm = async () => {
-    if (modalAction === "save") {
-      await handleSubmit();
-    } else if (modalAction === "cancel") {
-      setFormData(originalFormData);
-      setSelectedImage(null);
-      setHasUnsavedChanges(false);
-    }
-    setShowConfirmModal(false);
+  const handlePhotoChange = (file, preview) => {
+    setPendingImage(file);
+    setPreviewUrl(preview);
   };
 
   const handleSubmit = async (e) => {
@@ -208,14 +186,29 @@ export default function PerfilPage() {
       const token = authService.getToken();
       const userId = user._id;
 
+      // Subir imagen si hay una pendiente
+      let updatedUserWithImage = user;
+      if (pendingImage) {
+        updatedUserWithImage = await userService.updateImage(
+          userId,
+          pendingImage,
+          token
+        );
+      }
+
+      // Actualizar datos del perfil
       await userService.updateProfile(userId, formData, token);
       setSuccessMessage("Perfil actualizado correctamente");
       setOriginalFormData(formData);
       setHasUnsavedChanges(false);
       setIsEditing(false);
 
+      // Limpiar imagen pendiente
+      setPendingImage(null);
+      setPreviewUrl(null);
+
       // Actualizar usuario en el estado local y localStorage
-      const updatedUserData = { ...user, ...formData };
+      const updatedUserData = { ...updatedUserWithImage, ...formData };
       setUser(updatedUserData);
       localStorage.setItem("user", JSON.stringify(updatedUserData));
     } catch (err) {
@@ -255,12 +248,12 @@ export default function PerfilPage() {
     );
   };
 
-  const handlePhotoUpdate = (updatedUser) => {
-    setUser(updatedUser);
-    // Actualizar también el usuario en localStorage para que se refleje en el sidebar
-    const currentUser = authService.getUser();
-    const mergedUser = { ...currentUser, ...updatedUser };
-    localStorage.setItem("user", JSON.stringify(mergedUser));
+  const handleCancelChanges = () => {
+    setFormData(originalFormData);
+    setPendingImage(null);
+    setPreviewUrl(null);
+    setHasUnsavedChanges(false);
+    setIsEditing(false);
   };
 
   if (isInitializing) {
@@ -289,7 +282,9 @@ export default function PerfilPage() {
           </h2>
           <ProfilePhotoUpload
             currentUser={user}
-            onPhotoUpdate={handlePhotoUpdate}
+            onPhotoChange={handlePhotoChange}
+            pendingImage={pendingImage}
+            previewUrl={previewUrl}
           />
         </div>
 
@@ -323,11 +318,10 @@ export default function PerfilPage() {
               whileTap={{ scale: 0.95 }}
               onClick={() => {
                 if (isEditing) {
-                  // Restaurar datos originales
-                  setFormData(originalFormData);
-                  setHasUnsavedChanges(false);
+                  handleCancelChanges();
+                } else {
+                  setIsEditing(true);
                 }
-                setIsEditing(!isEditing);
               }}
               className="px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
             >
@@ -457,26 +451,22 @@ export default function PerfilPage() {
                 )}
               </div>
 
-              {/* Botón de guardar */}
-              {isEditing && (
+              {/* Botón de guardar - se muestra cuando hay cambios pendientes */}
+              {hasUnsavedChanges && (
                 <div className="flex justify-end gap-3">
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     type="button"
-                    onClick={() => {
-                      setFormData(originalFormData);
-                      setHasUnsavedChanges(false);
-                      setIsEditing(false);
-                    }}
+                    onClick={handleCancelChanges}
                     disabled={isSaving}
                     className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
                   >
-                    Cancelar
+                    Descartar Cambios
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     type="submit"
-                    disabled={isSaving || !hasUnsavedChanges}
+                    disabled={isSaving}
                     className="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {isSaving && (
@@ -490,52 +480,6 @@ export default function PerfilPage() {
           </form>
         </div>
       </div>
-
-      {/* Modal de confirmación */}
-      <AnimatePresence>
-        {showConfirmModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
-            >
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {modalAction === "save"
-                  ? "¿Guardar cambios?"
-                  : "¿Descartar cambios?"}
-              </h3>
-              <p className="text-sm text-gray-500 mb-6">
-                {modalAction === "save"
-                  ? "¿Estás seguro de que deseas guardar los cambios realizados?"
-                  : "¿Estás seguro de que deseas descartar los cambios realizados?"}
-              </p>
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleModalConfirm}
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark transition-colors"
-                >
-                  Confirmar
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

@@ -22,6 +22,7 @@ import {
 import { themeService } from "@/services/theme.service";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { API_URL } from "@/config/constants";
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
@@ -270,7 +271,7 @@ export default function DashboardLayout({ children }) {
                 >
                   {user?.image ? (
                     <Image
-                      src={`/uploads/users/${user.image}`}
+                      src={`${API_URL}/uploads/users/${user.image}`}
                       alt="Foto de perfil"
                       width={40}
                       height={40}
