@@ -73,5 +73,5 @@ export function useOnlineRetry(operation, deps = []) {
       console.log("Network recovered, retrying operation...");
       operation();
     }
-  }, [isOnline, wasOffline, ...deps]);
+  }, [isOnline, wasOffline, operation]);
 }

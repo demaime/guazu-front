@@ -2,12 +2,12 @@ export const nestedJSONtoJson = (ob) => {
   var toReturn = {};
 
   for (var i in ob) {
-    if (!ob.hasOwnProperty(i)) continue;
+    if (!Object.prototype.hasOwnProperty.call(ob, i)) continue;
 
     if (typeof ob[i] === "object" && ob[i] !== null) {
       var flatObject = nestedJSONtoJson(ob[i]);
       for (var x in flatObject) {
-        if (!flatObject.hasOwnProperty(x)) continue;
+        if (!Object.prototype.hasOwnProperty.call(flatObject, x)) continue;
 
         toReturn[i + "." + x] = flatObject[x];
       }
@@ -16,4 +16,4 @@ export const nestedJSONtoJson = (ob) => {
     }
   }
   return toReturn;
-}; 
+};
