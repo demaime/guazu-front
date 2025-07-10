@@ -165,5 +165,31 @@ export default withPWA({
         },
       },
     },
+    // Cache para todas las rutas principales del dashboard (pollster)
+    {
+      urlPattern: /\/dashboard\/(configuracion|perfil|ajustes)$/,
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "dashboard-pages",
+        networkTimeoutSeconds: 3,
+        expiration: {
+          maxEntries: 15,
+          maxAgeSeconds: 24 * 60 * 60, // 1 día
+        },
+      },
+    },
+    // Cache específico para rutas de encuestas individuales (sin responder)
+    {
+      urlPattern: /\/dashboard\/encuestas\/[^\/]+\/(mapa|progreso|editar)$/,
+      handler: "NetworkFirst",
+      options: {
+        cacheName: "survey-detail-pages",
+        networkTimeoutSeconds: 4,
+        expiration: {
+          maxEntries: 30,
+          maxAgeSeconds: 12 * 60 * 60, // 12 horas
+        },
+      },
+    },
   ],
 })(nextConfig);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { surveyService } from "@/services/survey.service";
 import { userService } from "@/services/user.service";
@@ -54,6 +55,7 @@ const DotsLoader = () => (
 );
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [activeSurveys, setActiveSurveys] = useState(0);
   const [totalAnswers, setTotalAnswers] = useState(0);

@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { OfflineDownloadButton } from "./OfflineIndicator";
 import { surveyService } from "@/services/survey.service";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 export function PollsterSurveyList({
   surveys,
@@ -19,6 +20,7 @@ export function PollsterSurveyList({
   currentUser,
 }) {
   const router = useRouter();
+  const { isOnline, isOffline } = useNetworkStatus();
   const [loadingStates, setLoadingStates] = useState({});
   const [progressData, setProgressData] = useState({}); // { surveyId: { assignedCases, completedAnswers, ... } }
   const [progressLoading, setProgressLoading] = useState({});
@@ -27,6 +29,11 @@ export function PollsterSurveyList({
   useEffect(() => {
     const loadProgressForSurveys = async () => {
       if (!currentUser?._id || !surveys?.length) return;
+
+      // Si estamos offline, no podemos saber los casos completados
+      if (isOffline) {
+        return;
+      }
 
       // Crear un Set de IDs para comparación rápida
       const surveyIds = surveys.map((s) => s._id);
@@ -115,7 +122,11 @@ export function PollsterSurveyList({
     };
 
     loadProgressForSurveys();
-  }, [JSON.stringify(surveys?.map((s) => s._id)?.sort()), currentUser?._id]); // Dependencia estable
+  }, [
+    JSON.stringify(surveys?.map((s) => s._id)?.sort()),
+    currentUser?._id,
+    isOffline,
+  ]); // Agregar isOffline a dependencias
 
   const getLocalizedText = (textObj, defaultText = "Sin definir") => {
     if (!textObj) return defaultText;
@@ -349,47 +360,49 @@ export function PollsterSurveyList({
               </div>
 
               {/* Progreso */}
-              <div className="mb-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-[var(--text-secondary)] flex items-center">
-                    <Target className="w-4 h-4 mr-1" />
-                    Progreso
-                  </span>
-                  <span className="font-medium text-[var(--text-primary)] flex items-center gap-2">
-                    {isProgressLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-[var(--text-muted)] border-t-[var(--primary)] rounded-full animate-spin" />
-                        <span className="text-[var(--text-muted)]">
-                          Cargando...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        {completedAnswers} / {assignedCases} casos asignados
-                      </>
-                    )}
-                  </span>
+              {!isOffline && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-[var(--text-secondary)] flex items-center">
+                      <Target className="w-4 h-4 mr-1" />
+                      Progreso
+                    </span>
+                    <span className="font-medium text-[var(--text-primary)] flex items-center gap-2">
+                      {isProgressLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-[var(--text-muted)] border-t-[var(--primary)] rounded-full animate-spin" />
+                          <span className="text-[var(--text-muted)]">
+                            Cargando...
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {completedAnswers} / {assignedCases} casos asignados
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <div className="w-full bg-[var(--card-border)] rounded-full h-2">
+                    <div
+                      className={`${
+                        isProgressLoading
+                          ? "bg-gray-300 animate-pulse"
+                          : getProgressColor(survey)
+                      } h-2 rounded-full transition-all duration-500`}
+                      style={{
+                        width: isProgressLoading
+                          ? "30%"
+                          : `${Math.min(progressValue, 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)] mt-1">
+                    {isProgressLoading
+                      ? "Calculando progreso..."
+                      : `${progress} completado`}
+                  </div>
                 </div>
-                <div className="w-full bg-[var(--card-border)] rounded-full h-2">
-                  <div
-                    className={`${
-                      isProgressLoading
-                        ? "bg-gray-300 animate-pulse"
-                        : getProgressColor(survey)
-                    } h-2 rounded-full transition-all duration-500`}
-                    style={{
-                      width: isProgressLoading
-                        ? "30%"
-                        : `${Math.min(progressValue, 100)}%`,
-                    }}
-                  />
-                </div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">
-                  {isProgressLoading
-                    ? "Calculando progreso..."
-                    : `${progress} completado`}
-                </div>
-              </div>
+              )}
 
               {/* Botones de acción */}
               <div className="flex gap-3">

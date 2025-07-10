@@ -8,11 +8,33 @@ const protectedRoutes = {
   "/dashboard/configuracion": ["ROLE_ADMIN", "SUPERVISOR", "POLLSTER"],
 };
 
+// Función helper para parsear la cookie user de forma segura
+function parseUserCookie(userCookie) {
+  if (!userCookie) return null;
+  
+  try {
+    // Try to decode the cookie value first (in case it's URL encoded)
+    const decodedValue = decodeURIComponent(userCookie.value);
+    return JSON.parse(decodedValue);
+  } catch (error) {
+    console.error("Error parsing user cookie:", error);
+    // Si hay error parsing el JSON, retornamos un objeto especial para indicar corrupción
+    return { corrupted: true };
+  }
+}
+
 export function middleware(request) {
   const token = request.cookies.get("token");
-  const user = request.cookies.get("user")
-    ? JSON.parse(request.cookies.get("user").value)
-    : null;
+  const user = parseUserCookie(request.cookies.get("user"));
+
+  // Si las cookies están corruptas, limpiar y redirigir a login
+  if (user?.corrupted) {
+    const response = NextResponse.redirect(new URL("/login?clearCookies=true", request.url));
+    // Clear the corrupted cookies
+    response.cookies.delete("token");
+    response.cookies.delete("user");
+    return response;
+  }
 
   // Si no hay token, redirigir a /login
   if (!token && request.nextUrl.pathname !== "/login") {

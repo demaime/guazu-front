@@ -90,7 +90,6 @@ export default function Encuestas() {
       // Debounce de 1 segundo para evitar múltiples llamadas rápidas
       const timeoutId = setTimeout(async () => {
         try {
-          toast.success("Conexión restaurada - Actualizando datos");
           await fetchDataForTab(tabName, page);
           setLastFetchAttempt(null); // Solo limpiar si fue exitoso
         } catch (error) {
@@ -355,6 +354,52 @@ export default function Encuestas() {
       window.history.replaceState({}, "", newUrl.toString());
     }
   }, [searchParams, isOffline, isInitialized]);
+
+  // --- useEffect para TRIGGER AUTOMÁTICO cuando se va offline --- //
+  useEffect(() => {
+    // Auto-activar encuestas offline cuando:
+    // 1. Se detecta que está offline
+    // 2. PouchDB está inicializado
+    // 3. Hay encuestas offline disponibles
+    // 4. No estamos en la pestaña de borradores (que no tienen versión offline)
+    // 5. Aún no se han activado las encuestas offline
+    if (
+      isOffline &&
+      isInitialized &&
+      offlineSurveys &&
+      offlineSurveys.length > 0 &&
+      activeTab !== "drafts" &&
+      !showOfflineSurveys
+    ) {
+      console.log("🔌 OFFLINE DETECTED - Auto-activating offline surveys mode");
+      console.log(
+        `📱 Found ${offlineSurveys.length} offline surveys available`
+      );
+      setShowOfflineSurveys(true);
+      // Mostrar notificación al usuario
+      toast.info(
+        `Modo offline activado. ${offlineSurveys.length} encuesta(s) disponible(s) sin conexión.`,
+        {
+          autoClose: 4000,
+          position: "top-center",
+        }
+      );
+    }
+  }, [isOffline, isInitialized, offlineSurveys, activeTab, showOfflineSurveys]);
+
+  // --- useEffect para resetear cuando vuelve la conexión --- //
+  useEffect(() => {
+    // Cuando vuelve a estar online, resetear el modo offline para mostrar encuestas del servidor
+    if (isOnline && showOfflineSurveys) {
+      console.log("🌐 ONLINE DETECTED - Switching back to server surveys");
+      setShowOfflineSurveys(false);
+      // Recargar datos del servidor
+      fetchDataForTab(activeTab, 1);
+      toast.success("Conexión restaurada. Mostrando encuestas del servidor.", {
+        autoClose: 3000,
+      });
+    }
+  }, [isOnline, showOfflineSurveys, activeTab, fetchDataForTab]);
 
   // --- useEffect para Cambios de Tab --- //
   useEffect(() => {

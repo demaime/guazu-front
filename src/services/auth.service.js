@@ -1,8 +1,62 @@
-import { AUTH_ROUTES } from "@/config/routes";
+import { AUTH_ROUTES } from "../config/routes";
 
 class AuthService {
+  // Helper function para establecer cookies de forma segura
+  setCookieSafely(name, value, options = {}) {
+    try {
+      // Encode the value to handle special characters
+      const encodedValue = encodeURIComponent(value);
+
+      // Check if the cookie size is reasonable (cookies have ~4KB limit)
+      if (encodedValue.length > 3000) {
+        console.warn(
+          `Cookie ${name} is too large (${encodedValue.length} chars), truncating...`
+        );
+        // For user data, we'll still set it but warn
+      }
+
+      const defaultOptions = {
+        path: "/",
+        SameSite: "Strict",
+      };
+
+      const finalOptions = { ...defaultOptions, ...options };
+
+      let cookieString = `${name}=${encodedValue}`;
+
+      Object.entries(finalOptions).forEach(([key, val]) => {
+        if (val) {
+          cookieString += `; ${key}${val === true ? "" : `=${val}`}`;
+        }
+      });
+
+      document.cookie = cookieString;
+    } catch (error) {
+      console.error(`Error setting cookie ${name}:`, error);
+    }
+  }
+
+  // Helper function para obtener cookies de forma segura
+  getCookieSafely(name) {
+    try {
+      const cookies = document.cookie.split(";").reduce((acc, cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        if (key && value) {
+          acc[key] = decodeURIComponent(value);
+        }
+        return acc;
+      }, {});
+
+      return cookies[name] || null;
+    } catch (error) {
+      console.error(`Error getting cookie ${name}:`, error);
+      return null;
+    }
+  }
+
   async login(email, password, rememberMe = false) {
     try {
+      // Primera llamada: obtener datos del usuario
       const userResponse = await fetch(AUTH_ROUTES.LOGIN, {
         method: "POST",
         headers: {
@@ -25,6 +79,7 @@ class AuthService {
         );
       }
 
+      // Segunda llamada: obtener token
       const tokenResponse = await fetch(AUTH_ROUTES.LOGIN, {
         method: "POST",
         headers: {
@@ -49,12 +104,11 @@ class AuthService {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(userData.user));
 
-      document.cookie = `token=${token}; path=/; SameSite=Strict; ${
-        rememberMe ? "max-age=2592000" : ""
-      }`;
-      document.cookie = `user=${JSON.stringify(
-        userData.user
-      )}; path=/; SameSite=Strict;`;
+      // Usar el método seguro para establecer cookies
+      this.setCookieSafely("token", token, {
+        ...(rememberMe && { "max-age": "2592000" }),
+      });
+      this.setCookieSafely("user", JSON.stringify(userData.user));
 
       const storedToken = this.getToken();
       const storedUser = this.getUser();
@@ -198,6 +252,38 @@ class AuthService {
     document.cookie = "user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   }
 
+  // Método para limpiar cookies corruptas y forzar un logout limpio
+  clearCorruptedCookies() {
+    try {
+      console.warn("Clearing corrupted cookies and forcing clean logout");
+
+      // Clear all authentication data
+      this.logout();
+
+      // Also clear any other potentially corrupted cookies by listing all cookies
+      const cookies = document.cookie.split(";");
+
+      cookies.forEach((cookie) => {
+        const eqPos = cookie.indexOf("=");
+        const name =
+          eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+
+        // Clear any cookies that might be related to authentication
+        if (name === "token" || name === "user" || name.includes("auth")) {
+          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+          document.cookie = `${name}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        }
+      });
+
+      // Force a page reload to ensure clean state
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Error clearing corrupted cookies:", error);
+      // If all else fails, force navigation to login
+      window.location.href = "/login";
+    }
+  }
+
   getToken() {
     return localStorage.getItem("token");
   }
@@ -221,17 +307,12 @@ class AuthService {
         return false;
       }
 
-      const cookies = document.cookie.split(";").reduce((acc, cookie) => {
-        const [key, value] = cookie.trim().split("=");
-        acc[key] = value;
-        return acc;
-      }, {});
+      const tokenCookie = this.getCookieSafely("token");
+      const userCookie = this.getCookieSafely("user");
 
-      if (!cookies.token || !cookies.user) {
-        document.cookie = `token=${token}; path=/; SameSite=Strict;`;
-        document.cookie = `user=${JSON.stringify(
-          user
-        )}; path=/; SameSite=Strict;`;
+      if (!tokenCookie || !userCookie) {
+        this.setCookieSafely("token", token);
+        this.setCookieSafely("user", JSON.stringify(user));
       }
 
       return true;

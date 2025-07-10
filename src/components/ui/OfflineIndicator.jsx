@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  Tag,
 } from "lucide-react";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { usePouchDB } from "@/hooks/usePouchDB";
@@ -281,6 +282,7 @@ export const OfflineDownloadButton = ({
   size = "sm",
   variant = "outline",
 }) => {
+  const { isOnline, isOffline } = useNetworkStatus();
   const {
     downloadSurveyForOffline,
     isSurveyAvailableOffline,
@@ -358,6 +360,28 @@ export const OfflineDownloadButton = ({
     }
   };
 
+  // Si está offline y la encuesta está disponible, mostrar tag en lugar de botón
+  if (isOffline && isAvailable) {
+    return (
+      <div
+        className={`
+          flex items-center gap-2 rounded-md bg-green-100 text-green-800 border border-green-200
+          ${sizeClasses[size]}
+        `}
+        title="Encuesta disponible sin conexión"
+      >
+        <Tag className="w-4 h-4" />
+        <span>Disponible sin conexión</span>
+      </div>
+    );
+  }
+
+  // Si está offline pero la encuesta NO está disponible, no mostrar nada
+  if (isOffline && !isAvailable) {
+    return null;
+  }
+
+  // Comportamiento normal (online)
   return (
     <button
       onClick={handleToggleOffline}

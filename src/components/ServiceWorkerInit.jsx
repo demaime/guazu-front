@@ -110,7 +110,6 @@ export default function ServiceWorkerInit() {
     const handleOnline = () => {
       console.log("Conexión a internet recuperada");
       setOfflineMode(false);
-      toast.success("Conexión a internet recuperada");
       navigator.serviceWorker.ready.then((registration) => {
         if ("sync" in registration) {
           registration.sync

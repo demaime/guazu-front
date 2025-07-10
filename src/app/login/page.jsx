@@ -25,6 +25,14 @@ export default function LoginPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Check if we need to clear corrupted cookies
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('clearCookies') === 'true') {
+          console.log("Clearing corrupted cookies due to middleware redirect");
+          authService.clearCorruptedCookies();
+          return; // This will redirect to login, so we don't need to continue
+        }
+
         const isAuth = await authService.isAuthenticated();
         if (isAuth) {
           setIsRedirecting(true);
@@ -36,6 +44,13 @@ export default function LoginPage() {
         }
       } catch (error) {
         console.error("Error checking authentication:", error);
+        // If there's an error checking auth, it might be due to corrupted cookies
+        // Try clearing them
+        try {
+          authService.clearCorruptedCookies();
+        } catch (clearError) {
+          console.error("Error clearing corrupted cookies:", clearError);
+        }
       } finally {
         setIsPageLoading(false);
       }
