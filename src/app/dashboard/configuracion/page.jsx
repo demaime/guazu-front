@@ -6,15 +6,13 @@ import { authService } from "@/services/auth.service";
 import { userService } from "@/services/user.service";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader } from "@/components/ui/Loader";
-import { Sun, Moon, WifiOff } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
-import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { toast } from "react-toastify";
 
 export default function ConfiguracionPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
-  const { isOnline, isOffline } = useNetworkStatus();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -43,14 +41,6 @@ export default function ConfiguracionPage() {
 
   const handleUpdatePassword = async () => {
     setError("");
-
-    // Verificar si está offline
-    if (isOffline) {
-      const offlineMessage = "No es posible cambiar la contraseña sin conexión a internet. Inténtalo cuando tengas conexión.";
-      setError(offlineMessage);
-      toast.error(offlineMessage);
-      return;
-    }
 
     setIsLoading(true);
 
@@ -89,14 +79,6 @@ export default function ConfiguracionPage() {
       return;
     }
 
-    // Verificar si está offline
-    if (isOffline) {
-      const offlineMessage = "No es posible eliminar la cuenta sin conexión a internet.";
-      setError(offlineMessage);
-      toast.error(offlineMessage);
-      return;
-    }
-
     setIsLoading(true);
     try {
       const token = authService.getToken();
@@ -123,21 +105,6 @@ export default function ConfiguracionPage() {
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">
           Configuración
         </h1>
-
-        {/* Indicador offline */}
-        {isOffline && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-md flex items-center gap-2"
-          >
-            <WifiOff className="w-5 h-5" />
-            <span>
-              Sin conexión a internet. Algunas funciones no están disponibles.
-            </span>
-          </motion.div>
-        )}
 
         {error && (
           <motion.div
@@ -205,13 +172,7 @@ export default function ConfiguracionPage() {
                 </h3>
                 <button
                   onClick={() => setShowPasswordSection(!showPasswordSection)}
-                  disabled={isOffline}
-                  className={`link-action text-sm ${
-                    isOffline 
-                      ? "text-gray-400 cursor-not-allowed" 
-                      : "text-primary"
-                  }`}
-                  title={isOffline ? "Requiere conexión a internet" : ""}
+                  className="link-action text-sm text-primary"
                 >
                   {showPasswordSection ? "Cancelar" : "Cambiar"}
                 </button>

@@ -6,7 +6,7 @@ import { authService } from "@/services/auth.service";
 import { surveyService } from "@/services/survey.service";
 import { userService } from "@/services/user.service";
 import CountUp from "react-countup";
-import { RefreshCw, WifiOff } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 const getRoleName = (role) => {
   switch (role) {
@@ -62,43 +62,10 @@ export default function DashboardPage() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOffline, setIsOffline] = useState(false);
+
   const [lastUpdate, setLastUpdate] = useState(null);
 
-  // Add offline detection
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOffline(false);
-      // Auto-refresh when coming back online
-      const currentUser = authService.getUser();
-      if (currentUser) {
-        loadData(currentUser);
-      }
-    };
-
-    const handleOffline = () => {
-      setIsOffline(true);
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    setIsOffline(!navigator.onLine);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
   const loadData = async (currentUser) => {
-    // If offline, don't attempt to fetch
-    if (!navigator.onLine) {
-      console.log("Dashboard: Skipping data fetch - offline");
-      setIsOffline(true);
-      setIsLoading(false);
-      return;
-    }
-
     try {
       setIsLoading(true);
       setShouldAnimate(false);
@@ -150,21 +117,6 @@ export default function DashboardPage() {
       setShouldAnimate(true);
     } catch (error) {
       console.error("Error general en loadData:", error);
-
-      // Check if it's a network error
-      const isNetworkError =
-        !navigator.onLine ||
-        error.message?.includes("fetch") ||
-        error.message?.includes("Network") ||
-        error.message?.includes("Failed to fetch");
-
-      if (isNetworkError) {
-        setIsOffline(true);
-        console.log(
-          "Network error detected in dashboard, entering offline mode"
-        );
-      }
-
       setIsLoading(false);
     }
   };
@@ -201,10 +153,6 @@ export default function DashboardPage() {
 
   const handleRefresh = () => {
     const currentUser = authService.getUser();
-    if (!navigator.onLine) {
-      setIsOffline(true);
-      return;
-    }
     loadData(currentUser);
   };
 
@@ -220,27 +168,6 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Offline Status Indicator */}
-      {isOffline && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 rounded-md">
-          <div className="flex items-center">
-            <WifiOff className="w-5 h-5 text-yellow-600 mr-3" />
-            <div>
-              <p className="text-yellow-800 font-medium">Modo offline</p>
-              <p className="text-sm text-yellow-700 mt-1">
-                Mostrando datos guardados localmente. Los datos se actualizarán
-                cuando se restaure la conexión.
-                {lastUpdate && (
-                  <span className="block">
-                    Última actualización: {lastUpdate.toLocaleString()}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] px-5 py-6 shadow-sm sm:px-6">
         {/* Vista Mobile */}
         <div className="sm:hidden">
@@ -250,10 +177,7 @@ export default function DashboardPage() {
             </h2>
             <button
               onClick={handleRefresh}
-              disabled={isOffline}
-              className={`btn-primary px-3 py-1.5 text-sm flex items-center ${
-                isOffline ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className="btn-primary px-3 py-1.5 text-sm flex items-center"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -282,15 +206,10 @@ export default function DashboardPage() {
             </span>
             <button
               onClick={handleRefresh}
-              disabled={isOffline}
-              className={`btn-primary ml-4 px-3 py-1.5 text-sm flex items-center gap-2 ${
-                isOffline ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className="btn-primary ml-4 px-3 py-1.5 text-sm flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
-              <span className="inline">
-                {isOffline ? "Offline" : "Actualizar datos"}
-              </span>
+              <span className="inline">Actualizar datos</span>
             </button>
           </div>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">

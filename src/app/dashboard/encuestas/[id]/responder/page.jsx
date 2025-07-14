@@ -10,9 +10,6 @@ import { useTheme } from "@/providers/ThemeProvider";
 import { DoubleBorderLight, DoubleBorderDark } from "survey-core/themes";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "react-toastify";
-import { saveSurveyOffline, initializePouchDB } from "@/lib/pouchdb"; // Import PouchDB functions
-import { usePouchDB } from "@/hooks/usePouchDB";
-import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 // Import SurveyJS styles
@@ -43,9 +40,6 @@ export default function SurveyPage() {
   const router = useRouter();
   const { id } = useParams();
   const { theme } = useTheme();
-  const { isOnline, isOffline } = useNetworkStatus();
-  const { getSurveyOffline, saveResponseOffline, isSurveyAvailableOffline } =
-    usePouchDB();
   const [surveyModel, setSurveyModel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,37 +48,6 @@ export default function SurveyPage() {
   const [surveyCompletedSuccessfully, setSurveyCompletedSuccessfully] =
     useState(false);
   const [countdown, setCountdown] = useState(5);
-  const [showOfflineSaveMessage, setShowOfflineSaveMessage] = useState(false);
-  const [isOfflineForSubmit, setIsOfflineForSubmit] = useState(false);
-  const [loadedFromOffline, setLoadedFromOffline] = useState(false);
-
-  useEffect(() => {
-    const initDB = async () => {
-      try {
-        await initializePouchDB();
-        console.log("PouchDB initialized from responder page.");
-      } catch (error) {
-        console.error("Error initializing PouchDB from responder page:", error);
-        toast.error("Error al iniciar la base de datos local.");
-      }
-    };
-    initDB();
-
-    const handleOnline = () => setIsOfflineForSubmit(false);
-    const handleOffline = () => setIsOfflineForSubmit(true);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    setIsOfflineForSubmit(!navigator.onLine);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-    };
-  }, []);
 
   // Effect to handle redirection when countdown finishes
   useEffect(() => {
@@ -93,17 +56,7 @@ export default function SurveyPage() {
         clearInterval(countdownIntervalRef.current); // Ensure interval is cleared before navigation
       }
       console.log("Countdown finished, redirecting from useEffect...");
-
-      // Check if offline and redirect appropriately
-      if (!navigator.onLine) {
-        console.log(
-          "Offline detected, redirecting to dashboard/encuestas with offline flag"
-        );
-        router.push("/dashboard/encuestas?showOffline=true");
-      } else {
-        console.log("Online, redirecting to dashboard");
-        router.push("/dashboard");
-      }
+      router.push("/dashboard");
     }
   }, [countdown, surveyCompletedSuccessfully, router]);
 
@@ -134,44 +87,9 @@ export default function SurveyPage() {
 
         console.log("Loading survey with ID:", id);
 
-        // Intentar cargar desde offline primero si está disponible
-        let response = null;
-        const isAvailableOffline = await isSurveyAvailableOffline(id);
-
-        if (isOffline || isAvailableOffline) {
-          try {
-            const offlineSurvey = await getSurveyOffline(id);
-            if (offlineSurvey) {
-              console.log("Survey loaded from offline storage:", offlineSurvey);
-              response = offlineSurvey;
-              setLoadedFromOffline(true);
-              if (isOffline) {
-                toast.info("Encuesta cargada desde almacenamiento offline");
-              }
-            }
-          } catch (offlineError) {
-            console.warn("Could not load survey from offline:", offlineError);
-          }
-        }
-
-        // Si no se cargó desde offline y hay conexión, cargar desde servidor
-        if (!response && isOnline) {
-          try {
-            response = await surveyService.getSurvey(id);
-            console.log("Survey response from server:", response);
-            setLoadedFromOffline(false);
-          } catch (networkError) {
-            console.error("Network error loading survey:", networkError);
-            throw networkError;
-          }
-        }
-
-        // Si no hay response en este punto, lanzar error
-        if (!response) {
-          throw new Error(
-            "No se pudo cargar la encuesta. Verifique que esté disponible offline o que tenga conexión a internet."
-          );
-        }
+        // Load survey from server
+        const response = await surveyService.getSurvey(id);
+        console.log("Survey response from server:", response);
 
         if (!response?.survey) {
           throw new Error("Survey not found");
@@ -462,7 +380,6 @@ export default function SurveyPage() {
 
   // Handle survey completion
   const handleComplete = async (sender) => {
-    setShowOfflineSaveMessage(false);
     setError(null);
     setLoading(true); // Start loading
 
@@ -533,94 +450,19 @@ export default function SurveyPage() {
         }
       }
 
-      // --- Intent de Envío de Encuesta ---
-      if (isOffline || !navigator.onLine) {
-        console.log(
-          "Dispositivo offline detectado, guardando respuesta localmente."
-        );
-        try {
-          await saveResponseOffline(id, transformedAnswers, {
-            quotaAnswers,
-            fullName: user?.fullName,
-            userId: user?._id,
-            time: sender.timeSpent,
-            lat: answerData.lat,
-            lng: answerData.lng,
-            authToken: token,
-          });
-
-          // También guardar en el sistema legacy para compatibilidad con SW
-          await saveSurveyOffline(answerData);
-
-          console.log(
-            "Respuesta guardada localmente para sync:",
-            answerData._id
-          );
-          setShowOfflineSaveMessage(true);
-          setSurveyCompletedSuccessfully(true);
-          toast.success(
-            "Respuesta guardada localmente. Se enviará cuando recuperes la conexión."
-          );
-
-          // Ahora hacemos el fetch para que BackgroundSyncPlugin lo registre
-          // El SW no devolverá un JSON con offline:true aquí si BackgroundSyncPlugin lo maneja.
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: token, // Token for the initial attempt if online, SW will use stored one
-            },
-            body: JSON.stringify(answerData), // Send the full answerData
-          })
-            .then((response) => {
-              if (response.ok) {
-                console.log(
-                  "CLIENT: Survey submitted successfully online immediately (this pathway might be unexpected if offline was detected)."
-                );
-              } else {
-                console.log(
-                  "CLIENT: Initial POST to /api/insert-answer failed with status: ",
-                  response.status,
-                  ". Background Sync should take over if SW is active and request was eligible."
-                );
-              }
-            })
-            .catch((error) => {
-              console.warn(
-                "CLIENT: Initial POST to /api/insert-answer failed locally (e.g., net::ERR_INTERNET_DISCONNECTED). Error:",
-                error.message,
-                ". Background Sync should take over if SW is active."
-              );
-            });
-
-          setSurveyCompletedSuccessfully(true); // Consider it completed from user's perspective
-          setLoading(false);
-          return;
-        } catch (pouchDbError) {
-          console.error("Error al guardar en PouchDB:", pouchDbError);
-          setError(
-            "Error al guardar la encuesta localmente. Intenta de nuevo o contacta a soporte."
-          );
-          toast.error(
-            "Error al guardar la encuesta localmente. Revisa la consola para más detalles."
-          );
-          setSurveyCompletedSuccessfully(true); // Consider it completed from user's perspective
-          setLoading(false);
-          return;
+      // --- Survey Submission ---
+      console.log("Attempting survey submission to server");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token,
+          },
+          body: JSON.stringify(answerData),
         }
-      }
-
-      // --- Online Submission ---
-      console.log("Dispositivo Online: Intentando envío directo al servidor.");
-      let submitEndpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`;
-      const response = await fetch(submitEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token,
-        },
-        body: JSON.stringify(answerData), // Send the full answerData
-      });
+      );
 
       if (!response.ok) {
         const errorData = await response
@@ -631,46 +473,19 @@ export default function SurveyPage() {
           response.status,
           errorData
         );
-        // Attempt to save to PouchDB as a fallback if online submission fails
-        try {
-          console.warn(
-            "Online submission failed, attempting to save to PouchDB as fallback."
-          );
-          await saveSurveyOffline(answerData);
-          setShowOfflineSaveMessage(true); // Inform user it's saved locally
-          setSurveyCompletedSuccessfully(true); // Consider it completed from user's perspective
-          toast.error(
-            `El servidor devolvió un error (${response.status}). La encuesta se guardó localmente y se enviará más tarde.`
-          );
-          setLoading(false);
-          return;
-        } catch (fallbackSaveError) {
-          console.error(
-            "Error al guardar en PouchDB como fallback:",
-            fallbackSaveError
-          );
-          setError(
-            `Error del servidor: ${
-              errorData.message || response.statusText
-            }. No se pudo guardar localmente como respaldo.`
-          );
-          toast.error("Falló el envío y el guardado local de respaldo.");
-          setLoading(false);
-          return;
-        }
+        setError(
+          `Error del servidor: ${errorData.message || response.statusText}`
+        );
+        toast.error("Error al enviar la encuesta al servidor.");
+        setLoading(false);
+        return;
       }
 
       const responseData = await response.json();
       console.log("Encuesta enviada con éxito:", responseData);
       setSurveyCompletedSuccessfully(true);
       toast.success("¡Encuesta enviada con éxito!");
-      // Solo ejecutar countdown cuando estamos online y el envío fue exitoso
-      if (navigator.onLine) {
-        console.log("Online detected, calling startCountdown");
-        startCountdown();
-      } else {
-        console.log("Offline detected, NOT calling startCountdown");
-      }
+      startCountdown();
       setLoading(false);
     } catch (error) {
       console.error("Error general en handleComplete:", error);
@@ -712,60 +527,18 @@ export default function SurveyPage() {
             ¡Encuesta completada con éxito!
           </h1>
           <p className="mb-6 text-gray-600 dark:text-gray-300">
-            {showOfflineSaveMessage
-              ? "Intenta conectarte nuevamente para sincronizar tus resultados."
-              : "Gracias por tu participación. Tu respuesta ha sido registrada."}
+            Gracias por tu participación. Tu respuesta ha sido registrada.
           </p>
 
-          {isOfflineForSubmit || !navigator.onLine ? (
-            <>
-              <div className="mt-4 bg-yellow-100 p-4 rounded-md border border-yellow-300">
-                <p className="text-yellow-800 font-medium">
-                  Estás en modo offline
-                </p>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Tu encuesta se ha guardado localmente y se sincronizará cuando
-                  vuelvas a tener conexión.
-                </p>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Puedes seguir completando otras encuestas en modo offline.
-                </p>
-              </div>
-              <button
-                onClick={() =>
-                  router.push("/dashboard/encuestas?showOffline=true")
-                }
-                className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
-              >
-                Volver al inicio
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Redirigiendo a la página principal en {countdown} segundos...
-              </p>
-              <button
-                onClick={() => {
-                  // Check if offline and redirect appropriately
-                  if (!navigator.onLine) {
-                    console.log(
-                      "Manual redirect - Offline detected, redirecting to dashboard/encuestas with offline flag"
-                    );
-                    router.push("/dashboard/encuestas?showOffline=true");
-                  } else {
-                    console.log(
-                      "Manual redirect - Online, redirecting to dashboard"
-                    );
-                    router.push("/dashboard");
-                  }
-                }}
-                className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
-              >
-                Volver ahora
-              </button>
-            </>
-          )}
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Redirigiendo a la página principal en {countdown} segundos...
+          </p>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
+          >
+            Volver ahora
+          </button>
         </div>
       </div>
     );
@@ -807,34 +580,6 @@ export default function SurveyPage() {
 
   return (
     <>
-      {/* Indicador de estado offline */}
-      {isOffline && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-          <div className="flex">
-            <div className="ml-3">
-              <p className="text-sm text-yellow-700">
-                Estás en modo offline. Podrás completar la encuesta y se
-                guardará localmente para sincronizar cuando tengas conexión.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Indicador de encuesta cargada desde offline */}
-      {loadedFromOffline && !isOffline && (
-        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
-          <div className="flex">
-            <div className="ml-3">
-              <p className="text-sm text-blue-700">
-                Esta encuesta se cargó desde almacenamiento offline. Los datos
-                están actualizados desde la última descarga.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="survey-container">
         {surveyModel && (
           <Survey model={surveyModel} onComplete={handleComplete} />

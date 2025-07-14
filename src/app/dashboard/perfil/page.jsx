@@ -8,14 +8,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Loader } from "@/components/ui/Loader";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import { User, Mail, Phone, MapPin, WifiOff } from "lucide-react";
+import { User, Mail, Phone, MapPin } from "lucide-react";
 import ProfilePhotoUpload from "@/components/ProfilePhotoUpload";
-import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { toast } from "react-toastify";
 
 export default function PerfilPage() {
   const router = useRouter();
-  const { isOnline, isOffline } = useNetworkStatus();
   const [isInitializing, setIsInitializing] = useState(true);
   const [user, setUser] = useState(null);
   const [originalFormData, setOriginalFormData] = useState(null);
@@ -307,15 +305,6 @@ export default function PerfilPage() {
   const handleSaveChanges = async () => {
     setError("");
 
-    // Verificar si está offline
-    if (isOffline) {
-      const offlineMessage =
-        "No es posible guardar cambios sin conexión a internet. Los cambios se perderán al cerrar la página.";
-      setError(offlineMessage);
-      toast.error(offlineMessage);
-      return;
-    }
-
     setIsSaving(true);
 
     try {
@@ -420,22 +409,6 @@ export default function PerfilPage() {
         <h1 className="text-2xl font-bold mb-8 text-[var(--text-primary)]">
           Mi Perfil
         </h1>
-
-        {/* Indicador offline */}
-        {isOffline && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-md flex items-center gap-2 mb-6"
-          >
-            <WifiOff className="w-5 h-5" />
-            <span>
-              Sin conexión. No podrás guardar cambios hasta recuperar la
-              conexión.
-            </span>
-          </motion.div>
-        )}
 
         {/* Sección de foto de perfil */}
         <div className="bg-[var(--card-background)] rounded-lg p-6 mb-8 shadow-sm border border-[var(--card-border)]">
@@ -624,22 +597,13 @@ export default function PerfilPage() {
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     type="submit"
-                    disabled={isSaving || isOffline}
-                    className={`px-6 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
-                      isOffline
-                        ? "bg-gray-400"
-                        : "bg-[var(--primary)] hover:bg-[var(--primary-dark)]"
-                    }`}
-                    title={isOffline ? "Requiere conexión a internet" : ""}
+                    disabled={isSaving}
+                    className={`px-6 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-dark)]`}
                   >
                     {isSaving && (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                     )}
-                    {isOffline
-                      ? "Sin conexión"
-                      : isSaving
-                      ? "Guardando..."
-                      : "Guardar Cambios"}
+                    {isSaving ? "Guardando..." : "Guardar Cambios"}
                   </motion.button>
                 </div>
               )}

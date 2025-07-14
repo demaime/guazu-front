@@ -4,7 +4,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { Mulish } from "next/font/google";
 import { ClientThemeWrapper } from "@/components/ClientThemeWrapper";
 import { ToastContainer } from "react-toastify";
-import ServiceWorkerLoader from "@/components/ServiceWorkerLoader";
 
 const mulish = Mulish({
   subsets: ["latin"],
@@ -22,7 +21,6 @@ export default function RootLayout({ children }) {
       </head>
       <body className={mulish.className}>
         <ClientThemeWrapper>
-          <ServiceWorkerLoader />
           {children}
           <ToastContainer
             position="bottom-right"

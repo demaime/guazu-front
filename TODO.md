@@ -6,7 +6,6 @@
 - Revisar permisos para los links
 - Confirmar restricción de dispositivos
 - PWA
-- Funcionalidad OFFLINE
 
 🟠 FEATURES IMPORTANTES - ¿Qué queremos agregar para mejorar la experiencia y aumentar el precio de la App?
 

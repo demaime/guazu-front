@@ -15,11 +15,7 @@ class UserService {
       const data = await response.json();
 
       if (data.error) {
-        const userData = JSON.parse(localStorage.getItem("user"));
-        return {
-          ...userData,
-          editableFields: this.getEditableFieldsByRole(userData.role),
-        };
+        throw new Error(data.message || "Error fetching user profile");
       }
 
       const updatedUser = data.user;
@@ -29,13 +25,9 @@ class UserService {
         ...updatedUser,
         editableFields: this.getEditableFieldsByRole(updatedUser.role),
       };
-    } catch {
-      // If fetching profile fails, return cached user data
-      const userData = JSON.parse(localStorage.getItem("user"));
-      return {
-        ...userData,
-        editableFields: this.getEditableFieldsByRole(userData.role),
-      };
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      throw error;
     }
   }
 

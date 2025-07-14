@@ -385,7 +385,6 @@ const SurveyMap = ({
                 <p className="text-xs">
                   {selectedMarker.createdAt &&
                     formatDate(selectedMarker.createdAt)}
-                  {selectedMarker.offline && " (Offline)"}
                 </p>
                 {selectedMarker.time && (
                   <p className="text-xs">

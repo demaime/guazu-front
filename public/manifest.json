@@ -1,7 +1,7 @@
 {
   "name": "Guazú - Sistema de Encuestas",
   "short_name": "Guazú",
-  "description": "Sistema de Encuestas Guazú con soporte offline",
+  "description": "Sistema de Encuestas Guazú",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",

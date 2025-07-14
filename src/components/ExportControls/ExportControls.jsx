@@ -27,7 +27,6 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
               longitud: item.lng,
               caso: item._id,
               time: item.time,
-              offline: item.offline,
               ...item.answer,
             })
           );

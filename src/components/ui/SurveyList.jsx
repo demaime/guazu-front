@@ -23,12 +23,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
-import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmModal } from "./ConfirmModal";
 import { surveyService } from "@/services/survey.service";
 import { toast } from "react-toastify";
-import { OfflineDownloadButton } from "./OfflineIndicator";
 import "react-toastify/dist/ReactToastify.css";
 
 export function SurveyList({
@@ -41,7 +39,6 @@ export function SurveyList({
 }) {
   const router = useRouter();
   const { isMobile } = useWindowSize();
-  const { isOffline } = useNetworkStatus();
   const [expandedCardId, setExpandedCardId] = useState(null);
   const [expandedActionsId, setExpandedActionsId] = useState(null);
   const [showFinishedAlert, setShowFinishedAlert] = useState(false);
@@ -528,8 +525,6 @@ export function SurveyList({
         valueB = b.surveyInfo?.endDate || "";
         break;
       case "progress":
-        // No permitir ordenamiento por progreso cuando esté offline
-        if (isOffline) return 0;
         const progressA = a.totalAnswers / (a.surveyInfo?.target || 1);
         const progressB = b.totalAnswers / (b.surveyInfo?.target || 1);
         valueA = isNaN(progressA) ? 0 : progressA;
@@ -612,45 +607,31 @@ export function SurveyList({
                       </span>
                     </div>
 
-                    {/* Solo mostrar progreso cuando esté online */}
-                    {!isOffline && (
-                      <>
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <span>
-                            Progreso:{" "}
-                            {calculateProgress(
-                              item.totalAnswers,
-                              surveyInfo.target
-                            )}
-                          </span>
-                        </div>
-                        <div className="w-full bg-black/20 rounded-full h-1.5 mt-1">
-                          <div
-                            className={`h-full ${getProgressColor(
-                              item.totalAnswers || 0,
-                              surveyInfo.target || 0
-                            )}`}
-                            style={{
-                              width: `${Math.min(
-                                ((item.totalAnswers || 0) /
-                                  (surveyInfo.target || 1)) *
-                                  100,
-                                100
-                              )}%`,
-                            }}
-                          ></div>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Mostrar indicador offline cuando esté offline */}
-                    {isOffline && (
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <span className="text-yellow-300">
-                          🔄 Modo offline - Sin datos de progreso
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span>
+                        Progreso:{" "}
+                        {calculateProgress(
+                          item.totalAnswers,
+                          surveyInfo.target
+                        )}
+                      </span>
+                    </div>
+                    <div className="w-full bg-black/20 rounded-full h-1.5 mt-1">
+                      <div
+                        className={`h-full ${getProgressColor(
+                          item.totalAnswers || 0,
+                          surveyInfo.target || 0
+                        )}`}
+                        style={{
+                          width: `${Math.min(
+                            ((item.totalAnswers || 0) /
+                              (surveyInfo.target || 1)) *
+                              100,
+                            100
+                          )}%`,
+                        }}
+                      ></div>
+                    </div>
 
                     <div className="mt-3 border-t border-[var(--card-border)] pt-3">
                       <div className="grid grid-cols-2 gap-2">
@@ -745,23 +726,6 @@ export function SurveyList({
                             />
                           </>
                         )}
-
-                        {/* Separador visual - solo si hay botón offline */}
-                        {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
-                          <div className="w-px h-6 bg-[var(--card-border)] mx-1"></div>
-                        )}
-
-                        {/* Botón de descarga offline - solo para pollsters */}
-                        {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
-                          <div className="flex items-center">
-                            <OfflineDownloadButton
-                              surveyId={surveyData._id}
-                              surveyData={surveyData}
-                              size="sm"
-                              variant="outline"
-                            />
-                          </div>
-                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -838,16 +802,13 @@ export function SurveyList({
               >
                 Fin {renderSortIndicator("end")}
               </th>
-              {/* Solo mostrar columna de progreso cuando esté online */}
-              {!isOffline && (
-                <th
-                  key="header-progress"
-                  className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
-                  onClick={() => handleSort("progress")}
-                >
-                  Casos Recolectados {renderSortIndicator("progress")}
-                </th>
-              )}
+              <th
+                key="header-progress"
+                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
+                onClick={() => handleSort("progress")}
+              >
+                Casos Recolectados {renderSortIndicator("progress")}
+              </th>
               <th
                 key="header-actions"
                 className="px-6 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
@@ -895,47 +856,43 @@ export function SurveyList({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     {formatDate(surveyInfo.endDate)}
                   </td>
-                  {/* Solo mostrar celda de progreso cuando esté online */}
-                  {!isOffline && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span>
-                              {item.totalAnswers || 0} /{" "}
-                              {surveyInfo.target || 0}
-                            </span>
-                            <span className="text-[var(--text-secondary)]">
-                              (
-                              {calculateProgress(
-                                item.totalAnswers,
-                                surveyInfo.target
-                              )}
-                              )
-                            </span>
-                          </div>
-                          <motion.div className="w-24 h-1 bg-[var(--card-border)] rounded-full mt-1 overflow-hidden">
-                            <motion.div
-                              className={`h-full ${getProgressColor(
-                                item.totalAnswers || 0,
-                                surveyInfo.target || 0
-                              )}`}
-                              initial={{ width: 0 }}
-                              animate={{
-                                width: `${Math.min(
-                                  ((item.totalAnswers || 0) /
-                                    (surveyInfo.target || 1)) *
-                                    100,
-                                  100
-                                )}%`,
-                              }}
-                              transition={{ duration: 0.5, ease: "easeOut" }}
-                            />
-                          </motion.div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {item.totalAnswers || 0} / {surveyInfo.target || 0}
+                          </span>
+                          <span className="text-[var(--text-secondary)]">
+                            (
+                            {calculateProgress(
+                              item.totalAnswers,
+                              surveyInfo.target
+                            )}
+                            )
+                          </span>
                         </div>
+                        <motion.div className="w-24 h-1 bg-[var(--card-border)] rounded-full mt-1 overflow-hidden">
+                          <motion.div
+                            className={`h-full ${getProgressColor(
+                              item.totalAnswers || 0,
+                              surveyInfo.target || 0
+                            )}`}
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${Math.min(
+                                ((item.totalAnswers || 0) /
+                                  (surveyInfo.target || 1)) *
+                                  100,
+                                100
+                              )}%`,
+                            }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                          />
+                        </motion.div>
                       </div>
-                    </td>
-                  )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
                     <div className="flex items-center justify-end relative">
                       <button
@@ -1057,24 +1014,7 @@ export function SurveyList({
                                 </>
                               )}
 
-                              {/* Separador visual - solo si hay botón offline */}
-                              {role !== "ROLE_ADMIN" &&
-                                role !== "SUPERVISOR" && (
-                                  <div className="w-px h-6 bg-[var(--card-border)] mx-1"></div>
-                                )}
 
-                              {/* Botón de descarga offline - solo para pollsters */}
-                              {role !== "ROLE_ADMIN" &&
-                                role !== "SUPERVISOR" && (
-                                  <div className="flex items-center">
-                                    <OfflineDownloadButton
-                                      surveyId={surveyData._id}
-                                      surveyData={surveyData}
-                                      size="sm"
-                                      variant="outline"
-                                    />
-                                  </div>
-                                )}
                             </div>
                           </motion.div>
                         )}
