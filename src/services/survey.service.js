@@ -5,16 +5,8 @@ import axios from "axios";
 class SurveyService {
   async getAllSurveys(page = 1, limit = 10, status = null) {
     try {
-      console.log(
-        `Fetching surveys page ${page} limit ${limit} status ${
-          status || "(all published)"
-        }...`
-      );
-
       const user = JSON.parse(localStorage.getItem("user"));
       const token = localStorage.getItem("token");
-
-      console.log("User role:", user.role);
 
       // Construir URL base
       let baseUrl = SURVEY_ROUTES.BY_ID(user._id);
@@ -29,8 +21,6 @@ class SurveyService {
       }
 
       const url = `${baseUrl}?${queryParams.toString()}`;
-
-      console.log("Fetching from URL:", url);
 
       const response = await fetch(url, {
         method: "GET",
@@ -50,7 +40,6 @@ class SurveyService {
       }
 
       const data = await response.json();
-      console.log("Paginated survey response (status: ", status, "):", data);
 
       if (data.error) {
         console.error("Error from API:", data.error);
@@ -93,7 +82,6 @@ class SurveyService {
       }
 
       const surveyData = await surveyResponse.json();
-      console.log("Survey data from backend:", surveyData);
 
       if (surveyData.error) {
         return Promise.reject(surveyData.validation);
@@ -139,7 +127,6 @@ class SurveyService {
       }
 
       const url = SURVEY_ROUTES.DELETE(surveyId);
-      console.log("Deleting survey with URL:", url);
 
       // Validar que el surveyId sea válido
       if (!surveyId) {
@@ -155,8 +142,6 @@ class SurveyService {
         credentials: "include",
         mode: "cors",
       });
-
-      console.log("Delete response status:", response.status);
 
       if (response.status === 401 || response.status === 403) {
         throw new Error("No tienes permisos para eliminar esta encuesta");
@@ -192,7 +177,6 @@ class SurveyService {
       }
 
       const data = await response.json();
-      console.log("Delete response data:", data);
 
       if (data.error) {
         console.error("API error:", data.error);
@@ -294,9 +278,6 @@ class SurveyService {
         body: JSON.stringify(requestBody),
       });
 
-      // Check response status first
-      console.log("Response status:", response.status);
-
       if (!response.ok) {
         // Try to get content type
         const contentType = response.headers.get("content-type");
@@ -320,7 +301,6 @@ class SurveyService {
 
       // Parse successful response
       const data = await response.json();
-      console.log("Survey save response:", data);
 
       if (data.error) {
         throw new Error(data.message || "Error al guardar la encuesta");
@@ -582,7 +562,6 @@ class SurveyService {
       }
 
       const data = await response.json();
-      console.log("Draft surveys response:", data);
 
       if (data.error) {
         return Promise.reject(data.validation);
@@ -632,7 +611,6 @@ class SurveyService {
   }
 
   async cloneSurvey(surveyId) {
-    console.log(`Frontend service: Cloning survey ${surveyId}`);
     const token = localStorage.getItem("token");
     if (!token) {
       // Handle missing token, perhaps throw an error or return a specific response
@@ -657,11 +635,21 @@ class SurveyService {
       });
 
       if (!response.ok) {
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch {
-          // If response is not JSON, use text. Removed unused variable 'e'
+        // Check content type first to avoid Response body already read error
+        const contentType = response.headers.get("content-type");
+
+        if (contentType && contentType.includes("application/json")) {
+          // If it's JSON, parse it normally
+          const errorData = await response.json();
+          console.error(
+            `Error cloning survey (${response.status}):`,
+            errorData
+          );
+          throw new Error(
+            errorData.message || `Error del servidor: ${response.status}`
+          );
+        } else {
+          // Otherwise, handle as text (including HTML errors)
           const errorText = await response.text();
           console.error(
             `Error cloning survey (non-JSON response ${response.status}):`,
@@ -671,14 +659,9 @@ class SurveyService {
             errorText || `Error del servidor: ${response.status}`
           );
         }
-        console.error(`Error cloning survey (${response.status}):`, errorData);
-        throw new Error(
-          errorData.message || `Error del servidor: ${response.status}`
-        );
       }
 
       const data = await response.json(); // Expect { message: '...', survey: { ... } }
-      console.log("Survey cloned successfully:", data);
       return { success: true, ...data }; // Pass along message and new survey data
     } catch (error) {
       console.error("Error in surveyService.cloneSurvey:", error);
@@ -717,7 +700,6 @@ class SurveyService {
       }
 
       const data = await response.json();
-      console.log("Pollster progress response:", data);
 
       if (data.error) {
         throw new Error(

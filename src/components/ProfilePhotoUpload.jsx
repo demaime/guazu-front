@@ -27,20 +27,16 @@ const ProfilePhotoUpload = ({
     ) {
       // Si es base64, está lista para usar
       if (currentUser.image.startsWith("data:image/")) {
-        console.log("Imagen base64 detectada en ProfilePhotoUpload");
         setImageExists(true);
       } else {
         // Si es una URL/nombre de archivo, verificar si existe
         const imageUrl = `${API_URL}/uploads/users/${currentUser.image}`;
-        console.log("Verificando existencia de imagen de archivo:", imageUrl);
 
         const img = new window.Image();
         img.onload = () => {
-          console.log("Imagen de archivo cargada exitosamente");
           setImageExists(true);
         };
         img.onerror = () => {
-          console.log("Error al cargar imagen de archivo");
           setImageExists(false);
         };
         img.src = imageUrl;

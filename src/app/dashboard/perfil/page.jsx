@@ -152,6 +152,8 @@ export default function PerfilPage() {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     const initializeUser = async () => {
       try {
         const token = authService.getToken();
@@ -170,6 +172,10 @@ export default function PerfilPage() {
 
         try {
           const updatedUser = await userService.getProfile(userData._id, token);
+
+          // Only update state if component is still mounted
+          if (!isMounted) return;
+
           setUser(updatedUser);
           const initialFormData = {
             name: updatedUser?.name || "",
@@ -193,7 +199,19 @@ export default function PerfilPage() {
           setFormData(initialFormData);
           setOriginalFormData(initialFormData);
         } catch (error) {
-          setError(error.message || "Error al cargar los datos del usuario");
+          console.error("Error fetching user profile:", error);
+
+          // Only update state if component is still mounted
+          if (!isMounted) return;
+
+          // Set a more user-friendly error message
+          setError(
+            "No se pudieron cargar los datos actualizados del perfil. Mostrando datos locales."
+          );
+
+          // Set user with localStorage data if service fails
+          setUser(userData);
+
           const initialFormData = {
             name: userData?.name || "",
             lastName: userData?.lastName || "",
@@ -217,14 +235,23 @@ export default function PerfilPage() {
           setOriginalFormData(initialFormData);
         }
       } catch (error) {
-        setError("Error al inicializar el usuario");
+        if (isMounted) {
+          setError("Error al inicializar el usuario");
+        }
       } finally {
-        setIsInitializing(false);
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       }
     };
 
     initializeUser();
-  }, []);
+
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   const isFieldEditable = (fieldName) => {
     if (!user?.editableFields) return false;
@@ -267,10 +294,10 @@ export default function PerfilPage() {
 
       // Enviar actualización para eliminar imagen
       const updateData = {
-        name: user.name,
-        lastName: user.lastName,
-        email: user.email,
-        cellular: user.cellular,
+        name: user?.name || "",
+        lastName: user?.lastName || "",
+        email: user?.email || "",
+        cellular: user?.cellular || "",
         image: "", // Eliminar imagen
       };
 
@@ -481,7 +508,7 @@ export default function PerfilPage() {
                     <div className="flex items-center">
                       <User className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
                       <span className="text-[var(--text-primary)]">
-                        {user.name}
+                        {user?.name || "Sin nombre"}
                       </span>
                     </div>
                   )}
@@ -503,7 +530,7 @@ export default function PerfilPage() {
                     <div className="flex items-center">
                       <User className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
                       <span className="text-[var(--text-primary)]">
-                        {user.lastName}
+                        {user?.lastName || "Sin apellido"}
                       </span>
                     </div>
                   )}
@@ -528,7 +555,7 @@ export default function PerfilPage() {
                   <div className="flex items-center">
                     <Mail className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
                     <span className="text-[var(--text-primary)]">
-                      {user.email}
+                      {user?.email || "Sin email"}
                     </span>
                   </div>
                 )}
@@ -552,7 +579,7 @@ export default function PerfilPage() {
                   <div className="flex items-center">
                     <Phone className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
                     <span className="text-[var(--text-primary)]">
-                      {user.cellular || "No especificado"}
+                      {user?.cellular || "No especificado"}
                     </span>
                   </div>
                 )}
@@ -576,7 +603,7 @@ export default function PerfilPage() {
                   <div className="flex items-center">
                     <MapPin className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
                     <span className="text-[var(--text-primary)]">
-                      {user.address || "No especificada"}
+                      {user?.address || "No especificada"}
                     </span>
                   </div>
                 )}

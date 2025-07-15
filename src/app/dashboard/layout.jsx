@@ -44,7 +44,6 @@ export default function DashboardLayout({ children }) {
         return;
       }
 
-      console.log("Usuario autenticado:", userData);
       setUser(userData);
       setIsLoading(false);
     };
@@ -80,21 +79,17 @@ export default function DashboardLayout({ children }) {
   useEffect(() => {
     if (user?.image && user.image !== "null" && user.image !== "") {
       // Si es base64, está lista para usar
-      if (user.image.startsWith('data:image/')) {
-        console.log("Imagen base64 detectada en sidebar");
+      if (user.image.startsWith("data:image/")) {
         setUserImageExists(true);
       } else {
         // Si es una URL/nombre de archivo, verificar si existe
         const imageUrl = `${API_URL}/uploads/users/${user.image}`;
-        console.log("Verificando imagen de archivo en sidebar:", imageUrl);
 
         const img = new window.Image();
         img.onload = () => {
-          console.log("Imagen de archivo en sidebar cargada exitosamente");
           setUserImageExists(true);
         };
         img.onerror = () => {
-          console.log("Error al cargar imagen de archivo en sidebar");
           setUserImageExists(false);
         };
         img.src = imageUrl;
@@ -105,7 +100,7 @@ export default function DashboardLayout({ children }) {
   }, [user?.image]);
 
   useEffect(() => {
-    console.log("Pathname actual:", pathname);
+    // Pathname tracking (removed log for cleaner console)
   }, [pathname]);
 
   useEffect(() => {
@@ -114,9 +109,7 @@ export default function DashboardLayout({ children }) {
   }, [pathname]);
 
   const handleProfileClick = () => {
-    console.log("Click en perfil");
-    console.log("Usuario actual:", user);
-    console.log("Token actual:", authService.getToken());
+    // Profile click handler (logs removed for cleaner console)
   };
 
   useEffect(() => {
@@ -300,13 +293,16 @@ export default function DashboardLayout({ children }) {
                 >
                   {user?.image && userImageExists ? (
                     <Image
-                      src={user.image.startsWith('data:image/') ? user.image : `${API_URL}/uploads/users/${user.image}`}
+                      src={
+                        user.image.startsWith("data:image/")
+                          ? user.image
+                          : `${API_URL}/uploads/users/${user.image}`
+                      }
                       alt="Foto de perfil"
                       width={40}
                       height={40}
                       className="w-full h-full object-cover rounded-full"
                       onError={(e) => {
-                        console.log("Error cargando imagen en sidebar:", e);
                         e.target.style.display = "none";
                       }}
                     />

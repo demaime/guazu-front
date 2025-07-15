@@ -43,7 +43,7 @@ export function PollsterSurveyList({
         return;
       }
 
-      console.log(`📊 Loading progress for ${surveys.length} surveys`);
+
 
       // Preparar loading states solo para encuestas nuevas
       const newLoadingStates = {};
@@ -99,7 +99,7 @@ export function PollsterSurveyList({
           finalLoadingStates[surveyId] = false;
         });
 
-        console.log(`✅ Progress loaded for ${results.length} surveys`);
+
         setProgressData(newProgressData);
         setProgressLoading(finalLoadingStates);
       } catch (error) {

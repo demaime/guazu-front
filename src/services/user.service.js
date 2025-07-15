@@ -4,13 +4,17 @@ import { API_URL } from "@/config/constants";
 class UserService {
   async getProfile(userId, token) {
     try {
-      const response = await fetch(`${USER_ROUTES.GET_PROFILE}/${userId}`, {
+      const response = await fetch(USER_ROUTES.GET_BY_ID(userId), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           Authorization: token,
         },
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
 
