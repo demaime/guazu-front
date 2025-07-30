@@ -307,11 +307,15 @@ class AuthService {
         return false;
       }
 
+      // Solo verificar si las cookies existen, no modificarlas
       const tokenCookie = this.getCookieSafely("token");
       const userCookie = this.getCookieSafely("user");
 
-      if (!tokenCookie || !userCookie) {
+      // Si no existen las cookies, las establecemos una sola vez
+      if (!tokenCookie) {
         this.setCookieSafely("token", token);
+      }
+      if (!userCookie) {
         this.setCookieSafely("user", JSON.stringify(user));
       }
 

@@ -2,6 +2,40 @@ import { USER_ROUTES } from "@/config/routes";
 import { API_URL } from "@/config/constants";
 
 class UserService {
+  // Helper function para procesar URLs de imágenes
+  processUserImage(imageUrl) {
+    if (!imageUrl) return null;
+
+    // Si ya es una URL completa, devolverla tal como está
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+      return imageUrl;
+    }
+
+    // Si es base64, devolverlo tal como está
+    if (imageUrl.startsWith("data:image/")) {
+      return imageUrl;
+    }
+
+    // Si es solo el nombre del archivo, construir la URL completa
+    if (imageUrl.includes("/")) {
+      // Si ya tiene path, asumir que es relativo al API
+      return `${API_URL}${imageUrl}`;
+    } else {
+      // Si es solo el nombre del archivo, construir la ruta completa
+      return `${API_URL}/uploads/users/${imageUrl}`;
+    }
+  }
+
+  // Helper function para procesar un usuario y sus imágenes
+  processUserData(user) {
+    if (!user) return user;
+
+    return {
+      ...user,
+      image: this.processUserImage(user.image),
+    };
+  }
+
   async getProfile(userId, token) {
     try {
       const response = await fetch(USER_ROUTES.GET_BY_ID(userId), {
@@ -22,7 +56,7 @@ class UserService {
         throw new Error(data.message || "Error fetching user profile");
       }
 
-      const updatedUser = data.user;
+      const updatedUser = this.processUserData(data.user);
       localStorage.setItem("user", JSON.stringify(updatedUser));
 
       return {
@@ -79,7 +113,7 @@ class UserService {
         );
       }
 
-      const updatedUser = data.user;
+      const updatedUser = this.processUserData(data.user);
       localStorage.setItem("user", JSON.stringify(updatedUser));
 
       return updatedUser;
@@ -186,18 +220,12 @@ class UserService {
 
   async getAllUsers() {
     try {
-      console.log("=== Iniciando getAllUsers ===");
-
       const user = JSON.parse(localStorage.getItem("user"));
       const token = localStorage.getItem("token");
 
-      console.log("Usuario actual:", {
-        role: user?.role,
-        id: user?._id,
-        name: user?.name,
-      });
-
-      console.log("Token disponible:", !!token);
+      if (!user || !token) {
+        throw new Error("Usuario no autenticado");
+      }
 
       // Determinar el endpoint según el rol
       let endpoint = USER_ROUTES.GET_ALL;
@@ -213,8 +241,6 @@ class UserService {
         body = undefined;
       }
 
-      console.log("Request body:", body);
-
       const response = await fetch(endpoint, {
         method,
         headers: new Headers({
@@ -226,37 +252,34 @@ class UserService {
         mode: "cors",
       });
 
-      console.log("Status de la respuesta:", response.status);
-
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("Error en la respuesta:", errorData);
         throw new Error(
           errorData.message || `HTTP error! status: ${response.status}`
         );
       }
 
       const data = await response.json();
-      console.log("Datos recibidos:", {
-        totalCount: data.totalCount,
-        usersCount: data.users?.length || data.pollsters?.length,
-        hasError: !!data.error,
-      });
 
       if (data.error) {
-        console.error("Error del API:", data.error);
-        return Promise.reject(data.validation);
+        throw new Error(data.message || "Error del servidor");
       }
 
       // Adaptar la respuesta según el endpoint usado
       if (user?.role === "SUPERVISOR") {
+        const processedPollsters = (data.pollsters || []).map((pollster) =>
+          this.processUserData(pollster)
+        );
         return {
-          users: data.pollsters || [],
-          totalCount: data.pollsters?.length || 0,
+          users: processedPollsters,
+          totalCount: processedPollsters.length,
         };
       }
 
-      return { users: data.users || [], totalCount: data.totalCount || 0 };
+      const processedUsers = (data.users || []).map((user) =>
+        this.processUserData(user)
+      );
+      return { users: processedUsers, totalCount: data.totalCount || 0 };
     } catch (error) {
       console.error("Error en getAllUsers:", error);
       throw error;
