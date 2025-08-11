@@ -3,6 +3,11 @@
 import { useEffect, useState, useCallback } from "react"; // Añadir useCallback
 import { useRouter, useSearchParams } from "next/navigation";
 import { surveyService } from "@/services/survey.service";
+import {
+  getAllSurveysLocal,
+  upsertSurveys,
+  setLastSync,
+} from "@/services/db/pouch";
 import { authService } from "@/services/auth.service";
 import { SurveyList } from "@/components/ui/SurveyList";
 import { PollsterSurveyList } from "@/components/ui/PollsterSurveyList";
@@ -53,6 +58,8 @@ export default function Encuestas() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [limit] = useState(10);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
 
   // --- Estados existentes que se mantienen --- //
   const [openMenuId, setOpenMenuId] = useState(null); // Considerar si aún es necesario
@@ -87,13 +94,53 @@ export default function Encuestas() {
       setError(null);
 
       try {
+        // Si no hay conexión, leer directo de PouchDB
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          const local = await getAllSurveysLocal();
+          const now = new Date();
+          const activeSurveys = local.filter((survey) => {
+            if (!survey.surveyInfo?.startDate || !survey.surveyInfo?.endDate) {
+              return true;
+            }
+            const startDate = new Date(survey.surveyInfo.startDate);
+            const endDate = new Date(survey.surveyInfo.endDate);
+            return now >= startDate && now <= endDate;
+          });
+          const finishedSurveys = local.filter((survey) => {
+            if (!survey.surveyInfo?.startDate || !survey.surveyInfo?.endDate) {
+              return false;
+            }
+            const endDate = new Date(survey.surveyInfo.endDate);
+            return now > endDate;
+          });
+          const filtered =
+            tabName === "active" ? activeSurveys : finishedSurveys;
+          if (tabName === "active") {
+            setActiveSurveysData(filtered);
+            setActiveTotalPages(1);
+            setActiveCurrentPage(1);
+          } else if (tabName === "finished") {
+            setFinishedSurveysData(filtered);
+            setFinishedTotalPages(1);
+            setFinishedCurrentPage(1);
+          }
+          setTabCounts((prev) => ({
+            ...prev,
+            active: activeSurveys.length,
+            finished: finishedSurveys.length,
+          }));
+          return;
+        }
         const safePage = Math.max(1, page);
+        setIsSyncing(true);
+        setSyncProgress(10);
         // No enviar status al backend, obtener todas las encuestas y filtrar por fechas en frontend
         const response = await surveyService.getAllSurveys(
           safePage,
           limit,
           null // Sin filtro de status en backend
         );
+        setSyncProgress(50);
 
         // Filtrar encuestas por fechas en el frontend
         const now = new Date();
@@ -139,6 +186,18 @@ export default function Encuestas() {
           active: activeSurveys.length,
           finished: finishedSurveys.length,
         }));
+
+        // Guardar/actualizar en PouchDB para offline
+        try {
+          await upsertSurveys(allSurveys);
+          await setLastSync(Date.now());
+          setSyncProgress(100);
+          // Verificación inmediata de lectura
+          const verify = await getAllSurveysLocal();
+          console.log("[Pouch] verify local after upsert rows=", verify.length);
+        } catch (e) {
+          console.warn("[Pouch] save/verify failed", e);
+        }
       } catch (err) {
         console.error(`Error loading data for tab ${tabName}:`, err);
         setError(err.message);
@@ -151,6 +210,10 @@ export default function Encuestas() {
         }
       } finally {
         setIsLoading((prev) => ({ ...prev, [tabName]: false }));
+        setTimeout(() => {
+          setIsSyncing(false);
+          setSyncProgress(0);
+        }, 300);
       }
     },
     [limit]
@@ -370,6 +433,20 @@ export default function Encuestas() {
       animate={{ opacity: 1 }}
       className="space-y-4 p-4"
     >
+      {isSyncing && (
+        <div className="mb-2 p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium">Descargando encuestas…</span>
+            <span className="text-xs">{syncProgress}%</span>
+          </div>
+          <div className="h-2 w-full bg-blue-100 rounded">
+            <div
+              className="h-2 bg-blue-500 rounded transition-all"
+              style={{ width: `${syncProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
       {/* --- Encabezado --- */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

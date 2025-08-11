@@ -15,6 +15,7 @@ export default function RootLayout({ children }) {
     <html lang="es" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        {/* PouchDB ahora se incluye via npm (pouchdb-browser) */}
         <link rel="icon" href="/logo-mini.png" />
         <meta name="theme-color" content="#3B82F6" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

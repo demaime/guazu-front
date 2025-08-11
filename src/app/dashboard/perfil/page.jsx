@@ -171,6 +171,32 @@ export default function PerfilPage() {
         }
 
         try {
+          // Si no hay conexión, usar inmediatamente los datos locales sin esperar fetch
+          if (typeof navigator !== "undefined" && !navigator.onLine) {
+            setUser(userData);
+            const initialFormData = {
+              name: userData?.name || "",
+              lastName: userData?.lastName || "",
+              email: userData?.email || "",
+              phone: userData?.phone || "",
+              address: userData?.address || "",
+              addressNumber: userData?.addressNumber || "",
+              addressUnity: userData?.addressUnity || "",
+              birthDate: userData?.birthDate || "",
+              cellular: userData?.cellular || "",
+              city: userData?.city || "",
+              dni: userData?.dni || "",
+              job: userData?.job || "",
+              province: userData?.province || "",
+              section: userData?.section || "",
+              study: userData?.study || "",
+              workHistory: userData?.workHistory || "",
+              aboutSurvey: userData?.aboutSurvey || "",
+            };
+            setFormData(initialFormData);
+            setOriginalFormData(initialFormData);
+            return;
+          }
           const updatedUser = await userService.getProfile(userData._id, token);
 
           // Only update state if component is still mounted
