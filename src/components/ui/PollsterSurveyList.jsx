@@ -43,8 +43,6 @@ export function PollsterSurveyList({
         return;
       }
 
-
-
       // Preparar loading states solo para encuestas nuevas
       const newLoadingStates = {};
       surveys.forEach((survey) => {
@@ -98,7 +96,6 @@ export function PollsterSurveyList({
           newProgressData[surveyId] = data;
           finalLoadingStates[surveyId] = false;
         });
-
 
         setProgressData(newProgressData);
         setProgressLoading(finalLoadingStates);
@@ -230,7 +227,7 @@ export function PollsterSurveyList({
     setLoadingStates((prev) => ({ ...prev, [buttonKey]: true }));
 
     try {
-      router.push(`/dashboard/encuestas/${surveyData._id}/responder`);
+      router.push(`/dashboard/encuestas/responder?id=${surveyData._id}`);
     } catch (error) {
       console.error("Error al navegar:", error);
     } finally {
@@ -435,8 +432,6 @@ export function PollsterSurveyList({
                 >
                   <MapPin className="w-5 h-5" />
                 </motion.button>
-
-
               </div>
             </div>
           </motion.div>

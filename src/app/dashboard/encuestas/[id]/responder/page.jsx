@@ -71,7 +71,14 @@ export default function SurveyPage() {
     }
   }, [theme, surveyModel]);
 
-  // Load survey data
+  // Redirigir a la nueva ruta estable con query param para compatibilidad
+  useEffect(() => {
+    if (id) {
+      router.replace(`/dashboard/encuestas/responder?id=${id}`);
+    }
+  }, [id, router]);
+
+  // Load survey data (quedará como fallback si se accede directo a la ruta vieja)
   useEffect(() => {
     let modelInstance = null; // To store the model instance for cleanup
 

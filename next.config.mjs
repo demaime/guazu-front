@@ -45,4 +45,8 @@ const withSerwist = withSerwistInit({
   swDest: "public/sw.js",
 });
 
-export default withSerwist(nextConfigBase);
+// Deshabilitar Service Worker en desarrollo: sólo habilitar en producción
+const isProd = process.env.NODE_ENV === "production";
+const nextConfig = isProd ? withSerwist(nextConfigBase) : nextConfigBase;
+
+export default nextConfig;

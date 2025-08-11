@@ -26,6 +26,7 @@ serwist.addEventListeners();
 // Precache de rutas de navegación críticas del pollster
 serwist.addToPrecacheList([
   { url: "/dashboard/encuestas", revision: "1" },
+  { url: "/dashboard/encuestas/responder", revision: "1" },
   { url: "/dashboard/perfil", revision: "1" },
   { url: "/dashboard/configuracion", revision: "1" },
 ]);
