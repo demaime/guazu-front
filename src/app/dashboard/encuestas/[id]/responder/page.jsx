@@ -233,13 +233,9 @@ export default function SurveyPage() {
         // Incluir la definición de la encuesta completa para acceder a la numeración
         try {
           // Verificar si tenemos datos de surveyDefinition y questionNumberMap
-          if (
-            response.survey.surveyDefinition &&
-            response.survey.surveyDefinition.questionNumberMap
-          ) {
-            model.data = {
-              surveyDefinition: response.survey.surveyDefinition,
-            };
+          const def = serverEnvelope?.survey?.surveyDefinition;
+          if (def && def.questionNumberMap) {
+            model.data = { surveyDefinition: def };
             console.log("Using hierarchical question numbers from definition");
           } else {
             console.log("No hierarchical question numbers found in definition");

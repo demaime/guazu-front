@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react"; // Añadir useCallback
+import { useEffect, useState, useCallback, useRef } from "react"; // Añadir useCallback y useRef
 import { useRouter, useSearchParams } from "next/navigation";
 import { surveyService } from "@/services/survey.service";
 import {
@@ -8,6 +8,7 @@ import {
   upsertSurveys,
   setLastSync,
 } from "@/services/db/pouch";
+import { syncPendingResponses } from "@/services/sync";
 import { authService } from "@/services/auth.service";
 import { SurveyList } from "@/components/ui/SurveyList";
 import { PollsterSurveyList } from "@/components/ui/PollsterSurveyList";
@@ -17,6 +18,8 @@ import {
   FilePenLine,
   ChevronLeft,
   ChevronRight,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
@@ -60,6 +63,11 @@ export default function Encuestas() {
   const [limit] = useState(10);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+  const [isOutboxSyncing, setIsOutboxSyncing] = useState(false);
 
   // --- Estados existentes que se mantienen --- //
   const [openMenuId, setOpenMenuId] = useState(null); // Considerar si aún es necesario
@@ -271,6 +279,63 @@ export default function Encuestas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, fetchDataForTab]); // Quitar isLoading de las condiciones if
 
+  // Monitorear red y contar pendientes
+  useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    let timer;
+    const refreshPending = async () => {
+      try {
+        const { getPendingResponses } = await import("@/services/db/outbox");
+        const rows = await getPendingResponses();
+        setPendingCount(rows.length);
+      } catch {}
+    };
+    refreshPending();
+    timer = setInterval(refreshPending, 4000);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Sincronización manual/automática de pendientes
+  const performOutboxSync = useCallback(async () => {
+    if (isOutboxSyncing) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.info("No fue posible sincronizar: sin conexión.");
+      return;
+    }
+    setIsOutboxSyncing(true);
+    try {
+      const { synced, total } = await syncPendingResponses();
+      if (synced > 0) {
+        toast.success(`Sincronización completada (${synced}/${total}).`);
+        // Recargar datos visibles para el pollster
+        await fetchDataForTab("active", 1);
+      } else {
+        toast.info("No hay elementos para sincronizar.");
+      }
+    } catch (e) {
+      toast.error("Error de sincronización. Inténtalo nuevamente.");
+    } finally {
+      setIsOutboxSyncing(false);
+    }
+  }, [fetchDataForTab, isOutboxSyncing]);
+
+  // Auto-sync al recuperar conexión (sólo en transición offline -> online)
+  const wasOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (wasOnlineRef.current === false && isOnline === true) {
+      if (pendingCount > 0 && !isOutboxSyncing) {
+        performOutboxSync();
+      }
+    }
+    wasOnlineRef.current = isOnline;
+  }, [isOnline, pendingCount, isOutboxSyncing, performOutboxSync]);
+
   /* ELIMINAR ESTOS UseEffects separados para evitar llamadas dobles
   useEffect(() => {
     if (activeTab === 'active' && !isLoading.active) {
@@ -456,6 +521,43 @@ export default function Encuestas() {
       animate={{ opacity: 1 }}
       className="space-y-4 p-4"
     >
+      {/* Barra de estado (offline / pendientes) */}
+      {(!isOnline || pendingCount > 0) && (
+        <div
+          className={`mb-2 p-3 rounded-md border flex items-center justify-between gap-4 ${
+            !isOnline
+              ? "bg-amber-50 border-amber-300 text-amber-900"
+              : "bg-blue-50 border-blue-200 text-blue-800"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {isOnline ? (
+              <Wifi className="w-5 h-5" />
+            ) : (
+              <WifiOff className="w-5 h-5" />
+            )}
+            <div>
+              {!isOnline ? (
+                <>
+                  <strong>Modo offline</strong> · Respuestas pendientes:{" "}
+                  {pendingCount}
+                </>
+              ) : (
+                <>Respuestas pendientes: {pendingCount}</>
+              )}
+            </div>
+          </div>
+          {isOnline && pendingCount > 0 && (
+            <button
+              onClick={performOutboxSync}
+              className="px-3 py-1 text-sm rounded bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
+              disabled={isOutboxSyncing}
+            >
+              {isOutboxSyncing ? "Sincronizando…" : "Sincronizar"}
+            </button>
+          )}
+        </div>
+      )}
       {isSyncing && (
         <div className="mb-2 p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
           <div className="flex items-center justify-between mb-1">
