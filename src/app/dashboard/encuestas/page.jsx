@@ -223,6 +223,10 @@ export default function Encuestas() {
           } catch (e) {
             console.warn("[Prefetch] no se pudo predescargar detalles", e);
           }
+          // Prefetch del RSC de la página estable de responder para primer uso offline
+          try {
+            router.prefetch("/dashboard/encuestas/responder");
+          } catch {}
           // Verificación inmediata de lectura
           const verify = await getAllSurveysLocal();
           console.log("[Pouch] verify local after upsert rows=", verify.length);
