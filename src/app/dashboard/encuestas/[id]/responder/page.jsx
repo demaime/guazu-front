@@ -87,16 +87,33 @@ export default function SurveyPage() {
 
         console.log("Loading survey with ID:", id);
 
-        // Load survey from server
-        const response = await surveyService.getSurvey(id);
-        console.log("Survey response from server:", response);
-
-        if (!response?.survey) {
-          throw new Error("Survey not found");
+        let surveyData;
+        let serverEnvelope = null;
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          const { getSurveyByIdLocal } = await import("@/services/db/pouch");
+          const local = await getSurveyByIdLocal(id);
+          if (!local) {
+            throw new Error("No hay datos locales para esta encuesta");
+          }
+          // Tomar directamente el JSON SurveyJS
+          surveyData = local.survey || local;
+          serverEnvelope = {
+            survey: { survey: surveyData, surveyInfo: local.surveyInfo || {} },
+          };
+        } else {
+          const resp = await surveyService.getSurvey(id);
+          serverEnvelope = resp;
+          surveyData = resp?.survey?.survey || resp?.survey;
         }
+        console.log("Survey data ready:", surveyData);
 
-        // Get the actual survey data
-        const surveyData = response.survey.survey || response.survey;
+        if (
+          !surveyData ||
+          !Array.isArray(surveyData.pages) ||
+          surveyData.pages.length === 0
+        ) {
+          throw new Error("La encuesta no tiene preguntas configuradas");
+        }
         console.log("Processing survey data:", surveyData);
 
         if (!surveyData.pages || !surveyData.pages.length) {
@@ -104,7 +121,7 @@ export default function SurveyPage() {
         }
 
         // Check if we have quotas defined in the survey
-        const quotas = response.survey.surveyInfo?.quotas || [];
+        const quotas = serverEnvelope?.survey?.surveyInfo?.quotas || [];
 
         // Add quota-based questions at the beginning if quotas exist
         if (quotas.length > 0) {
@@ -452,17 +469,32 @@ export default function SurveyPage() {
 
       // --- Survey Submission ---
       console.log("Attempting survey submission to server");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,
-        {
+      const doSubmit = async () =>
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: token,
           },
           body: JSON.stringify(answerData),
-        }
-      );
+        });
+
+      let response;
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        // Offline: encolar y considerar éxito local
+        const { queueResponseForSync } = await import("@/services/db/outbox");
+        await queueResponseForSync(answerData);
+        console.log("Respuesta encolada localmente (offline)");
+        setSurveyCompletedSuccessfully(true);
+        toast.success(
+          "Respuesta guardada offline. Se enviará al volver la conexión."
+        );
+        startCountdown();
+        setLoading(false);
+        return;
+      } else {
+        response = await doSubmit();
+      }
 
       if (!response.ok) {
         const errorData = await response

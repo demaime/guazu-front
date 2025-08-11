@@ -53,13 +53,21 @@ export async function upsertSurveys(surveys) {
     })
   );
   console.log("[Pouch] upsertSurveys count=", docs.length);
-  const results = await db.bulkDocs(docs, { new_edits: true }).catch((e) => {
-    console.error("[Pouch] bulkDocs error", e);
-    return [];
-  });
-  const errs = (results || []).filter((r) => r && r.error);
-  if (errs.length) {
-    console.warn("[Pouch] bulkDocs had errors:", errs.slice(0, 3));
+  const results = [];
+  for (const doc of docs) {
+    try {
+      const res = await db.put(doc);
+      results.push(res);
+    } catch (e) {
+      if (e.status === 409) {
+        const existing = await db.get(doc._id);
+        const res = await db.put({ ...existing, ...doc });
+        results.push(res);
+      } else {
+        console.warn("[Pouch] put error", e);
+        results.push({ error: true, e });
+      }
+    }
   }
   return results;
 }
@@ -67,8 +75,68 @@ export async function upsertSurveys(surveys) {
 export async function getAllSurveysLocal() {
   const db = getSurveysDB();
   const res = await db.allDocs({ include_docs: true });
-  console.log("[Pouch] getAllSurveysLocal rows=", res.rows.length);
-  return res.rows.map((r) => r.doc);
+  const all = res.rows.map((r) => r.doc);
+  // Filtrar: sólo documentos de índice (no los de detalle 'survey:<id>')
+  const indexDocs = all.filter(
+    (d) => typeof d._id === "string" && !d._id.startsWith("survey:")
+  );
+  console.log("[Pouch] getAllSurveysLocal rows=", indexDocs.length);
+  return indexDocs;
+}
+
+export async function getSurveyByIdLocal(id) {
+  const db = getSurveysDB();
+  try {
+    const key = `survey:${String(id)}`;
+    try {
+      const doc = await db.get(key);
+      return doc;
+    } catch (e1) {
+      // Intento sin prefijo por si el ID fue guardado plano
+      try {
+        const doc = await db.get(String(id));
+        return doc;
+      } catch (e2) {
+        // Búsqueda por rango como último recurso
+        const res = await db.allDocs({
+          include_docs: true,
+          startkey: "survey:",
+          endkey: "survey:\ufff0",
+        });
+        const hit = res.rows
+          .map((r) => r.doc)
+          .find(
+            (d) => d && typeof d._id === "string" && d._id.endsWith(String(id))
+          );
+        if (hit) return hit;
+        console.warn(
+          "[Pouch] getSurveyByIdLocal not found",
+          id,
+          e2?.status || e1?.status
+        );
+        return null;
+      }
+    }
+  } catch (e) {
+    console.warn("[Pouch] getSurveyByIdLocal not found", id, e?.status);
+    return null;
+  }
+}
+
+export async function saveSurveyDetail(id, detail) {
+  const db = getSurveysDB();
+  const key = `survey:${String(id)}`;
+  try {
+    const existing = await db.get(key).catch(() => null);
+    const merged = existing
+      ? { ...existing, survey: detail }
+      : { _id: key, survey: detail };
+    const res = await db.put(merged);
+    return res;
+  } catch (e) {
+    console.warn("[Pouch] saveSurveyDetail error", e);
+    return null;
+  }
 }
 
 export async function setLastSync(timestamp) {

@@ -140,9 +140,9 @@ export default function Encuestas() {
           limit,
           null // Sin filtro de status en backend
         );
-        setSyncProgress(50);
+        setSyncProgress(40);
 
-        // Filtrar encuestas por fechas en el frontend
+        // Filtrar encuestas por fechas EN EL FRONT para la UI (pero sólo cacheamos activas)
         const now = new Date();
         const allSurveys = response.surveys || [];
 
@@ -187,11 +187,34 @@ export default function Encuestas() {
           finished: finishedSurveys.length,
         }));
 
-        // Guardar/actualizar en PouchDB para offline
+        // Guardar/actualizar índice EN POUCH SÓLO con ACTIVAS
         try {
-          await upsertSurveys(allSurveys);
+          await upsertSurveys(activeSurveys);
           await setLastSync(Date.now());
-          setSyncProgress(100);
+          setSyncProgress(60);
+          // Prefetch: descargar detalle completo de encuestas activas para responder offline sin haberlas abierto
+          try {
+            const activeIds = activeSurveys
+              .map((s) => s._id || s.id)
+              .filter(Boolean);
+            const total = activeIds.length || 1;
+            let done = 0;
+            for (const id of activeIds) {
+              try {
+                await surveyService.getSurvey(id); // este método guarda el detalle en Pouch automáticamente
+              } catch (e) {
+                console.warn(
+                  "[Prefetch] detalle encuesta fallo",
+                  id,
+                  e?.message
+                );
+              }
+              done += 1;
+              setSyncProgress(60 + Math.round((done / total) * 40));
+            }
+          } catch (e) {
+            console.warn("[Prefetch] no se pudo predescargar detalles", e);
+          }
           // Verificación inmediata de lectura
           const verify = await getAllSurveysLocal();
           console.log("[Pouch] verify local after upsert rows=", verify.length);
@@ -509,16 +532,22 @@ export default function Encuestas() {
           >
             Activas ({isLoading.active ? "..." : tabCounts.active})
           </button>
-          <button
-            onClick={() => setActiveTab("finished")}
-            className={`px-4 py-2 font-medium text-sm ${
-              activeTab === "finished"
-                ? "border-b-2 border-primary text-primary"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            Finalizadas ({isLoading.finished ? "..." : tabCounts.finished})
-          </button>
+          {!(
+            user?.role === "POLLSTER" &&
+            typeof navigator !== "undefined" &&
+            !navigator.onLine
+          ) && (
+            <button
+              onClick={() => setActiveTab("finished")}
+              className={`px-4 py-2 font-medium text-sm ${
+                activeTab === "finished"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              Finalizadas ({isLoading.finished ? "..." : tabCounts.finished})
+            </button>
+          )}
           {(user?.role === "ROLE_ADMIN" || user?.role === "SUPERVISOR") && (
             <button
               onClick={() => setActiveTab("drafts")}
