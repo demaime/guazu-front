@@ -12,6 +12,7 @@
     "@heroicons/react": "^2.2.0",
     "@react-google-maps/api": "^2.20.6",
     "@react-pdf/renderer": "^4.3.0",
+    "@serwist/next": "^9.1.1",
     "@tippyjs/react": "^4.2.6",
     "axios": "^1.8.4",
     "file-saver": "^2.0.5",
@@ -37,6 +38,7 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.2.3",
+    "serwist": "^9.1.1",
     "tailwindcss": "^4"
   }
 }

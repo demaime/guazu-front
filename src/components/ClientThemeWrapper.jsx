@@ -10,6 +10,27 @@ export function ClientThemeWrapper({ children }) {
   useEffect(() => {
     setMounted(true);
     // Let ThemeProvider and themeService handle class application
+    if (
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator &&
+      process.env.NODE_ENV === "production"
+    ) {
+      const register = () => {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then((reg) => {
+            console.log("SW registrado", reg.scope);
+          })
+          .catch((err) => {
+            console.log("SW registro fallido", err);
+          });
+      };
+      if (document.readyState === "complete") {
+        register();
+      } else {
+        window.addEventListener("load", register, { once: true });
+      }
+    }
   }, []);
 
   if (!mounted) {

@@ -1,5 +1,7 @@
+import withSerwistInit from "@serwist/next";
+
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfigBase = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
@@ -38,4 +40,9 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const withSerwist = withSerwistInit({
+  swSrc: "src/app/sw.js",
+  swDest: "public/sw.js",
+});
+
+export default withSerwist(nextConfigBase);
