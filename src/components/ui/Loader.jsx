@@ -21,10 +21,10 @@ export function Loader({ size = "default", className = "" }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0.85, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0.85, scale: 0.98 }}
+      transition={{ duration: 0.15 }}
       className={className}
     >
       <div
