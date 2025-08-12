@@ -15,7 +15,7 @@ export default function Home() {
       try {
         // Normal authentication check
         if (authService.isAuthenticated()) {
-          router.replace("/dashboard");
+          router.replace("/dashboard/encuestas");
         } else {
           router.replace("/login");
         }

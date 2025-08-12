@@ -471,7 +471,7 @@ export default function NuevaEncuesta({
 
         // Solo permitir acceso a admin y supervisor
         if (!["ROLE_ADMIN", "SUPERVISOR"].includes(userData.role)) {
-          router.replace("/dashboard");
+          router.replace("/dashboard/encuestas");
           return;
         }
 
@@ -497,7 +497,7 @@ export default function NuevaEncuesta({
         setIsInitializing(false);
       } catch (err) {
         console.error("Error checking permissions:", err);
-        router.replace("/dashboard");
+        router.replace("/dashboard/encuestas");
       }
     };
 

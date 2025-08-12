@@ -211,7 +211,7 @@ export default function SurveyResponderStable() {
             ¡Encuesta completada con éxito!
           </h1>
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push("/dashboard/encuestas")}
             className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
           >
             Volver ahora
@@ -238,7 +238,7 @@ export default function SurveyResponderStable() {
         <h2 className="text-lg font-bold mb-2">Error</h2>
         <p>{error}</p>
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/dashboard/encuestas")}
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Volver al panel

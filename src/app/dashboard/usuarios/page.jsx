@@ -78,7 +78,7 @@ export default function UsersPage() {
 
         // Verificar permisos
         if (user?.role !== "ROLE_ADMIN" && user?.role !== "SUPERVISOR") {
-          router.push("/dashboard");
+          router.push("/dashboard/encuestas");
           return;
         }
 

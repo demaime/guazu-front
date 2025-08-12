@@ -56,7 +56,7 @@ export default function SurveyPage() {
         clearInterval(countdownIntervalRef.current); // Ensure interval is cleared before navigation
       }
       console.log("Countdown finished, redirecting from useEffect...");
-      router.push("/dashboard");
+      router.push("/dashboard/encuestas");
     }
   }, [countdown, surveyCompletedSuccessfully, router]);
 
@@ -569,7 +569,7 @@ export default function SurveyPage() {
             Redirigiendo a la página principal en {countdown} segundos...
           </p>
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push("/dashboard/encuestas")}
             className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
           >
             Volver ahora
@@ -596,7 +596,7 @@ export default function SurveyPage() {
         <h2 className="text-lg font-bold mb-2">Error</h2>
         <p>{error}</p>
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/dashboard/encuestas")}
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Volver al panel

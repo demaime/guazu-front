@@ -176,7 +176,7 @@ export default function AnalisisEncuesta() {
         console.log(
           "Acceso denegado: los encuestadores no pueden ver análisis"
         );
-        router.replace("/dashboard");
+        router.replace("/dashboard/encuestas");
         return false;
       }
 
