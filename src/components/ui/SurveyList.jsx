@@ -824,7 +824,13 @@ export function SurveyList({
               return (
                 <motion.tr
                   key={surveyData._id}
-                  variants={rowVariants}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.18,
+                    ease: "easeOut",
+                    delay: index * 0.02,
+                  }}
                   className="table-row-hover"
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
@@ -1013,8 +1019,6 @@ export function SurveyList({
                                   />
                                 </>
                               )}
-
-
                             </div>
                           </motion.div>
                         )}

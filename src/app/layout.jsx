@@ -1,6 +1,8 @@
 import "./globals.css";
 import "survey-core/survey-core.min.css";
 import "react-toastify/dist/ReactToastify.css";
+import "tippy.js/dist/tippy.css";
+import "tippy.js/themes/light.css";
 import { Mulish } from "next/font/google";
 import { ClientThemeWrapper } from "@/components/ClientThemeWrapper";
 import { ToastContainer } from "react-toastify";

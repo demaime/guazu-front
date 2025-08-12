@@ -20,9 +20,11 @@ import {
   ChevronRight,
   Wifi,
   WifiOff,
+  MapPin,
 } from "lucide-react";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
+import Tippy from "@tippyjs/react";
 import { toast } from "react-toastify";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
@@ -68,6 +70,10 @@ export default function Encuestas() {
     typeof navigator === "undefined" ? true : navigator.onLine
   );
   const [isOutboxSyncing, setIsOutboxSyncing] = useState(false);
+  // Loader inicial a pantalla completa mientras se actualizan encuestas
+  const [isInitialLoadingView, setIsInitialLoadingView] = useState(true);
+  // Estado de permisos/estado de ubicación
+  const [locationStatus, setLocationStatus] = useState("unknown"); // granted | denied | prompt | unsupported | unknown
 
   // --- Estados existentes que se mantienen --- //
   const [openMenuId, setOpenMenuId] = useState(null); // Considerar si aún es necesario
@@ -141,7 +147,7 @@ export default function Encuestas() {
         }
         const safePage = Math.max(1, page);
         setIsSyncing(true);
-        setSyncProgress(10);
+        setSyncProgress((prev) => (prev < 10 ? 10 : prev));
         // No enviar status al backend, obtener todas las encuestas y filtrar por fechas en frontend
         const response = await surveyService.getAllSurveys(
           safePage,
@@ -199,7 +205,7 @@ export default function Encuestas() {
         try {
           await upsertSurveys(activeSurveys);
           await setLastSync(Date.now());
-          setSyncProgress(60);
+          setSyncProgress((prev) => (prev < 60 ? 60 : prev));
           // Prefetch: descargar detalle completo de encuestas activas para responder offline sin haberlas abierto
           try {
             const activeIds = activeSurveys
@@ -218,7 +224,8 @@ export default function Encuestas() {
                 );
               }
               done += 1;
-              setSyncProgress(60 + Math.round((done / total) * 40));
+              const next = 60 + Math.round((done / total) * 40);
+              setSyncProgress((prev) => (next > prev ? next : prev));
             }
           } catch (e) {
             console.warn("[Prefetch] no se pudo predescargar detalles", e);
@@ -256,35 +263,42 @@ export default function Encuestas() {
 
   // --- useEffect para Carga Inicial --- //
   useEffect(() => {
-    // Limpiar identificadores de respuesta al entrar a la lista
-    try {
-      if (typeof window !== "undefined") {
-        const goodKey = "responder:surveyId";
-        // Borrar clave canónica
-        window.sessionStorage?.removeItem(goodKey);
-        window.localStorage?.removeItem(goodKey);
-        // Borrar variantes antiguas usadas en pruebas
-        const legacyKeys = [
-          "respondersurveyid",
-          "responderSurveyId",
-          "responder_id",
-          "surveyIdToRespond",
-        ];
-        legacyKeys.forEach((k) => {
-          window.sessionStorage?.removeItem(k);
-          window.localStorage?.removeItem(k);
-        });
-      }
-    } catch {}
+    const init = async () => {
+      // Limpiar identificadores de respuesta al entrar a la lista
+      try {
+        if (typeof window !== "undefined") {
+          const goodKey = "responder:surveyId";
+          window.sessionStorage?.removeItem(goodKey);
+          window.localStorage?.removeItem(goodKey);
+          const legacyKeys = [
+            "respondersurveyid",
+            "responderSurveyId",
+            "responder_id",
+            "surveyIdToRespond",
+          ];
+          legacyKeys.forEach((k) => {
+            window.sessionStorage?.removeItem(k);
+            window.localStorage?.removeItem(k);
+          });
+        }
+      } catch {}
 
-    const userData = authService.getUser();
-    if (!userData) {
-      router.replace("/login");
-      return;
-    }
-    setUser(userData);
-    fetchDataForTab("active", 1);
-    fetchDataForTab("drafts", 1);
+      const userData = authService.getUser();
+      if (!userData) {
+        router.replace("/login");
+        return;
+      }
+      setUser(userData);
+
+      try {
+        setIsInitialLoadingView(true);
+        await fetchDataForTab("active", 1);
+        await fetchDataForTab("drafts", 1);
+      } finally {
+        setIsInitialLoadingView(false);
+      }
+    };
+    init();
   }, [fetchDataForTab, router]);
 
   // --- useEffect para Cambios de Tab --- //
@@ -323,6 +337,39 @@ export default function Encuestas() {
       window.removeEventListener("online", updateOnline);
       window.removeEventListener("offline", updateOnline);
       clearInterval(timer);
+    };
+  }, []);
+
+  // Comprobar permiso de geolocalización (y reaccionar a cambios)
+  useEffect(() => {
+    let mounted = true;
+    const checkLocation = async () => {
+      try {
+        if (typeof navigator === "undefined") return;
+        if (navigator.permissions && navigator.permissions.query) {
+          const status = await navigator.permissions.query({
+            name: "geolocation",
+          });
+          if (mounted) setLocationStatus(status.state || "unknown");
+          status.onchange = () => {
+            if (mounted) setLocationStatus(status.state || "unknown");
+          };
+        } else if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            () => mounted && setLocationStatus("granted"),
+            () => mounted && setLocationStatus("denied"),
+            { maximumAge: 0, timeout: 800 }
+          );
+        } else {
+          if (mounted) setLocationStatus("unsupported");
+        }
+      } catch {
+        if (mounted) setLocationStatus("unknown");
+      }
+    };
+    checkLocation();
+    return () => {
+      mounted = false;
     };
   }, []);
 
@@ -540,91 +587,98 @@ export default function Encuestas() {
     currentCountForTab = tabCounts.drafts;
   }
 
+  // Derivados para indicadores (evita usar locationStatus crudo en JSX)
+  const isLocationOn = locationStatus === "granted";
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="space-y-4 p-4"
     >
-      {/* Barra de estado (offline / pendientes) */}
-      {(!isOnline || pendingCount > 0) && (
-        <div
-          className={`mb-2 p-3 rounded-md border flex items-center justify-between gap-4 ${
-            !isOnline
-              ? "bg-amber-50 border-amber-300 text-amber-900"
-              : "bg-blue-50 border-blue-200 text-blue-800"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {isOnline ? (
-              <Wifi className="w-5 h-5" />
-            ) : (
-              <WifiOff className="w-5 h-5" />
-            )}
-            <div>
-              {!isOnline ? (
-                <>
-                  <strong>Modo offline</strong> · Respuestas pendientes:{" "}
-                  {pendingCount}
-                </>
-              ) : (
-                <>Respuestas pendientes: {pendingCount}</>
-              )}
-            </div>
-          </div>
-          {isOnline && pendingCount > 0 && (
-            <button
-              onClick={performOutboxSync}
-              className="px-3 py-1 text-sm rounded bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] disabled:opacity-50"
-              disabled={isOutboxSyncing}
-            >
-              {isOutboxSyncing ? "Sincronizando…" : "Sincronizar"}
-            </button>
-          )}
-        </div>
+      {isInitialLoadingView && (
+        <LoaderWrapper
+          size="xl"
+          fullScreen
+          text="Actualizando encuestas…"
+          className="text-primary"
+        />
       )}
-      {isSyncing && (
-        <div className="mb-2 p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-800">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium">Descargando encuestas…</span>
-            <span className="text-xs">{syncProgress}%</span>
-          </div>
-          <div className="h-2 w-full bg-blue-100 rounded">
-            <div
-              className="h-2 bg-blue-500 rounded transition-all"
-              style={{ width: `${syncProgress}%` }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Progreso visual oculto: mantenemos sincronización en segundo plano */}
       {/* --- Encabezado --- */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4"
+        className="mb-2"
       >
-        <motion.h1
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]"
-        >
-          {user?.role === "POLLSTER" ? "Mis Encuestas" : "Encuestas"}
-        </motion.h1>
-        {user?.role === "ROLE_ADMIN" && (
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              // Podríamos querer guardar el estado actual antes de navegar
-              // o resetear algo al volver. Por ahora, navegación simple.
-              router.push("/dashboard/encuestas/nueva");
-            }}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors w-full md:w-auto cursor-pointer"
+        {/* Fila título a la izquierda, indicadores a la derecha */}
+        <div className="flex items-center justify-between w-full">
+          <motion.h1
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]"
           >
-            <Plus className="w-5 h-5" />
-            Nueva Encuesta
-          </motion.button>
+            {user?.role === "POLLSTER" ? "Mis Encuestas" : "Encuestas"}
+          </motion.h1>
+          <div className="flex items-center gap-3">
+            {/* Conexión */}
+            {isOnline ? (
+              <Tippy
+                content="Conexión activa"
+                theme="light"
+                placement="bottom"
+                offset={[0, 8]}
+              >
+                <span className="inline-flex">
+                  <Wifi className="w-5 h-5 text-green-500" />
+                </span>
+              </Tippy>
+            ) : (
+              <Tippy
+                content="Conexión desactivada"
+                theme="light"
+                placement="bottom"
+                offset={[0, 8]}
+              >
+                <span className="inline-flex">
+                  <WifiOff className="w-5 h-5 text-red-500" />
+                </span>
+              </Tippy>
+            )}
+            {/* Ubicación */}
+            <Tippy
+              content={
+                isLocationOn ? "Ubicación activada" : "Ubicación desactivada"
+              }
+              theme="light"
+              placement="bottom"
+              offset={[0, 8]}
+            >
+              <span className="inline-flex">
+                <MapPin
+                  className={`w-5 h-5 ${
+                    isLocationOn ? "text-green-500" : "text-red-500"
+                  }`}
+                />
+              </span>
+            </Tippy>
+          </div>
+        </div>
+        {user?.role === "ROLE_ADMIN" && (
+          <div className="mt-3">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                router.push("/dashboard/encuestas/nueva");
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors w-full md:w-auto cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+              Nueva Encuesta
+            </motion.button>
+          </div>
         )}
       </motion.div>
 
@@ -651,7 +705,7 @@ export default function Encuestas() {
         <div className="flex border-b border-[var(--card-border)] mb-6">
           <button
             onClick={() => setActiveTab("active")}
-            className={`px-4 py-2 font-medium text-sm ${
+            className={`flex-1 px-4 py-2 font-medium text-sm text-center ${
               activeTab === "active"
                 ? "border-b-2 border-primary text-primary"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -666,7 +720,7 @@ export default function Encuestas() {
           ) && (
             <button
               onClick={() => setActiveTab("finished")}
-              className={`px-4 py-2 font-medium text-sm ${
+              className={`flex-1 px-4 py-2 font-medium text-sm text-center ${
                 activeTab === "finished"
                   ? "border-b-2 border-primary text-primary"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -700,26 +754,36 @@ export default function Encuestas() {
             transition={{ duration: 0.2 }}
           >
             {/* Estado de carga */}
-            {currentLoadingState && (
-              <div className="flex justify-center py-10">
-                <Loader size="lg" />
+            {currentLoadingState && !isInitialLoadingView && (
+              <div className="grid gap-4 py-6">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="h-24 rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] overflow-hidden"
+                  >
+                    <div className="h-full w-full animate-pulse bg-gradient-to-r from-[var(--hover-bg)] via-[var(--card-background)] to-[var(--hover-bg)] bg-[length:200%_100%]" />
+                  </div>
+                ))}
               </div>
             )}
 
             {/* Mostrar mensaje cuando no hay encuestas */}
-            {!currentLoadingState && currentSurveys.length === 0 && (
-              <p className="text-[var(--text-secondary)] italic text-center py-4">
-                No hay encuestas{" "}
-                {activeTab === "drafts"
-                  ? "borradores"
-                  : activeTab === "active"
-                  ? "activas"
-                  : "finalizadas"}{" "}
-                disponibles.
-              </p>
-            )}
+            {!isInitialLoadingView &&
+              !currentLoadingState &&
+              currentSurveys.length === 0 && (
+                <p className="text-[var(--text-secondary)] italic text-center py-4">
+                  No hay encuestas{" "}
+                  {activeTab === "drafts"
+                    ? "borradores"
+                    : activeTab === "active"
+                    ? "activas"
+                    : "finalizadas"}{" "}
+                  disponibles.
+                </p>
+              )}
             {/* Mostrar contenido de encuestas */}
-            {!currentLoadingState &&
+            {!isInitialLoadingView &&
+              !currentLoadingState &&
               currentSurveys.length > 0 &&
               (activeTab === "drafts" ? (
                 // Renderizado específico para borradores

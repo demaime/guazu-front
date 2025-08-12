@@ -31,8 +31,10 @@ export default function Home() {
   }, [router]);
 
   if (isCheckingAuth) {
-    return <LoaderWrapper size="xl" fullScreen />;
+    return (
+      <LoaderWrapper size="xl" fullScreen text="Actualizando encuestas…" />
+    );
   }
 
-  return <LoaderWrapper size="xl" fullScreen />;
+  return <LoaderWrapper size="xl" fullScreen text="Actualizando encuestas…" />;
 }
