@@ -1,6 +1,49 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* CSS-only loader used by components/ui/Loader */
+.loader-css {
+  --r1: 154%;
+  --r2: 68.5%;
+  border-radius: 50%;
+  background: radial-gradient(
+      var(--r1) var(--r2) at top,
+      #0000 79.5%,
+      var(--primary) 80%
+    ),
+    radial-gradient(
+      var(--r1) var(--r2) at bottom,
+      var(--primary) 79.5%,
+      #0000 80%
+    ),
+    radial-gradient(var(--r1) var(--r2) at top, #0000 79.5%, var(--primary) 80%),
+    color-mix(in oklab, var(--primary) 10%, white 90%);
+  background-size: 50.5% 220%;
+  background-position: -100% 0%, 0% 0%, 100% 0%;
+  background-repeat: no-repeat;
+  animation: guazu-loader 2s infinite linear;
+}
+/* Centered Guazú logo inside loader */
+.loader-css .loader-logo {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 75%;
+  height: 75%;
+  background: url("/logo-mini.png") center/contain no-repeat;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.1));
+}
+@keyframes guazu-loader {
+  33% {
+    background-position: 0% 33%, 100% 33%, 200% 33%;
+  }
+  66% {
+    background-position: -100% 66%, 0% 66%, 100% 66%;
+  }
+  100% {
+    background-position: 0% 100%, 100% 100%, 200% 100%;
+  }
+}
 
 @import "tailwindcss";
 

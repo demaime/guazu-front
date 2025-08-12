@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useEffect } from "react";
 import { Loader } from "@/components/ui/Loader";
 
 /**
@@ -15,13 +16,28 @@ export function LoaderWrapper({
   text = "",
   fullScreen = false,
 }) {
+  // Lock scroll when showing as full-screen overlay
+  useEffect(() => {
+    if (!fullScreen) return;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, [fullScreen]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={`flex items-center justify-center ${
-        fullScreen ? "min-h-screen" : "h-full"
-      }`}
+      className={
+        fullScreen
+          ? "fixed inset-0 z-50 flex items-center justify-center bg-[var(--background)]"
+          : "flex items-center justify-center h-full"
+      }
     >
       <motion.div
         initial={{ y: -20 }}

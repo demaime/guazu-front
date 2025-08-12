@@ -590,20 +590,26 @@ export default function Encuestas() {
   // Derivados para indicadores (evita usar locationStatus crudo en JSX)
   const isLocationOn = locationStatus === "granted";
 
+  // Mostrar loader ocupando el área de contenido (debajo del header) sin tapar el header
+  if (isInitialLoadingView) {
+    return (
+      <div className="p-4 h-full">
+        <LoaderWrapper
+          size="lg"
+          fullScreen={false}
+          text="Actualizando encuestas…"
+          className="text-primary"
+        />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="space-y-4 p-4"
     >
-      {isInitialLoadingView && (
-        <LoaderWrapper
-          size="xl"
-          fullScreen
-          text="Actualizando encuestas…"
-          className="text-primary"
-        />
-      )}
       {/* Progreso visual oculto: mantenemos sincronización en segundo plano */}
       {/* --- Encabezado --- */}
       <motion.div

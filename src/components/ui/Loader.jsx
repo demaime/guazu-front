@@ -1,35 +1,38 @@
-import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { motion } from "framer-motion";
 
-export function Loader({ size = 'default', className = '' }) {
-  const sizeClasses = {
-    sm: 'w-4 h-4',
-    default: 'w-6 h-6',
-    lg: 'w-8 h-8',
-    xl: 'w-12 h-12'
+/**
+ * CSS-only loader based on radial-gradient animation.
+ * Sizes map to fixed pixels to preserve aspect ratio.
+ */
+export function Loader({ size = "default", className = "" }) {
+  const sizePx =
+    {
+      sm: 16,
+      default: 24,
+      lg: 32,
+      xl: 48,
+    }[size] || 24;
+
+  const style = {
+    "--r1": "154%",
+    "--r2": "68.5%",
+    width: `${sizePx * 1.25}px`, // half the previous circle size
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
+      initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.2 }}
+      className={className}
     >
-      <motion.div
-        animate={{ 
-          rotate: 360,
-          transition: { 
-            duration: 1,
-            repeat: Infinity,
-            ease: "linear"
-          }
-        }}
+      <div
+        style={style}
+        className="loader-css relative aspect-square rounded-full"
       >
-        <Loader2 
-          className={`text-[var(--text-primary)] ${sizeClasses[size]} ${className}`}
-        />
-      </motion.div>
+        <span className="loader-logo" />
+      </div>
     </motion.div>
   );
-} 
+}
