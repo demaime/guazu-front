@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Model, surveyLocalization } from "survey-core";
 import { Survey } from "survey-react-ui";
 import { surveyService } from "@/services/survey.service";
@@ -34,17 +34,25 @@ surveyLocalization.defaultLocale = "es";
 
 export default function SurveyResponderStable() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  let id = searchParams.get("id");
-  if (!id && typeof window !== "undefined") {
+  const [surveyId, setSurveyId] = useState(null);
+  useEffect(() => {
     try {
       const key = "responder:surveyId";
-      id =
-        (window.sessionStorage && window.sessionStorage.getItem(key)) ||
-        (window.localStorage && window.localStorage.getItem(key)) ||
-        null;
-    } catch {}
-  }
+      const fromSession =
+        typeof window !== "undefined" && window.sessionStorage
+          ? window.sessionStorage.getItem(key)
+          : null;
+      const fromLocal =
+        !fromSession && typeof window !== "undefined" && window.localStorage
+          ? window.localStorage.getItem(key)
+          : null;
+      const resolved = fromSession || fromLocal || null;
+      setSurveyId(resolved);
+      if (!resolved) router.replace("/dashboard/encuestas");
+    } catch {
+      router.replace("/dashboard/encuestas");
+    }
+  }, [router]);
   const { theme } = useTheme();
   const [surveyModel, setSurveyModel] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +64,7 @@ export default function SurveyResponderStable() {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    if (!id) return;
+    if (!surveyId) return;
     let modelInstance = null;
     const loadSurvey = async () => {
       try {
@@ -70,7 +78,7 @@ export default function SurveyResponderStable() {
         let serverEnvelope = null;
         if (typeof navigator !== "undefined" && !navigator.onLine) {
           const { getSurveyByIdLocal } = await import("@/services/db/pouch");
-          const local = await getSurveyByIdLocal(id);
+          const local = await getSurveyByIdLocal(surveyId);
           if (!local)
             throw new Error("No hay datos locales para esta encuesta");
           surveyData = local.survey || local;
@@ -78,7 +86,7 @@ export default function SurveyResponderStable() {
             survey: { survey: surveyData, surveyInfo: local.surveyInfo || {} },
           };
         } else {
-          const resp = await surveyService.getSurvey(id);
+          const resp = await surveyService.getSurvey(surveyId);
           serverEnvelope = resp;
           surveyData = resp?.survey?.survey || resp?.survey;
         }
@@ -124,7 +132,7 @@ export default function SurveyResponderStable() {
       if (countdownIntervalRef.current)
         clearInterval(countdownIntervalRef.current);
     };
-  }, [id, router, theme]);
+  }, [surveyId, router, theme]);
 
   const handleComplete = async (sender) => {
     try {
@@ -149,8 +157,8 @@ export default function SurveyResponderStable() {
       });
 
       const payload = {
-        surveyId: id,
-        _id: `survey_${id}_${user?._id || "anon"}_${Date.now()}`,
+        surveyId: surveyId,
+        _id: `survey_${surveyId}_${user?._id || "anon"}_${Date.now()}`,
         fullName: user?.fullName,
         userId: user?._id,
         answer: transformedAnswers,
@@ -180,18 +188,25 @@ export default function SurveyResponderStable() {
       if (!res.ok) throw new Error("Error al enviar la encuesta al servidor");
       toast.success("¡Encuesta enviada con éxito!");
       setSurveyCompletedSuccessfully(true);
+      try {
+        const key = "responder:surveyId";
+        if (typeof window !== "undefined") {
+          window.sessionStorage?.removeItem(key);
+          window.localStorage?.removeItem(key);
+        }
+      } catch {}
     } catch (e) {
       toast.error(e.message || "Error inesperado");
       setError(e.message);
     }
   };
 
-  if (!id) {
+  if (!surveyId) {
     return (
       <LoaderWrapper
         size="lg"
         fullScreen
-        text="Seleccioná una encuesta para responder desde la lista."
+        text="Esperando identificador..."
         className="text-primary"
       />
     );
@@ -211,7 +226,7 @@ export default function SurveyResponderStable() {
             ¡Encuesta completada con éxito!
           </h1>
           <button
-            onClick={() => router.push("/dashboard/encuestas")}
+            onClick={() => router.push("/dashboard")}
             className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
           >
             Volver ahora
@@ -238,7 +253,7 @@ export default function SurveyResponderStable() {
         <h2 className="text-lg font-bold mb-2">Error</h2>
         <p>{error}</p>
         <button
-          onClick={() => router.push("/dashboard/encuestas")}
+          onClick={() => router.push("/dashboard")}
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Volver al panel

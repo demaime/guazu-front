@@ -256,6 +256,27 @@ export default function Encuestas() {
 
   // --- useEffect para Carga Inicial --- //
   useEffect(() => {
+    // Limpiar identificadores de respuesta al entrar a la lista
+    try {
+      if (typeof window !== "undefined") {
+        const goodKey = "responder:surveyId";
+        // Borrar clave canónica
+        window.sessionStorage?.removeItem(goodKey);
+        window.localStorage?.removeItem(goodKey);
+        // Borrar variantes antiguas usadas en pruebas
+        const legacyKeys = [
+          "respondersurveyid",
+          "responderSurveyId",
+          "responder_id",
+          "surveyIdToRespond",
+        ];
+        legacyKeys.forEach((k) => {
+          window.sessionStorage?.removeItem(k);
+          window.localStorage?.removeItem(k);
+        });
+      }
+    } catch {}
+
     const userData = authService.getUser();
     if (!userData) {
       router.replace("/login");

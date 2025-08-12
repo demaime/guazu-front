@@ -10,12 +10,11 @@ const mulish = Mulish({
   display: "swap",
 });
 
-
 export default function RootLayout({ children }) {
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="icon" href="/logo-mini.png" />
         <meta name="theme-color" content="#3B82F6" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />

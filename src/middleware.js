@@ -2,16 +2,17 @@ import { NextResponse } from "next/server";
 
 // Definimos las rutas protegidas y sus roles permitidos
 const protectedRoutes = {
-  "/dashboard/usuarios": ["ROLE_ADMIN", "SUPERVISOR"],
+  "/dashboard/usuarios": ["ROLE_ADMIN"],
   "/dashboard/encuestas": ["ROLE_ADMIN", "SUPERVISOR", "POLLSTER"],
   "/dashboard/encuestas/nueva": ["ROLE_ADMIN", "SUPERVISOR"],
+  "/dashboard/encuestadores": ["ROLE_ADMIN", "SUPERVISOR"],
   "/dashboard/configuracion": ["ROLE_ADMIN", "SUPERVISOR", "POLLSTER"],
 };
 
 // Función helper para parsear la cookie user de forma segura
 function parseUserCookie(userCookie) {
   if (!userCookie) return null;
-  
+
   try {
     // Try to decode the cookie value first (in case it's URL encoded)
     const decodedValue = decodeURIComponent(userCookie.value);
@@ -29,7 +30,9 @@ export function middleware(request) {
 
   // Si las cookies están corruptas, limpiar y redirigir a login
   if (user?.corrupted) {
-    const response = NextResponse.redirect(new URL("/login?clearCookies=true", request.url));
+    const response = NextResponse.redirect(
+      new URL("/login?clearCookies=true", request.url)
+    );
     // Clear the corrupted cookies
     response.cookies.delete("token");
     response.cookies.delete("user");
