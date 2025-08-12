@@ -35,7 +35,16 @@ surveyLocalization.defaultLocale = "es";
 export default function SurveyResponderStable() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const id = searchParams.get("id");
+  let id = searchParams.get("id");
+  if (!id && typeof window !== "undefined") {
+    try {
+      const key = "responder:surveyId";
+      id =
+        (window.sessionStorage && window.sessionStorage.getItem(key)) ||
+        (window.localStorage && window.localStorage.getItem(key)) ||
+        null;
+    } catch {}
+  }
   const { theme } = useTheme();
   const [surveyModel, setSurveyModel] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -182,7 +191,7 @@ export default function SurveyResponderStable() {
       <LoaderWrapper
         size="lg"
         fullScreen
-        text="Esperando identificador..."
+        text="Seleccioná una encuesta para responder desde la lista."
         className="text-primary"
       />
     );

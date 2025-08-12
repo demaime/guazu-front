@@ -227,7 +227,18 @@ export function PollsterSurveyList({
     setLoadingStates((prev) => ({ ...prev, [buttonKey]: true }));
 
     try {
-      router.push(`/dashboard/encuestas/responder?id=${surveyData._id}`);
+      try {
+        if (typeof window !== "undefined") {
+          // Usar sessionStorage por pestaña; fallback a localStorage
+          const key = "responder:surveyId";
+          if (window.sessionStorage) {
+            window.sessionStorage.setItem(key, String(surveyData._id));
+          } else if (window.localStorage) {
+            window.localStorage.setItem(key, String(surveyData._id));
+          }
+        }
+      } catch {}
+      router.push(`/dashboard/encuestas/responder`);
     } catch (error) {
       console.error("Error al navegar:", error);
     } finally {
