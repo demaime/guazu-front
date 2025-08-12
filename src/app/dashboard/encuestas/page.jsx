@@ -593,7 +593,7 @@ export default function Encuestas() {
   // Mostrar loader ocupando el área de contenido (debajo del header) sin tapar el header
   if (isInitialLoadingView) {
     return (
-      <div className="p-4 h-full">
+      <div className="p-4 h-[calc(100vh-64px)] flex items-center justify-center">
         <LoaderWrapper
           size="lg"
           fullScreen={false}
@@ -761,15 +761,23 @@ export default function Encuestas() {
           >
             {/* Estado de carga */}
             {currentLoadingState && !isInitialLoadingView && (
-              <div className="grid gap-4 py-6">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="h-24 rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] overflow-hidden"
-                  >
-                    <div className="h-full w-full animate-pulse bg-gradient-to-r from-[var(--hover-bg)] via-[var(--card-background)] to-[var(--hover-bg)] bg-[length:200%_100%]" />
-                  </div>
-                ))}
+              <div className="py-4">
+                <div className="loader-caption mb-2">
+                  <p className="text-sm italic text-[var(--text-secondary)]">
+                    Cargando...
+                  </p>
+                  <span className="loading-underline" aria-hidden="true" />
+                </div>
+                <div className="grid gap-4">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="h-24 rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] overflow-hidden"
+                    >
+                      <div className="h-full w-full animate-pulse bg-gradient-to-r from-[var(--hover-bg)] via-[var(--card-background)] to-[var(--hover-bg)] bg-[length:200%_100%]" />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

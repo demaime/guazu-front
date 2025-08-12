@@ -1,23 +1,21 @@
 import { motion } from "framer-motion";
 
 /**
- * CSS-only loader based on radial-gradient animation.
- * Sizes map to fixed pixels to preserve aspect ratio.
+ * CSS-only loader (ring) using border rotation.
+ * Sizes map to fixed pixels via CSS var --s.
  */
 export function Loader({ size = "default", className = "" }) {
   const sizePx =
-    {
-      sm: 16,
-      default: 24,
-      lg: 32,
-      xl: 48,
-    }[size] || 24;
+    typeof size === "number"
+      ? size
+      : {
+          sm: 14,
+          default: 20,
+          lg: 26,
+          xl: 32,
+        }[size] || 20;
 
-  const style = {
-    "--r1": "154%",
-    "--r2": "68.5%",
-    width: `${sizePx * 1.25}px`, // half the previous circle size
-  };
+  const style = { "--size": `${sizePx}px` };
 
   return (
     <motion.div
@@ -27,12 +25,7 @@ export function Loader({ size = "default", className = "" }) {
       transition={{ duration: 0.15 }}
       className={className}
     >
-      <div
-        style={style}
-        className="loader-css relative aspect-square rounded-full"
-      >
-        <span className="loader-logo" />
-      </div>
+      <div style={style} className="loader" />
     </motion.div>
   );
 }

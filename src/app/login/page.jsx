@@ -27,7 +27,7 @@ export default function LoginPage() {
       try {
         // Check if we need to clear corrupted cookies
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('clearCookies') === 'true') {
+        if (urlParams.get("clearCookies") === "true") {
           console.log("Clearing corrupted cookies due to middleware redirect");
           authService.clearCorruptedCookies();
           return; // This will redirect to login, so we don't need to continue
@@ -72,10 +72,6 @@ export default function LoginPage() {
       );
 
       if (loginResult) {
-        setIsFadingOut(true);
-        setIsRedirecting(true);
-        // Pequeña pausa para mostrar el estado de redirección
-        await new Promise((resolve) => setTimeout(resolve, 500));
         const user = authService.getUser();
         // Redirigir según el rol
         const redirectPath =
@@ -99,19 +95,8 @@ export default function LoginPage() {
     }));
   };
 
-  if (isPageLoading || isRedirecting) {
-    return (
-      <LoaderWrapper size="xl" fullScreen>
-        {isRedirecting && (
-          <div className="text-[var(--text-primary)] text-center mt-4">
-            <h2 className="text-xl font-semibold mb-2">¡Login exitoso!</h2>
-            <p className="text-[var(--text-secondary)]">
-              Redirigiendo al dashboard...
-            </p>
-          </div>
-        )}
-      </LoaderWrapper>
-    );
+  if (isPageLoading) {
+    return <LoaderWrapper size="xl" fullScreen></LoaderWrapper>;
   }
 
   return (

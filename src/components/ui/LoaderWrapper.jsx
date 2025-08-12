@@ -43,10 +43,18 @@ export function LoaderWrapper({
         initial={{ y: -20 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="flex flex-col items-center gap-4"
+        className="flex flex-col items-center gap-[3rem]"
       >
-        <Loader size={size} className={`text-primary ${className}`} />
-        {text && <p className="text-[var(--text-secondary)]">{text}</p>}
+        <Loader
+          size={typeof size === "number" ? size + 2 : size === "lg" ? 50 : size}
+          className={`text-primary ${className}`}
+        />
+        {text && (
+          <div className="loader-caption">
+            <p className="text-[var(--text-secondary)] italic">{text}</p>
+            <span className="loading-underline" aria-hidden="true" />
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );
