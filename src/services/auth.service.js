@@ -1,4 +1,5 @@
 import { AUTH_ROUTES } from "../config/routes";
+import { userService } from "@/services/user.service";
 
 class AuthService {
   // Helper function para establecer cookies de forma segura
@@ -101,14 +102,27 @@ class AuthService {
       this.logout();
 
       const token = tokenData.token;
+      const processedUser = userService.processUserData(userData.user);
       localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(userData.user));
+      localStorage.setItem("user", JSON.stringify(processedUser));
 
       // Usar el método seguro para establecer cookies
       this.setCookieSafely("token", token, {
         ...(rememberMe && { "max-age": "2592000" }),
       });
-      this.setCookieSafely("user", JSON.stringify(userData.user));
+      this.setCookieSafely("user", JSON.stringify(processedUser));
+
+      // Intentar refrescar el perfil inmediatamente para completar campos como 'image'
+      try {
+        const refreshedUser = await userService.getProfile(
+          userData.user._id,
+          token
+        );
+        // getProfile ya guarda en localStorage el usuario procesado
+        this.setCookieSafely("user", JSON.stringify(refreshedUser));
+      } catch (e) {
+        // Si falla, seguimos con el usuario procesado básico
+      }
 
       const storedToken = this.getToken();
       const storedUser = this.getUser();
@@ -119,7 +133,7 @@ class AuthService {
 
       return {
         token: token,
-        user: userData.user,
+        user: this.getUser() || processedUser,
       };
     } catch (error) {
       this.logout();

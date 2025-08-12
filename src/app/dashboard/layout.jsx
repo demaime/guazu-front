@@ -381,6 +381,11 @@ export default function DashboardLayout({ children }) {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
           className="main-content"
+          style={
+            pathname === "/dashboard/usuarios"
+              ? { overflowY: "hidden", padding: 0 }
+              : undefined
+          }
         >
           {children}
         </motion.main>

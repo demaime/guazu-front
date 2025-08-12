@@ -32,7 +32,7 @@ const UserAvatar = ({
   if (!src || imageError) {
     return (
       <div
-        className={`${sizeClasses[size]} ${className} rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300`}
+        className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border border-gray-300`}
       >
         <FallbackIcon className={`${iconSizes[size]} text-gray-400`} />
       </div>
@@ -40,10 +40,12 @@ const UserAvatar = ({
   }
 
   return (
-    <div className={`${sizeClasses[size]} ${className} relative`}>
+    <div
+      className={`${sizeClasses[size]} ${className} relative rounded-full overflow-hidden`}
+    >
       {!imageLoaded && (
         <div
-          className={`${sizeClasses[size]} rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300 absolute inset-0`}
+          className={`${sizeClasses[size]} rounded-full bg-gray-200 flex items-center justify-center border border-gray-300 absolute inset-0`}
         >
           <FallbackIcon className={`${iconSizes[size]} text-gray-400`} />
         </div>
@@ -51,9 +53,7 @@ const UserAvatar = ({
       <img
         src={src}
         alt={alt}
-        className={`${
-          sizeClasses[size]
-        } rounded-full object-cover border-2 border-gray-300 ${
+        className={`${sizeClasses[size]} rounded-full object-cover ${
           imageLoaded ? "opacity-100" : "opacity-0"
         } transition-opacity duration-200`}
         onLoad={() => setImageLoaded(true)}

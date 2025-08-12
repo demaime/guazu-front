@@ -156,7 +156,15 @@ export default function PollstersPage() {
   };
 
   if (isLoading) {
-    return <LoaderWrapper />;
+    return (
+      <div className="p-4 h-[calc(100vh-64px)] flex items-center justify-center">
+        <LoaderWrapper
+          size="lg"
+          fullScreen={false}
+          text="Cargando encuestadores…"
+        />
+      </div>
+    );
   }
 
   return (

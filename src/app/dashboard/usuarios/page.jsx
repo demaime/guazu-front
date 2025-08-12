@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { authService } from "@/services/auth.service";
 import { userService } from "@/services/user.service";
 import { useRouter } from "next/navigation";
@@ -30,7 +30,50 @@ export default function UsersPage() {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  // Refs para calcular items por página y evitar scroll
+  const gridRef = useRef(null);
+  const paginationRef = useRef(null);
+
+  // Calcular dinámicamente columnas por breakpoint
+  const getNumColumns = () => {
+    const w = typeof window !== "undefined" ? window.innerWidth : 1200;
+    if (w >= 1536) return 4; // 2xl
+    if (w >= 1280) return 3; // xl
+    if (w >= 768) return 2; // md
+    return 1;
+  };
+
+  // Recalcular items por página según alto disponible y altura de card
+  const recalcItemsPerPage = useCallback(() => {
+    try {
+      if (!gridRef.current) return;
+      const top = gridRef.current.getBoundingClientRect().top;
+      const viewportH = window.innerHeight || 0;
+      const paginationH =
+        paginationRef.current?.getBoundingClientRect()?.height || 72;
+      const bottomPadding = 8; // margen inferior ajustado
+      const available = Math.max(
+        0,
+        viewportH - top - paginationH - bottomPadding
+      );
+
+      const columns = getNumColumns();
+      const cardHeight = 132; // altura objetivo de card (ajustado)
+      const rowGap = 24; // gap-6
+      const rowHeight = cardHeight + rowGap;
+      const rows = Math.max(1, Math.floor((available + rowGap) / rowHeight));
+      const safeRows = Math.max(1, rows - 1); // dejar margen de seguridad
+      const next = Math.max(1, safeRows * columns);
+      setItemsPerPage((prev) => (prev !== next ? next : prev));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    recalcItemsPerPage();
+    window.addEventListener("resize", recalcItemsPerPage);
+    return () => window.removeEventListener("resize", recalcItemsPerPage);
+  }, [recalcItemsPerPage]);
   const [totalCount, setTotalCount] = useState(0);
   const [viewMode, setViewMode] = useState("card"); // 'table' or 'card'
   const [selectedUser, setSelectedUser] = useState(null);
@@ -204,13 +247,17 @@ export default function UsersPage() {
   };
 
   if (isLoading) {
-    return <LoaderWrapper fullScreen />;
+    return (
+      <div className="p-4 h-[calc(100vh-64px)] flex items-center justify-center">
+        <LoaderWrapper size="lg" fullScreen={false} text="Cargando usuarios…" />
+      </div>
+    );
   }
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col">
-      <div className="rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] px-5 py-4 shadow-sm sm:px-6 flex-1 flex flex-col overflow-hidden">
-        <div className="mb-4">
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden px-3 sm:px-4 pt-2 pb-0">
+        <div className="mb-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
@@ -218,7 +265,7 @@ export default function UsersPage() {
                 Listado de Usuarios
               </h2>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="relative">
                 <input
                   type="text"
@@ -257,7 +304,7 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-hidden">
           <AnimatePresence mode="wait">
             {viewMode === "table" ? (
               <motion.div
@@ -373,16 +420,18 @@ export default function UsersPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-1"
+                ref={gridRef}
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 p-2"
               >
                 {currentUsers.map((user) => (
-                  <UserCard
-                    key={user._id}
-                    user={user}
-                    currentUser={currentUser}
-                    highlightTerm={searchTerm}
-                    onCardClick={() => handleOpenModal(user)}
-                  />
+                  <div key={user._id} className="h-[140px] overflow-hidden">
+                    <UserCard
+                      user={user}
+                      currentUser={currentUser}
+                      highlightTerm={searchTerm}
+                      onCardClick={() => handleOpenModal(user)}
+                    />
+                  </div>
                 ))}
               </motion.div>
             )}
@@ -391,7 +440,10 @@ export default function UsersPage() {
 
         {/* Paginación */}
         {filteredUsers.length > 0 && (
-          <div className="mt-4 py-3 border-t border-[var(--card-border)]">
+          <div
+            ref={paginationRef}
+            className="mt-2 py-2 border-t border-[var(--card-border)]"
+          >
             <nav className="flex items-center justify-center gap-2">
               <motion.button
                 whileHover={{ scale: 1.05 }}
