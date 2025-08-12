@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { motion } from "framer-motion";
-import { Mail, Shield, User, MapPin } from "lucide-react";
+import { Mail, Shield, User, MapPin, ChevronRight } from "lucide-react";
 import { HighlightText } from "./HighlightText";
 import UserAvatar from "./UserAvatar";
 
@@ -34,9 +34,11 @@ const UserCard = memo(({ user, currentUser, highlightTerm, onCardClick }) => {
       animate="visible"
       exit="exit"
       transition={{ duration: 0.2 }}
-      className="group relative bg-[var(--card-background)] border border-[var(--card-border)] rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 p-4 flex items-center gap-4 cursor-pointer"
+      className="group relative bg-[var(--card-background)] border border-[var(--card-border)] rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 p-4 pl-5 flex items-center gap-4 cursor-pointer ring-1 ring-transparent hover:ring-primary/40 hover:border-primary/40"
       onClick={onCardClick}
     >
+      {/* Acento azul lateral */}
+      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl bg-gradient-to-b from-primary-light via-primary to-primary-dark opacity-80 group-hover:w-2 transition-all duration-300" />
       {/* Avatar a la izquierda (tipo carnet) */}
       <UserAvatar
         src={avatarSrc}
@@ -81,10 +83,11 @@ const UserCard = memo(({ user, currentUser, highlightTerm, onCardClick }) => {
         </div>
       </div>
 
-      {/* Overlay de acción en hover (sin botón permanente) */}
-      <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center bg-black/5">
-        <span className="px-3 py-1.5 rounded-full bg-primary text-white text-sm shadow">
+      {/* Overlay de acción en hover (blur azulado) */}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center glass-primary rounded-xl">
+        <span className="px-3 py-1.5 rounded-full bg-primary text-white text-sm shadow-md flex items-center gap-1 transform -translate-y-1 group-hover:translate-y-0 group-hover:scale-105 transition-transform">
           Ver perfil
+          <ChevronRight className="w-4 h-4" />
         </span>
       </div>
     </motion.div>

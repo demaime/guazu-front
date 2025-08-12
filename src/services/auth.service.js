@@ -120,7 +120,7 @@ class AuthService {
         );
         // getProfile ya guarda en localStorage el usuario procesado
         this.setCookieSafely("user", JSON.stringify(refreshedUser));
-      } catch (e) {
+      } catch {
         // Si falla, seguimos con el usuario procesado básico
       }
 

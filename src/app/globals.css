@@ -802,3 +802,14 @@ button:disabled {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Glass effect reutilizable en tono primario */
+.glass-primary {
+  background: radial-gradient(
+      1200px 400px at 50% 0%,
+      color-mix(in oklab, var(--primary) 20%, transparent) 0%,
+      transparent 20%
+    ),
+    rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(4px) saturate(110%);
+}

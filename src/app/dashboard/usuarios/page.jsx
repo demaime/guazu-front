@@ -52,19 +52,18 @@ export default function UsersPage() {
       const viewportH = window.innerHeight || 0;
       const paginationH =
         paginationRef.current?.getBoundingClientRect()?.height || 72;
-      const bottomPadding = 8; // margen inferior ajustado
+      const bottomPadding = 0;
       const available = Math.max(
         0,
         viewportH - top - paginationH - bottomPadding
       );
 
       const columns = getNumColumns();
-      const cardHeight = 132; // altura objetivo de card (ajustado)
-      const rowGap = 24; // gap-6
+      const cardHeight = 140; // altura fija del contenedor de cada card
+      const rowGap = 20; // coincide con gap-5
       const rowHeight = cardHeight + rowGap;
       const rows = Math.max(1, Math.floor((available + rowGap) / rowHeight));
-      const safeRows = Math.max(1, rows - 1); // dejar margen de seguridad
-      const next = Math.max(1, safeRows * columns);
+      const next = Math.max(1, rows * columns);
       setItemsPerPage((prev) => (prev !== next ? next : prev));
     } catch {}
   }, []);
@@ -74,6 +73,7 @@ export default function UsersPage() {
     window.addEventListener("resize", recalcItemsPerPage);
     return () => window.removeEventListener("resize", recalcItemsPerPage);
   }, [recalcItemsPerPage]);
+
   const [totalCount, setTotalCount] = useState(0);
   const [viewMode, setViewMode] = useState("card"); // 'table' or 'card'
   const [selectedUser, setSelectedUser] = useState(null);
@@ -153,11 +153,23 @@ export default function UsersPage() {
     [users, searchTerm]
   );
 
+  // Recalcular cuando cambian la vista o la cantidad filtrada
+  useEffect(() => {
+    recalcItemsPerPage();
+  }, [recalcItemsPerPage, viewMode, filteredUsers.length]);
+
   // Calcular índices para la paginación
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+  // Ajustar página actual si cambia itemsPerPage o el filtro reduce totalPages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [itemsPerPage, filteredUsers.length, totalPages, currentPage]);
 
   // Función auxiliar para generar el rango de páginas a mostrar
   const getPageNumbers = () => {
@@ -255,9 +267,9 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
-      <div className="flex-1 flex flex-col overflow-hidden px-3 sm:px-4 pt-2 pb-0">
-        <div className="mb-1">
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden p-2">
+      <div className="flex-1 flex flex-col overflow-hidden p-0">
+        <div className="mb-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
@@ -304,7 +316,7 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="overflow-hidden p-2">
           <AnimatePresence mode="wait">
             {viewMode === "table" ? (
               <motion.div
@@ -421,7 +433,7 @@ export default function UsersPage() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 ref={gridRef}
-                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 p-2"
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 p-0"
               >
                 {currentUsers.map((user) => (
                   <div key={user._id} className="h-[140px] overflow-hidden">
@@ -442,7 +454,7 @@ export default function UsersPage() {
         {filteredUsers.length > 0 && (
           <div
             ref={paginationRef}
-            className="mt-2 py-2 border-t border-[var(--card-border)]"
+            className="mt-1 py-1 border-t border-[var(--card-border)]"
           >
             <nav className="flex items-center justify-center gap-2">
               <motion.button
