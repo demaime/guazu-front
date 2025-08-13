@@ -10,6 +10,8 @@ import {
   Trash2,
   Users,
   Eye,
+  MoveHorizontal,
+  Info,
   Calendar,
   Map,
   ClipboardX,
@@ -54,6 +56,11 @@ export function SurveyList({
   });
   const [openActionTooltipId, setOpenActionTooltipId] = useState(null);
   const [actionTooltipPosition, setActionTooltipPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [openRemainingTooltipId, setOpenRemainingTooltipId] = useState(null);
+  const [remainingTooltipPosition, setRemainingTooltipPosition] = useState({
     x: 0,
     y: 0,
   });
@@ -129,9 +136,9 @@ export function SurveyList({
     const baseClasses =
       variant === "mobile"
         ? "mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-all duration-200 relative overflow-hidden"
-        : "p-1.5 rounded-md transition-all duration-200 cursor-pointer relative overflow-hidden";
+        : "p-2.5 rounded-lg transition-all duration-200 cursor-pointer relative overflow-hidden min-w-[38px] min-h-[38px] flex items-center justify-center";
 
-    const iconSize = variant === "mobile" ? "w-3 h-3" : "w-4 h-4";
+    const iconSize = variant === "mobile" ? "w-3 h-3" : "w-5 h-5";
     const mobileBackground =
       action === "answer"
         ? role === "ROLE_ADMIN" || role === "SUPERVISOR"
@@ -147,7 +154,7 @@ export function SurveyList({
 
     const loadingClasses = isLoading
       ? "opacity-80 cursor-wait"
-      : "hover:scale-105 active:scale-95";
+      : "hover:scale-105 active:scale-95 hover:ring-2 hover:ring-primary/40";
 
     const finalClassName =
       variant === "mobile"
@@ -305,8 +312,8 @@ export function SurveyList({
     if (e) {
       const buttonRect = e.currentTarget.getBoundingClientRect();
       setDescriptionTooltipPosition({
-        x: buttonRect.left + buttonRect.width / 2,
-        y: buttonRect.top - 10,
+        x: buttonRect.right + 10,
+        y: buttonRect.top + buttonRect.height / 2,
       });
     }
     setOpenDescriptionTooltipId(show ? surveyId : null);
@@ -335,6 +342,17 @@ export function SurveyList({
       // Ocultar inmediatamente
       setOpenActionTooltipId(null);
     }
+  };
+
+  const handleRemainingTooltip = (surveyId, e, show) => {
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setRemainingTooltipPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10,
+      });
+    }
+    setOpenRemainingTooltipId(show ? surveyId : null);
   };
 
   const toggleCardExpansion = (surveyId, e) => {
@@ -477,6 +495,25 @@ export function SurveyList({
       });
     } catch (e) {
       return "-";
+    }
+  };
+
+  const getDaysRemaining = (endDate) => {
+    if (!endDate) return null;
+    try {
+      const end = new Date(endDate);
+      const now = new Date();
+      // normalizar a medianoche para cálculo de días
+      const startOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const diff = end.getTime() - startOfToday.getTime();
+      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      return days;
+    } catch {
+      return null;
     }
   };
 
@@ -769,11 +806,15 @@ export function SurveyList({
         <table className="min-w-full divide-y divide-[var(--card-border)]">
           <thead>
             <tr>
+              {/* Descripción (icono i) en primera columna */}
               <th
-                key="header-num"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                key="header-desc"
+                className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider w-10"
+                title="Descripción"
               >
-                #
+                <div className="flex items-center justify-center">
+                  <Info className="w-4 h-4" />
+                </div>
               </th>
               <th
                 key="header-title"
@@ -782,25 +823,12 @@ export function SurveyList({
               >
                 Título {renderSortIndicator("title")}
               </th>
+              {/* La columna de descripción se movió al inicio */}
               <th
-                key="header-desc"
-                className="px-6 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
+                key="header-remaining"
+                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
               >
-                Descripción
-              </th>
-              <th
-                key="header-start"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort("start")}
-              >
-                Inicio {renderSortIndicator("start")}
-              </th>
-              <th
-                key="header-end"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort("end")}
-              >
-                Fin {renderSortIndicator("end")}
+                Restante
               </th>
               <th
                 key="header-progress"
@@ -817,30 +845,28 @@ export function SurveyList({
               </th>
             </tr>
           </thead>
-          <tbody className="bg-[var(--card-background)] divide-y divide-[var(--card-border)]">
+          <tbody className="bg-transparent divide-y divide-[var(--card-border)]">
             {sortedSurveys.map((item, index) => {
               const surveyData = item;
               const surveyInfo = item.surveyInfo || {};
+              const daysLeft = getDaysRemaining(surveyInfo.endDate);
               return (
                 <motion.tr
                   key={surveyData._id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.003 }}
                   transition={{
                     duration: 0.18,
                     ease: "easeOut",
                     delay: index * 0.02,
                   }}
-                  className="table-row-hover"
+                  className="table-row-hover table-row-gradient group hover:cursor-pointer"
+                  style={{ willChange: "transform" }}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    {index + 1}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    {getLocalizedText(surveyData.survey?.title) || "Sin título"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    <div className="flex items-center justify-center relative">
+                  {/* Descripción (botón ojo) ahora primera celda */}
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] text-center w-10">
+                    <div className="flex items-center justify-center">
                       <button
                         onClick={(e) => toggleCardExpansion(surveyData._id, e)}
                         onMouseEnter={(e) =>
@@ -849,20 +875,41 @@ export function SurveyList({
                         onMouseLeave={() =>
                           handleDescriptionTooltip(null, null, false)
                         }
-                        className="p-2 rounded-md hover:bg-[var(--hover-bg)] hover:bg-opacity-50 transition-colors"
+                        className="p-2.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                         data-type="description"
+                        aria-label="Descripción"
+                        title="Descripción"
                       >
                         <Eye className="w-5 h-5" />
                       </button>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    {formatDate(surveyInfo.startDate)}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">
+                    {getLocalizedText(surveyData.survey?.title) || "Sin título"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
-                    {formatDate(surveyInfo.endDate)}
+                  {/* Columna de descripción eliminada (movida al inicio) */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <button
+                      onMouseEnter={(e) =>
+                        handleRemainingTooltip(surveyData._id, e, true)
+                      }
+                      onMouseLeave={() =>
+                        handleRemainingTooltip(null, null, false)
+                      }
+                      className={`px-2 py-1 rounded-md transition-colors cursor-default ${
+                        daysLeft !== null && daysLeft >= 0
+                          ? "text-[var(--text-primary)] hover:bg-[var(--hover-bg)] hover:text-primary"
+                          : "text-[var(--text-secondary)]"
+                      }`}
+                    >
+                      {daysLeft === null
+                        ? "Sin fecha"
+                        : daysLeft < 0
+                        ? "Finalizada"
+                        : `${daysLeft} día${daysLeft === 1 ? "" : "s"}`}
+                    </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
@@ -899,14 +946,19 @@ export function SurveyList({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative group-hover:bg-[var(--hover-bg)] group-hover:bg-opacity-100 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative">
                     <div className="flex items-center justify-end relative">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleActions(surveyData._id);
                         }}
-                        className="hover:bg-[var(--hover-bg)] transition-colors cursor-pointer flex items-center justify-center text-[var(--text-primary)]"
+                        aria-expanded={expandedActionsId === surveyData._id}
+                        className={`transition-colors cursor-pointer flex items-center justify-center rounded-full p-2.5 ${
+                          expandedActionsId === surveyData._id
+                            ? "bg-primary text-white shadow-md"
+                            : "bg-primary/10 text-primary hover:bg-primary/20"
+                        }`}
                         data-type="action"
                       >
                         {expandedActionsId === surveyData._id ? (
@@ -923,9 +975,9 @@ export function SurveyList({
                             animate={{ width: "auto", opacity: 1 }}
                             exit={{ width: 0, opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute right-8 top-0 overflow-hidden z-50"
+                            className="absolute right-12 top-1/2 -translate-y-1/2 overflow-hidden z-50"
                           >
-                            <div className="flex items-center gap-1 px-2 py-1 rounded-md shadow-lg dark:bg-[var(--card-background)] bg-[var(--card-background)] border border-[var(--card-border)] action-buttons">
+                            <div className="flex items-center gap-2 px-2 py-2 rounded-xl shadow-xl action-buttons glass-primary border border-primary/20">
                               {role === "ROLE_ADMIN" && (
                                 <>
                                   <ActionButton
@@ -933,7 +985,7 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={Edit}
                                     variant="desktop"
-                                    className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                    className="text-[var(--text-primary)] bg-white/5"
                                   />
                                 </>
                               )}
@@ -945,7 +997,7 @@ export function SurveyList({
                                   surveyData={surveyData}
                                   icon={TestTube2}
                                   variant="desktop"
-                                  className="hover:bg-[var(--hover-bg)] text-blue-500"
+                                  className="text-blue-500 bg-white/5"
                                 />
                               ) : (
                                 <ActionButton
@@ -953,7 +1005,7 @@ export function SurveyList({
                                   surveyData={surveyData}
                                   icon={Play}
                                   variant="desktop"
-                                  className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                  className="text-[var(--text-primary)] bg-white/5"
                                 />
                               )}
 
@@ -965,7 +1017,7 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={Map}
                                     variant="desktop"
-                                    className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                    className="text-[var(--text-primary)] bg-white/5"
                                   />
                                 )}
 
@@ -977,7 +1029,7 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={BarChart3}
                                     variant="desktop"
-                                    className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                    className="text-[var(--text-primary)] bg-white/5"
                                   />
                                 </>
                               )}
@@ -988,7 +1040,7 @@ export function SurveyList({
                                   surveyData={surveyData}
                                   icon={Users}
                                   variant="desktop"
-                                  className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                  className="text-[var(--text-primary)] bg-white/5"
                                 />
                               )}
 
@@ -999,7 +1051,7 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={Copy}
                                     variant="desktop"
-                                    className="hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
+                                    className="text-[var(--text-primary)] bg-white/5"
                                   />
 
                                   <ActionButton
@@ -1007,7 +1059,7 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={ClipboardX}
                                     variant="desktop"
-                                    className="hover:bg-red-100 dark:hover:bg-red-900/20 text-red-400"
+                                    className="text-red-400 bg-white/5"
                                   />
 
                                   <ActionButton
@@ -1015,7 +1067,7 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={Trash2}
                                     variant="desktop"
-                                    className="hover:bg-[var(--hover-bg)] text-red-500"
+                                    className="text-red-500 bg-white/5"
                                   />
                                 </>
                               )}
@@ -1038,7 +1090,7 @@ export function SurveyList({
           style={{
             left: `${descriptionTooltipPosition.x}px`,
             top: `${descriptionTooltipPosition.y}px`,
-            transform: "translate(-50%, -100%)",
+            transform: "translate(0, -50%)",
           }}
         >
           {sortedSurveys.find((s) => s._id === openDescriptionTooltipId)
@@ -1079,6 +1131,32 @@ export function SurveyList({
             : openActionTooltipId.includes("delete")
             ? "Eliminar Encuesta"
             : ""}
+        </div>
+      )}
+
+      {openRemainingTooltipId && (
+        <div
+          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] max-w-xs pointer-events-none"
+          style={{
+            left: `${remainingTooltipPosition.x}px`,
+            top: `${remainingTooltipPosition.y}px`,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          {(() => {
+            const s = sortedSurveys.find(
+              (x) => x._id === openRemainingTooltipId
+            );
+            const start = formatDate(s?.surveyInfo?.startDate);
+            const end = formatDate(s?.surveyInfo?.endDate);
+            return (
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span>Inicio: {start}</span>
+                <MoveHorizontal className="w-4 h-4 text-primary" />
+                <span>Fin: {end}</span>
+              </div>
+            );
+          })()}
         </div>
       )}
 

@@ -110,6 +110,8 @@ export default function SurveyResponderStable() {
         model.pagePrevText = "Anterior";
         model.completeText = "Finalizar";
         model.showPreviewBeforeComplete = "noPreview";
+        // Evitar la pantalla de "gracias" propia de SurveyJS; usamos nuestra UI verde
+        model.showCompletedPage = false;
         model.questionsOrder = "initial";
         model.questionsOnPageMode = "questionPerPage";
 

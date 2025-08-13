@@ -803,6 +803,27 @@ button:disabled {
   overflow: hidden;
 }
 
+/* Tabla admin encuestas: filas sin fondo con bordes laterales en hover */
+.table-row-gradient {
+  background: transparent;
+}
+.table-row-gradient:hover {
+  background: linear-gradient(
+        90deg,
+        color-mix(in oklab, var(--primary) 56%, transparent),
+        transparent
+      )
+      left,
+    linear-gradient(
+        270deg,
+        color-mix(in oklab, var(--primary) 56%, transparent),
+        transparent
+      )
+      right;
+  background-repeat: no-repeat;
+  background-size: 22px 100%, 22px 100%;
+}
+
 /* Glass effect reutilizable en tono primario */
 .glass-primary {
   background: radial-gradient(

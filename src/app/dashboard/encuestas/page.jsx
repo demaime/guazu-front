@@ -83,7 +83,85 @@ export default function Encuestas() {
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
-  // --- Función de Carga de Datos --- //
+  // --- Carga única de todas las encuestas y partición por tabs --- //
+  const loadAllSurveys = useCallback(async () => {
+    setError(null);
+    setIsLoading({ active: true, finished: true, drafts: true });
+
+    try {
+      // Si offline, leer todo del caché local
+      let all = [];
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        all = await getAllSurveysLocal();
+      } else {
+        // Obtener todas las páginas del backend en una sola pasada
+        let page = 1;
+        const perPage = 100;
+        while (true) {
+          const { surveys = [], totalPages = 1 } =
+            await surveyService.getAllSurveys(page, perPage, null);
+          all = all.concat(surveys);
+          if (page >= totalPages) break;
+          page += 1;
+        }
+      }
+
+      const now = new Date();
+      const isActive = (s) => {
+        const info = s?.surveyInfo || {};
+        if (!info.startDate || !info.endDate) return true;
+        const sd = new Date(info.startDate);
+        const ed = new Date(info.endDate);
+        return now >= sd && now <= ed;
+      };
+      const isFinished = (s) => {
+        const info = s?.surveyInfo || {};
+        if (!info.startDate || !info.endDate) return false;
+        const ed = new Date(info.endDate);
+        return now > ed;
+      };
+
+      const active = all.filter(isActive);
+      const finished = all.filter(isFinished);
+
+      setActiveSurveysData(active);
+      setFinishedSurveysData(finished);
+      setActiveTotalPages(Math.max(1, Math.ceil(active.length / limit)));
+      setFinishedTotalPages(Math.max(1, Math.ceil(finished.length / limit)));
+      setActiveCurrentPage(1);
+      setFinishedCurrentPage(1);
+
+      // Borradores
+      try {
+        const draftsResp = await surveyService.getDrafts();
+        const drafts = draftsResp.drafts || [];
+        setDraftSurveysData(drafts);
+        setTabCounts({
+          active: active.length,
+          finished: finished.length,
+          drafts: drafts.length,
+        });
+      } catch {
+        setDraftSurveysData([]);
+        setTabCounts({
+          active: active.length,
+          finished: finished.length,
+          drafts: 0,
+        });
+      }
+
+      // Cachear activas en Pouch
+      try {
+        await upsertSurveys(active);
+        await setLastSync(Date.now());
+      } catch {}
+    } catch (e) {
+      console.error("loadAllSurveys error", e);
+      setError(e.message);
+    } finally {
+      setIsLoading({ active: false, finished: false, drafts: false });
+    }
+  }, [limit]);
   const fetchDataForTab = useCallback(
     async (tabName, page) => {
       if (tabName === "drafts") {
@@ -261,7 +339,7 @@ export default function Encuestas() {
     [limit]
   );
 
-  // --- useEffect para Carga Inicial --- //
+  // --- useEffect para Carga Inicial (una sola llamada) --- //
   useEffect(() => {
     const init = async () => {
       // Limpiar identificadores de respuesta al entrar a la lista
@@ -292,14 +370,13 @@ export default function Encuestas() {
 
       try {
         setIsInitialLoadingView(true);
-        await fetchDataForTab("active", 1);
-        await fetchDataForTab("drafts", 1);
+        await loadAllSurveys();
       } finally {
         setIsInitialLoadingView(false);
       }
     };
     init();
-  }, [fetchDataForTab, router]);
+  }, [loadAllSurveys, router]);
 
   // --- useEffect para Cambios de Tab --- //
   useEffect(() => {
@@ -522,7 +599,7 @@ export default function Encuestas() {
       } else if (result.success) {
         toast.success(result.message || "Respuestas eliminadas con éxito");
         // Recargar datos después de eliminar respuestas
-        await fetchDataForTab(tabToReload, pageToReload);
+        await loadAllSurveys();
       } else {
         console.error("Error deleting answers:", result.message);
         toast.error(result.message || "Error al eliminar las respuestas");
@@ -546,7 +623,6 @@ export default function Encuestas() {
         newPage !== activeCurrentPage
       ) {
         setActiveCurrentPage(newPage);
-        fetchDataForTab("active", newPage); // <<< LLAMAR FETCH
       }
     } else if (activeTab === "finished") {
       if (
@@ -555,7 +631,6 @@ export default function Encuestas() {
         newPage !== finishedCurrentPage
       ) {
         setFinishedCurrentPage(newPage);
-        fetchDataForTab("finished", newPage); // <<< LLAMAR FETCH
       }
     }
   };
@@ -707,47 +782,49 @@ export default function Encuestas() {
           </motion.div>
         )}
 
-        {/* --- Pestañas --- */}
-        <div className="flex border-b border-[var(--card-border)] mb-6">
-          <button
-            onClick={() => setActiveTab("active")}
-            className={`flex-1 px-4 py-2 font-medium text-sm text-center ${
-              activeTab === "active"
-                ? "border-b-2 border-primary text-primary"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            Activas ({isLoading.active ? "..." : tabCounts.active})
-          </button>
-          {!(
-            user?.role === "POLLSTER" &&
-            typeof navigator !== "undefined" &&
-            !navigator.onLine
-          ) && (
+        {/* --- Pestañas (nuevo estilo pill + subrayado animado) --- */}
+        <div className="relative mb-6">
+          <div className="inline-flex gap-2 p-1 rounded-xl bg-[var(--card-background)] border border-[var(--card-border)] shadow-sm">
             <button
-              onClick={() => setActiveTab("finished")}
-              className={`flex-1 px-4 py-2 font-medium text-sm text-center ${
-                activeTab === "finished"
-                  ? "border-b-2 border-primary text-primary"
+              onClick={() => setActiveTab("active")}
+              className={`px-4 py-2 rounded-lg text-sm cursor-pointer font-medium transition-colors ${
+                activeTab === "active"
+                  ? "bg-primary text-white"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              Finalizadas ({isLoading.finished ? "..." : tabCounts.finished})
+              Activas ({isLoading.active ? "..." : tabCounts.active})
             </button>
-          )}
-          {(user?.role === "ROLE_ADMIN" || user?.role === "SUPERVISOR") && (
-            <button
-              onClick={() => setActiveTab("drafts")}
-              className={`px-4 py-2 font-medium text-sm flex items-center ${
-                activeTab === "drafts"
-                  ? "border-b-2 border-primary text-primary"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              <FilePenLine className="w-4 h-4 mr-1" />
-              Borradores ({isLoading.drafts ? "..." : tabCounts.drafts})
-            </button>
-          )}
+            {!(
+              user?.role === "POLLSTER" &&
+              typeof navigator !== "undefined" &&
+              !navigator.onLine
+            ) && (
+              <button
+                onClick={() => setActiveTab("finished")}
+                className={`px-4 py-2 rounded-lg text-sm cursor-pointer font-medium transition-colors ${
+                  activeTab === "finished"
+                    ? "bg-primary text-white"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Finalizadas ({isLoading.finished ? "..." : tabCounts.finished})
+              </button>
+            )}
+            {(user?.role === "ROLE_ADMIN" || user?.role === "SUPERVISOR") && (
+              <button
+                onClick={() => setActiveTab("drafts")}
+                className={`px-4 py-2 rounded-lg text-sm cursor-pointer font-medium transition-colors flex items-center gap-1 ${
+                  activeTab === "drafts"
+                    ? "bg-primary text-white"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                <FilePenLine className="w-4 h-4" />
+                Borradores ({isLoading.drafts ? "..." : tabCounts.drafts})
+              </button>
+            )}
+          </div>
         </div>
 
         {/* --- Contenido Pestañas --- */}
