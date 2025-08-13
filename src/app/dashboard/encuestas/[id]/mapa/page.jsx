@@ -102,7 +102,7 @@ export default function MapaEncuesta() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-4 md:py-8">
       <h1 className="text-3xl font-bold mb-2">{survey.title?.es}</h1>
       <h2 className="text-xl font-semibold mb-6 text-text-secondary">
         Mapa de Casos
@@ -147,22 +147,26 @@ export default function MapaEncuesta() {
         </div>
       )}
 
-      <div className="bg-[var(--card-background)] rounded-lg shadow-lg p-6 w-3/4 mx-auto">
+      {/* Mobile-first map layout */}
+      <div className="bg-[var(--card-background)] rounded-lg shadow-lg p-3 md:p-6 w-full md:w-3/4 mx-auto">
         <SurveyMap
+          survey={survey}
+          answers={answers}
+          mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
+          selectedUsers={user?.role === "POLLSTER" ? [user._id] : selectedUsers}
+          height="60vh"
+        />
+      </div>
+
+      {/* Tabla de casos debajo del mapa */}
+      <div className="mt-6">
+        <CasesTable
           survey={survey}
           answers={answers}
           mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
           selectedUsers={user?.role === "POLLSTER" ? [user._id] : selectedUsers}
         />
       </div>
-
-      {/* Tabla de casos debajo del mapa */}
-      <CasesTable
-        survey={survey}
-        answers={answers}
-        mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
-        selectedUsers={user?.role === "POLLSTER" ? [user._id] : selectedUsers}
-      />
     </div>
   );
 }

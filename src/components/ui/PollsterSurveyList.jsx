@@ -21,6 +21,19 @@ export function PollsterSurveyList({
   const [loadingStates, setLoadingStates] = useState({});
   const [progressData, setProgressData] = useState({}); // { surveyId: { assignedCases, completedAnswers, ... } }
   const [progressLoading, setProgressLoading] = useState({});
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+
+  useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
 
   // Cargar el progreso del pollster para cada encuesta
   useEffect(() => {
@@ -425,16 +438,28 @@ export function PollsterSurveyList({
                 </motion.button>
 
                 {/* Botón de mapa */}
-                <motion.button
-                  onClick={() =>
-                    router.push(`/dashboard/encuestas/${survey._id}/mapa`)
-                  }
-                  className="flex items-center justify-center w-12 h-12 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] rounded-lg transition-all duration-200"
-                  whileTap={{ scale: 0.98 }}
-                  title="Ver mapa"
-                >
-                  <MapPin className="w-5 h-5" />
-                </motion.button>
+                {isOnline && (
+                  <motion.button
+                    onClick={() => {
+                      try {
+                        const key = "map:surveyId";
+                        if (typeof window !== "undefined") {
+                          window.sessionStorage?.setItem(
+                            key,
+                            String(survey._id)
+                          );
+                          window.localStorage?.setItem(key, String(survey._id));
+                        }
+                      } catch {}
+                      router.push(`/dashboard/encuestas/mapa`);
+                    }}
+                    className="flex items-center justify-center w-12 h-12 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] rounded-lg transition-all duration-200"
+                    whileTap={{ scale: 0.98 }}
+                    title="Ver mapa"
+                  >
+                    <MapPin className="w-5 h-5" />
+                  </motion.button>
+                )}
               </div>
             </div>
           </motion.div>

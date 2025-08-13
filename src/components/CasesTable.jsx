@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 const formatDate = (dateString) => {
@@ -72,6 +72,8 @@ const CasesTable = ({
   selectedUsers = [],
 }) => {
   const [expandedRows, setExpandedRows] = useState({});
+  const [visibleCount, setVisibleCount] = useState(20);
+  const sentinelRef = useRef(null);
 
   // Filtrar las respuestas según los filtros aplicados en el mapa
   const filteredAnswers = useMemo(() => {
@@ -80,6 +82,22 @@ const CasesTable = ({
       return selectedUsers.includes(answer.userId);
     });
   }, [answers, mostrarTodos, selectedUsers]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setVisibleCount((prev) =>
+            Math.min(prev + 20, filteredAnswers.length)
+          );
+        }
+      });
+    });
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [filteredAnswers.length]);
 
   // Identificar las preguntas importantes para mostrar en la tabla
   const keyQuestions = useMemo(() => {
@@ -136,128 +154,82 @@ const CasesTable = ({
     );
   }
 
+  // Mobile: render as cards with infinite scroll
   return (
-    <div className="mt-6 bg-[var(--card-background)] rounded-lg shadow-lg p-6 overflow-x-auto">
+    <div className="mt-6 bg-[var(--card-background)] rounded-lg shadow-lg p-4 md:p-6">
       <h3 className="text-xl font-semibold mb-4">Casos registrados</h3>
-      <table className="min-w-full divide-y divide-[var(--card-border)]">
-        <thead className="bg-[var(--card-background)]">
-          <tr>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-            >
-              Expandir
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-            >
-              Encuestador
-            </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-            >
-              Fecha
-            </th>
-            {keyQuestions.map((q) => (
-              <th
-                key={q.name}
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-              >
-                {q.title}
-              </th>
-            ))}
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-            >
-              Ubicación
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-[var(--card-background)] divide-y divide-[var(--card-border)]">
-          {filteredAnswers.map((answer) => (
-            <React.Fragment key={answer._id}>
-              <tr
-                className="hover:bg-[var(--hover-bg)] cursor-pointer"
-                onClick={() => handleToggleRow(answer._id)}
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <button className="text-[var(--text-secondary)]">
-                    {expandedRows[answer._id] ? (
-                      <ChevronDownIcon className="h-5 w-5" />
-                    ) : (
-                      <ChevronRightIcon className="h-5 w-5" />
-                    )}
-                  </button>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-[var(--text-primary)]">
-                    {answer.fullName || `Encuestador ${answer.userId}`}
+      <div className="grid grid-cols-1 gap-3">
+        {filteredAnswers.slice(0, visibleCount).map((answer) => (
+          <div
+            key={answer._id}
+            className="rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] p-4 active:scale-[0.995] transition transform"
+            onClick={() => handleToggleRow(answer._id)}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-[var(--text-secondary)]">
+                  {formatDate(answer.createdAt)}
+                </div>
+                <div className="text-base font-medium text-[var(--text-primary)]">
+                  {answer.fullName || `Encuestador ${answer.userId}`}
+                </div>
+              </div>
+              <div className="text-[var(--text-secondary)]">
+                {expandedRows[answer._id] ? (
+                  <ChevronDownIcon className="h-5 w-5" />
+                ) : (
+                  <ChevronRightIcon className="h-5 w-5" />
+                )}
+              </div>
+            </div>
+            {/* Resumen clave */}
+            <div className="mt-2 grid grid-cols-1 gap-1 text-sm">
+              {keyQuestions.map((q) => (
+                <div key={q.name} className="flex items-center justify-between">
+                  <span className="text-[var(--text-secondary)]">
+                    {q.title}
+                  </span>
+                  <span className="text-[var(--text-primary)] ml-2">
+                    {answer.answer && answer.answer[q.name]
+                      ? getReadableAnswer(survey, q.name, answer.answer[q.name])
+                      : "-"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {/* Expandable details */}
+            {expandedRows[answer._id] && (
+              <div className="mt-3 pt-3 border-t border-[var(--card-border)] text-sm">
+                {!answer.answer || Object.keys(answer.answer).length === 0 ? (
+                  <div className="text-center text-[var(--text-secondary)] py-2">
+                    No hay respuestas detalladas disponibles para este caso.
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-[var(--text-secondary)]">
-                    {formatDate(answer.createdAt)}
-                  </div>
-                </td>
-                {keyQuestions.map((q) => (
-                  <td key={q.name} className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-[var(--text-primary)]">
-                      {answer.answer && answer.answer[q.name]
-                        ? getReadableAnswer(
-                            survey,
-                            q.name,
-                            answer.answer[q.name]
-                          )
-                        : "-"}
-                    </div>
-                  </td>
-                ))}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-[var(--text-secondary)]">
-                    {answer.lat && answer.lng
-                      ? `${parseFloat(answer.lat).toFixed(6)}, ${parseFloat(
-                          answer.lng
-                        ).toFixed(6)}`
-                      : "No disponible"}
-                  </div>
-                </td>
-              </tr>
-              {expandedRows[answer._id] && (
-                <tr className="bg-[var(--hover-bg)]">
-                  <td colSpan={keyQuestions.length + 4} className="px-6 py-4">
-                    {!answer.answer ||
-                    Object.keys(answer.answer).length === 0 ? (
-                      <div className="text-center text-[var(--text-secondary)] py-4">
-                        No hay respuestas detalladas disponibles para este caso.
+                ) : (
+                  <div className="grid grid-cols-1 gap-2">
+                    {Object.entries(answer.answer).map(([key, value]) => (
+                      <div
+                        key={key}
+                        className="flex items-start justify-between"
+                      >
+                        <span className="text-[var(--text-secondary)]">
+                          {survey?.pages?.[0]?.elements?.find(
+                            (q) => q.name === key
+                          )?.title?.es || key}
+                          :
+                        </span>
+                        <span className="text-[var(--text-primary)] ml-2">
+                          {getReadableAnswer(survey, key, value)}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(answer.answer).map(([key, value]) => (
-                          <div key={key} className="mb-3">
-                            <div className="font-medium text-[var(--text-secondary)]">
-                              {survey?.pages?.[0]?.elements?.find(
-                                (q) => q.name === key
-                              )?.title?.es || key}
-                              :
-                            </div>
-                            <div className="text-sm text-[var(--text-primary)] mt-1">
-                              {getReadableAnswer(survey, key, value)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div ref={sentinelRef} className="h-6" />
     </div>
   );
 };

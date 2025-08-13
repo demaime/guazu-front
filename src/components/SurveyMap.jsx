@@ -10,7 +10,7 @@ import {
 
 const libraries = ["places"];
 
-const mapContainerStyle = {
+const baseContainerStyle = {
   width: "100%",
   height: "400px",
 };
@@ -194,6 +194,8 @@ const SurveyMap = ({
   answers = [],
   mostrarTodos = true,
   selectedUsers = [],
+  height = "400px",
+  onOpenList,
 }) => {
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [userLocation, setUserLocation] = useState(defaultCenter);
@@ -336,7 +338,7 @@ const SurveyMap = ({
     <div className="relative w-full">
       <GoogleMap
         id="survey-map"
-        mapContainerStyle={mapContainerStyle}
+        mapContainerStyle={{ ...baseContainerStyle, height }}
         zoom={mapZoom}
         center={mapCenter}
         options={{
@@ -446,6 +448,32 @@ const SurveyMap = ({
           </InfoWindow>
         )}
       </GoogleMap>
+      {/* Floating actions (mobile friendly) */}
+      <div className="absolute bottom-3 right-3 flex flex-col gap-2">
+        <button
+          type="button"
+          className="px-3 py-2 rounded-full shadow-md bg-white text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+          title="Centrar en mi ubicación"
+          onClick={() => {
+            if (mapRef) {
+              mapRef.panTo(userLocation);
+              mapRef.setZoom(14);
+            }
+          }}
+        >
+          📍
+        </button>
+        {typeof onOpenList === "function" && (
+          <button
+            type="button"
+            className="px-3 py-2 rounded-full shadow-md bg-white text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+            title="Ver lista"
+            onClick={() => onOpenList()}
+          >
+            📄
+          </button>
+        )}
+      </div>
       {!isMapInteractive && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-lg cursor-pointer"

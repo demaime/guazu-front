@@ -62,7 +62,8 @@ export default function SurveyResponderStable() {
   const countdownIntervalRef = useRef(null);
   const [surveyCompletedSuccessfully, setSurveyCompletedSuccessfully] =
     useState(false);
-  const [countdown, setCountdown] = useState(5);
+  const INITIAL_COUNTDOWN = 5;
+  const [countdown, setCountdown] = useState(INITIAL_COUNTDOWN);
   const [successMode, setSuccessMode] = useState("online"); // 'online' | 'offline'
 
   // Redirección y cuenta regresiva luego del éxito
@@ -250,8 +251,23 @@ export default function SurveyResponderStable() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="relative bg-green-50 dark:bg-green-900 p-8 rounded-lg shadow-md max-w-2xl w-full overflow-hidden"
+            className="relative p-4 rounded-2xl shadow-lg max-w-2xl w-full overflow-hidden bg-green-600 text-white ring-1 ring-green-700/30"
           >
+            {/* Animated background in green tones */}
+            <motion.div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, rgba(34,197,94,0.55) 0%, rgba(16,185,129,0.45) 35%, rgba(5,150,105,0.55) 70%, rgba(34,197,94,0.55) 100%)",
+                backgroundSize: "320% 320%",
+                opacity: 0.5,
+              }}
+              initial={{ backgroundPosition: "0% 50%" }}
+              animate={{
+                backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+              }}
+              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            />
             {/* Confetti simple */}
             {Array.from({ length: 16 }).map((_, idx) => {
               const colors = [
@@ -283,34 +299,54 @@ export default function SurveyResponderStable() {
                 />
               );
             })}
-            <motion.div
-              className="mb-4 flex justify-center"
-              initial={{ scale: 0.9 }}
-              animate={{ scale: [0.9, 1.1, 1], rotate: [0, -2, 2, 0] }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            >
-              <CheckCircle2
-                size={80}
-                className="text-green-500 dark:text-green-400"
-              />
-            </motion.div>
+            <div className="mb-4 flex justify-center relative">
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: [0.9, 1.08, 1], rotate: [0, -2, 2, 0] }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="relative"
+              >
+                <CheckCircle2 size={96} className="text-white drop-shadow" />
+              </motion.div>
+            </div>
             <motion.h1
-              className="text-2xl font-bold mb-2 text-green-700 dark:text-green-300"
+              className="text-3xl font-extrabold mb-2 text-white tracking-tight"
               initial={{ x: 0 }}
               animate={{ x: [0, -2, 2, -1, 1, 0] }}
               transition={{ duration: 0.6 }}
             >
               ¡Encuesta completada con éxito!
             </motion.h1>
-            <p className="text-green-800/80 dark:text-green-200 mb-4 flex items-center gap-2 justify-center">
+            <p className="text-white/90 mb-5 flex items-center gap-2 justify-center">
               <PartyPopper className="w-5 h-5" />
               {successMode === "offline"
                 ? "Tu respuesta se guardó correctamente y se sincronizará automáticamente cuando haya conexión."
                 : "Tu respuesta fue enviada correctamente."}
             </p>
+            {/* Countdown progress */}
+            {(() => {
+              const progress = Math.min(
+                100,
+                Math.max(
+                  0,
+                  ((INITIAL_COUNTDOWN - countdown) / INITIAL_COUNTDOWN) * 100
+                )
+              );
+              return (
+                <div className="mx-auto mb-4 w-56 h-2 rounded-full bg-white/25 overflow-hidden">
+                  <div
+                    className="h-full bg-white/80"
+                    style={{
+                      width: `${progress}%`,
+                      transition: "width 300ms ease",
+                    }}
+                  />
+                </div>
+              );
+            })()}
             <motion.button
               onClick={() => router.push("/dashboard/encuestas")}
-              className="mt-4 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
+              className="mt-2 px-6 py-2 rounded-md bg-white text-green-700 hover:bg-white/90 transition duration-200 shadow-sm hover:shadow-md"
               whileTap={{ scale: 0.98 }}
             >
               Volver ahora {countdown > 0 ? `(${countdown})` : ""}
