@@ -178,7 +178,7 @@ span > .sv-string-viewer {
 /* Contenedor principal sin overflow */
 .sd-question__content,
 .sd-root-modern {
-  overflow-x: hidden !important;
+  overflow: hidden !important; /* evita flicker de layout al montar/ desmontar */
   max-width: 100% !important;
   box-sizing: border-box !important;
 }
@@ -223,17 +223,17 @@ span > .sv-string-viewer {
 }
 
 /* Estilos para la pantalla de finalización de la encuesta */
-.sd-completedpage {
-  background-color: transparent !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-  text-align: center !important;
-  max-width: 500px !important;
-  position: relative !important;
-  overflow: hidden;
-  transition: background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
-  top: 0 !important;
-  left: 0 !important;
-  transform: none !important;
+/* Ocultar completamente la página de completado de SurveyJS (usamos UI propia) */
+.sd-completedpage,
+.sd-body.sd-completedpage,
+div.sd-completedpage,
+div.sd-body.sd-completedpage {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  pointer-events: none !important;
 }
 
 .sd-completedpage h3 {
