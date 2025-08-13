@@ -1762,7 +1762,7 @@ export default function NuevaEncuesta({
   };
 
   return (
-    <div className="h-full relative">
+    <div className="h-full relative flex flex-col">
       {/* Header con pasos y botones de acción */}
       <div className="bg-background border-b sticky top-0 z-10">
         <div className="flex items-center justify-between p-2">
@@ -1832,7 +1832,7 @@ export default function NuevaEncuesta({
       </div>
 
       {/* Contenido principal con scroll */}
-      <div className="overflow-y-auto h-[calc(100%-180px)] py-4">
+      <div className="flex-1 overflow-y-auto py-4 pb-24">
         <div className="container mx-auto max-w-5xl px-4">
           {page === STEPS.INFORMACION_BASICA && renderStep()}
           {page === STEPS.CUOTAS && renderStep()}
