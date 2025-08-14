@@ -26,10 +26,10 @@
     "react-countup": "^6.5.3",
     "react-dom": "^18.2.0",
     "react-toastify": "^11.0.5",
-    "survey-core": "^2.0.1",
-    "survey-creator-core": "^2.0.1",
-    "survey-creator-react": "^2.0.1",
-    "survey-react-ui": "^2.0.1",
+    "survey-core": "^2.3.2",
+    "survey-creator-core": "^2.3.2",
+    "survey-creator-react": "^2.3.2",
+    "survey-react-ui": "^2.3.2",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
