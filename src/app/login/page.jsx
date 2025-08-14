@@ -7,7 +7,7 @@ import Link from "next/link";
 import { authService } from "@/services/auth.service";
 import { Loader } from "@/components/ui/Loader";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -60,8 +61,16 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError("");
+
+    // Validación mínima: ambos campos completos
+    if (!formData.email || !formData.password) {
+      setError("Complete ambos campos");
+      return;
+    }
+
+    setIsLoading(true);
+    setShowOverlay(true);
 
     try {
       const loginResult = await authService.login(
@@ -76,11 +85,16 @@ export default function LoginPage() {
         const redirectPath =
           user?.role === "POLLSTER" ? "/dashboard/encuestas" : "/dashboard";
         router.push(redirectPath);
+        setIsFadingOut(true);
       } else {
         setError("Error de autenticación");
+        setShowOverlay(false);
+        setIsFadingOut(false);
       }
     } catch (err) {
       setError(err.message);
+      setShowOverlay(false);
+      setIsFadingOut(false);
     } finally {
       setIsLoading(false);
     }
@@ -103,8 +117,51 @@ export default function LoginPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: isFadingOut ? 0 : 1 }}
       transition={{ duration: 0.5 }}
+      onAnimationComplete={() => {
+        setShowOverlay(false);
+        setIsFadingOut(false);
+      }}
       className="login-page min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
     >
+      {/* Overlay de inicio de sesión fullscreen */}
+      <AnimatePresence>
+        {showOverlay && (
+          <motion.div
+            key="login-overlay"
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            style={{ backgroundColor: "var(--primary)" }}
+          >
+            <div className="flex flex-col items-center gap-6">
+              <motion.div
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{
+                  duration: 1.2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="relative w-[140px] h-[140px]"
+              >
+                <Image
+                  src="/logo-solo.png"
+                  alt="Guazú"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </motion.div>
+              <div className="loader-caption text-white text-base font-medium">
+                <span>Iniciando sesión...</span>
+                <div className="loading-underline mt-2" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
