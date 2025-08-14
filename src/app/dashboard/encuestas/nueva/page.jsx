@@ -665,7 +665,8 @@ export default function NuevaEncuesta({
                 element.rows =
                   question.matrixRows && Array.isArray(question.matrixRows)
                     ? question.matrixRows.map((row) => ({
-                        value: row?.id || "",
+                        // Averiguar si esto rompe algo por no usar row.id
+                        value: row?.text || "",
                         text: { es: row?.text || "" },
                       }))
                     : [];
@@ -673,7 +674,8 @@ export default function NuevaEncuesta({
                   question.matrixColumns &&
                   Array.isArray(question.matrixColumns)
                     ? question.matrixColumns.map((col) => ({
-                        value: col?.id || "",
+                        // Averiguar si esto rompe algo por no usar col.id
+                        value: col?.text || "",
                         text: { es: col?.text || "" },
                       }))
                     : [];
