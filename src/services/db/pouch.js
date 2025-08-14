@@ -16,9 +16,7 @@ function ensurePouch() {
 export function getSurveysDB() {
   const DB = ensurePouch();
   const db = new DB("surveys", { adapter: "idb" });
-  db.info()
-    .then((i) => console.log("[Pouch] surveys db info", i))
-    .catch((e) => console.warn("[Pouch] db info error", e));
+  db.info().catch((e) => console.warn("[Pouch] db info error", e));
   return db;
 }
 
@@ -52,7 +50,6 @@ export async function upsertSurveys(surveys) {
       ...s,
     })
   );
-  console.log("[Pouch] upsertSurveys count=", docs.length);
   const results = [];
   for (const doc of docs) {
     try {
@@ -80,7 +77,6 @@ export async function getAllSurveysLocal() {
   const indexDocs = all.filter(
     (d) => typeof d._id === "string" && !d._id.startsWith("survey:")
   );
-  console.log("[Pouch] getAllSurveysLocal rows=", indexDocs.length);
   return indexDocs;
 }
 

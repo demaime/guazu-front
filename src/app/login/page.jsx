@@ -28,7 +28,6 @@ export default function LoginPage() {
         // Check if we need to clear corrupted cookies
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get("clearCookies") === "true") {
-          console.log("Clearing corrupted cookies due to middleware redirect");
           authService.clearCorruptedCookies();
           return; // This will redirect to login, so we don't need to continue
         }

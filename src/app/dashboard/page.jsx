@@ -70,12 +70,6 @@ export default function DashboardPage() {
       setIsLoading(true);
       setShouldAnimate(false);
 
-      console.log("=== Iniciando carga de datos del dashboard ===");
-      console.log("Usuario actual:", {
-        role: currentUser?.role,
-        name: currentUser?.name,
-      });
-
       // Cargar encuestas
       const surveyResponse = await surveyService.getAllSurveys();
       const { surveys } = surveyResponse;
@@ -95,20 +89,15 @@ export default function DashboardPage() {
         currentUser?.role === "ROLE_ADMIN" ||
         currentUser?.role === "SUPERVISOR"
       ) {
-        console.log("Cargando usuarios para rol:", currentUser.role);
         try {
           const { users, totalCount } = await userService.getAllUsers();
-          console.log("Usuarios cargados:", {
-            totalCount,
-            usersCount: users.length,
-          });
+   
           setTotalUsers(totalCount);
         } catch (error) {
           console.error("Error al cargar usuarios:", error);
           setTotalUsers(0);
         }
       } else {
-        console.log("No se cargan usuarios para rol:", currentUser?.role);
       }
 
       setLastUpdate(new Date());
@@ -125,12 +114,7 @@ export default function DashboardPage() {
     const initializeDashboard = async () => {
       try {
         const userData = authService.getUser();
-        console.log("=== Inicialización del dashboard ===");
-        console.log("Datos de usuario:", {
-          role: userData?.role,
-          name: userData?.name,
-          exists: !!userData,
-        });
+ 
 
         setUser(userData);
 

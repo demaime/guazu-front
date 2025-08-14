@@ -167,7 +167,6 @@ class UserService {
       });
 
       const data = await response.json();
-      console.log("Respuesta del servidor al subir imagen:", data);
 
       if (data.error) {
         console.error("Error del servidor:", data);
@@ -184,7 +183,6 @@ class UserService {
         throw new Error("Respuesta inválida del servidor");
       }
 
-      console.log("Usuario actualizado recibido:", data.user);
       // Retornar el usuario actualizado del backend
       return data.user;
     } catch (error) {

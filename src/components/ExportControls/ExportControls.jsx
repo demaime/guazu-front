@@ -38,7 +38,6 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
 
   const exportToFile = (fileType) => {
     if (!answers || answers.length === 0) {
-      console.log("No hay datos para exportar.");
       return;
     }
     const dataToExport = processDataForExport(answers);

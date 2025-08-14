@@ -173,9 +173,6 @@ export default function AnalisisEncuesta() {
 
       // Pollsters no pueden acceder a esta página
       if (user.role === "POLLSTER") {
-        console.log(
-          "Acceso denegado: los encuestadores no pueden ver análisis"
-        );
         router.replace("/dashboard/encuestas");
         return false;
       }
@@ -198,22 +195,10 @@ export default function AnalisisEncuesta() {
         // Fetch survey data with answers in one call
         const surveyData = await surveyService.getSurveyWithAnswers(surveyId);
 
-        // Depurar datos recibidos del API
-        console.log("API Response:", {
-          survey: surveyData.survey,
-          surveyInfo: surveyData.survey?.surveyInfo,
-          startDate: surveyData.survey?.surveyInfo?.startDate,
-          endDate: surveyData.survey?.surveyInfo?.endDate,
-        });
-
         // Normalizar las fechas antes de establecer el estado
         const normalizedSurvey = normalizeSurveyDates(surveyData.survey);
-        console.log("Normalized Survey:", {
-          surveyInfo: normalizedSurvey?.surveyInfo,
-          startDate: normalizedSurvey?.surveyInfo?.startDate,
-          endDate: normalizedSurvey?.surveyInfo?.endDate,
-        });
 
+        console.log("Normalized Survey:", normalizedSurvey);
         setSurvey(normalizedSurvey);
         setAnswers(surveyData.answers || []);
 
@@ -242,10 +227,8 @@ export default function AnalisisEncuesta() {
         );
 
         // El backend devuelve un objeto con pollsterProgress array
-        console.log("Pollster Progress Data:", progressData);
         setPollsterProgress(progressData.pollsterProgress || []);
       } catch (error) {
-        console.error("Error loading pollster progress:", error);
         // En caso de error, establecer array vacío
         setPollsterProgress([]);
       } finally {
@@ -367,17 +350,6 @@ export default function AnalisisEncuesta() {
 
   // Sort categories alphabetically
   quotaSummary.sort((a, b) => a.category.localeCompare(b.category));
-
-  // Debug survey info structure to examine date format issues
-  console.log("Survey Info:", {
-    surveyInfo,
-    startDateType: surveyInfo?.startDate
-      ? typeof surveyInfo.startDate
-      : "undefined",
-    endDateType: surveyInfo?.endDate ? typeof surveyInfo.endDate : "undefined",
-    startDateRaw: surveyInfo?.startDate,
-    endDateRaw: surveyInfo?.endDate,
-  });
 
   // Funciones para el manejo del mapa
   const handleUserSelection = (userId) => {

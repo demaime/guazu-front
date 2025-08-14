@@ -84,8 +84,6 @@ const ProfilePhotoUpload = ({
 
       // Notificar al padre con el base64
       onPhotoChange(file, base64Image);
-
-      console.log("Archivo procesado y preview establecido");
     } catch (error) {
       console.error("Error converting to base64:", error);
       setError("Error al procesar la imagen");
@@ -103,8 +101,6 @@ const ProfilePhotoUpload = ({
       setImagePreview(null);
       onPhotoChange(null, null);
     }
-
-    console.log("Imagen eliminada");
   };
 
   const handleClickToUpload = () => {

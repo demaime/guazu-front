@@ -39,7 +39,6 @@ export default function DashboardLayout({ children }) {
       const userData = authService.getUser();
 
       if (!token || !userData) {
-        console.log("No hay token o usuario, redirigiendo a login");
         router.replace("/login");
         return;
       }

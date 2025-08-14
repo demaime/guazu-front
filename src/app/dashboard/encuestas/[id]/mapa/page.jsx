@@ -11,7 +11,6 @@ import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 export default function MapaEncuesta() {
   const router = useRouter();
   const { id } = useParams();
-  console.log("ID de la encuesta:", id);
 
   const [survey, setSurvey] = useState(null);
   const [answers, setAnswers] = useState([]);
@@ -28,26 +27,20 @@ export default function MapaEncuesta() {
         setUser(userData);
 
         if (!userData) {
-          console.log("No hay usuario autenticado, redirigiendo a login");
           router.replace("/login");
           return;
         }
 
-        console.log("Usuario actual:", userData);
         const response = await surveyService.getSurveyWithAnswers(id);
-        console.log("Respuesta del servicio (combinada):", response);
 
         setSurvey(response.survey);
         let answersData = response.answers || [];
-        console.log("Respuestas sin filtrar:", answersData);
 
         // Si es encuestador, solo mostrar sus propias encuestas
         if (userData.role === "POLLSTER") {
           answersData = answersData.filter((answer) => {
-            console.log("Comparando:", answer.userId, userData._id);
             return answer.userId === userData._id;
           });
-          console.log("Respuestas filtradas para encuestador:", answersData);
         }
 
         setAnswers(answersData);
@@ -63,12 +56,10 @@ export default function MapaEncuesta() {
   }, [id, router]);
 
   const handleUserSelection = (userId) => {
-    console.log("Selección de usuario cambiada:", userId);
     setSelectedUsers((prev) => {
       const newSelection = prev.includes(userId)
         ? prev.filter((id) => id !== userId)
         : [...prev, userId];
-      console.log("Nueva selección de usuarios:", newSelection);
       return newSelection;
     });
     setMostrarTodos(false);
@@ -121,7 +112,6 @@ export default function MapaEncuesta() {
                 checked={mostrarTodos}
                 onChange={(e) => {
                   const newValue = e.target.checked;
-                  console.log("Mostrar todos cambiado a:", newValue);
                   setMostrarTodos(newValue);
                   if (newValue) {
                     setSelectedUsers([]);

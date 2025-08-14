@@ -20,7 +20,6 @@ export default function EditarEncuesta() {
         if (!data || !data.survey) {
           throw new Error("No se encontró la encuesta");
         }
-        console.log("Raw survey data:", data.survey);
         setSurvey(data.survey);
       } catch (err) {
         console.error("Error loading survey:", err);
@@ -233,7 +232,6 @@ export default function EditarEncuesta() {
   let elements = [];
   if (survey.survey?.pages && Array.isArray(survey.survey.pages)) {
     if (survey.survey.pages.length > 1) {
-      console.log("Consolidating multiple pages for editing...");
       // Concatenar elementos de todas las páginas
       elements = survey.survey.pages.reduce((acc, page) => {
         if (page && Array.isArray(page.elements)) {
@@ -345,24 +343,6 @@ export default function EditarEncuesta() {
     quotas: survey.surveyInfo?.quotas || [],
   };
 
-  console.log("=== DEBUGGING SURVEY LOAD ===");
-  console.log("Raw survey data:", survey);
-  console.log(
-    "🔍 PollsterAssignments en nivel raíz:",
-    survey.pollsterAssignments
-  );
-  console.log(
-    "🔍 PollsterAssignments en surveyInfo:",
-    survey.surveyInfo?.pollsterAssignments
-  );
-  console.log("UserIds:", survey.userIds);
-  console.log("SupervisorsIds:", survey.supervisorsIds);
-  console.log("Initial data for editor:", initialData);
-  console.log(
-    "✅ PollsterAssignments cargadas en participants:",
-    initialData.participants.pollsterAssignments
-  );
-  console.log("=== END DEBUG ===");
 
   return (
     <NuevaEncuesta
