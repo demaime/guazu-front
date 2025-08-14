@@ -613,8 +613,6 @@ export default function NuevaEncuesta({
         // Guardar el mapa de numeración en surveyData para usar en la interfaz
         surveyData.questionNumberMap = numberMap;
 
-        console.log("Preguntas ordenadas jerárquicamente:", orderedQuestions);
-
         // Usar las preguntas ordenadas jerárquicamente
         if (orderedQuestions && Array.isArray(orderedQuestions)) {
           orderedQuestions.forEach((question, index) => {
@@ -809,14 +807,6 @@ export default function NuevaEncuesta({
                 // Construir la condición
                 const condition = `{${parentId}} ${operator} '${requiredValue}'`;
                 visibilityConditions.push(condition);
-
-                console.log("✅ Condición generada:", {
-                  questionId: originalQuestionId,
-                  condition: condition,
-                  parentId: parentId,
-                  requiredValue: requiredValue,
-                  originalShowCondition: currentQuestion.showCondition,
-                });
               }
             }
           }
@@ -824,12 +814,6 @@ export default function NuevaEncuesta({
           // Si se encontraron condiciones, unirlas con OR y asignarlas
           if (visibilityConditions.length > 0) {
             element.visibleIf = visibilityConditions.join(" or ");
-            console.log(
-              "🎯 Condición final aplicada a pregunta:",
-              originalQuestionId,
-              "->",
-              element.visibleIf
-            );
           }
         });
       }
@@ -881,12 +865,6 @@ export default function NuevaEncuesta({
             surveyData.participants.pollsterAssignments || [], // ✅ TAMBIÉN en participants para el backend
         },
       };
-
-      console.log(
-        "🔍 SAVE DEBUG - PollsterAssignments:",
-        surveyData.participants.pollsterAssignments
-      );
-      console.log("🔍 SAVE DEBUG - Full surveyInfo:", dataToSave.surveyInfo);
 
       await surveyService.createOrUpdateSurvey(
         dataToSave,
