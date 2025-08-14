@@ -14,7 +14,6 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    rememberMe: false,
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -68,7 +67,7 @@ export default function LoginPage() {
       const loginResult = await authService.login(
         formData.email,
         formData.password,
-        formData.rememberMe
+        true
       );
 
       if (loginResult) {
@@ -187,25 +186,8 @@ export default function LoginPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.8, duration: 0.3 }}
-            className="flex items-center justify-between"
+            className="flex items-center justify-end"
           >
-            <div className="flex items-center">
-              <input
-                id="rememberMe"
-                name="rememberMe"
-                type="checkbox"
-                className="h-4 w-4 text-white/80 focus:ring-white/80 border-white/60 rounded"
-                checked={formData.rememberMe}
-                onChange={handleChange}
-              />
-              <label
-                htmlFor="rememberMe"
-                className="ml-2 block text-sm text-white/80"
-              >
-                Recordarme
-              </label>
-            </div>
-
             <div className="text-sm">
               <Link
                 href="/forgot-password"
