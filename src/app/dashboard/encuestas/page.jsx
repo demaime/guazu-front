@@ -485,6 +485,21 @@ export default function Encuestas() {
     wasOnlineRef.current = isOnline;
   }, [isOnline, pendingCount, isOutboxSyncing, performOutboxSync]);
 
+  // Solicitar permiso de ubicación bajo demanda (al tocar el ícono rojo)
+  const requestLocationPermission = useCallback(() => {
+    try {
+      if (typeof navigator === "undefined" || !navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        () => setLocationStatus("granted"),
+        () => {
+          setLocationStatus("denied");
+          toast.error("No se pudo obtener la ubicación.");
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } catch {}
+  }, []);
+
   /* ELIMINAR ESTOS UseEffects separados para evitar llamadas dobles
   useEffect(() => {
     if (activeTab === 'active' && !isLoading.active) {
@@ -736,7 +751,20 @@ export default function Encuestas() {
               placement="bottom"
               offset={[0, 8]}
             >
-              <span className="inline-flex">
+              <span
+                className={`inline-flex ${
+                  isLocationOn ? "" : "cursor-pointer"
+                }`}
+                onClick={() => {
+                  if (!isLocationOn) requestLocationPermission();
+                }}
+                role={isLocationOn ? undefined : "button"}
+                aria-label={
+                  isLocationOn
+                    ? "Ubicación activada"
+                    : "Solicitar permiso de ubicación"
+                }
+              >
                 <MapPin
                   className={`w-5 h-5 ${
                     isLocationOn ? "text-green-500" : "text-red-500"
@@ -762,6 +790,37 @@ export default function Encuestas() {
           </div>
         )}
       </motion.div>
+
+      {/* Banner offline con pendientes, debajo del título y antes de la lista */}
+      <AnimatePresence initial={false}>
+        {!isOnline && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="mb-4"
+          >
+            <div
+              className="rounded-lg border border-yellow-300 bg-yellow-50/90 text-yellow-900 px-4 py-3 md:px-5 md:py-4 shadow-sm"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 inline-flex">
+                  <WifiOff className="w-5 h-5 text-yellow-600" />
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm leading-5">
+                    Estás sin conexión. Respuestas pendientes de sincronización:{" "}
+                    <span className="font-semibold">{pendingCount}</span>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* --- Contenedor Principal Tabs --- */}
       <motion.div
