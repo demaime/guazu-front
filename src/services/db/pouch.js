@@ -69,6 +69,64 @@ export async function upsertSurveys(surveys) {
   return results;
 }
 
+export async function replaceAllSurveys(surveys) {
+  const db = getSurveysDB();
+
+  try {
+    // 1. Obtener todas las encuestas existentes en el índice
+    const existing = await db.allDocs({ include_docs: true });
+    const indexDocs = existing.rows
+      .map((r) => r.doc)
+      .filter((d) => typeof d._id === "string" && !d._id.startsWith("survey:"));
+
+    // 2. Eliminar todos los documentos de índice existentes
+    for (const doc of indexDocs) {
+      try {
+        await db.remove(doc);
+      } catch (e) {
+        console.warn("[Pouch] remove old index doc error", e);
+      }
+    }
+
+    // 3. Obtener y eliminar todos los documentos de detalle (survey:*)
+    const detailDocs = existing.rows
+      .map((r) => r.doc)
+      .filter((d) => typeof d._id === "string" && d._id.startsWith("survey:"));
+
+    for (const doc of detailDocs) {
+      try {
+        await db.remove(doc);
+      } catch (e) {
+        console.warn("[Pouch] remove old detail doc error", e);
+      }
+    }
+
+    // 4. Insertar las nuevas encuestas
+    const docs = (surveys || []).map((s) =>
+      sanitizeTopLevel({
+        _id: `survey:${String(s?._id || s?.id || "unknown")}`,
+        ...s,
+      })
+    );
+
+    const results = [];
+    for (const doc of docs) {
+      try {
+        const res = await db.put(doc);
+        results.push(res);
+      } catch (e) {
+        console.warn("[Pouch] put new doc error", e);
+        results.push({ error: true, e });
+      }
+    }
+
+    return results;
+  } catch (e) {
+    console.error("[Pouch] replaceAllSurveys failed", e);
+    throw e;
+  }
+}
+
 export async function getAllSurveysLocal() {
   const db = getSurveysDB();
   const res = await db.allDocs({ include_docs: true });

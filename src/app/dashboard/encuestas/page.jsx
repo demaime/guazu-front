@@ -6,6 +6,7 @@ import { surveyService } from "@/services/survey.service";
 import {
   getAllSurveysLocal,
   upsertSurveys,
+  replaceAllSurveys,
   setLastSync,
 } from "@/services/db/pouch";
 import { syncPendingResponses } from "@/services/sync";
@@ -151,9 +152,9 @@ export default function Encuestas() {
         });
       }
 
-      // Cachear activas en Pouch
+      // Reemplazar completamente el cache con las encuestas actuales del servidor
       try {
-        await upsertSurveys(active);
+        await replaceAllSurveys(active);
         await setLastSync(Date.now());
       } catch {}
     } catch (e) {
@@ -280,9 +281,9 @@ export default function Encuestas() {
           finished: finishedSurveys.length,
         }));
 
-        // Guardar/actualizar índice EN POUCH SÓLO con ACTIVAS
+        // Reemplazar completamente el cache EN POUCH SÓLO con ACTIVAS
         try {
-          await upsertSurveys(activeSurveys);
+          await replaceAllSurveys(activeSurveys);
           await setLastSync(Date.now());
           setSyncProgress((prev) => (prev < 60 ? 60 : prev));
           // Prefetch: descargar detalle completo de encuestas activas para responder offline sin haberlas abierto
@@ -808,8 +809,12 @@ export default function Encuestas() {
                 aria-label="Sincronizar respuestas pendientes"
                 title="Sincronizar respuestas pendientes"
               >
-                <RefreshCw className={`w-4 h-4 ${isOutboxSyncing ? "animate-spin" : ""}`} />
-                {isOutboxSyncing ? "Sincronizando…" : `Sincronizar (${pendingCount})`}
+                <RefreshCw
+                  className={`w-4 h-4 ${isOutboxSyncing ? "animate-spin" : ""}`}
+                />
+                {isOutboxSyncing
+                  ? "Sincronizando…"
+                  : `Sincronizar (${pendingCount})`}
               </button>
             )}
           </div>
