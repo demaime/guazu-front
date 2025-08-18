@@ -21,6 +21,7 @@ import {
   Wifi,
   WifiOff,
   MapPin,
+  RefreshCw,
 } from "lucide-react";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
@@ -367,6 +368,32 @@ export default function Encuestas() {
         return;
       }
       setUser(userData);
+
+      // Intento de sincronización de outbox durante el loader inicial si hay conexión
+      try {
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+          setIsOutboxSyncing(true);
+          const { getPendingResponses } = await import("@/services/db/outbox");
+          const rows = await getPendingResponses();
+          setPendingCount(rows.length);
+          if (rows.length > 0) {
+            try {
+              const { synced } = await syncPendingResponses();
+              if (synced > 0) {
+                // Refrescar encuestas activas para reflejar progreso
+                await fetchDataForTab("active", 1);
+              }
+              // Recontar pendientes tras sincronizar
+              const rowsAfter = await getPendingResponses();
+              setPendingCount(rowsAfter.length);
+            } catch (e) {
+              // Silencioso: se puede reintentar manualmente
+            }
+          }
+        }
+      } finally {
+        setIsOutboxSyncing(false);
+      }
 
       try {
         setIsInitialLoadingView(true);
@@ -772,6 +799,19 @@ export default function Encuestas() {
                 />
               </span>
             </Tippy>
+            {/* Botón de sincronización manual cuando hay pendientes */}
+            {pendingCount > 0 && (
+              <button
+                onClick={() => performOutboxSync()}
+                disabled={!isOnline || isOutboxSyncing}
+                className="cursor-pointer px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                aria-label="Sincronizar respuestas pendientes"
+                title="Sincronizar respuestas pendientes"
+              >
+                <RefreshCw className={`w-4 h-4 ${isOutboxSyncing ? "animate-spin" : ""}`} />
+                {isOutboxSyncing ? "Sincronizando…" : `Sincronizar (${pendingCount})`}
+              </button>
+            )}
           </div>
         </div>
         {user?.role === "ROLE_ADMIN" && (
