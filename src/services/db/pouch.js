@@ -73,49 +73,58 @@ export async function replaceAllSurveys(surveys) {
   const db = getSurveysDB();
 
   try {
-    // 1. Obtener todas las encuestas existentes en el índice
+    // 1. Obtener todas las encuestas existentes
     const existing = await db.allDocs({ include_docs: true });
     const indexDocs = existing.rows
       .map((r) => r.doc)
       .filter((d) => typeof d._id === "string" && !d._id.startsWith("survey:"));
 
-    // 2. Eliminar todos los documentos de índice existentes
-    for (const doc of indexDocs) {
-      try {
-        await db.remove(doc);
-      } catch (e) {
-        console.warn("[Pouch] remove old index doc error", e);
-      }
-    }
-
-    // 3. Obtener y eliminar todos los documentos de detalle (survey:*)
+    // 2. Obtener y eliminar todos los documentos de detalle (survey:*)
     const detailDocs = existing.rows
       .map((r) => r.doc)
       .filter((d) => typeof d._id === "string" && d._id.startsWith("survey:"));
 
-    for (const doc of detailDocs) {
+    // 3. Eliminar todos los documentos existentes
+    for (const doc of [...indexDocs, ...detailDocs]) {
       try {
         await db.remove(doc);
       } catch (e) {
-        console.warn("[Pouch] remove old detail doc error", e);
+        console.warn("[Pouch] remove old doc error", e);
       }
     }
 
-    // 4. Insertar las nuevas encuestas
-    const docs = (surveys || []).map((s) =>
-      sanitizeTopLevel({
-        _id: `survey:${String(s?._id || s?.id || "unknown")}`,
-        ...s,
-      })
-    );
-
+    // 4. Insertar las nuevas encuestas (índice + detalle)
     const results = [];
-    for (const doc of docs) {
+    for (const survey of surveys || []) {
+      const surveyId = String(survey?._id || survey?.id || "unknown");
+
+      // 4a. Crear documento de índice (sin prefijo, para la lista)
+      const indexDoc = sanitizeTopLevel({
+        _id: surveyId,
+        ...survey,
+      });
+
       try {
-        const res = await db.put(doc);
+        const res = await db.put(indexDoc);
         results.push(res);
       } catch (e) {
-        console.warn("[Pouch] put new doc error", e);
+        console.warn("[Pouch] put new index doc error", e);
+        results.push({ error: true, e });
+      }
+
+      // 4b. Crear documento de detalle (con prefijo, para responder)
+      const detailDoc = sanitizeTopLevel({
+        _id: `survey:${surveyId}`,
+        survey: survey.survey || survey, // el detalle va en la propiedad 'survey'
+        surveyInfo: survey.surveyInfo || {},
+        ...survey,
+      });
+
+      try {
+        const res = await db.put(detailDoc);
+        results.push(res);
+      } catch (e) {
+        console.warn("[Pouch] put new detail doc error", e);
         results.push({ error: true, e });
       }
     }
