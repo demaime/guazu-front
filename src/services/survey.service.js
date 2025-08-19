@@ -330,6 +330,93 @@ class SurveyService {
     }
   }
 
+  // Método para obtener respuestas recientes del usuario (ADMIN ve respuestas de pollsters a SUS encuestas)
+  async getRecentAnswersForUser(limit = 3) {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      const token = localStorage.getItem("token");
+
+      if (!user || !token) {
+        throw new Error("Usuario no autenticado");
+      }
+
+      console.log("🔍 Usuario autenticado:", user.email, "Rol:", user.role);
+
+      // Obtener todas las encuestas del usuario (las que él creó)
+      const { surveys } = await this.getAllSurveys(1, 100);
+      console.log("📊 Encuestas del usuario cargadas:", surveys.length);
+
+      // Recopilar todas las respuestas de las encuestas del usuario
+      const allAnswers = [];
+
+      for (const survey of surveys) {
+        try {
+          console.log(
+            `🔎 Obteniendo respuestas para encuesta: ${survey._id} - "${
+              survey.survey?.title || survey.title || "Sin título"
+            }"`
+          );
+
+          const answersResponse = await fetch(
+            SURVEY_ROUTES.ANSWERS(survey._id),
+            {
+              method: "GET",
+              headers: new Headers({
+                "Content-Type": "application/json; charset=utf-8",
+                Authorization: token,
+              }),
+              credentials: "include",
+              mode: "cors",
+            }
+          );
+
+          if (answersResponse.ok) {
+            const answersData = await answersResponse.json();
+            const answers = answersData.answersBySurveyId || [];
+            console.log(
+              `📝 Respuestas encontradas para "${
+                survey.survey?.title || survey.title || "Sin título"
+              }":`,
+              answers.length
+            );
+
+            // Agregar información de la encuesta a cada respuesta
+            answers.forEach((answer) => {
+              allAnswers.push({
+                ...answer,
+                surveyTitle:
+                  survey.survey?.title || survey.title || "Sin título",
+                surveyId: survey._id,
+              });
+            });
+          } else {
+            console.warn(
+              `⚠️ Error HTTP ${answersResponse.status} al obtener respuestas de encuesta ${survey._id}`
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `❌ Error fetching answers for survey ${survey._id}:`,
+            error
+          );
+        }
+      }
+
+      console.log("📊 Total respuestas recopiladas:", allAnswers.length);
+
+      // Ordenar por fecha más reciente y tomar solo el límite solicitado
+      const recentAnswers = allAnswers
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, limit);
+
+      console.log("🔥 Respuestas más recientes (top 3):", recentAnswers);
+      return recentAnswers;
+    } catch (error) {
+      console.error("❌ Error getting recent answers:", error);
+      return [];
+    }
+  }
+
   async getSurveyWithAnswers(surveyId) {
     console.log(
       `[SurveyService] Fetching survey and answers for ID: ${surveyId}`
