@@ -18,22 +18,11 @@ const UserCard = memo(({ user, currentUser, highlightTerm, onCardClick }) => {
     }
   };
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20, scale: 0.95 },
-    visible: { opacity: 1, y: 0, scale: 1 },
-    exit: { opacity: 0, scale: 0.95 },
-  };
-
   const isSelf = currentUser?._id && user?._id && currentUser._id === user._id;
   const avatarSrc = user?.image || (isSelf ? currentUser?.image : null);
 
   return (
-    <motion.div
-      variants={cardVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      transition={{ duration: 0.2 }}
+    <div
       className="group relative bg-[var(--card-background)] border border-[var(--card-border)] rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 p-4 pl-5 flex items-center gap-4 cursor-pointer ring-1 ring-transparent hover:ring-primary/40 hover:border-primary/40"
       onClick={onCardClick}
     >
@@ -90,7 +79,7 @@ const UserCard = memo(({ user, currentUser, highlightTerm, onCardClick }) => {
           <ChevronRight className="w-4 h-4" />
         </span>
       </div>
-    </motion.div>
+    </div>
   );
 });
 

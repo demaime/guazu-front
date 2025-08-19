@@ -941,13 +941,12 @@ export default function Encuestas() {
             {(user?.role === "ROLE_ADMIN" || user?.role === "SUPERVISOR") && (
               <button
                 onClick={() => setActiveTab("drafts")}
-                className={`px-4 py-2 rounded-lg text-sm cursor-pointer font-medium transition-colors flex items-center gap-1 ${
+                className={`px-4 py-2 rounded-lg text-sm cursor-pointer font-medium transition-colors ${
                   activeTab === "drafts"
                     ? "bg-primary text-white"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                <FilePenLine className="w-4 h-4" />
                 Borradores ({isLoading.drafts ? "..." : tabCounts.drafts})
               </button>
             )}

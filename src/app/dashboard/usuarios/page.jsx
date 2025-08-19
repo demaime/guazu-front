@@ -267,31 +267,31 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden p-2">
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden p-2 sm:p-4">
       <div className="flex-1 flex flex-col overflow-hidden p-0">
-        <div className="mb-0">
-          <div className="flex items-center justify-between">
+        <div className="mb-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
               <h2 className="text-base font-semibold leading-6 text-[var(--text-primary)]">
                 Listado de Usuarios
               </h2>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1 sm:flex-none">
                 <input
                   type="text"
                   placeholder="Buscar por nombre, apellido o email..."
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  className="rounded-md border border-[var(--card-border)] bg-[var(--card-background)] w-64 pl-9 pr-3 py-1.5 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="rounded-md border border-[var(--card-border)] bg-[var(--card-background)] w-full sm:w-80 md:w-96 pl-9 pr-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <Search className="w-4 h-4 text-[var(--text-secondary)] absolute left-3 top-1/2 -translate-y-1/2" />
               </div>
-              <div className="flex items-center gap-1 p-1 rounded-md bg-[var(--card-border)]">
+              <div className="flex items-center justify-center gap-1 p-1 rounded-md bg-[var(--card-border)] flex-shrink-0">
                 <button
                   onClick={() => setViewMode("table")}
-                  className={`p-1.5 rounded-md transition-colors ${
+                  className={`p-2 rounded-md transition-colors ${
                     viewMode === "table"
                       ? "bg-primary text-white"
                       : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]"
@@ -302,7 +302,7 @@ export default function UsersPage() {
                 </button>
                 <button
                   onClick={() => setViewMode("card")}
-                  className={`p-1.5 rounded-md transition-colors ${
+                  className={`p-2 rounded-md transition-colors ${
                     viewMode === "card"
                       ? "bg-primary text-white"
                       : "text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]"
@@ -316,7 +316,7 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden p-2">
+        <div className="overflow-hidden px-1 sm:px-2">
           <AnimatePresence mode="wait">
             {viewMode === "table" ? (
               <motion.div
@@ -326,7 +326,7 @@ export default function UsersPage() {
                 exit={{ opacity: 0 }}
                 className="min-w-full inline-block align-middle"
               >
-                <div className="overflow-hidden">
+                <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-[var(--card-border)]">
                     <thead className="bg-[var(--card-background)] sticky top-0">
                       <tr>
@@ -429,21 +429,50 @@ export default function UsersPage() {
             ) : (
               <motion.div
                 key="card-view"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
                 ref={gridRef}
-                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 p-0"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 p-0"
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.1,
+                      delayChildren: 0.1,
+                    },
+                  },
+                }}
               >
-                {currentUsers.map((user) => (
-                  <div key={user._id} className="h-[140px] overflow-hidden">
+                {currentUsers.map((user, index) => (
+                  <motion.div
+                    key={user._id}
+                    className="overflow-hidden"
+                    variants={{
+                      hidden: {
+                        opacity: 0,
+                        filter: "blur(2px)",
+                        y: 20,
+                      },
+                      visible: {
+                        opacity: 1,
+                        filter: "blur(0px)",
+                        y: 0,
+                        transition: {
+                          duration: 0.4,
+                          ease: "easeOut",
+                        },
+                      },
+                    }}
+                  >
                     <UserCard
                       user={user}
                       currentUser={currentUser}
                       highlightTerm={searchTerm}
                       onCardClick={() => handleOpenModal(user)}
                     />
-                  </div>
+                  </motion.div>
                 ))}
               </motion.div>
             )}
@@ -454,18 +483,18 @@ export default function UsersPage() {
         {filteredUsers.length > 0 && (
           <div
             ref={paginationRef}
-            className="mt-1 py-1 border-t border-[var(--card-border)]"
+            className="mt-2 py-2 border-t border-[var(--card-border)]"
           >
-            <nav className="flex items-center justify-center gap-2">
+            <nav className="flex items-center justify-center gap-1 sm:gap-2">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="px-3 py-1 rounded-md text-sm bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--card-hover)] flex items-center gap-1"
+                className="px-3 py-2 rounded-md text-sm bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--card-hover)] flex items-center gap-1"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Anterior
+                <span className="hidden sm:inline">Anterior</span>
               </motion.button>
 
               {currentPage > 3 && (
@@ -488,7 +517,7 @@ export default function UsersPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handlePageChange(pageNum)}
-                  className={`px-3 py-1 rounded-md text-sm cursor-pointer ${
+                  className={`px-3 py-2 rounded-md text-sm cursor-pointer min-w-[40px] ${
                     currentPage === pageNum
                       ? "bg-primary text-white"
                       : "bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--card-hover)]"
@@ -517,9 +546,9 @@ export default function UsersPage() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1 rounded-md text-sm bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--card-hover)] flex items-center gap-1"
+                className="px-3 py-2 rounded-md text-sm bg-[var(--card-background)] border border-[var(--card-border)] text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--card-hover)] flex items-center gap-1"
               >
-                Siguiente
+                <span className="hidden sm:inline">Siguiente</span>
                 <ChevronRight className="w-4 h-4" />
               </motion.button>
             </nav>

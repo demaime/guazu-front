@@ -68,9 +68,25 @@ export function SurveyList({
   const [showCloneSuccessModal, setShowCloneSuccessModal] = useState(false);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
+  // Estados para tooltips de título (solo desktop)
+  const [titleTooltipVisible, setTitleTooltipVisible] = useState(null);
+  const [titleTooltipPosition, setTitleTooltipPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+
   // Estados para feedback visual de botones
   const [buttonLoadingStates, setButtonLoadingStates] = useState({});
   const [buttonClickedStates, setButtonClickedStates] = useState({});
+
+  // Constantes para anchos de columnas
+  const COLUMN_WIDTHS = {
+    description: "w-16",
+    title: "w-2/5",
+    remaining: "w-20",
+    progress: "w-1/4",
+    actions: "w-20",
+  };
 
   // Funciones helper para feedback visual
   const setButtonLoading = (actionKey, isLoading) => {
@@ -89,6 +105,27 @@ export function SurveyList({
     setTimeout(() => {
       setButtonClicked(actionKey, false);
     }, 800); // Increased duration for better visual feedback
+  };
+
+  // Función utilitaria para truncar texto
+  const truncateText = (text, maxLength = 50) => {
+    if (!text || typeof text !== "string") return "";
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength).trim() + "...";
+  };
+
+  // Manejar tooltip de título
+  const handleTitleTooltip = (surveyId, e, show, fullTitle) => {
+    if (show && fullTitle && fullTitle.length > 50) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setTitleTooltipPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10,
+      });
+      setTitleTooltipVisible({ id: surveyId, title: fullTitle });
+    } else {
+      setTitleTooltipVisible(null);
+    }
   };
 
   // Función para obtener el texto del tooltip
@@ -606,15 +643,19 @@ export function SurveyList({
               animate={{ paddingBottom: isExpanded ? "0.75rem" : "0" }}
               transition={{ duration: 0.2 }}
             >
-              <div className="flex justify-between items-center p-3">
-                <h3 className="text-base font-semibold text-white mr-2 truncate">
-                  {getLocalizedText(surveyData.survey?.title) || "Sin título"}
-                </h3>
-                <ChevronDown
-                  className={`w-5 h-5 text-indigo-100 transition-transform duration-200 ${
-                    isExpanded ? "rotate-180" : ""
-                  }`}
-                />
+              <div className="flex justify-between items-center p-3 gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-white truncate">
+                    {getLocalizedText(surveyData.survey?.title) || "Sin título"}
+                  </h3>
+                </div>
+                <div className="flex-shrink-0">
+                  <ChevronDown
+                    className={`w-5 h-5 text-indigo-100 transition-transform duration-200 ${
+                      isExpanded ? "rotate-180" : ""
+                    }`}
+                  />
+                </div>
               </div>
 
               <AnimatePresence>
@@ -803,285 +844,320 @@ export function SurveyList({
       {isMobile ? (
         renderMobileView()
       ) : (
-        <table className="min-w-full divide-y divide-[var(--card-border)]">
-          <thead>
-            <tr>
-              {/* Descripción (icono i) en primera columna */}
-              <th
-                key="header-desc"
-                className="px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider w-10"
-                title="Descripción"
-              >
-                <div className="flex items-center justify-center">
-                  <Info className="w-4 h-4" />
-                </div>
-              </th>
-              <th
-                key="header-title"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort("title")}
-              >
-                Título {renderSortIndicator("title")}
-              </th>
-              {/* La columna de descripción se movió al inicio */}
-              <th
-                key="header-remaining"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-              >
-                Restante
-              </th>
-              <th
-                key="header-progress"
-                className="px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer"
-                onClick={() => handleSort("progress")}
-              >
-                Casos Recolectados {renderSortIndicator("progress")}
-              </th>
-              <th
-                key="header-actions"
-                className="px-6 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider"
-              >
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-transparent divide-y divide-[var(--card-border)]">
-            {sortedSurveys.map((item, index) => {
-              const surveyData = item;
-              const surveyInfo = item.surveyInfo || {};
-              const daysLeft = getDaysRemaining(surveyInfo.endDate);
-              return (
-                <motion.tr
-                  key={surveyData._id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ scale: 1.003 }}
-                  transition={{
-                    duration: 0.18,
-                    ease: "easeOut",
-                    delay: index * 0.02,
-                  }}
-                  className="table-row-hover table-row-gradient group hover:cursor-pointer"
-                  style={{ willChange: "transform" }}
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed divide-y divide-[var(--card-border)]">
+            <thead>
+              <tr>
+                {/* Descripción (icono i) en primera columna */}
+                <th
+                  key="header-desc"
+                  className={`px-3 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider ${COLUMN_WIDTHS.description}`}
+                  title="Descripción"
                 >
-                  {/* Descripción (botón ojo) ahora primera celda */}
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] text-center w-10">
-                    <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center">
+                    <Info className="w-4 h-4" />
+                  </div>
+                </th>
+                <th
+                  key="header-title"
+                  className={`px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer ${COLUMN_WIDTHS.title}`}
+                  onClick={() => handleSort("title")}
+                >
+                  Título {renderSortIndicator("title")}
+                </th>
+                <th
+                  key="header-remaining"
+                  className={`px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider ${COLUMN_WIDTHS.remaining}`}
+                >
+                  Restante
+                </th>
+                <th
+                  key="header-progress"
+                  className={`px-6 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider cursor-pointer ${COLUMN_WIDTHS.progress}`}
+                  onClick={() => handleSort("progress")}
+                >
+                  Casos Recolectados {renderSortIndicator("progress")}
+                </th>
+                <th
+                  key="header-actions"
+                  className={`px-6 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider ${COLUMN_WIDTHS.actions}`}
+                >
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-transparent divide-y divide-[var(--card-border)]">
+              {sortedSurveys.map((item, index) => {
+                const surveyData = item;
+                const surveyInfo = item.surveyInfo || {};
+                const daysLeft = getDaysRemaining(surveyInfo.endDate);
+                return (
+                  <motion.tr
+                    key={surveyData._id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.18,
+                      ease: "easeOut",
+                      delay: index * 0.02,
+                    }}
+                    className="table-row-hover table-row-gradient group hover:cursor-pointer hover:bg-primary/5 transition-colors duration-200"
+                  >
+                    {/* Descripción (botón ojo) ahora primera celda */}
+                    <td
+                      className={`px-3 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] text-center ${COLUMN_WIDTHS.description}`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <button
+                          onClick={(e) =>
+                            toggleCardExpansion(surveyData._id, e)
+                          }
+                          onMouseEnter={(e) =>
+                            handleDescriptionTooltip(surveyData._id, e, true)
+                          }
+                          onMouseLeave={() =>
+                            handleDescriptionTooltip(null, null, false)
+                          }
+                          className="p-2.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                          data-type="description"
+                          aria-label="Descripción"
+                          title="Descripción"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                    <td
+                      className={`px-6 py-4 text-sm text-[var(--text-primary)] ${COLUMN_WIDTHS.title}`}
+                      onMouseEnter={(e) => {
+                        const fullTitle =
+                          getLocalizedText(surveyData.survey?.title) ||
+                          "Sin título";
+                        handleTitleTooltip(surveyData._id, e, true, fullTitle);
+                      }}
+                      onMouseLeave={() => handleTitleTooltip(null, null, false)}
+                    >
+                      <div className="truncate cursor-pointer">
+                        {getLocalizedText(surveyData.survey?.title) ||
+                          "Sin título"}
+                      </div>
+                    </td>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-sm ${COLUMN_WIDTHS.remaining}`}
+                    >
                       <button
-                        onClick={(e) => toggleCardExpansion(surveyData._id, e)}
                         onMouseEnter={(e) =>
-                          handleDescriptionTooltip(surveyData._id, e, true)
+                          handleRemainingTooltip(surveyData._id, e, true)
                         }
                         onMouseLeave={() =>
-                          handleDescriptionTooltip(null, null, false)
+                          handleRemainingTooltip(null, null, false)
                         }
-                        className="p-2.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        data-type="description"
-                        aria-label="Descripción"
-                        title="Descripción"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">
-                    {getLocalizedText(surveyData.survey?.title) || "Sin título"}
-                  </td>
-                  {/* Columna de descripción eliminada (movida al inicio) */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onMouseEnter={(e) =>
-                        handleRemainingTooltip(surveyData._id, e, true)
-                      }
-                      onMouseLeave={() =>
-                        handleRemainingTooltip(null, null, false)
-                      }
-                      className={`px-2 py-1 rounded-md transition-colors cursor-default ${
-                        daysLeft !== null && daysLeft >= 0
-                          ? "text-[var(--text-primary)] hover:bg-[var(--hover-bg)] hover:text-primary"
-                          : "text-[var(--text-secondary)]"
-                      }`}
-                    >
-                      {daysLeft === null
-                        ? "Sin fecha"
-                        : daysLeft < 0
-                        ? "Finalizada"
-                        : `${daysLeft} día${daysLeft === 1 ? "" : "s"}`}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)]">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span>
-                            {item.totalAnswers || 0} / {surveyInfo.target || 0}
-                          </span>
-                          <span className="text-[var(--text-secondary)]">
-                            (
-                            {calculateProgress(
-                              item.totalAnswers,
-                              surveyInfo.target
-                            )}
-                            )
-                          </span>
-                        </div>
-                        <motion.div className="w-24 h-1 bg-[var(--card-border)] rounded-full mt-1 overflow-hidden">
-                          <motion.div
-                            className={`h-full ${getProgressColor(
-                              item.totalAnswers || 0,
-                              surveyInfo.target || 0
-                            )}`}
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${Math.min(
-                                ((item.totalAnswers || 0) /
-                                  (surveyInfo.target || 1)) *
-                                  100,
-                                100
-                              )}%`,
-                            }}
-                            transition={{ duration: 0.5, ease: "easeOut" }}
-                          />
-                        </motion.div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative">
-                    <div className="flex items-center justify-end relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleActions(surveyData._id);
-                        }}
-                        aria-expanded={expandedActionsId === surveyData._id}
-                        className={`transition-colors cursor-pointer flex items-center justify-center rounded-full p-2.5 ${
-                          expandedActionsId === surveyData._id
-                            ? "bg-primary text-white shadow-md"
-                            : "bg-primary/10 text-primary hover:bg-primary/20"
+                        className={`px-2 py-1 rounded-md transition-colors cursor-default ${
+                          daysLeft !== null && daysLeft >= 0
+                            ? "text-[var(--text-primary)] hover:bg-[var(--hover-bg)] hover:text-primary"
+                            : "text-[var(--text-secondary)]"
                         }`}
-                        data-type="action"
                       >
-                        {expandedActionsId === surveyData._id ? (
-                          <ChevronRightCircle className="w-6 h-6" />
-                        ) : (
-                          <ChevronLeftCircle className="w-6 h-6" />
-                        )}
+                        {daysLeft === null
+                          ? "Sin fecha"
+                          : daysLeft < 0
+                          ? "Finalizada"
+                          : `${daysLeft} día${daysLeft === 1 ? "" : "s"}`}
                       </button>
+                    </td>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] ${COLUMN_WIDTHS.progress}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span>
+                              {item.totalAnswers || 0} /{" "}
+                              {surveyInfo.target || 0}
+                            </span>
+                            <span className="text-[var(--text-secondary)]">
+                              (
+                              {calculateProgress(
+                                item.totalAnswers,
+                                surveyInfo.target
+                              )}
+                              )
+                            </span>
+                          </div>
+                          <motion.div className="w-24 h-1 bg-[var(--card-border)] rounded-full mt-1 overflow-hidden">
+                            <motion.div
+                              className={`h-full ${getProgressColor(
+                                item.totalAnswers || 0,
+                                surveyInfo.target || 0
+                              )}`}
+                              initial={{ width: 0 }}
+                              animate={{
+                                width: `${Math.min(
+                                  ((item.totalAnswers || 0) /
+                                    (surveyInfo.target || 1)) *
+                                    100,
+                                  100
+                                )}%`,
+                              }}
+                              transition={{ duration: 0.5, ease: "easeOut" }}
+                            />
+                          </motion.div>
+                        </div>
+                      </div>
+                    </td>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-sm text-[var(--text-primary)] relative ${COLUMN_WIDTHS.actions}`}
+                    >
+                      <div className="flex items-center justify-end relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleActions(surveyData._id);
+                          }}
+                          aria-expanded={expandedActionsId === surveyData._id}
+                          className={`transition-colors cursor-pointer flex items-center justify-center rounded-full p-2.5 ${
+                            expandedActionsId === surveyData._id
+                              ? "bg-primary text-white shadow-md"
+                              : "bg-primary/10 text-primary hover:bg-primary/20"
+                          }`}
+                          data-type="action"
+                        >
+                          {expandedActionsId === surveyData._id ? (
+                            <ChevronRightCircle className="w-6 h-6" />
+                          ) : (
+                            <ChevronLeftCircle className="w-6 h-6" />
+                          )}
+                        </button>
 
-                      <AnimatePresence>
-                        {expandedActionsId === surveyData._id && (
-                          <motion.div
-                            initial={{ width: 0, opacity: 0 }}
-                            animate={{ width: "auto", opacity: 1 }}
-                            exit={{ width: 0, opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="absolute right-12 top-1/2 -translate-y-1/2 overflow-hidden z-50"
-                          >
-                            <div className="flex items-center gap-2 px-2 py-2 rounded-xl shadow-xl action-buttons glass-primary border border-primary/20">
-                              {role === "ROLE_ADMIN" && (
-                                <>
+                        <AnimatePresence>
+                          {expandedActionsId === surveyData._id && (
+                            <motion.div
+                              initial={{ width: 0, opacity: 0 }}
+                              animate={{ width: "auto", opacity: 1 }}
+                              exit={{ width: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="absolute right-12 top-1/2 -translate-y-1/2 overflow-hidden z-50"
+                            >
+                              <div className="flex items-center gap-2 px-2 py-2 rounded-xl shadow-xl action-buttons glass-primary border border-primary/20">
+                                {role === "ROLE_ADMIN" && (
+                                  <>
+                                    <ActionButton
+                                      action="edit"
+                                      surveyData={surveyData}
+                                      icon={Edit}
+                                      variant="desktop"
+                                      className="text-[var(--text-primary)] bg-white/5"
+                                    />
+                                  </>
+                                )}
+
+                                {role === "ROLE_ADMIN" ||
+                                role === "SUPERVISOR" ? (
                                   <ActionButton
-                                    action="edit"
+                                    action="answer"
                                     surveyData={surveyData}
-                                    icon={Edit}
+                                    icon={TestTube2}
                                     variant="desktop"
-                                    className="text-[var(--text-primary)] bg-white/5"
+                                    className="text-blue-500 bg-white/5"
                                   />
-                                </>
-                              )}
-
-                              {role === "ROLE_ADMIN" ||
-                              role === "SUPERVISOR" ? (
-                                <ActionButton
-                                  action="answer"
-                                  surveyData={surveyData}
-                                  icon={TestTube2}
-                                  variant="desktop"
-                                  className="text-blue-500 bg-white/5"
-                                />
-                              ) : (
-                                <ActionButton
-                                  action="answer"
-                                  surveyData={surveyData}
-                                  icon={Play}
-                                  variant="desktop"
-                                  className="text-[var(--text-primary)] bg-white/5"
-                                />
-                              )}
-
-                              {/* Solo mostrar mapa para pollsters, admins ya tienen mapa integrado en análisis */}
-                              {role !== "ROLE_ADMIN" &&
-                                role !== "SUPERVISOR" && (
+                                ) : (
                                   <ActionButton
-                                    action="map"
+                                    action="answer"
                                     surveyData={surveyData}
-                                    icon={Map}
+                                    icon={Play}
                                     variant="desktop"
                                     className="text-[var(--text-primary)] bg-white/5"
                                   />
                                 )}
 
-                              {(role === "ROLE_ADMIN" ||
-                                role === "SUPERVISOR") && (
-                                <>
+                                {/* Solo mostrar mapa para pollsters, admins ya tienen mapa integrado en análisis */}
+                                {role !== "ROLE_ADMIN" &&
+                                  role !== "SUPERVISOR" && (
+                                    <ActionButton
+                                      action="map"
+                                      surveyData={surveyData}
+                                      icon={Map}
+                                      variant="desktop"
+                                      className="text-[var(--text-primary)] bg-white/5"
+                                    />
+                                  )}
+
+                                {(role === "ROLE_ADMIN" ||
+                                  role === "SUPERVISOR") && (
+                                  <>
+                                    <ActionButton
+                                      action="progress"
+                                      surveyData={surveyData}
+                                      icon={BarChart3}
+                                      variant="desktop"
+                                      className="text-[var(--text-primary)] bg-white/5"
+                                    />
+                                  </>
+                                )}
+
+                                {role === "SUPERVISOR" && (
                                   <ActionButton
-                                    action="progress"
+                                    action="pollsters"
                                     surveyData={surveyData}
-                                    icon={BarChart3}
+                                    icon={Users}
                                     variant="desktop"
                                     className="text-[var(--text-primary)] bg-white/5"
                                   />
-                                </>
-                              )}
+                                )}
 
-                              {role === "SUPERVISOR" && (
-                                <ActionButton
-                                  action="pollsters"
-                                  surveyData={surveyData}
-                                  icon={Users}
-                                  variant="desktop"
-                                  className="text-[var(--text-primary)] bg-white/5"
-                                />
-                              )}
+                                {role === "ROLE_ADMIN" && (
+                                  <>
+                                    <ActionButton
+                                      action="clone"
+                                      surveyData={surveyData}
+                                      icon={Copy}
+                                      variant="desktop"
+                                      className="text-[var(--text-primary)] bg-white/5"
+                                    />
 
-                              {role === "ROLE_ADMIN" && (
-                                <>
-                                  <ActionButton
-                                    action="clone"
-                                    surveyData={surveyData}
-                                    icon={Copy}
-                                    variant="desktop"
-                                    className="text-[var(--text-primary)] bg-white/5"
-                                  />
+                                    <ActionButton
+                                      action="deleteAnswers"
+                                      surveyData={surveyData}
+                                      icon={ClipboardX}
+                                      variant="desktop"
+                                      className="text-red-400 bg-white/5"
+                                    />
 
-                                  <ActionButton
-                                    action="deleteAnswers"
-                                    surveyData={surveyData}
-                                    icon={ClipboardX}
-                                    variant="desktop"
-                                    className="text-red-400 bg-white/5"
-                                  />
+                                    <ActionButton
+                                      action="delete"
+                                      surveyData={surveyData}
+                                      icon={Trash2}
+                                      variant="desktop"
+                                      className="text-red-500 bg-white/5"
+                                    />
+                                  </>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-                                  <ActionButton
-                                    action="delete"
-                                    surveyData={surveyData}
-                                    icon={Trash2}
-                                    variant="desktop"
-                                    className="text-red-500 bg-white/5"
-                                  />
-                                </>
-                              )}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </td>
-                </motion.tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* Tooltip para títulos truncados */}
+      {titleTooltipVisible && (
+        <div
+          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] max-w-sm pointer-events-none"
+          style={{
+            left: `${titleTooltipPosition.x}px`,
+            top: `${titleTooltipPosition.y}px`,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          {titleTooltipVisible.title}
+        </div>
       )}
 
       {openDescriptionTooltipId && (
