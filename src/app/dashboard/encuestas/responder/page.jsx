@@ -8,10 +8,17 @@ import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { useTheme } from "@/providers/ThemeProvider";
 import { DoubleBorderLight, DoubleBorderDark } from "survey-core/themes";
-import { CheckCircle2, PartyPopper } from "lucide-react";
+import {
+  CheckCircle2,
+  PartyPopper,
+  MapPin,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { motion, AnimatePresence } from "framer-motion";
+import GeolocationService from "@/services/geolocation.service";
 
 import "survey-core/survey-core.css";
 import "survey-core/i18n/spanish";
@@ -68,6 +75,9 @@ export default function SurveyResponderStable() {
   const INITIAL_COUNTDOWN = 5;
   const [countdown, setCountdown] = useState(INITIAL_COUNTDOWN);
   const [successMode, setSuccessMode] = useState("online"); // 'online' | 'offline'
+  const [locationError, setLocationError] = useState(null); // null | 'PERMISSION_DENIED' | 'TIMEOUT' | etc.
+  const [isCapturingLocation, setIsCapturingLocation] = useState(false);
+  const [capturedLocation, setCapturedLocation] = useState(null); // { lat, lng }
 
   // Redirección y cuenta regresiva luego del éxito
   useEffect(() => {
@@ -171,6 +181,21 @@ export default function SurveyResponderStable() {
 
   const handleComplete = async (sender) => {
     try {
+      setIsCapturingLocation(true);
+      setLocationError(null);
+
+      // 1. Capturar geolocalización OBLIGATORIA
+      let locationData;
+      try {
+        locationData = await GeolocationService.getCurrentPosition();
+        setCapturedLocation(locationData);
+      } catch (geoError) {
+        setIsCapturingLocation(false);
+        setLocationError(geoError.message);
+        return; // Detener envío si no hay coordenadas
+      }
+
+      // 2. Preparar datos de la encuesta
       const user = authService.getUser();
       const token = localStorage.getItem("token");
       const transformedAnswers = {};
@@ -191,6 +216,7 @@ export default function SurveyResponderStable() {
         }
       });
 
+      // 3. Crear payload CON coordenadas
       const payload = {
         surveyId: surveyId,
         _id: `survey_${surveyId}_${user?._id || "anon"}_${Date.now()}`,
@@ -200,8 +226,11 @@ export default function SurveyResponderStable() {
         createdAt: new Date().toISOString(),
         time: sender.timeSpent,
         authToken: token,
+        lat: locationData.lat,
+        lng: locationData.lng,
       };
 
+      // 4. Enviar (online/offline)
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         const { queueResponseForSync } = await import("@/services/db/outbox");
         await queueResponseForSync(payload);
@@ -219,6 +248,7 @@ export default function SurveyResponderStable() {
         }
       );
       if (!res.ok) throw new Error("Error al enviar la encuesta al servidor");
+
       setSuccessMode("online");
       setSurveyCompletedSuccessfully(true);
       try {
@@ -231,6 +261,42 @@ export default function SurveyResponderStable() {
     } catch (e) {
       toast.error(e.message || "Error inesperado");
       setError(e.message);
+    } finally {
+      setIsCapturingLocation(false);
+    }
+  };
+
+  const retryLocationCapture = async () => {
+    setIsCapturingLocation(true);
+    setLocationError(null);
+
+    try {
+      // Forzar una nueva solicitud de permisos con opciones específicas
+      const locationData = await GeolocationService.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0, // Fuerza una nueva ubicación, no usa caché
+      });
+      setCapturedLocation(locationData);
+
+      // Reintentar envío automáticamente
+      if (surveyModel) {
+        const sender = surveyModel;
+        await handleComplete(sender);
+      }
+    } catch (geoError) {
+      console.log("Error en retry:", geoError.message);
+
+      // Si es PERMISSION_DENIED, mostrar instrucciones específicas
+      if (geoError.message === "PERMISSION_DENIED") {
+        toast.error(
+          "Debes permitir el acceso a la ubicación en la configuración de tu navegador. Busca el ícono de ubicación en la barra de direcciones."
+        );
+      }
+
+      setLocationError(geoError.message);
+    } finally {
+      setIsCapturingLocation(false);
     }
   };
 
@@ -357,6 +423,105 @@ export default function SurveyResponderStable() {
           </motion.div>
         </AnimatePresence>
       </div>
+    );
+  }
+
+  // Pantalla de error de geolocalización
+  if (locationError) {
+    const getErrorMessage = (errorType) => {
+      switch (errorType) {
+        case "PERMISSION_DENIED":
+          return "No es posible registrar un caso sin coordenadas. Si ya rechazaste los permisos, busca el ícono de ubicación en la barra de direcciones de tu navegador y permite el acceso.";
+        case "POSITION_UNAVAILABLE":
+          return "No se pudo determinar tu ubicación. Verifica que el GPS esté activado.";
+        case "TIMEOUT":
+          return "Se agotó el tiempo para obtener tu ubicación. Inténtalo nuevamente.";
+        case "UNSUPPORTED":
+          return "Tu dispositivo no soporta geolocalización.";
+        default:
+          return "Error desconocido al obtener la ubicación.";
+      }
+    };
+
+    const getErrorIcon = (errorType) => {
+      return errorType === "PERMISSION_DENIED" ? MapPin : AlertTriangle;
+    };
+
+    const ErrorIcon = getErrorIcon(locationError);
+
+    return (
+      <div className="p-8 flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            className="relative p-6 rounded-2xl shadow-lg max-w-2xl w-full overflow-hidden bg-red-600 text-white ring-1 ring-red-700/30"
+          >
+            <div className="mb-4 flex justify-center">
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: [0.9, 1.08, 1] }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              >
+                <ErrorIcon size={96} className="text-white drop-shadow" />
+              </motion.div>
+            </div>
+
+            <h1 className="text-2xl font-extrabold mb-4 text-white tracking-tight">
+              Ubicación requerida
+            </h1>
+
+            <p className="text-white/90 mb-6 text-lg">
+              {getErrorMessage(locationError)}
+            </p>
+
+            <div className="flex gap-3 justify-center flex-wrap">
+              <motion.button
+                onClick={retryLocationCapture}
+                disabled={isCapturingLocation}
+                className="px-6 py-3 rounded-md bg-white text-red-700 hover:bg-white/90 transition duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                whileTap={{ scale: 0.98 }}
+              >
+                {isCapturingLocation ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Obteniendo ubicación...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="w-4 h-4" />
+                    {locationError === "PERMISSION_DENIED"
+                      ? "Reintentar ubicación"
+                      : "Activar ubicación"}
+                  </>
+                )}
+              </motion.button>
+
+              <motion.button
+                onClick={() => router.push("/dashboard/encuestas")}
+                className="px-6 py-3 rounded-md bg-transparent border-2 border-white text-white hover:bg-white/10 transition duration-200"
+                whileTap={{ scale: 0.98 }}
+              >
+                Cancelar
+              </motion.button>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // Pantalla de captura de ubicación
+  if (isCapturingLocation) {
+    return (
+      <LoaderWrapper
+        size="lg"
+        fullScreen
+        text="Obteniendo ubicación..."
+        className="text-primary"
+      />
     );
   }
 
