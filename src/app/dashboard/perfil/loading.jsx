@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { LoaderWrapper } from '@/components/ui/LoaderWrapper';
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 export default function PerfilLoading() {
   return (
@@ -13,4 +13,4 @@ export default function PerfilLoading() {
       />
     </div>
   );
-} 
+}
