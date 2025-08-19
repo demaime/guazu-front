@@ -1,16 +1,16 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Loader } from '@/components/ui/Loader';
+import { LoaderWrapper } from '@/components/ui/LoaderWrapper';
 
 export default function PerfilLoading() {
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="min-h-screen flex items-center justify-center"
-    >
-      <Loader size="xl" className="text-primary" />
-    </motion.div>
+    <div className="p-4 h-[calc(100vh-64px)] flex items-center justify-center">
+      <LoaderWrapper
+        size="lg"
+        fullScreen={false}
+        text="Cargando perfil…"
+        className="text-primary"
+      />
+    </div>
   );
 } 
