@@ -16,6 +16,7 @@ export function PollsterSurveyList({
   surveys,
   isFinished = false,
   currentUser,
+  refreshToken = 0,
 }) {
   const router = useRouter();
   const [loadingStates, setLoadingStates] = useState({});
@@ -124,7 +125,11 @@ export function PollsterSurveyList({
     };
 
     loadProgressForSurveys();
-  }, [JSON.stringify(surveys?.map((s) => s._id)?.sort()), currentUser?._id]);
+  }, [
+    JSON.stringify(surveys?.map((s) => s._id)?.sort()),
+    currentUser?._id,
+    refreshToken,
+  ]);
 
   const getLocalizedText = (textObj, defaultText = "Sin definir") => {
     if (!textObj) return defaultText;

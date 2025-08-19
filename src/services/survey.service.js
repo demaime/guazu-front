@@ -87,6 +87,23 @@ class SurveyService {
         return Promise.reject(surveyData.validation);
       }
 
+      // Persistir detalle completo en Pouch para uso offline (solo en navegador)
+      try {
+        if (typeof window !== "undefined") {
+          const { saveSurveyDetail } = await import("@/services/db/pouch");
+          const detail =
+            surveyData?.survey?.survey || surveyData?.survey || null;
+          if (detail) {
+            await saveSurveyDetail(surveyId, detail);
+          }
+        }
+      } catch (persistErr) {
+        console.warn(
+          "[SurveyService] No se pudo guardar detalle en Pouch",
+          persistErr
+        );
+      }
+
       // Luego obtenemos las respuestas
       const answersResponse = await fetch(SURVEY_ROUTES.ANSWERS(surveyId), {
         method: "GET",

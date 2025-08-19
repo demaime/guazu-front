@@ -8,6 +8,8 @@ import {
   upsertSurveys,
   replaceAllSurveys,
   setLastSync,
+  reconstructIndexesFromDetails,
+  safeReplaceAllSurveys,
 } from "@/services/db/pouch";
 import { syncPendingResponses } from "@/services/sync";
 import { authService } from "@/services/auth.service";
@@ -72,6 +74,7 @@ export default function Encuestas() {
     typeof navigator === "undefined" ? true : navigator.onLine
   );
   const [isOutboxSyncing, setIsOutboxSyncing] = useState(false);
+  const [progressRefreshToken, setProgressRefreshToken] = useState(0);
   // Loader inicial a pantalla completa mientras se actualizan encuestas
   const [isInitialLoadingView, setIsInitialLoadingView] = useState(true);
   // Estado de permisos/estado de ubicación
@@ -95,6 +98,13 @@ export default function Encuestas() {
       let all = [];
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         all = await getAllSurveysLocal();
+        // Fallback: si no hay índices pero sí puede haber detalles, reconstruir
+        if (!all || all.length === 0) {
+          try {
+            await reconstructIndexesFromDetails();
+            all = await getAllSurveysLocal();
+          } catch {}
+        }
       } else {
         // Obtener todas las páginas del backend en una sola pasada
         let page = 1;
@@ -135,14 +145,24 @@ export default function Encuestas() {
 
       // Borradores
       try {
-        const draftsResp = await surveyService.getDrafts();
-        const drafts = draftsResp.drafts || [];
-        setDraftSurveysData(drafts);
-        setTabCounts({
-          active: active.length,
-          finished: finished.length,
-          drafts: drafts.length,
-        });
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+          const draftsResp = await surveyService.getDrafts();
+          const drafts = draftsResp.drafts || [];
+          setDraftSurveysData(drafts);
+          setTabCounts({
+            active: active.length,
+            finished: finished.length,
+            drafts: drafts.length,
+          });
+        } else {
+          // offline: no intentar drafts
+          setDraftSurveysData([]);
+          setTabCounts({
+            active: active.length,
+            finished: finished.length,
+            drafts: 0,
+          });
+        }
       } catch {
         setDraftSurveysData([]);
         setTabCounts({
@@ -152,9 +172,9 @@ export default function Encuestas() {
         });
       }
 
-      // Reemplazar completamente el cache con las encuestas actuales del servidor
+      // Reemplazar completamente el cache con las encuestas actuales del servidor (solo índices)
       try {
-        await replaceAllSurveys(active);
+        await safeReplaceAllSurveys(active);
         await setLastSync(Date.now());
       } catch {}
     } catch (e) {
@@ -492,6 +512,7 @@ export default function Encuestas() {
         toast.success(`Sincronización completada (${synced}/${total}).`);
         // Recargar datos visibles para el pollster
         await fetchDataForTab("active", 1);
+        setProgressRefreshToken((t) => t + 1);
       } else {
         toast.info("No hay elementos para sincronizar.");
       }
@@ -507,7 +528,9 @@ export default function Encuestas() {
   useEffect(() => {
     if (wasOnlineRef.current === false && isOnline === true) {
       if (pendingCount > 0 && !isOutboxSyncing) {
-        performOutboxSync();
+        performOutboxSync().then(() => {
+          setProgressRefreshToken((t) => t + 1);
+        });
       }
     }
     wasOnlineRef.current = isOnline;
@@ -966,15 +989,77 @@ export default function Encuestas() {
             {!isInitialLoadingView &&
               !currentLoadingState &&
               currentSurveys.length === 0 && (
-                <p className="text-[var(--text-secondary)] italic text-center py-4">
-                  No hay encuestas{" "}
-                  {activeTab === "drafts"
-                    ? "borradores"
-                    : activeTab === "active"
-                    ? "activas"
-                    : "finalizadas"}{" "}
-                  disponibles.
-                </p>
+                <div className="text-center py-6 space-y-3">
+                  <p className="text-[var(--text-secondary)] italic">
+                    No hay encuestas{" "}
+                    {activeTab === "drafts"
+                      ? "borradores"
+                      : activeTab === "active"
+                      ? "activas"
+                      : "finalizadas"}{" "}
+                    disponibles.
+                  </p>
+                  {typeof navigator !== "undefined" && !navigator.onLine && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          setIsLoading((prev) => ({
+                            ...prev,
+                            [activeTab]: true,
+                          }));
+                          await reconstructIndexesFromDetails();
+                          const local = await getAllSurveysLocal();
+                          const now = new Date();
+                          const activeSurveys = local.filter((survey) => {
+                            if (
+                              !survey.surveyInfo?.startDate ||
+                              !survey.surveyInfo?.endDate
+                            ) {
+                              return true;
+                            }
+                            const startDate = new Date(
+                              survey.surveyInfo.startDate
+                            );
+                            const endDate = new Date(survey.surveyInfo.endDate);
+                            return now >= startDate && now <= endDate;
+                          });
+                          const finishedSurveys = local.filter((survey) => {
+                            if (
+                              !survey.surveyInfo?.startDate ||
+                              !survey.surveyInfo?.endDate
+                            ) {
+                              return false;
+                            }
+                            const endDate = new Date(survey.surveyInfo.endDate);
+                            return now > endDate;
+                          });
+                          const filtered =
+                            activeTab === "active"
+                              ? activeSurveys
+                              : finishedSurveys;
+                          if (activeTab === "active") {
+                            setActiveSurveysData(filtered);
+                          } else if (activeTab === "finished") {
+                            setFinishedSurveysData(filtered);
+                          }
+                          setTabCounts((prev) => ({
+                            ...prev,
+                            active: activeSurveys.length,
+                            finished: finishedSurveys.length,
+                          }));
+                        } finally {
+                          setIsLoading((prev) => ({
+                            ...prev,
+                            [activeTab]: false,
+                          }));
+                        }
+                      }}
+                      className="px-4 py-2 rounded-md bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] cursor-pointer"
+                    >
+                      Reintentar
+                    </button>
+                  )}
+                </div>
               )}
             {/* Mostrar contenido de encuestas */}
             {!isInitialLoadingView &&
@@ -1032,6 +1117,7 @@ export default function Encuestas() {
                   surveys={currentSurveys}
                   isFinished={activeTab === "finished"}
                   currentUser={user}
+                  refreshToken={progressRefreshToken}
                 />
               ) : (
                 <SurveyList

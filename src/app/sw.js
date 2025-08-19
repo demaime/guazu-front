@@ -29,6 +29,8 @@ serwist.addToPrecacheList([
   { url: "/dashboard/encuestas/responder", revision: "1" },
   { url: "/dashboard/perfil", revision: "1" },
   { url: "/dashboard/configuracion", revision: "1" },
+  { url: "/dashboard", revision: "1" },
+  { url: "/offline", revision: "1" },
 ]);
 
 // Precache de Google Fonts utilizados por SurveyJS (Open Sans)

@@ -38,14 +38,17 @@ export default function SurveyResponderStable() {
   const [surveyId, setSurveyId] = useState(null);
   useEffect(() => {
     try {
-      const key = "responder:surveyId";
+      const goodKey = "responder:surveyId";
+      const legacyKey = "respondersurveyId"; // compat
       const fromSession =
         typeof window !== "undefined" && window.sessionStorage
-          ? window.sessionStorage.getItem(key)
+          ? window.sessionStorage.getItem(goodKey) ||
+            window.sessionStorage.getItem(legacyKey)
           : null;
       const fromLocal =
         !fromSession && typeof window !== "undefined" && window.localStorage
-          ? window.localStorage.getItem(key)
+          ? window.localStorage.getItem(goodKey) ||
+            window.localStorage.getItem(legacyKey)
           : null;
       const resolved = fromSession || fromLocal || null;
       setSurveyId(resolved);
@@ -374,7 +377,7 @@ export default function SurveyResponderStable() {
         <h2 className="text-lg font-bold mb-2">Error</h2>
         <p>{error}</p>
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/dashboard/encuestas")}
           className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Volver al panel

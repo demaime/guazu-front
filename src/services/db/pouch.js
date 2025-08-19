@@ -79,13 +79,8 @@ export async function replaceAllSurveys(surveys) {
       .map((r) => r.doc)
       .filter((d) => typeof d._id === "string" && !d._id.startsWith("survey:"));
 
-    // 2. Obtener y eliminar todos los documentos de detalle (survey:*)
-    const detailDocs = existing.rows
-      .map((r) => r.doc)
-      .filter((d) => typeof d._id === "string" && d._id.startsWith("survey:"));
-
-    // 3. Eliminar todos los documentos existentes
-    for (const doc of [...indexDocs, ...detailDocs]) {
+    // 3. Eliminar solo documentos de índice (preservar detalles existentes)
+    for (const doc of indexDocs) {
       try {
         await db.remove(doc);
       } catch (e) {
@@ -93,7 +88,7 @@ export async function replaceAllSurveys(surveys) {
       }
     }
 
-    // 4. Insertar las nuevas encuestas (índice + detalle)
+    // 4. Insertar las nuevas encuestas (solo índice)
     const results = [];
     for (const survey of surveys || []) {
       const surveyId = String(survey?._id || survey?.id || "unknown");
@@ -111,28 +106,105 @@ export async function replaceAllSurveys(surveys) {
         console.warn("[Pouch] put new index doc error", e);
         results.push({ error: true, e });
       }
-
-      // 4b. Crear documento de detalle (con prefijo, para responder)
-      const detailDoc = sanitizeTopLevel({
-        _id: `survey:${surveyId}`,
-        survey: survey.survey || survey, // el detalle va en la propiedad 'survey'
-        surveyInfo: survey.surveyInfo || {},
-        ...survey,
-      });
-
-      try {
-        const res = await db.put(detailDoc);
-        results.push(res);
-      } catch (e) {
-        console.warn("[Pouch] put new detail doc error", e);
-        results.push({ error: true, e });
-      }
     }
 
     return results;
   } catch (e) {
     console.error("[Pouch] replaceAllSurveys failed", e);
     throw e;
+  }
+}
+
+// Lee todos los documentos de detalle 'survey:*'
+export async function getAllDetailsLocal() {
+  const db = getSurveysDB();
+  const res = await db.allDocs({
+    include_docs: true,
+    startkey: "survey:",
+    endkey: "survey:\ufff0",
+  });
+  return res.rows.map((r) => r.doc);
+}
+
+// Reconstruye documentos de índice a partir de los detalles existentes
+export async function reconstructIndexesFromDetails() {
+  const db = getSurveysDB();
+  const details = await getAllDetailsLocal();
+  let created = 0;
+  let updated = 0;
+  for (const detail of details) {
+    try {
+      const indexId = String(detail?._id || "").replace(/^survey:/, "");
+      if (!indexId) continue;
+      const indexDoc = sanitizeTopLevel({
+        _id: indexId,
+        // Intentar traer título/descripción si existen
+        survey: detail?.survey || {},
+        // Deducir surveyInfo desde el propio detalle
+        surveyInfo:
+          detail?.surveyInfo ||
+          (detail?.survey && detail.survey.surveyInfo
+            ? detail.survey.surveyInfo
+            : {}),
+      });
+      try {
+        await db.put(indexDoc);
+        created += 1;
+      } catch (e) {
+        if (e.status === 409) {
+          const existing = await db.get(indexDoc._id).catch(() => null);
+          await db.put({ ...existing, ...indexDoc });
+          updated += 1;
+        } else {
+          console.warn("[Pouch] reconstruct index put error", e);
+        }
+      }
+    } catch (e) {
+      console.warn("[Pouch] reconstruct index error", e);
+    }
+  }
+  return { created, updated, total: details.length };
+}
+
+// Variante segura: reemplaza exclusivamente documentos índice
+export async function safeReplaceAllSurveys(surveys) {
+  const db = getSurveysDB();
+  try {
+    const existing = await db.allDocs({ include_docs: true });
+    const indexDocs = existing.rows
+      .map((r) => r.doc)
+      .filter((d) => typeof d._id === "string" && !d._id.startsWith("survey:"));
+    // Borrar sólo índices
+    for (const doc of indexDocs) {
+      try {
+        await db.remove(doc);
+      } catch (e) {
+        console.warn("[Pouch] safe remove index error", e);
+      }
+    }
+    // Insertar índices nuevos
+    const results = [];
+    for (const survey of surveys || []) {
+      const surveyId = String(survey?._id || survey?.id || "unknown");
+      const indexDoc = sanitizeTopLevel({ _id: surveyId, ...survey });
+      try {
+        const res = await db.put(indexDoc);
+        results.push(res);
+      } catch (e) {
+        if (e.status === 409) {
+          const existingIndex = await db.get(indexDoc._id);
+          const res = await db.put({ ...existingIndex, ...indexDoc });
+          results.push(res);
+        } else {
+          console.warn("[Pouch] safe put index error", e);
+          results.push({ error: true, e });
+        }
+      }
+    }
+    return results;
+  } catch (e) {
+    console.warn("[Pouch] safeReplaceAllSurveys failed (non-fatal)", e);
+    return [];
   }
 }
 
