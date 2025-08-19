@@ -77,7 +77,6 @@ export function SurveyList({
 
   // Estados para feedback visual de botones
   const [buttonLoadingStates, setButtonLoadingStates] = useState({});
-  const [buttonClickedStates, setButtonClickedStates] = useState({});
 
   // Constantes para anchos de columnas
   const COLUMN_WIDTHS = {
@@ -93,19 +92,7 @@ export function SurveyList({
     setButtonLoadingStates((prev) => ({ ...prev, [actionKey]: isLoading }));
   };
 
-  const setButtonClicked = (actionKey, isClicked) => {
-    setButtonClickedStates((prev) => ({ ...prev, [actionKey]: isClicked }));
-  };
-
   const getButtonKey = (action, surveyId) => `${action}-${surveyId}`;
-
-  const showSuccessFeedback = (actionKey) => {
-    setButtonClicked(actionKey, true);
-
-    setTimeout(() => {
-      setButtonClicked(actionKey, false);
-    }, 800); // Increased duration for better visual feedback
-  };
 
   // Función utilitaria para truncar texto
   const truncateText = (text, maxLength = 50) => {
@@ -165,46 +152,56 @@ export function SurveyList({
   }) => {
     const buttonKey = getButtonKey(action, surveyData._id);
     const isLoading = buttonLoadingStates[buttonKey];
-    const isClicked = buttonClickedStates[buttonKey];
-
-    // Solo aplicar feedback verde en desktop
-    const shouldShowSuccessFeedback = variant === "desktop" && isClicked;
 
     const baseClasses =
       variant === "mobile"
-        ? "mobile-action-button flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs rounded-md transition-all duration-200 relative overflow-hidden"
-        : "p-2.5 rounded-lg transition-all duration-200 cursor-pointer relative overflow-hidden min-w-[38px] min-h-[38px] flex items-center justify-center";
+        ? "mobile-action-button flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg transition-all duration-200 relative overflow-hidden"
+        : "p-2 rounded-full transition-all duration-200 cursor-pointer relative overflow-hidden min-w-[36px] min-h-[36px] flex items-center justify-center shadow-lg shadow-primary/25 border border-transparent backdrop-blur-sm";
 
-    const iconSize = variant === "mobile" ? "w-3 h-3" : "w-5 h-5";
+    const iconSize = variant === "mobile" ? "w-3 h-3" : "w-4 h-4";
+
     const mobileBackground =
       action === "answer"
         ? role === "ROLE_ADMIN" || role === "SUPERVISOR"
-          ? "bg-blue-500/80 hover:bg-blue-500"
+          ? "bg-blue-500/90 hover:bg-blue-500"
           : "bg-white/10 hover:bg-white/20"
         : action === "deleteAnswers" || action === "delete"
-        ? "bg-red-500/80 hover:bg-red-500"
+        ? "bg-red-500/90 hover:bg-red-500"
         : "bg-white/10 hover:bg-white/20";
 
-    const successClasses = shouldShowSuccessFeedback
-      ? "bg-green-500 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-400/50"
-      : "";
+    const desktopBackground =
+      action === "deleteAnswers" || action === "delete"
+        ? "text-red-600 bg-red-50/70 hover:bg-red-100 hover:shadow-primary/40 hover:text-red-700"
+        : action === "answer"
+        ? "text-blue-600 bg-blue-50/70 hover:bg-blue-100 hover:shadow-primary/40 hover:text-blue-700"
+        : action === "edit"
+        ? "text-purple-600 bg-purple-50/70 hover:bg-purple-100 hover:shadow-primary/40 hover:text-purple-700"
+        : action === "progress"
+        ? "text-emerald-600 bg-emerald-50/70 hover:bg-emerald-100 hover:shadow-primary/40 hover:text-emerald-700"
+        : action === "clone"
+        ? "text-amber-600 bg-amber-50/70 hover:bg-amber-100 hover:shadow-primary/40 hover:text-amber-700"
+        : "text-slate-600 bg-slate-50/70 hover:bg-slate-100 hover:shadow-primary/40 hover:text-slate-700";
 
     const loadingClasses = isLoading
-      ? "opacity-80 cursor-wait"
-      : "hover:scale-105 active:scale-95 hover:ring-2 hover:ring-primary/40";
+      ? "opacity-70 cursor-not-allowed bg-gray-200 border-gray-300 text-gray-500"
+      : variant === "desktop"
+      ? desktopBackground
+      : "";
 
     const finalClassName =
       variant === "mobile"
-        ? `${baseClasses} ${mobileBackground} text-white ${successClasses} ${loadingClasses} ${className}`
-        : `${baseClasses} ${className} ${successClasses} ${loadingClasses}`;
+        ? `${baseClasses} ${mobileBackground} text-white ${loadingClasses} ${className}`
+        : `${baseClasses} ${loadingClasses} ${className}`;
 
     const button = (
-      <motion.button
+      <button
         onClick={(e) => {
           if (variant === "desktop") {
             e.stopPropagation();
           }
-          handleAction(action, surveyData);
+          if (!isLoading) {
+            handleAction(action, surveyData);
+          }
         }}
         onMouseEnter={
           variant === "desktop" && !isLoading
@@ -218,68 +215,17 @@ export function SurveyList({
         }
         className={finalClassName}
         disabled={isLoading}
-        whileTap={!isLoading ? { scale: 0.95 } : {}}
-        whileHover={!isLoading ? { scale: 1.05 } : {}}
-        animate={
-          shouldShowSuccessFeedback
-            ? {
-                scale: [1, 1.15, 1],
-                rotate: [0, 5, -5, 0],
-                transition: {
-                  duration: 0.5,
-                  ease: "easeInOut",
-                },
-              }
-            : {}
-        }
         data-type="action"
+        aria-label={getTooltipText(action, role)}
       >
-        {/* Ripple effect para el click - solo en desktop */}
-        {shouldShowSuccessFeedback && (
-          <motion.div
-            className="absolute inset-0 bg-green-400 rounded-md"
-            initial={{ scale: 0, opacity: 1 }}
-            animate={{ scale: 2, opacity: 0 }}
-            transition={{ duration: 0.6 }}
-          />
+        {isLoading ? (
+          <Loader2 className={`${iconSize} animate-spin`} />
+        ) : (
+          <Icon className={iconSize} />
         )}
 
-        {/* Pulse effect para loading */}
-        {isLoading && (
-          <motion.div
-            className="absolute inset-0 bg-blue-400/30 rounded-md"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.3, 0.6, 0.3],
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        )}
-
-        <div className="relative z-10">
-          {isLoading ? (
-            <Loader2 className={`${iconSize} animate-spin`} />
-          ) : (
-            <Icon className={iconSize} />
-          )}
-        </div>
-
-        {text && variant === "mobile" && (
-          <span className={`relative z-10 ${isLoading ? "opacity-70" : ""}`}>
-            {isLoading
-              ? action === "answer"
-                ? "Cargando..."
-                : action === "clone"
-                ? "Clonando..."
-                : "..."
-              : text}
-          </span>
-        )}
-      </motion.button>
+        {text && variant === "mobile" && !isLoading && <span>{text}</span>}
+      </button>
     );
 
     return button;
@@ -416,10 +362,7 @@ export function SurveyList({
     try {
       switch (action) {
         case "edit":
-          setButtonClicked(buttonKey, true);
-          setTimeout(() => {
-            router.push(`/dashboard/encuestas/${surveyId}/editar`);
-          }, 150);
+          router.push(`/dashboard/encuestas/${surveyId}/editar`);
           break;
         case "answer":
           if (isFinished) {
@@ -432,43 +375,27 @@ export function SurveyList({
             const url = `/dashboard/encuestas/${surveyId}/responder${
               isTestMode ? "?mode=test" : ""
             }`;
-            showSuccessFeedback(buttonKey);
             // Cerrar el menú
             setExpandedActionsId(null);
-            // Esperar un momento antes de navegar para que se vea el feedback
-            setTimeout(() => {
-              router.push(url);
-            }, 200);
+            // Navegar directamente
+            router.push(url);
           }
           break;
         case "quotas":
-          setButtonClicked(buttonKey, true);
-          setTimeout(() => {
-            router.push(`/dashboard/encuestas/${surveyId}/cuotas`);
-          }, 150);
+          router.push(`/dashboard/encuestas/${surveyId}/cuotas`);
           break;
         case "progress":
-          setButtonClicked(buttonKey, true);
-          setTimeout(() => {
-            router.push(`/dashboard/encuestas/${surveyId}/progreso`);
-          }, 150);
+          router.push(`/dashboard/encuestas/${surveyId}/progreso`);
           break;
         case "pollsters":
-          setButtonClicked(buttonKey, true);
-          setTimeout(() => {
-            router.push(`/dashboard/encuestas/${surveyId}/encuestadores`);
-          }, 150);
+          router.push(`/dashboard/encuestas/${surveyId}/encuestadores`);
           break;
         case "map":
-          setButtonClicked(buttonKey, true);
-          setTimeout(() => {
-            router.push(`/dashboard/encuestas/${surveyId}/progreso`);
-          }, 150);
+          router.push(`/dashboard/encuestas/${surveyId}/progreso`);
           break;
         case "clone":
           const result = await surveyService.cloneSurvey(surveyId);
           if (result && result.success) {
-            showSuccessFeedback(buttonKey);
             setShowCloneSuccessModal(true);
             if (onSurveyListChange) {
               onSurveyListChange();
@@ -1015,17 +942,17 @@ export function SurveyList({
                             toggleActions(surveyData._id);
                           }}
                           aria-expanded={expandedActionsId === surveyData._id}
-                          className={`transition-colors cursor-pointer flex items-center justify-center rounded-full p-2.5 ${
+                          className={`transition-all duration-200 cursor-pointer flex items-center justify-center rounded-full p-2.5 min-w-[40px] min-h-[40px] shadow-lg shadow-primary/25 border border-transparent backdrop-blur-sm ${
                             expandedActionsId === surveyData._id
-                              ? "bg-primary text-white shadow-md"
-                              : "bg-primary/10 text-primary hover:bg-primary/20"
+                              ? "bg-primary text-white shadow-primary/40"
+                              : "bg-primary/15 text-primary hover:bg-primary/25 hover:shadow-primary/40 active:scale-95"
                           }`}
                           data-type="action"
                         >
                           {expandedActionsId === surveyData._id ? (
-                            <ChevronRightCircle className="w-6 h-6" />
+                            <ChevronRightCircle className="w-5 h-5" />
                           ) : (
-                            <ChevronLeftCircle className="w-6 h-6" />
+                            <ChevronLeftCircle className="w-5 h-5" />
                           )}
                         </button>
 
@@ -1038,7 +965,7 @@ export function SurveyList({
                               transition={{ duration: 0.2 }}
                               className="absolute right-12 top-1/2 -translate-y-1/2 overflow-hidden z-50"
                             >
-                              <div className="flex items-center gap-2 px-2 py-2 rounded-xl shadow-xl action-buttons glass-primary border border-primary/20">
+                              <div className="flex items-center gap-1.5 px-2 py-2 action-buttons">
                                 {role === "ROLE_ADMIN" && (
                                   <>
                                     <ActionButton
