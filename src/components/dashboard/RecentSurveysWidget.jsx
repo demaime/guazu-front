@@ -176,7 +176,7 @@ const RecentSurveysWidget = () => {
                 return (
                   <motion.div
                     key={survey._id || index}
-                    className="relative p-4 bg-[var(--input-background)]/40 border border-[var(--card-border)] rounded-xl hover:shadow-md hover:border-secondary/30 transition-all duration-200 group/item overflow-hidden"
+                    className="relative p-4 bg-[var(--card-border)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl hover:shadow-md hover:border-primary/30 transition-all duration-200 group/item overflow-hidden"
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
