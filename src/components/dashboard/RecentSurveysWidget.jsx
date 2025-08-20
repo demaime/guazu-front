@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, Calendar, Plus, Clock } from "lucide-react";
+import { FileText, Calendar, Plus, Clock, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { surveyService } from "@/services/survey.service";
 
 const RecentSurveysWidget = () => {
@@ -149,85 +150,102 @@ const RecentSurveysWidget = () => {
             <p className="text-xs text-[var(--text-muted)] mb-3">
               Crea tu primera encuesta para comenzar
             </p>
-            <a
+            <motion.a
               href="/dashboard/encuestas/crear"
               className="inline-flex items-center gap-2 text-xs text-secondary hover:text-secondary-light font-medium hover:underline transition-colors"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <Plus className="w-3 h-3" />
               Crear primera encuesta
-            </a>
+            </motion.a>
           </div>
         ) : (
-          <div className="space-y-4">
-            {recentSurveys.map((survey, index) => {
-              const statusInfo = getSurveyStatus(survey);
-              return (
-                <div
-                  key={survey._id || index}
-                  className="relative p-4 bg-[var(--input-background)]/40 border border-[var(--card-border)] rounded-xl hover:shadow-md hover:border-secondary/30 transition-all duration-200 group/item"
-                >
-                  <div className="absolute inset-y-0 left-0 w-1 bg-secondary rounded-full"></div>
-                  <div className="flex items-start justify-between gap-3 ml-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate mb-2">
-                        {truncateText(survey.survey?.title || survey.title, 25)}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              statusInfo.status === "active"
-                                ? "bg-[var(--hover-bg)] text-primary"
-                                : statusInfo.status === "finished"
-                                ? "bg-[var(--disabled-bg)] text-[var(--disabled-text)]"
-                                : statusInfo.status === "pending"
-                                ? "bg-[var(--hover-bg)] text-secondary"
-                                : "bg-[var(--input-background)] text-[var(--text-secondary)]"
-                            }`}
-                          >
-                            {statusInfo.label}
-                          </span>
+          <motion.div
+            className="space-y-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <AnimatePresence mode="popLayout">
+              {recentSurveys.map((survey, index) => {
+                const statusInfo = getSurveyStatus(survey);
+                return (
+                  <motion.div
+                    key={survey._id || index}
+                    className="relative p-4 bg-[var(--input-background)]/40 border border-[var(--card-border)] rounded-xl hover:shadow-md hover:border-secondary/30 transition-all duration-200 group/item"
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    transition={{
+                      duration: 0.4,
+                      delay: index * 0.1,
+                      ease: "easeOut",
+                    }}
+                    layout
+                  >
+                    <div className="absolute inset-y-0 left-0 w-1 bg-secondary rounded-full"></div>
+                    <div className="flex items-start justify-between gap-3 ml-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate mb-2">
+                          {truncateText(
+                            survey.survey?.title || survey.title,
+                            25
+                          )}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                statusInfo.status === "active"
+                                  ? "bg-[var(--hover-bg)] text-primary"
+                                  : statusInfo.status === "finished"
+                                  ? "bg-[var(--disabled-bg)] text-[var(--disabled-text)]"
+                                  : statusInfo.status === "pending"
+                                  ? "bg-[var(--hover-bg)] text-secondary"
+                                  : "bg-[var(--input-background)] text-[var(--text-secondary)]"
+                              }`}
+                            >
+                              {statusInfo.label}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] flex-shrink-0">
-                      <div className="p-1 bg-[var(--card-background)] rounded-full border border-[var(--card-border)]">
-                        <Clock className="w-3 h-3" />
+                      <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] flex-shrink-0">
+                        <div className="p-1 bg-[var(--card-background)] rounded-full border border-[var(--card-border)]">
+                          <Clock className="w-3 h-3" />
+                        </div>
+                        <span className="font-medium">
+                          {formatTimeAgo(survey.createdAt)}
+                        </span>
                       </div>
-                      <span className="font-medium">
-                        {formatTimeAgo(survey.createdAt)}
-                      </span>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
-      <div className="bg-secondary px-6 py-4">
+      <motion.div
+        className="bg-secondary px-6 py-4"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.5, ease: "easeOut" }}
+      >
         <div className="text-sm">
           <a
             href="/dashboard/encuestas"
-            className="font-medium text-white hover:text-secondary-light transition-colors flex items-center gap-2 group/link w-full justify-center"
+            className="font-medium text-white hover:text-secondary-light transition-colors flex items-center gap-2 group/link w-full justify-center cursor-pointer"
           >
             Ver todas las encuestas
-            <svg
-              className="w-4 h-4 transform group-hover/link:translate-x-1 transition-transform"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 8l4 4m0 0l-4 4m4-4H3"
-              />
-            </svg>
+            <ChevronRight className="w-4 h-4 transform group-hover/link:translate-x-1 transition-transform" />
           </a>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
