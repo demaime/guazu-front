@@ -77,6 +77,7 @@ export default function Encuestas() {
   const [progressRefreshToken, setProgressRefreshToken] = useState(0);
   // Loader inicial a pantalla completa mientras se actualizan encuestas
   const [isInitialLoadingView, setIsInitialLoadingView] = useState(true);
+  const [isNavigatingToEdit, setIsNavigatingToEdit] = useState(false);
   // Estado de permisos/estado de ubicación
   const [locationStatus, setLocationStatus] = useState("unknown"); // granted | denied | prompt | unsupported | unknown
 
@@ -642,8 +643,16 @@ export default function Encuestas() {
     }
   };
 
-  const handleEditDraft = (draftId) => {
+  const handleEditDraft = async (draftId) => {
+    setIsNavigatingToEdit(true);
+
+    // Pequeño delay para mostrar el loader antes de navegar
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     router.push(`/dashboard/encuestas/${draftId}/editar`);
+
+    // Limpiar el loading después de un delay (por si la navegación tarda)
+    setTimeout(() => setIsNavigatingToEdit(false), 2000);
   };
 
   const handleDeleteAnswers = async (surveyId) => {
@@ -742,6 +751,18 @@ export default function Encuestas() {
           className="text-primary"
         />
       </div>
+    );
+  }
+
+  // Mostrar loader full screen cuando se navega a editar
+  if (isNavigatingToEdit) {
+    return (
+      <LoaderWrapper
+        size="lg"
+        fullScreen={true}
+        text="Cargando editor de encuesta…"
+        className="text-primary"
+      />
     );
   }
 
@@ -1065,49 +1086,134 @@ export default function Encuestas() {
               !currentLoadingState &&
               currentSurveys.length > 0 &&
               (activeTab === "drafts" ? (
-                // Renderizado específico para borradores
+                // Renderizado específico para borradores con diseño consistente
                 <div className="space-y-4">
-                  {currentSurveys.map((draft) => (
-                    <div
+                  {currentSurveys.map((draft, index) => (
+                    <motion.div
                       key={draft._id}
-                      className="border border-[var(--card-border)] bg-[var(--card-background)] rounded-lg p-4 hover:shadow-md transition-shadow"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.18,
+                        ease: "easeOut",
+                        delay: index * 0.02,
+                      }}
+                      className="card border border-[var(--card-border)] bg-[var(--card-background)] rounded-lg p-6 hover:shadow-lg transition-all duration-200"
                     >
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-lg font-medium text-[var(--text-primary)]">
-                            {draft.survey?.title?.es ||
-                              draft.survey?.title ||
-                              "Borrador sin título"}
-                          </h3>
-                          <p className="text-sm text-[var(--text-secondary)]">
-                            Última edición:{" "}
-                            {draft.lastEdited
-                              ? new Date(draft.lastEdited).toLocaleString()
-                              : "N/A"}
-                          </p>
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        {/* Información del borrador */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3">
+                            {/* Indicador visual de borrador */}
+                            <div className="flex-shrink-0 mt-1">
+                              <div className="w-3 h-3 rounded-full bg-primary/20 border-2 border-primary/40"></div>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-semibold text-[var(--text-primary)] line-clamp-2 mb-2">
+                                {draft.survey?.title?.es ||
+                                  draft.survey?.title ||
+                                  "Borrador sin título"}
+                              </h3>
+
+                              {/* Descripción si existe */}
+                              {(draft.survey?.description ||
+                                draft.survey?.description?.es) && (
+                                <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
+                                  {draft.survey?.description?.es ||
+                                    draft.survey?.description}
+                                </p>
+                              )}
+
+                              {/* Metadatos */}
+                              <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+                                <span className="flex items-center gap-1">
+                                  <div className="w-1 h-1 rounded-full bg-primary"></div>
+                                  Borrador
+                                </span>
+                                <span>
+                                  Última edición:{" "}
+                                  {draft.lastEdited
+                                    ? new Date(
+                                        draft.lastEdited
+                                      ).toLocaleDateString("es-ES", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "N/A"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+
+                        {/* Botones de acción alineados a la derecha */}
+                        <div className="flex items-center gap-2 lg:flex-shrink-0">
                           <button
                             onClick={() => handleEditDraft(draft._id)}
-                            className="cursor-pointer px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                            className="action-button-circular w-9 h-9 rounded-full flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border border-white/20 backdrop-blur-sm transition-all duration-200"
+                            title="Editar borrador"
                           >
-                            Editar
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
                           </button>
+
                           <button
                             onClick={() => handlePublishDraft(draft._id)}
-                            className="cursor-pointer px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                            className="action-button-circular w-9 h-9 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border border-white/20 backdrop-blur-sm transition-all duration-200"
+                            title="Publicar borrador"
                           >
-                            Publicar
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                              />
+                            </svg>
                           </button>
+
                           <button
                             onClick={() => handleDelete(draft._id)}
-                            className="cursor-pointer px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                            className="action-button-circular delete-button w-9 h-9 rounded-full flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-white/20 backdrop-blur-sm transition-all duration-200"
+                            title="Eliminar borrador"
                           >
-                            Eliminar
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
                           </button>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               ) : // Renderizado para activas y finalizadas - diferentes para pollsters

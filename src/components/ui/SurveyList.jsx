@@ -1010,7 +1010,7 @@ export function SurveyList({
                           className={`action-button-circular flex items-center justify-center rounded-full p-2.5 min-w-[40px] min-h-[40px] border border-transparent backdrop-blur-sm ${
                             expandedActionsId === surveyData._id
                               ? "bg-primary text-white"
-                              : "bg-primary/15 text-primary hover:bg-primary/25"
+                              : "bg-primary/15 text-primary"
                           }`}
                           data-type="action"
                         >
