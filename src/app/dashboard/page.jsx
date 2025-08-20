@@ -43,50 +43,48 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div>
-      <div className="rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] px-5 py-6 shadow-sm sm:px-6">
-        {/* Vista Mobile */}
-        <div className="sm:hidden">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-              Bienvenido {user?.name || user?.email}
-            </h2>
-          </div>
-          <div className="mb-6">
-            <span className="text-base text-[var(--text-secondary)]">
-              {getRoleName(user?.role)}
-            </span>
-          </div>
-          <h3 className="text-base font-medium text-[var(--text-primary)]">
-            Panel de control de Guazú
-          </h3>
-          <p className="text-xs text-[var(--text-secondary)] mb-2">
-            Sistema de Encuestas
-          </p>
+    <div className="p-4">
+      {/* Vista Mobile */}
+      <div className="sm:hidden">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+            Bienvenido {user?.name || user?.email}
+          </h2>
         </div>
-
-        {/* Vista Desktop */}
-        <div className="hidden sm:block mb-8">
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-base font-semibold leading-6 text-[var(--text-primary)] text-xl">
-              Bienvenido {user?.name || user?.email}
-            </h2>
-            <span className="text-sm text-[var(--text-secondary)]">
-              - {getRoleName(user?.role)}
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            Panel de control de Guazú - Sistema de Encuestas
-          </p>
+        <div className="mb-6">
+          <span className="text-base text-[var(--text-secondary)]">
+            {getRoleName(user?.role)}
+          </span>
         </div>
+        <h3 className="text-base font-medium text-[var(--text-primary)]">
+          Panel de control de Guazú
+        </h3>
+        <p className="text-xs text-[var(--text-secondary)] mb-2">
+          Sistema de Encuestas
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 items-start">
-          {/* Ventanita de Últimos Casos Recibidos */}
-          <RecentAnswersWidget />
-
-          {/* Ventanita de Últimas Encuestas Creadas */}
-          <RecentSurveysWidget />
+      {/* Vista Desktop */}
+      <div className="hidden sm:block mb-8">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-base font-semibold leading-6 text-[var(--text-primary)] text-xl">
+            Bienvenido {user?.name || user?.email}
+          </h2>
+          <span className="text-sm text-[var(--text-secondary)]">
+            - {getRoleName(user?.role)}
+          </span>
         </div>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">
+          Panel de control de Guazú - Sistema de Encuestas
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 items-start">
+        {/* Ventanita de Últimos Casos Recibidos */}
+        <RecentAnswersWidget />
+
+        {/* Ventanita de Últimas Encuestas Creadas */}
+        <RecentSurveysWidget />
       </div>
     </div>
   );

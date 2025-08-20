@@ -332,36 +332,36 @@ export function PollsterSurveyList({
             transition={{ delay: index * 0.1 }}
             className="bg-[var(--card-background)] rounded-xl shadow-sm border border-[var(--card-border)] overflow-hidden hover:shadow-md transition-shadow duration-200"
           >
-            {/* Header con gradiente de estado */}
-            <div
-              className={`bg-gradient-to-r ${getStatusColor(
-                survey
-              )} p-4 text-white`}
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1 mr-3">
-                  <h3 className="text-lg font-semibold leading-tight mb-1">
-                    {getLocalizedText(survey.survey?.title) || "Sin título"}
-                  </h3>
-                  <p className="text-white/90 text-sm line-clamp-2">
-                    {getLocalizedText(
-                      survey.survey?.description,
-                      "Sin descripción"
-                    )}
-                  </p>
-                </div>
-                {!isFinished && (
-                  <div className="flex flex-col items-end text-right">
-                    <div className="text-xs font-medium opacity-90">
-                      {timeRemaining}
-                    </div>
+            {/* Header - solo tiempo restante en móvil */}
+            {!isFinished && (
+              <div
+                className={`bg-gradient-to-r ${getStatusColor(
+                  survey
+                )} p-2 px-4`}
+              >
+                <div className="flex justify-end">
+                  <div className="text-white text-xs font-medium">
+                    {timeRemaining}
                   </div>
-                )}
+                </div>
               </div>
+            )}
+
+            {/* Contenido del header - título y descripción */}
+            <div className="p-4 pb-2">
+              <h3 className="text-base font-semibold leading-tight mb-2 text-[var(--text-primary)] line-clamp-2">
+                {getLocalizedText(survey.survey?.title) || "Sin título"}
+              </h3>
+              <p className="text-[var(--text-secondary)] text-sm line-clamp-1 mb-3">
+                {getLocalizedText(
+                  survey.survey?.description,
+                  "Sin descripción"
+                )}
+              </p>
             </div>
 
             {/* Contenido principal */}
-            <div className="p-4">
+            <div className="px-4 pb-4">
               {/* Información de fechas */}
               <div className="flex items-center justify-between text-sm text-[var(--text-secondary)] mb-3">
                 <div className="flex items-center">
