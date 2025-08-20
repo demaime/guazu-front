@@ -114,7 +114,12 @@ class UserService {
       }
 
       const updatedUser = this.processUserData(data.user);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      // ✅ SOLO actualizar localStorage si se está editando el usuario actual
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      if (currentUser._id === userId) {
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
 
       return updatedUser;
     } catch (error) {
