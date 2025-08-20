@@ -1,467 +1,274 @@
-/* Survey Styles for Guazú */
+/* Estilos personalizados para SurveyJS en Guazú */
+/* Los temas principales se definen en survey-themes.js */
 
-.sd-root-modern,
-.sd-container-modern__title {
-  background: var(--card-background) !important;
-}
+/* === CONFIGURACIÓN BÁSICA === */
 
+/* Ocultar descripción por defecto */
 .sd-description {
   display: none;
 }
 
+/* Ajustar tamaño del título */
 .sd-title {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-.sd-element--with-frame {
-  background: var(--card-background) !important;
-  padding: 0.5rem !important;
-}
-
-.sd-element--with-frame {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border-radius: 0 !important;
-}
-
-/* Estilos adicionales para asegurar que no se apliquen efectos del frame */
-.sd-element--with-frame:before,
-.sd-element--with-frame:after {
-  display: none !important;
-  content: none !important;
-}
-
+/* Texto de progreso más pequeño */
 .sd-progress__text {
-  font-size: 0.6rem;
-  padding: 0 !important;
+  font-size: 0.75rem;
 }
 
-.sv-string-viewer {
-  font-size: 1.5rem !important;
-}
-.sv-string-viewer--multiline {
-  font-size: 1rem !important;
-}
+/* === RESPONSIVIDAD PARA MATRICES === */
 
-.sv-list__item-body > .sv-string-viewer,
-.sd-error > .sv-string-viewer,
-.sd-dropdown__value > .sv-string-viewer,
-.sd-item__control-label > .sv-string-viewer,
-span > .sv-string-viewer {
-  font-size: 0.8rem !important;
-}
-
-.sd-question__required-text {
-  font-size: 0.7rem !important;
-}
-
-/* Estilos específicos para matrices - Responsividad */
+/* Contenedor de tabla de matriz */
 .sd-question--matrix .sd-table,
 .sd-question[data-name*="matrix"] .sd-table {
   width: 100% !important;
-  max-width: 100% !important;
-  display: table !important;
-  margin: 0 auto !important;
-  box-sizing: border-box !important;
-  background: var(--card-background) !important;
+  overflow-x: auto;
+  margin: 0;
 }
 
-.sd-table > table {
-  background: var(--card-background) !important;
-}
-
-/* Agregar estilos para las celdas de la tabla */
+/* Tabla de matriz */
 .sd-question--matrix .sd-table table,
 .sd-question[data-name*="matrix"] .sd-table table {
-  background: var(--card-background) !important;
+  width: 100%;
+  min-width: 500px; /* Ancho mínimo para evitar columnas muy estrechas */
+  border-collapse: collapse;
 }
 
-/* Propiedades de layout para las tablas de matrices */
-.sd-question--matrix .sd-table,
-.sd-question[data-name*="matrix"] .sd-table {
-  width: 100% !important;
-  max-width: 100% !important;
-  table-layout: auto !important;
-  border-collapse: collapse !important;
-  margin: 0 auto !important;
-  padding: 0 !important;
-}
-
-/* Celdas individuales */
+/* Celdas de matriz */
 .sd-question--matrix td,
 .sd-question--matrix th,
 .sd-question[data-name*="matrix"] td,
 .sd-question[data-name*="matrix"] th {
-  background: var(--card-background) !important;
-  border: 1px solid var(--card-border) !important;
-  color: var(--text-primary) !important;
+  padding: 8px 12px;
+  text-align: center;
+  vertical-align: middle;
+  border: 1px solid var(--sjs-general-border);
 }
 
-.sd-element--complex.sd-element--with-frame > .sd-element__header {
-  padding: 0 !important;
-}
-
-.sd-selectbase {
-  padding: 0 1rem !important;
-}
-
-.sd-question--matrix .sv-string-viewer,
-.sd-question--matrix .sd-item__control-label,
-.sd-question--matrix th,
-.sd-question--matrix td,
-.sd-question--matrix .sd-table__cell,
-.sd-question--matrix .sd-table__header-cell,
-.sd-question[data-name*="matrix"] .sv-string-viewer,
-.sd-question[data-name*="matrix"] .sd-item__control-label,
-.sd-question[data-name*="matrix"] th,
-.sd-question[data-name*="matrix"] td,
-.sd-question[data-name*="matrix"] .sd-table__cell,
-.sd-question[data-name*="matrix"] .sd-table__header-cell {
-  font-size: 0.8rem !important;
-}
-
-/* Celdas de la matriz - ajuste de ancho */
-.sd-question--matrix th,
-.sd-question--matrix td,
-.sd-question--matrix .sd-table__cell,
-.sd-question--matrix .sd-table__header-cell,
-.sd-question[data-name*="matrix"] th,
-.sd-question[data-name*="matrix"] td,
-.sd-question[data-name*="matrix"] .sd-table__cell,
-.sd-question[data-name*="matrix"] .sd-table__header-cell {
-  padding: 4px 8px !important;
-  text-align: center !important;
-  word-wrap: break-word !important;
-  vertical-align: middle !important;
-  line-height: 1.2 !important;
-}
-
-/* Primera columna (nombres de filas) más ancha */
+/* Primera columna (etiquetas de fila) */
 .sd-question--matrix td:first-child,
 .sd-question--matrix th:first-child,
 .sd-question[data-name*="matrix"] td:first-child,
 .sd-question[data-name*="matrix"] th:first-child {
-  width: 35% !important;
-  text-align: left !important;
-  padding: 4px 10px !important;
-  word-wrap: break-word !important;
-  white-space: normal !important;
-  line-height: 1.2 !important;
+  text-align: left;
+  font-weight: 500;
+  min-width: 150px;
 }
 
-/* Columnas de respuestas */
-.sd-question--matrix td:not(:first-child),
-.sd-question--matrix th:not(:first-child),
-.sd-question[data-name*="matrix"] td:not(:first-child),
-.sd-question[data-name*="matrix"] th:not(:first-child) {
-  white-space: normal !important;
-  line-height: 1.2 !important;
+/* === ELEMENTOS DE ENTRADA === */
+
+/* Contenedores de elementos */
+.sd-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  min-height: 40px;
+  cursor: pointer;
 }
 
-/* Específico para string viewers en matrices */
-.sd-question--matrix .sv-string-viewer,
-.sd-question--matrix .sd-table__cell .sv-string-viewer,
-.sd-question[data-name*="matrix"] .sv-string-viewer,
-.sd-question[data-name*="matrix"] .sd-table__cell .sv-string-viewer {
+/* Etiquetas de elementos */
+.sd-item__control-label {
+  color: var(--sjs-general-forecolor);
+  font-size: 1rem;
+  line-height: 1.5;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* === DECORADORES DE RADIO Y CHECKBOX === */
+
+/* Estilos base para decoradores */
+.sd-item__decorator,
+.sd-checkbox__decorator,
+.sd-radio__decorator {
   display: inline-block !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow: visible !important;
-  white-space: normal !important;
-  word-wrap: break-word !important;
-  text-overflow: none !important;
+  width: 24px !important;
+  height: 24px !important;
+  border: 2px solid var(--sjs-primary-backcolor) !important;
+  background: var(--sjs-editor-background) !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
 }
 
-/* Contenedor principal sin overflow */
-.sd-question__content,
-.sd-root-modern {
-  overflow: hidden !important; /* evita flicker de layout al montar/ desmontar */
-  max-width: 100% !important;
-  box-sizing: border-box !important;
+/* Radio buttons circulares */
+.sd-item--radio .sd-item__decorator,
+.sd-radio__decorator {
+  border-radius: 50% !important;
 }
 
-/* Asegurar que todos los textos dentro de matrices tengan el tamaño correcto */
-.sd-matrix *,
-.sd-table *,
-.sd-question--matrix * {
-  font-size: 0.8rem !important;
-  box-sizing: border-box !important;
-}
-
-/* Estilos para mensajes de error */
-.sd-error {
-  background-color: #fee !important;
-  border: 1px solid #fcc !important;
+/* Checkboxes cuadrados con bordes redondeados */
+.sd-checkbox__decorator {
   border-radius: 4px !important;
+}
+
+/* Estados checked */
+.sd-item--checked .sd-item__decorator,
+.sd-item--checked .sd-checkbox__decorator,
+.sd-item--checked .sd-radio__decorator,
+.sd-checkbox--checked .sd-checkbox__decorator,
+.sd-radio--checked .sd-radio__decorator {
+  background: var(--sjs-primary-backcolor) !important;
+  border-color: var(--sjs-primary-backcolor) !important;
+}
+
+/* Checkmarks para checkboxes */
+.sd-item--checked .sd-checkbox__decorator::after,
+.sd-checkbox--checked .sd-checkbox__decorator::after {
+  content: "✓" !important;
+  color: var(--sjs-primary-forecolor) !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  line-height: 1 !important;
+}
+
+/* Punto para radio buttons */
+.sd-item--checked .sd-radio__decorator::after,
+.sd-radio--checked .sd-radio__decorator::after {
+  content: "" !important;
+  width: 12px !important;
+  height: 12px !important;
+  background: var(--sjs-primary-forecolor) !important;
+  border-radius: 50% !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* === OCULTAR INPUTS NATIVOS === */
+.sd-item input[type="radio"],
+.sd-item input[type="checkbox"],
+.sd-checkbox input[type="checkbox"],
+.sd-radio input[type="radio"] {
+  position: absolute !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* === ESTADOS HOVER === */
+.sd-item:hover .sd-item__decorator,
+.sd-item:hover .sd-checkbox__decorator,
+.sd-item:hover .sd-radio__decorator {
+  border-color: var(--sjs-primary-backcolor-light) !important;
+  box-shadow: 0 0 0 3px var(--sjs-primary-backcolor-semi) !important;
+}
+
+/* === CAMPOS DE TEXTO === */
+.sd-input input,
+.sd-input textarea,
+.sd-dropdown select {
+  background: var(--sjs-editor-background) !important;
+  border: 1px solid var(--sjs-general-border) !important;
+  color: var(--sjs-general-forecolor) !important;
+  border-radius: var(--sjs-corner-radius) !important;
+  padding: 8px 12px !important;
+  font-size: 0.875rem !important;
+}
+
+.sd-input input:focus,
+.sd-input textarea:focus,
+.sd-dropdown select:focus {
+  outline: none !important;
+  border-color: var(--sjs-primary-backcolor) !important;
+  box-shadow: 0 0 0 3px var(--sjs-primary-backcolor-semi) !important;
+}
+
+/* === MENSAJES DE ERROR === */
+.sd-error {
+  background: var(--sjs-general-danger-light) !important;
+  border: 1px solid var(--sjs-general-danger) !important;
+  color: var(--sjs-general-danger) !important;
   padding: 8px 12px !important;
   margin: 8px 0 !important;
-  color: #c33 !important;
-  font-size: 0.8rem !important;
-  display: block !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
+  border-radius: var(--sjs-corner-radius) !important;
+  font-size: 0.875rem !important;
 }
 
-.sd-error .sv-string-viewer {
-  color: #c33 !important;
-  font-size: 0.8rem !important;
-}
-
-/* Estilos específicos para errores de matriz */
-.sd-question--matrix .sd-error {
-  margin-top: 8px !important;
-  margin-bottom: 8px !important;
-}
-
-/* Asegurar que los errores aparezcan dentro del contenedor */
-.sd-question__content .sd-error {
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-/* Estilos para la pantalla de finalización de la encuesta */
-/* Ocultar completamente la página de completado de SurveyJS (usamos UI propia) */
-.sd-completedpage,
-.sd-body.sd-completedpage,
-div.sd-completedpage,
-div.sd-body.sd-completedpage {
+/* === PÁGINA DE COMPLETADO (OCULTA) === */
+.sd-completedpage {
   display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  width: 0 !important;
-  pointer-events: none !important;
 }
 
-.sd-completedpage h3 {
-  color: var(--primary) !important;
-  font-size: 28px !important;
-  font-weight: 700 !important;
-  margin-bottom: 20px !important;
-  position: relative;
-  z-index: 1;
-  transition: color 0.3s ease-in-out;
-}
-
-.dark .sd-completedpage h3 {
-  color: var(--primary-light) !important;
-}
-
-.sd-completedpage__text {
-  color: var(--text-primary) !important;
-  font-size: 18px !important;
+/* === BOTONES DE NAVEGACIÓN === */
+.sd-navigation .sd-btn {
+  background: var(--sjs-primary-backcolor) !important;
+  color: var(--sjs-primary-forecolor) !important;
+  border: none !important;
+  padding: 10px 20px !important;
+  border-radius: var(--sjs-corner-radius) !important;
+  font-size: 0.875rem !important;
   font-weight: 500 !important;
-  line-height: 1.5 !important;
-  margin-bottom: 25px !important;
-  position: relative;
-  z-index: 1;
-  transition: color 0.3s ease-in-out;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
 }
 
-.sd-completedpage .sv-string-viewer {
+.sd-navigation .sd-btn:hover {
+  background: var(--sjs-primary-backcolor-dark) !important;
+}
+
+.sd-navigation .sd-btn--secondary {
+  background: transparent !important;
+  color: var(--sjs-general-forecolor) !important;
+  border: 1px solid var(--sjs-general-border) !important;
+}
+
+.sd-navigation .sd-btn--secondary:hover {
+  background: var(--sjs-general-backcolor-dim) !important;
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+  .sd-question--matrix .sd-table {
+    font-size: 0.875rem;
+  }
+
+  .sd-question--matrix td,
+  .sd-question--matrix th {
+    padding: 6px 8px;
+  }
+
+  .sd-item__decorator,
+  .sd-checkbox__decorator,
+  .sd-radio__decorator {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .sd-item__control-label {
+    font-size: 0.9rem;
+  }
+
+  .sd-item {
+    gap: 10px;
+    padding: 6px;
+    min-height: 36px;
+  }
+}
+
+.sd-header__text > .sd-title > * {
   font-size: 18px !important;
+  font-weight: 2500 !important;
   color: var(--text-primary) !important;
-  font-weight: 500 !important;
-  position: relative;
-  z-index: 1;
-  transition: color 0.3s ease-in-out;
-}
-
-.sd-completedpage__icon {
-  background-color: var(--primary) !important;
-  border-radius: 50% !important;
-  color: white !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 64px !important;
-  height: 64px !important;
-  margin: 0 auto 20px !important;
-  font-size: 32px !important;
-  position: relative;
-  z-index: 1;
-  transition: background-color 0.3s ease-in-out;
-}
-
-.dark .sd-completedpage__icon {
-  background-color: var(--primary-light) !important;
-}
-
-.sd-completedpage__icon::before {
-  content: "✓";
-  font-weight: bold;
-}
-
-/* Estilos para el contador de redirección */
-#survey-countdown {
-  display: block;
-  margin-top: 10px;
-  font-size: 16px !important;
-  font-weight: 500;
-  color: var(--text-secondary) !important;
-  padding: 5px 10px;
-  border-radius: 4px;
-  background-color: rgba(0, 0, 0, 0.03);
-  transition: color 0.3s ease-in-out, background-color 0.3s ease-in-out;
-}
-
-.dark #survey-countdown {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Centrar el botón de volver */
-.sd-completedpage button {
-  margin: 0 auto !important;
-  display: block !important;
-}
-
-/* Eliminar todos los pseudoelementos en la página de completado */
-.sd-completedpage:before,
-.sd-completedpage:after,
-.sd-body.sd-completedpage:before,
-.sd-body.sd-completedpage:after,
-div.sd-body.sd-completedpage:before,
-div.sd-body.sd-completedpage:after,
-.sd-completedpage *:before,
-.sd-completedpage *:after,
-.sd-completedpage card:before,
-.sd-completedpage card:after,
-.sd-completedpage > *:before,
-.sd-completedpage > *:after,
-div.sd-completedpage:before,
-div.sd-completedpage:after,
-.sd-completedpage-before,
-.sd-completedpage-after,
-.sd-body-before,
-.sd-body-after,
-div.sv-root-modern div:before,
-div.sv-root-modern div:after,
-div[class^="sd-"]:before,
-div[class^="sd-"]:after,
-.sv-root-modern:before,
-.sv-root-modern:after {
-  display: none !important;
-  content: none !important;
-  opacity: 0 !important;
-  position: absolute !important;
-  visibility: hidden !important;
-}
-/* 
-.sd-completedpage > div {
-  margin: auto !important;
-  padding: 15px !important;
-  background-color: transparent !important;
-} */
-
-/* Selectores más específicos para matrices - FORCE BACKGROUND CHANGE */
-.sd-root-modern .sd-question--matrix,
-.sd-root-modern .sd-question[data-name*="matrix"],
-.sd-root-modern .sd-question--matrix .sd-table,
-.sd-root-modern .sd-question[data-name*="matrix"] .sd-table,
-.sd-root-modern .sd-question--matrix .sd-table table,
-.sd-root-modern .sd-question[data-name*="matrix"] .sd-table table,
-.sd-root-modern .sd-question--matrix .sd-table tbody,
-.sd-root-modern .sd-question[data-name*="matrix"] .sd-table tbody,
-.sd-root-modern .sd-question--matrix .sd-table thead,
-.sd-root-modern .sd-question[data-name*="matrix"] .sd-table thead {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-}
-
-/* Forzar color de fondo en todas las celdas de la matriz */
-.sd-root-modern .sd-question--matrix td,
-.sd-root-modern .sd-question--matrix th,
-.sd-root-modern .sd-question[data-name*="matrix"] td,
-.sd-root-modern .sd-question[data-name*="matrix"] th,
-.sd-root-modern .sd-question--matrix .sd-table__cell,
-.sd-root-modern .sd-question--matrix .sd-table__header-cell,
-.sd-root-modern .sd-question[data-name*="matrix"] .sd-table__cell,
-.sd-root-modern .sd-question[data-name*="matrix"] .sd-table__header-cell {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-  border: 1px solid var(--card-border) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Selectores adicionales para elementos específicos de SurveyJS */
-.sd-root-modern .sd-matrix,
-.sd-root-modern .sd-matrix table,
-.sd-root-modern .sd-matrix tbody,
-.sd-root-modern .sd-matrix thead,
-.sd-root-modern .sd-matrix tr,
-.sd-root-modern .sd-matrix td,
-.sd-root-modern .sd-matrix th {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Estilos específicos para matrices - Responsividad */
-
-/* Selectores súper específicos para cualquier elemento de matriz */
-div.sd-root-modern div[class*="matrix"] *,
-div.sd-root-modern div[data-name*="matrix"] *,
-div.sd-root-modern .sd-question--matrix *,
-div.sd-root-modern .sd-table *,
-div.sd-root-modern table *,
-.sv-root-modern div[class*="matrix"] *,
-.sv-root-modern div[data-name*="matrix"] *,
-.sv-root-modern .sd-question--matrix *,
-.sv-root-modern .sd-table * {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-}
-
-/* Forzar colores en radio buttons dentro de matrices */
-.sd-root-modern .sd-question--matrix input[type="radio"],
-.sd-root-modern .sd-question[data-name*="matrix"] input[type="radio"],
-.sd-root-modern .sd-matrix input[type="radio"] {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-}
-
-/* Selectores adicionales para elementos específicos de SurveyJS */
-
-/* FORZAR CAMBIO DE FONDO - ESTILOS FINALES CON MÁXIMA PRIORIDAD */
-
-/* Aplicar a todo el contenedor de la encuesta */
-[class*="sd-root"] {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-}
-
-/* Forzar en todos los elementos de tabla y matriz */
-[class*="sd-root"] [class*="table"],
-[class*="sd-root"] [class*="matrix"],
-[class*="sd-root"] table,
-[class*="sd-root"] tbody,
-[class*="sd-root"] thead,
-[class*="sd-root"] tr,
-[class*="sd-root"] td,
-[class*="sd-root"] th {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-  color: var(--text-primary) !important;
-}
-
-/* Forzar específicamente en elementos con radio buttons */
-[class*="sd-root"] [class*="table"] [class*="item"],
-[class*="sd-root"] [class*="matrix"] [class*="item"],
-[class*="sd-root"] [class*="table"] [class*="control"],
-[class*="sd-root"] [class*="matrix"] [class*="control"] {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-}
-
-/* Usar especificidad extrema */
-html body div[class*="sd-root"] div[class*="question"] div[class*="table"] *,
-html body div[class*="sd-root"] div[class*="question"] div[class*="matrix"] *,
-html body div[class*="sv-root"] div[class*="question"] div[class*="table"] *,
-html body div[class*="sv-root"] div[class*="question"] div[class*="matrix"] * {
-  background: var(--card-background) !important;
-  background-color: var(--card-background) !important;
-  color: var(--text-primary) !important;
+  line-height: 1 !important;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  margin: 0 !important;
 }

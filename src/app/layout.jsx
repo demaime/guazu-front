@@ -1,5 +1,5 @@
 import "./globals.css";
-import "survey-core/survey-core.min.css";
+import "survey-core/survey-core.css";
 import "react-toastify/dist/ReactToastify.css";
 import "tippy.js/dist/tippy.css";
 import "tippy.js/themes/light.css";

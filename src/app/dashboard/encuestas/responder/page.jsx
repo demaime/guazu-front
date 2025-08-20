@@ -7,7 +7,7 @@ import { Survey } from "survey-react-ui";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { useTheme } from "@/providers/ThemeProvider";
-import { DoubleBorderLight, DoubleBorderDark } from "survey-core/themes";
+import { GuazuLightTheme, GuazuDarkTheme } from "@/styles/survey-themes";
 import {
   CheckCircle2,
   PartyPopper,
@@ -148,8 +148,8 @@ export default function SurveyResponderStable() {
         model.questionsOrder = "initial";
         model.questionsOnPageMode = "questionPerPage";
 
-        if (theme === "dark") model.applyTheme(DoubleBorderDark);
-        else model.applyTheme(DoubleBorderLight);
+        if (theme === "dark") model.applyTheme(GuazuDarkTheme);
+        else model.applyTheme(GuazuLightTheme);
 
         // Interceptar finalización para evitar el estado 'completed' de SurveyJS
         model.onCompleting.add(async (sender, options) => {
