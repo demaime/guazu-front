@@ -804,11 +804,13 @@ button:disabled {
 }
 
 /* Tabla admin encuestas: filas sin fondo con bordes laterales en hover */
+/* DEPRECATED: Reemplazado por .survey-table-row - mantenido para compatibilidad */
 .table-row-gradient {
   background: transparent;
 }
 .table-row-gradient:hover {
-  background: linear-gradient(
+  /* Deshabilitado para evitar conflictos con .survey-table-row */
+  /* background: linear-gradient(
         90deg,
         color-mix(in oklab, var(--primary) 56%, transparent),
         transparent
@@ -821,7 +823,7 @@ button:disabled {
       )
       right;
   background-repeat: no-repeat;
-  background-size: 22px 100%, 22px 100%;
+  background-size: 22px 100%, 22px 100%; */
 }
 
 /* Glass effect reutilizable en tono primario */
@@ -877,4 +879,22 @@ button:disabled {
 
 .table-row-no-pointer:hover {
   background-color: transparent;
+}
+
+/* Filas específicas de la tabla de encuestas */
+.survey-table-row {
+  cursor: default;
+  background: transparent;
+}
+
+.survey-table-row:hover {
+  background-color: var(--hover-bg) !important;
+  border-radius: 8px;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Ajuste para modo oscuro */
+.dark .survey-table-row:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }

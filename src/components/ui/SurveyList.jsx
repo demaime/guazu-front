@@ -893,7 +893,7 @@ export function SurveyList({
                       ease: "easeOut",
                       delay: index * 0.02,
                     }}
-                    className="table-row-no-pointer table-row-gradient group transition-colors duration-200"
+                    className="survey-table-row group transition-all duration-200"
                   >
                     {/* Descripción (botón ojo) ahora primera celda */}
                     <td
@@ -929,7 +929,7 @@ export function SurveyList({
                       }}
                       onMouseLeave={() => handleTitleTooltip(null, null, false)}
                     >
-                      <div className="truncate cursor-pointer">
+                      <div className="truncate">
                         {getLocalizedText(surveyData.survey?.title) ||
                           "Sin título"}
                       </div>
