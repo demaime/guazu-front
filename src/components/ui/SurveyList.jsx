@@ -65,7 +65,7 @@ export function SurveyList({
     y: 0,
   });
   const tooltipTimeoutRef = useRef(null);
-  const [showCloneSuccessModal, setShowCloneSuccessModal] = useState(false);
+
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
   // Estados para tooltips de título (solo desktop)
@@ -152,14 +152,13 @@ export function SurveyList({
   }) => {
     const buttonKey = getButtonKey(action, surveyData._id);
     const isLoading = buttonLoadingStates[buttonKey];
-
-    const baseClasses =
-      variant === "mobile"
-        ? "mobile-action-button flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg transition-all duration-200 relative overflow-hidden"
-        : "p-2 rounded-full transition-all duration-200 cursor-pointer relative overflow-hidden min-w-[36px] min-h-[36px] flex items-center justify-center shadow-lg shadow-primary/25 border border-transparent backdrop-blur-sm";
+    const isAnyLoading = Object.values(buttonLoadingStates).some(
+      (loading) => loading
+    );
 
     const iconSize = variant === "mobile" ? "w-3 h-3" : "w-4 h-4";
 
+    // Mobile button styles
     const mobileBackground =
       action === "answer"
         ? role === "ROLE_ADMIN" || role === "SUPERVISOR"
@@ -169,52 +168,86 @@ export function SurveyList({
         ? "bg-red-500/90 hover:bg-red-500"
         : "bg-white/10 hover:bg-white/20";
 
-    const desktopBackground =
-      action === "deleteAnswers" || action === "delete"
-        ? "text-red-600 bg-red-50/70 hover:bg-red-100 hover:shadow-primary/40 hover:text-red-700"
-        : action === "answer"
-        ? "text-blue-600 bg-blue-50/70 hover:bg-blue-100 hover:shadow-primary/40 hover:text-blue-700"
-        : action === "edit"
-        ? "text-purple-600 bg-purple-50/70 hover:bg-purple-100 hover:shadow-primary/40 hover:text-purple-700"
-        : action === "progress"
-        ? "text-emerald-600 bg-emerald-50/70 hover:bg-emerald-100 hover:shadow-primary/40 hover:text-emerald-700"
-        : action === "clone"
-        ? "text-amber-600 bg-amber-50/70 hover:bg-amber-100 hover:shadow-primary/40 hover:text-amber-700"
-        : "text-slate-600 bg-slate-50/70 hover:bg-slate-100 hover:shadow-primary/40 hover:text-slate-700";
+    // Desktop circular button styles
+    const getDesktopStyles = () => {
+      if (isAnyLoading && !isLoading) {
+        return "bg-gray-100 text-gray-400 opacity-50";
+      }
 
-    const loadingClasses = isLoading
-      ? "opacity-70 cursor-not-allowed bg-gray-200 border-gray-300 text-gray-500"
-      : variant === "desktop"
-      ? desktopBackground
-      : "";
+      if (isLoading) {
+        return "bg-blue-100 text-blue-600";
+      }
 
-    const finalClassName =
-      variant === "mobile"
-        ? `${baseClasses} ${mobileBackground} text-white ${loadingClasses} ${className}`
-        : `${baseClasses} ${loadingClasses} ${className}`;
+      // Solo botones de eliminar en rojo, todos los demás en azul primary
+      switch (action) {
+        case "deleteAnswers":
+        case "delete":
+          return "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700";
+        default:
+          return "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700";
+      }
+    };
 
-    const button = (
+    const handleClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Prevenir clicks si hay cualquier acción cargando
+      if (isAnyLoading) {
+        return;
+      }
+
+      handleAction(action, surveyData);
+    };
+
+    if (variant === "mobile") {
+      return (
+        <button
+          onClick={handleClick}
+          disabled={isAnyLoading}
+          className={`mobile-action-button flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg transition-all duration-200 relative overflow-hidden ${mobileBackground} text-white ${
+            isAnyLoading ? "opacity-50 cursor-not-allowed" : ""
+          } ${className}`}
+          data-type="action"
+          aria-label={getTooltipText(action, role)}
+        >
+          {isLoading ? (
+            <Loader2 className={`${iconSize} animate-spin`} />
+          ) : (
+            <Icon className={iconSize} />
+          )}
+          {text && !isLoading && <span>{text}</span>}
+        </button>
+      );
+    }
+
+    // Desktop circular button
+    const isDeleteAction = action === "deleteAnswers" || action === "delete";
+
+    return (
       <button
-        onClick={(e) => {
-          if (variant === "desktop") {
-            e.stopPropagation();
-          }
-          if (!isLoading) {
-            handleAction(action, surveyData);
-          }
-        }}
+        onClick={handleClick}
         onMouseEnter={
-          variant === "desktop" && !isLoading
+          !isAnyLoading
             ? (e) => handleActionTooltip(`${action}-${surveyData._id}`, e, true)
             : undefined
         }
         onMouseLeave={
-          variant === "desktop" && !isLoading
+          !isAnyLoading
             ? () => handleActionTooltip(null, null, false)
             : undefined
         }
-        className={finalClassName}
-        disabled={isLoading}
+        disabled={isAnyLoading}
+        className={`
+          w-9 h-9 rounded-full 
+          flex items-center justify-center
+          action-button-circular
+          ${isDeleteAction ? "delete-button" : ""}
+          border border-white/20
+          backdrop-blur-sm
+          ${getDesktopStyles()}
+          ${className}
+        `}
         data-type="action"
         aria-label={getTooltipText(action, role)}
       >
@@ -223,12 +256,8 @@ export function SurveyList({
         ) : (
           <Icon className={iconSize} />
         )}
-
-        {text && variant === "mobile" && !isLoading && <span>{text}</span>}
       </button>
     );
-
-    return button;
   };
 
   const rowVariants = {
@@ -353,75 +382,116 @@ export function SurveyList({
     }
 
     const buttonKey = getButtonKey(action, surveyId);
+    const isFinished = surveyData.status === "finished";
 
-    // Mostrar loading para acciones que requieren tiempo
-    if (action === "answer" || action === "clone") {
-      setButtonLoading(buttonKey, true);
+    // Prevenir múltiples clicks
+    if (buttonLoadingStates[buttonKey]) {
+      return;
     }
+
+    // NO cerrar menú de acciones durante loading para que el usuario vea el feedback
+
+    // Activar loading para todas las acciones
+    setButtonLoading(buttonKey, true);
 
     try {
       switch (action) {
         case "edit":
+          // Mostrar loading por más tiempo para feedback visual
+          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/editar`);
+          // El menú se cierra con el timeout automático
           break;
+
         case "answer":
           if (isFinished) {
             setShowFinishedAlert(true);
             setButtonLoading(buttonKey, false);
-          } else {
-            // Simular un pequeño delay para mostrar feedback
-            await new Promise((resolve) => setTimeout(resolve, 300));
-            const isTestMode = role === "ROLE_ADMIN" || role === "SUPERVISOR";
-            const url = `/dashboard/encuestas/${surveyId}/responder${
-              isTestMode ? "?mode=test" : ""
-            }`;
-            // Cerrar el menú
             setExpandedActionsId(null);
-            // Navegar directamente
-            router.push(url);
+            return;
           }
+
+          // Mostrar loading por más tiempo para feedback visual
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          const isTestMode = role === "ROLE_ADMIN" || role === "SUPERVISOR";
+          const url = `/dashboard/encuestas/${surveyId}/responder${
+            isTestMode ? "?mode=test" : ""
+          }`;
+          router.push(url);
+          // El menú se cierra con el timeout automático
           break;
+
         case "quotas":
+          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/cuotas`);
+          // El menú se cierra con el timeout automático
           break;
+
         case "progress":
+          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/progreso`);
+          // El menú se cierra con el timeout automático
           break;
+
         case "pollsters":
+          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/encuestadores`);
+          // El menú se cierra con el timeout automático
           break;
+
         case "map":
+          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/progreso`);
+          // El menú se cierra con el timeout automático
           break;
+
         case "clone":
           const result = await surveyService.cloneSurvey(surveyId);
           if (result && result.success) {
-            setShowCloneSuccessModal(true);
             if (onSurveyListChange) {
               onSurveyListChange();
             }
+            toast.success("Encuesta clonada exitosamente");
           } else {
             toast.error(result?.message || "Error al clonar la encuesta.");
           }
+          setButtonLoading(buttonKey, false);
+          setExpandedActionsId(null); // Cerrar menú después de la acción
           break;
+
         case "delete":
           onDelete(surveyId);
+          setButtonLoading(buttonKey, false);
+          setExpandedActionsId(null); // Cerrar menú después de la acción
           break;
+
         case "deleteAnswers":
           setSelectedSurveyId(surveyId);
           setShowDeleteAnswersModal(true);
+          setButtonLoading(buttonKey, false);
+          setExpandedActionsId(null); // Cerrar menú después de la acción
           break;
+
         default:
           console.log("Acción no reconocida:", action);
+          setButtonLoading(buttonKey, false);
       }
     } catch (error) {
       console.error(`Error en la acción ${action}:`, error);
       toast.error(`Error al ejecutar la acción: ${error.message}`);
-    } finally {
-      // Limpiar loading state
-      if (action === "answer" || action === "clone") {
+      setButtonLoading(buttonKey, false);
+    }
+
+    // Para acciones de navegación, limpiar loading y cerrar menú después de un delay
+    if (
+      ["edit", "answer", "quotas", "progress", "pollsters", "map"].includes(
+        action
+      )
+    ) {
+      setTimeout(() => {
         setButtonLoading(buttonKey, false);
-      }
+        setExpandedActionsId(null); // Cerrar menú después del delay
+      }, 1200); // Un poco más de tiempo para ver el feedback
     }
   };
 
@@ -436,11 +506,6 @@ export function SurveyList({
         setSelectedSurveyId(null);
       }
     }
-  };
-
-  const handleCloneModalClose = () => {
-    setShowCloneSuccessModal(false);
-    toast.success("Encuesta clonada con éxito");
   };
 
   const getLocalizedText = (textObj, defaultText = "Sin definir") => {
@@ -828,7 +893,7 @@ export function SurveyList({
                       ease: "easeOut",
                       delay: index * 0.02,
                     }}
-                    className="table-row-hover table-row-gradient group hover:cursor-pointer hover:bg-primary/5 transition-colors duration-200"
+                    className="table-row-no-pointer table-row-gradient group transition-colors duration-200"
                   >
                     {/* Descripción (botón ojo) ahora primera celda */}
                     <td
@@ -845,7 +910,7 @@ export function SurveyList({
                           onMouseLeave={() =>
                             handleDescriptionTooltip(null, null, false)
                           }
-                          className="p-2.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                          className="p-2.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 action-button-circular"
                           data-type="description"
                           aria-label="Descripción"
                           title="Descripción"
@@ -942,10 +1007,10 @@ export function SurveyList({
                             toggleActions(surveyData._id);
                           }}
                           aria-expanded={expandedActionsId === surveyData._id}
-                          className={`transition-all duration-200 cursor-pointer flex items-center justify-center rounded-full p-2.5 min-w-[40px] min-h-[40px] shadow-lg shadow-primary/25 border border-transparent backdrop-blur-sm ${
+                          className={`action-button-circular flex items-center justify-center rounded-full p-2.5 min-w-[40px] min-h-[40px] border border-transparent backdrop-blur-sm ${
                             expandedActionsId === surveyData._id
-                              ? "bg-primary text-white shadow-primary/40"
-                              : "bg-primary/15 text-primary hover:bg-primary/25 hover:shadow-primary/40 active:scale-95"
+                              ? "bg-primary text-white"
+                              : "bg-primary/15 text-primary hover:bg-primary/25"
                           }`}
                           data-type="action"
                         >
@@ -1179,20 +1244,6 @@ export function SurveyList({
         <p>
           ¿Estás seguro que deseas borrar todas las respuestas de esta encuesta?
           Esta acción no se puede deshacer.
-        </p>
-      </ConfirmModal>
-
-      <ConfirmModal
-        isOpen={showCloneSuccessModal}
-        onClose={handleCloneModalClose}
-        onConfirm={handleCloneModalClose}
-        title="Encuesta Clonada"
-        confirmText="Entendido"
-        showCancelButton={false}
-      >
-        <p>
-          Encuesta clonada con éxito. Por favor, revise la sección de
-          Borradores.
         </p>
       </ConfirmModal>
     </>

@@ -834,3 +834,47 @@ button:disabled {
     rgba(15, 23, 42, 0.06);
   backdrop-filter: blur(4px) saturate(110%);
 }
+
+/* Botones de acción circulares */
+.action-button-circular {
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.3), 0 1px 2px rgba(63, 81, 181, 0.1);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-button-circular:hover:not(:disabled) {
+  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.5), 0 2px 4px rgba(63, 81, 181, 0.2);
+  transform: translateY(-1px);
+}
+
+.action-button-circular:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.4), 0 1px 2px rgba(63, 81, 181, 0.1);
+}
+
+.action-button-circular:disabled {
+  cursor: not-allowed;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Botones de eliminar con borde rojo */
+.action-button-circular.delete-button {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3), 0 1px 2px rgba(239, 68, 68, 0.1);
+}
+
+.action-button-circular.delete-button:hover:not(:disabled) {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.5), 0 2px 4px rgba(239, 68, 68, 0.2);
+}
+
+.action-button-circular.delete-button:active:not(:disabled) {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.4), 0 1px 2px rgba(239, 68, 68, 0.1);
+}
+
+/* Filas de tabla sin cursor pointer */
+.table-row-no-pointer {
+  cursor: default;
+}
+
+.table-row-no-pointer:hover {
+  background-color: transparent;
+}
