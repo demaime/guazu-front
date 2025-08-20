@@ -168,26 +168,6 @@ export function SurveyList({
         ? "bg-red-500/90 hover:bg-red-500"
         : "bg-white/10 hover:bg-white/20";
 
-    // Desktop circular button styles
-    const getDesktopStyles = () => {
-      if (isAnyLoading && !isLoading) {
-        return "bg-gray-100 text-gray-400 opacity-50";
-      }
-
-      if (isLoading) {
-        return "bg-blue-100 text-blue-600";
-      }
-
-      // Solo botones de eliminar en rojo, todos los demás en azul primary
-      switch (action) {
-        case "deleteAnswers":
-        case "delete":
-          return "bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700";
-        default:
-          return "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700";
-      }
-    };
-
     const handleClick = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -227,25 +207,16 @@ export function SurveyList({
     return (
       <button
         onClick={handleClick}
-        onMouseEnter={
-          !isAnyLoading
-            ? (e) => handleActionTooltip(`${action}-${surveyData._id}`, e, true)
-            : undefined
+        onMouseEnter={(e) =>
+          handleActionTooltip(`${action}-${surveyData._id}`, e, true)
         }
-        onMouseLeave={
-          !isAnyLoading
-            ? () => handleActionTooltip(null, null, false)
-            : undefined
-        }
+        onMouseLeave={() => handleActionTooltip(null, null, false)}
         disabled={isAnyLoading}
         className={`
-          w-9 h-9 rounded-full 
-          flex items-center justify-center
-          action-button-circular
+          action-button-circular survey-action-btn
           ${isDeleteAction ? "delete-button" : ""}
-          border border-white/20
-          backdrop-blur-sm
-          ${getDesktopStyles()}
+          ${isLoading ? "loading" : ""}
+          ${isAnyLoading && !isLoading ? "disabled" : ""}
           ${className}
         `}
         data-type="action"
@@ -451,7 +422,9 @@ export function SurveyList({
             if (onSurveyListChange) {
               onSurveyListChange();
             }
-            toast.success("Encuesta clonada exitosamente");
+            toast.success(
+              "Encuesta clonada exitosamente. Revise la lista de borradores"
+            );
           } else {
             toast.error(result?.message || "Error al clonar la encuesta.");
           }
@@ -1038,7 +1011,6 @@ export function SurveyList({
                                       surveyData={surveyData}
                                       icon={Edit}
                                       variant="desktop"
-                                      className="text-[var(--text-primary)] bg-white/5"
                                     />
                                   </>
                                 )}
@@ -1050,7 +1022,6 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={TestTube2}
                                     variant="desktop"
-                                    className="text-blue-500 bg-white/5"
                                   />
                                 ) : (
                                   <ActionButton
@@ -1058,7 +1029,6 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={Play}
                                     variant="desktop"
-                                    className="text-[var(--text-primary)] bg-white/5"
                                   />
                                 )}
 
@@ -1070,7 +1040,6 @@ export function SurveyList({
                                       surveyData={surveyData}
                                       icon={Map}
                                       variant="desktop"
-                                      className="text-[var(--text-primary)] bg-white/5"
                                     />
                                   )}
 
@@ -1082,7 +1051,6 @@ export function SurveyList({
                                       surveyData={surveyData}
                                       icon={BarChart3}
                                       variant="desktop"
-                                      className="text-[var(--text-primary)] bg-white/5"
                                     />
                                   </>
                                 )}
@@ -1093,7 +1061,6 @@ export function SurveyList({
                                     surveyData={surveyData}
                                     icon={Users}
                                     variant="desktop"
-                                    className="text-[var(--text-primary)] bg-white/5"
                                   />
                                 )}
 
@@ -1104,7 +1071,6 @@ export function SurveyList({
                                       surveyData={surveyData}
                                       icon={Copy}
                                       variant="desktop"
-                                      className="text-[var(--text-primary)] bg-white/5"
                                     />
 
                                     <ActionButton
@@ -1112,7 +1078,6 @@ export function SurveyList({
                                       surveyData={surveyData}
                                       icon={ClipboardX}
                                       variant="desktop"
-                                      className="text-red-400 bg-white/5"
                                     />
 
                                     <ActionButton
@@ -1120,7 +1085,6 @@ export function SurveyList({
                                       surveyData={surveyData}
                                       icon={Trash2}
                                       variant="desktop"
-                                      className="text-red-500 bg-white/5"
                                     />
                                   </>
                                 )}

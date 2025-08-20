@@ -25,6 +25,9 @@ import {
   WifiOff,
   MapPin,
   RefreshCw,
+  Edit,
+  Send,
+  Trash2,
 } from "lucide-react";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1106,11 +1109,13 @@ export default function Encuestas() {
                           <div className="flex items-start gap-3">
                             {/* Indicador visual de borrador */}
                             <div className="flex-shrink-0 mt-1">
-                              <div className="w-3 h-3 rounded-full bg-primary/20 border-2 border-primary/40"></div>
+                              <div className="w-6 h-6 rounded-lg bg-[var(--primary-dark)] text-[var(--primary-light)] flex items-center justify-center">
+                                <FilePenLine className="w-3.5 h-3.5" />
+                              </div>
                             </div>
 
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-semibold text-[var(--text-primary)] line-clamp-2 mb-2">
+                              <h3 className="text-lg font-bold text-[var(--text-primary)] line-clamp-2 mb-2">
                                 {draft.survey?.title?.es ||
                                   draft.survey?.title ||
                                   "Borrador sin título"}
@@ -1119,7 +1124,7 @@ export default function Encuestas() {
                               {/* Descripción si existe */}
                               {(draft.survey?.description ||
                                 draft.survey?.description?.es) && (
-                                <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
+                                <p className="text-sm font-normal text-[var(--text-secondary)] line-clamp-2 mb-3 opacity-80">
                                   {draft.survey?.description?.es ||
                                     draft.survey?.description}
                                 </p>
@@ -1154,62 +1159,26 @@ export default function Encuestas() {
                         <div className="flex items-center gap-2 lg:flex-shrink-0">
                           <button
                             onClick={() => handleEditDraft(draft._id)}
-                            className="action-button-circular w-9 h-9 rounded-full flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border border-white/20 backdrop-blur-sm transition-all duration-200"
+                            className="action-button-circular draft-button-edit w-9 h-9 rounded-full flex items-center justify-center"
                             title="Editar borrador"
                           >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
+                            <Edit className="w-4 h-4" />
                           </button>
 
                           <button
                             onClick={() => handlePublishDraft(draft._id)}
-                            className="action-button-circular w-9 h-9 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border border-white/20 backdrop-blur-sm transition-all duration-200"
+                            className="action-button-circular draft-button-publish w-9 h-9 rounded-full flex items-center justify-center"
                             title="Publicar borrador"
                           >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                              />
-                            </svg>
+                            <Send className="w-4 h-4" />
                           </button>
 
                           <button
                             onClick={() => handleDelete(draft._id)}
-                            className="action-button-circular delete-button w-9 h-9 rounded-full flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-white/20 backdrop-blur-sm transition-all duration-200"
+                            className="action-button-circular delete-button draft-button-delete w-9 h-9 rounded-full flex items-center justify-center"
                             title="Eliminar borrador"
                           >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>

@@ -176,7 +176,7 @@ const RecentSurveysWidget = () => {
                 return (
                   <motion.div
                     key={survey._id || index}
-                    className="relative p-4 bg-[var(--input-background)]/40 border border-[var(--card-border)] rounded-xl hover:shadow-md hover:border-secondary/30 transition-all duration-200 group/item"
+                    className="relative p-4 bg-[var(--input-background)]/40 border border-[var(--card-border)] rounded-xl hover:shadow-md hover:border-secondary/30 transition-all duration-200 group/item overflow-hidden"
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -187,7 +187,7 @@ const RecentSurveysWidget = () => {
                     }}
                     layout
                   >
-                    <div className="absolute inset-y-0 left-0 w-1 bg-secondary rounded-full"></div>
+                    <div className="absolute inset-y-0 left-0 w-1 bg-secondary rounded-r-full"></div>
                     <div className="flex items-start justify-between gap-3 ml-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-[var(--text-primary)] truncate mb-2">
@@ -201,11 +201,11 @@ const RecentSurveysWidget = () => {
                             <span
                               className={`px-2 py-1 text-xs font-medium rounded-full ${
                                 statusInfo.status === "active"
-                                  ? "bg-[var(--hover-bg)] text-primary"
+                                  ? "bg-[var(--hover-bg)] text-[var(--primary-light)]"
                                   : statusInfo.status === "finished"
                                   ? "bg-[var(--disabled-bg)] text-[var(--disabled-text)]"
                                   : statusInfo.status === "pending"
-                                  ? "bg-[var(--hover-bg)] text-secondary"
+                                  ? "bg-[var(--hover-bg)] text-[var(--primary-dark)]"
                                   : "bg-[var(--input-background)] text-[var(--text-secondary)]"
                               }`}
                             >

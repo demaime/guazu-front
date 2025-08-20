@@ -48,16 +48,60 @@ class GeocodingService {
       // Extraer información de dirección
       const address = data.address || {};
 
-      const result = {
-        city:
+      // Función helper para formatear ubicación de CABA
+      const formatCABALocation = (address) => {
+        const neighbourhood =
+          address.neighbourhood || address.suburb || address.quarter;
+        const cityDistrict = address.city_district || address.district;
+
+        // Si tenemos barrio/comuna, lo usamos
+        if (neighbourhood) {
+          return `${neighbourhood}, CABA`;
+        }
+
+        // Si tenemos distrito/comuna sin barrio específico
+        if (cityDistrict && cityDistrict.toLowerCase().includes("comuna")) {
+          return `${cityDistrict}, CABA`;
+        }
+
+        return "CABA";
+      };
+
+      // Detectar si es CABA/Ciudad de Buenos Aires
+      const isCABA =
+        address.city === "Ciudad Autónoma de Buenos Aires" ||
+        address.city === "Buenos Aires" ||
+        address.municipality === "Ciudad Autónoma de Buenos Aires" ||
+        address.state === "Ciudad Autónoma de Buenos Aires" ||
+        (address.country === "Argentina" &&
+          (address.city === "Buenos Aires" ||
+            address.municipality === "Buenos Aires") &&
+          !address.state);
+
+      let cityName;
+      if (isCABA) {
+        cityName = formatCABALocation(address);
+      } else {
+        cityName =
           address.city ||
           address.town ||
           address.village ||
           address.municipality ||
           address.county ||
-          "Ciudad no disponible",
+          "Ciudad no disponible";
+      }
+
+      const result = {
+        city: cityName,
         state: address.state || address.province || null,
         country: address.country || null,
+        // Información adicional para debug
+        _debug: {
+          neighbourhood: address.neighbourhood,
+          suburb: address.suburb,
+          city_district: address.city_district,
+          isCABA: isCABA,
+        },
       };
 
       // Guardar en cache
@@ -112,4 +156,3 @@ class GeocodingService {
 }
 
 export default GeocodingService;
-

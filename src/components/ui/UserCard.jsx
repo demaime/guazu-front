@@ -23,7 +23,7 @@ const UserCard = memo(({ user, currentUser, highlightTerm, onCardClick }) => {
 
   return (
     <div
-      className="group relative bg-[var(--card-background)] border border-[var(--card-border)] rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 p-4 pl-5 flex items-center gap-4 cursor-pointer ring-1 ring-transparent hover:ring-primary/40 hover:border-primary/40"
+      className="group relative bg-[var(--card-background)] border border-[var(--card-border)] rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 p-4 pl-5 flex items-center gap-4 cursor-pointer ring-1 ring-transparent hover:ring-primary/40 hover:border-primary/40 min-h-[120px]"
       onClick={onCardClick}
     >
       {/* Acento azul lateral */}
@@ -39,14 +39,14 @@ const UserCard = memo(({ user, currentUser, highlightTerm, onCardClick }) => {
       {/* Contenido principal */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-base md:text-lg font-semibold text-[var(--text-primary)] line-clamp-2">
+          <h3 className="text-base md:text-lg font-semibold text-[var(--text-primary)] truncate">
             <HighlightText
               text={`${user.name} ${user.lastName}`}
               highlight={highlightTerm}
             />
           </h3>
           {isSelf && (
-            <span className="text-primary text-xs md:text-sm font-semibold whitespace-nowrap">
+            <span className="text-[var(--primary-light)] text-xs md:text-sm font-semibold whitespace-nowrap">
               (tú)
             </span>
           )}
