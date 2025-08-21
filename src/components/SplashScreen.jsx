@@ -74,53 +74,49 @@ export function SplashScreen({
 
           {/* Contenido principal */}
           <div className="splash-content">
-            {/* Logo con animación de entrada */}
-            <AnimatePresence>
-              {showLogo && (
-                <motion.div
-                  initial={{
-                    opacity: 0,
-                    scale: 0.3,
-                    y: 20,
-                    rotateY: -90,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    scale: 1,
-                    y: 0,
-                    rotateY: 0,
-                  }}
-                  transition={{
-                    duration: 1.2,
-                    ease: [0.25, 0.46, 0.45, 0.94],
-                    scale: {
-                      type: "spring",
-                      damping: 15,
-                      stiffness: 100,
-                    },
-                  }}
-                  className="splash-logo"
-                >
-                  <Image
-                    src="/logo-solo.png"
-                    alt="Guazú Logo"
-                    width={120}
-                    height={120}
-                    className="w-full h-full object-contain"
-                    priority
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Logo con animación de entrada - mantiene espacio para texto */}
+            <div className="splash-logo">
+              <AnimatePresence>
+                {showLogo && (
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                      scale: 0.3,
+                      rotateY: -90,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                      rotateY: 0,
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      ease: [0.25, 0.46, 0.45, 0.94],
+                      scale: {
+                        type: "spring",
+                        damping: 15,
+                        stiffness: 100,
+                      },
+                    }}
+                    className="w-full h-full"
+                  >
+                    <Image
+                      src="/logo-solo.png"
+                      alt="Guazú Logo"
+                      width={120}
+                      height={120}
+                      className="w-full h-full object-contain"
+                      priority
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Título con animación de entrada en cascada */}
-            <AnimatePresence>
-              {showTitle && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                >
+            <div className="splash-title-container">
+              <AnimatePresence>
+                {showTitle && (
                   <motion.h1
                     className="splash-title"
                     initial={{
@@ -163,30 +159,32 @@ export function SplashScreen({
                       </motion.span>
                     ))}
                   </motion.h1>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Indicador de progreso sutil */}
-            <AnimatePresence>
-              {showTitle && (
-                <motion.div
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{
-                    opacity: 0.6,
-                    width: "200px",
-                    transition: {
-                      width: {
-                        duration: duration / 1000 - 1.5,
-                        ease: "easeInOut",
+            <div className="splash-progress">
+              <AnimatePresence>
+                {showTitle && (
+                  <motion.div
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{
+                      opacity: 0.6,
+                      width: "200px",
+                      transition: {
+                        width: {
+                          duration: duration / 1000 - 1.5,
+                          ease: "easeInOut",
+                        },
+                        opacity: { duration: 0.5 },
                       },
-                      opacity: { duration: 0.5 },
-                    },
-                  }}
-                  className="h-0.5 bg-white/30 rounded-full mt-8"
-                />
-              )}
-            </AnimatePresence>
+                    }}
+                    className="h-0.5 bg-white/30 rounded-full"
+                  />
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Partículas flotantes decorativas */}

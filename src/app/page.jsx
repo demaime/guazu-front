@@ -12,23 +12,18 @@ export default function Home() {
 
   const handleSplashComplete = () => {
     setShowSplash(false);
-    setIsCheckingAuth(true);
 
-    // Delay mínimo para transición suave
-    setTimeout(() => {
-      try {
-        if (authService.isAuthenticated()) {
-          router.replace("/dashboard/encuestas");
-        } else {
-          router.replace("/login");
-        }
-      } catch (error) {
-        console.error("Error checking authentication:", error);
+    // Verificar autenticación inmediatamente sin pantalla intermedia
+    try {
+      if (authService.isAuthenticated()) {
+        router.replace("/dashboard/encuestas");
+      } else {
         router.replace("/login");
-      } finally {
-        setIsCheckingAuth(false);
       }
-    }, 300);
+    } catch (error) {
+      console.error("Error checking authentication:", error);
+      router.replace("/login");
+    }
   };
 
   // Mostrar splash screen al inicio
@@ -42,17 +37,6 @@ export default function Home() {
     );
   }
 
-  // Fallback mientras se verifica autenticación (rara vez se ve)
-  if (isCheckingAuth) {
-    return (
-      <div className="fixed inset-0 bg-[var(--primary)] flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="loader mb-4" style={{ "--size": "40px" }} />
-          <p className="text-lg">Iniciando...</p>
-        </div>
-      </div>
-    );
-  }
-
+  // El componente se desmonta inmediatamente después del splash
   return null;
 }
