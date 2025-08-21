@@ -147,28 +147,14 @@
   --hover-bg: rgba(63, 81, 181, 0.1);
   --disabled-bg: #f1f5f9;
   --disabled-text: #94a3b8;
-
-  /* Button colors */
-  --btn-blue: rgba(59, 130, 246, 0.1);
-  --btn-blue-hover: rgba(59, 130, 246, 0.2);
-  --btn-blue-text: rgb(37, 99, 235);
-  --btn-blue-text-hover: rgb(29, 78, 216);
-  --btn-red: rgba(239, 68, 68, 0.1);
-  --btn-red-hover: rgba(239, 68, 68, 0.2);
-  --btn-red-text: rgb(220, 38, 38);
-  --btn-red-text-hover: rgb(185, 28, 28);
-  --btn-green: rgba(34, 197, 94, 0.1);
-  --btn-green-hover: rgba(34, 197, 94, 0.2);
-  --btn-green-text: rgb(22, 163, 74);
-  --btn-green-text-hover: rgb(21, 128, 61);
 }
 
 /* Dark theme */
 .dark {
   --background: #0f172a;
-  --card-background: #1b2a44;
+  --card-background: #151d29;
   --input-background: #28354e;
-  --card-border: #223755;
+  --card-border: #334155;
   --text-primary: #ffffff;
   --text-secondary: #97b3db;
   --text-muted: #64748b;
@@ -177,24 +163,13 @@
   --hover-bg: rgba(99, 102, 241, 0.2);
   --disabled-bg: #1e293b;
   --disabled-text: #475569;
-
-  /* Button colors - dark mode */
-  --btn-blue: rgba(96, 165, 250, 0.2);
-  --btn-blue-hover: rgba(96, 165, 250, 0.3);
-  --btn-blue-text: rgb(147, 197, 253);
-  --btn-blue-text-hover: rgb(196, 224, 254);
-  --btn-red: rgba(248, 113, 113, 0.2);
-  --btn-red-hover: rgba(248, 113, 113, 0.3);
-  --btn-red-text: rgb(252, 165, 165);
-  --btn-red-text-hover: rgb(254, 202, 202);
-  --btn-green: rgba(74, 222, 128, 0.2);
-  --btn-green-hover: rgba(74, 222, 128, 0.3);
-  --btn-green-text: rgb(134, 239, 172);
-  --btn-green-text-hover: rgb(187, 247, 208);
 }
 
 /* Agregamos estilos específicos para el nav-item en modo oscuro */
-.dark .nav-item.active,
+.dark .nav-item.active {
+  color: var(--primary-light);
+}
+
 .dark .nav-item:hover {
   color: var(--primary-light);
 }
@@ -651,7 +626,16 @@ button:disabled {
     color 0.3s ease-in-out;
 }
 
-/* Dark theme specific styles - NOTA: Ya definido arriba, eliminar duplicación */
+/* Dark theme specific styles */
+.dark .nav-item:hover {
+  color: var(--primary-light);
+  background-color: var(--hover-bg);
+}
+
+.dark .nav-item.active {
+  color: var(--primary-light);
+  background-color: transparent;
+}
 
 /* Paginación */
 .pagination-item {
@@ -820,13 +804,11 @@ button:disabled {
 }
 
 /* Tabla admin encuestas: filas sin fondo con bordes laterales en hover */
-/* DEPRECATED: Reemplazado por .survey-table-row - mantenido para compatibilidad */
 .table-row-gradient {
   background: transparent;
 }
 .table-row-gradient:hover {
-  /* Deshabilitado para evitar conflictos con .survey-table-row */
-  /* background: linear-gradient(
+  background: linear-gradient(
         90deg,
         color-mix(in oklab, var(--primary) 56%, transparent),
         transparent
@@ -839,7 +821,7 @@ button:disabled {
       )
       right;
   background-repeat: no-repeat;
-  background-size: 22px 100%, 22px 100%; */
+  background-size: 22px 100%, 22px 100%;
 }
 
 /* Glass effect reutilizable en tono primario */
@@ -895,102 +877,4 @@ button:disabled {
 
 .table-row-no-pointer:hover {
   background-color: transparent;
-}
-
-/* Filas específicas de la tabla de encuestas */
-.survey-table-row {
-  cursor: default;
-  background: transparent;
-}
-
-.survey-table-row:hover {
-  background-color: var(--hover-bg) !important;
-  border-radius: 8px;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Ajuste para modo oscuro */
-.dark .survey-table-row:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* Botones de acción específicos para SurveyList */
-.survey-action-btn {
-  width: 36px !important;
-  height: 36px !important;
-  border-radius: 50% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background-color: var(--btn-blue) !important;
-  color: var(--btn-blue-text) !important;
-  transition: all 0.15s ease !important;
-  border: none !important;
-  cursor: pointer !important;
-}
-
-.survey-action-btn:hover:not(.disabled):not(.loading) {
-  background-color: var(--btn-blue-hover) !important;
-  color: var(--btn-blue-text-hover) !important;
-  transform: translateY(-1px) !important;
-}
-
-.survey-action-btn:active:not(.disabled):not(.loading) {
-  transform: translateY(0) !important;
-}
-
-/* Estados especiales */
-.survey-action-btn.loading {
-  background-color: var(--btn-blue-hover) !important;
-  color: var(--btn-blue-text) !important;
-}
-
-.survey-action-btn.disabled {
-  background-color: var(--disabled-bg) !important;
-  color: var(--disabled-text) !important;
-  cursor: not-allowed !important;
-  opacity: 0.5 !important;
-}
-
-/* Botones de eliminar */
-.survey-action-btn.delete-button {
-  background-color: var(--btn-red) !important;
-  color: var(--btn-red-text) !important;
-}
-
-.survey-action-btn.delete-button:hover:not(.disabled):not(.loading) {
-  background-color: var(--btn-red-hover) !important;
-  color: var(--btn-red-text-hover) !important;
-}
-
-/* Botones de borradores que se adaptan al tema */
-.draft-button-edit {
-  background-color: var(--btn-blue) !important;
-  color: var(--btn-blue-text) !important;
-}
-
-.draft-button-edit:hover {
-  background-color: var(--btn-blue-hover) !important;
-  color: var(--btn-blue-text-hover) !important;
-}
-
-.draft-button-publish {
-  background-color: var(--btn-green) !important;
-  color: var(--btn-green-text) !important;
-}
-
-.draft-button-publish:hover {
-  background-color: var(--btn-green-hover) !important;
-  color: var(--btn-green-text-hover) !important;
-}
-
-.draft-button-delete {
-  background-color: var(--btn-red) !important;
-  color: var(--btn-red-text) !important;
-}
-
-.draft-button-delete:hover {
-  background-color: var(--btn-red-hover) !important;
-  color: var(--btn-red-text-hover) !important;
 }
