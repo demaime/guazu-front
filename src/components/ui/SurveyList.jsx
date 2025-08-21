@@ -75,8 +75,8 @@ export function SurveyList({
     y: 0,
   });
 
-  // Estados para feedback visual de botones
-  const [buttonLoadingStates, setButtonLoadingStates] = useState({});
+  // Estado para botón loading individual
+  const [loadingAction, setLoadingAction] = useState(null);
 
   // Constantes para anchos de columnas
   const COLUMN_WIDTHS = {
@@ -86,13 +86,6 @@ export function SurveyList({
     progress: "w-1/4",
     actions: "w-20",
   };
-
-  // Funciones helper para feedback visual
-  const setButtonLoading = (actionKey, isLoading) => {
-    setButtonLoadingStates((prev) => ({ ...prev, [actionKey]: isLoading }));
-  };
-
-  const getButtonKey = (action, surveyId) => `${action}-${surveyId}`;
 
   // Función utilitaria para truncar texto
   const truncateText = (text, maxLength = 50) => {
@@ -141,7 +134,7 @@ export function SurveyList({
     }
   };
 
-  // Componente de botón con feedback visual
+  // Componente de botón simplificado
   const ActionButton = ({
     action,
     surveyData,
@@ -150,12 +143,6 @@ export function SurveyList({
     className = "",
     variant = "mobile",
   }) => {
-    const buttonKey = getButtonKey(action, surveyData._id);
-    const isLoading = buttonLoadingStates[buttonKey];
-    const isAnyLoading = Object.values(buttonLoadingStates).some(
-      (loading) => loading
-    );
-
     const iconSize = variant === "mobile" ? "w-3 h-3" : "w-4 h-4";
 
     // Mobile button styles
@@ -171,12 +158,6 @@ export function SurveyList({
     const handleClick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-
-      // Prevenir clicks si hay cualquier acción cargando
-      if (isAnyLoading) {
-        return;
-      }
-
       handleAction(action, surveyData);
     };
 
@@ -184,45 +165,68 @@ export function SurveyList({
       return (
         <button
           onClick={handleClick}
-          disabled={isAnyLoading}
-          className={`mobile-action-button flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg transition-all duration-200 relative overflow-hidden ${mobileBackground} text-white ${
-            isAnyLoading ? "opacity-50 cursor-not-allowed" : ""
-          } ${className}`}
+          className={`mobile-action-button flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg transition-all duration-150 relative overflow-hidden ${mobileBackground} text-white ${className}`}
           data-type="action"
           aria-label={getTooltipText(action, role)}
         >
-          {isLoading ? (
-            <Loader2 className={`${iconSize} animate-spin`} />
-          ) : (
-            <Icon className={iconSize} />
-          )}
-          {text && !isLoading && <span>{text}</span>}
+          <Icon className={iconSize} />
+          {text && <span>{text}</span>}
         </button>
       );
     }
 
-    // Desktop circular button
-    const isDeleteAction = action === "deleteAnswers" || action === "delete";
+    // Desktop circular button - TUS COLORES + funcionalidad mejorada
+    const getButtonStyles = () => {
+      const baseStyles =
+        "w-8 h-8 rounded-xl flex items-center justify-center  cursor-pointer";
+
+      if (action === "edit") {
+        return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
+      } else if (action === "answer") {
+        return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
+      } else if (action === "map") {
+        return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
+      } else if (action === "progress") {
+        return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
+      } else if (action === "pollsters") {
+        return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
+      } else if (action === "clone") {
+        return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
+      } else if (action === "deleteAnswers") {
+        return `${baseStyles} bg-red-400/60 text-white hover:bg-red-500/90`;
+      } else if (action === "delete") {
+        return `${baseStyles} bg-red-400 text-white hover:bg-red-500`;
+      } else {
+        return `${baseStyles} bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)]`;
+      }
+    };
+
+    const isCurrentLoading = loadingAction === `${action}-${surveyData._id}`;
+    const isAnyLoading = loadingAction !== null;
+    const isDisabled = isAnyLoading && !isCurrentLoading;
 
     return (
       <button
         onClick={handleClick}
-        onMouseEnter={(e) =>
-          handleActionTooltip(`${action}-${surveyData._id}`, e, true)
-        }
-        onMouseLeave={() => handleActionTooltip(null, null, false)}
-        disabled={isAnyLoading}
-        className={`
-          action-button-circular survey-action-btn
-          ${isDeleteAction ? "delete-button" : ""}
-          ${isLoading ? "loading" : ""}
-          ${isAnyLoading && !isLoading ? "disabled" : ""}
-          ${className}
-        `}
+        onMouseEnter={(e) => {
+          if (!isDisabled) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setActionTooltipPosition({
+              x: rect.left + rect.width / 2,
+              y: rect.top - 10,
+            });
+            setOpenActionTooltipId(`${action}-${surveyData._id}`);
+          }
+        }}
+        onMouseLeave={() => setOpenActionTooltipId(null)}
+        disabled={isDisabled}
+        className={`${getButtonStyles()} ${
+          isDisabled ? "opacity-50 cursor-not-allowed" : ""
+        } ${className}`}
         data-type="action"
         aria-label={getTooltipText(action, role)}
       >
-        {isLoading ? (
+        {isCurrentLoading ? (
           <Loader2 className={`${iconSize} animate-spin`} />
         ) : (
           <Icon className={iconSize} />
@@ -286,6 +290,13 @@ export function SurveyList({
     };
   }, [expandedActionsId]);
 
+  // Limpiar loading state al desmontar el componente
+  useEffect(() => {
+    return () => {
+      setLoadingAction(null);
+    };
+  }, []);
+
   const toggleActions = (surveyId) => {
     const newId = expandedActionsId === surveyId ? null : surveyId;
     setExpandedActionsId(newId);
@@ -302,29 +313,9 @@ export function SurveyList({
     setOpenDescriptionTooltipId(show ? surveyId : null);
   };
 
-  const handleActionTooltip = (actionId, e, show) => {
-    // Limpiar timeout previo
-    if (tooltipTimeoutRef.current) {
-      clearTimeout(tooltipTimeoutRef.current);
-      tooltipTimeoutRef.current = null;
-    }
-
-    if (show) {
-      if (e) {
-        const buttonRect = e.currentTarget.getBoundingClientRect();
-        setActionTooltipPosition({
-          x: buttonRect.left + buttonRect.width / 2,
-          y: buttonRect.top - 10,
-        });
-      }
-      // Agregar delay de 500ms para mostrar
-      tooltipTimeoutRef.current = setTimeout(() => {
-        setOpenActionTooltipId(actionId);
-      }, 0);
-    } else {
-      // Ocultar inmediatamente
-      setOpenActionTooltipId(null);
-    }
+  // Tooltip simplificado para acciones
+  const handleActionTooltip = (actionId, show) => {
+    setOpenActionTooltipId(show ? actionId : null);
   };
 
   const handleRemainingTooltip = (surveyId, e, show) => {
@@ -352,68 +343,45 @@ export function SurveyList({
       return;
     }
 
-    const buttonKey = getButtonKey(action, surveyId);
     const isFinished = surveyData.status === "finished";
+    const actionKey = `${action}-${surveyId}`;
 
-    // Prevenir múltiples clicks
-    if (buttonLoadingStates[buttonKey]) {
-      return;
-    }
-
-    // NO cerrar menú de acciones durante loading para que el usuario vea el feedback
-
-    // Activar loading para todas las acciones
-    setButtonLoading(buttonKey, true);
+    // Mostrar loading en el botón específico
+    setLoadingAction(actionKey);
 
     try {
       switch (action) {
         case "edit":
-          // Mostrar loading por más tiempo para feedback visual
-          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/editar`);
-          // El menú se cierra con el timeout automático
           break;
 
         case "answer":
           if (isFinished) {
             setShowFinishedAlert(true);
-            setButtonLoading(buttonKey, false);
-            setExpandedActionsId(null);
+            setLoadingAction(null);
             return;
           }
-
-          // Mostrar loading por más tiempo para feedback visual
-          await new Promise((resolve) => setTimeout(resolve, 600));
           const isTestMode = role === "ROLE_ADMIN" || role === "SUPERVISOR";
           const url = `/dashboard/encuestas/${surveyId}/responder${
             isTestMode ? "?mode=test" : ""
           }`;
           router.push(url);
-          // El menú se cierra con el timeout automático
           break;
 
         case "quotas":
-          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/cuotas`);
-          // El menú se cierra con el timeout automático
           break;
 
         case "progress":
-          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/progreso`);
-          // El menú se cierra con el timeout automático
           break;
 
         case "pollsters":
-          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/encuestadores`);
-          // El menú se cierra con el timeout automático
           break;
 
         case "map":
-          await new Promise((resolve) => setTimeout(resolve, 500));
           router.push(`/dashboard/encuestas/${surveyId}/progreso`);
-          // El menú se cierra con el timeout automático
           break;
 
         case "clone":
@@ -428,43 +396,31 @@ export function SurveyList({
           } else {
             toast.error(result?.message || "Error al clonar la encuesta.");
           }
-          setButtonLoading(buttonKey, false);
-          setExpandedActionsId(null); // Cerrar menú después de la acción
+          setLoadingAction(null);
+          setExpandedActionsId(null);
           break;
 
         case "delete":
           onDelete(surveyId);
-          setButtonLoading(buttonKey, false);
-          setExpandedActionsId(null); // Cerrar menú después de la acción
+          setLoadingAction(null);
+          setExpandedActionsId(null);
           break;
 
         case "deleteAnswers":
           setSelectedSurveyId(surveyId);
           setShowDeleteAnswersModal(true);
-          setButtonLoading(buttonKey, false);
-          setExpandedActionsId(null); // Cerrar menú después de la acción
+          setLoadingAction(null);
+          setExpandedActionsId(null);
           break;
 
         default:
           console.log("Acción no reconocida:", action);
-          setButtonLoading(buttonKey, false);
+          setLoadingAction(null);
       }
     } catch (error) {
       console.error(`Error en la acción ${action}:`, error);
       toast.error(`Error al ejecutar la acción: ${error.message}`);
-      setButtonLoading(buttonKey, false);
-    }
-
-    // Para acciones de navegación, limpiar loading y cerrar menú después de un delay
-    if (
-      ["edit", "answer", "quotas", "progress", "pollsters", "map"].includes(
-        action
-      )
-    ) {
-      setTimeout(() => {
-        setButtonLoading(buttonKey, false);
-        setExpandedActionsId(null); // Cerrar menú después del delay
-      }, 1200); // Un poco más de tiempo para ver el feedback
+      setLoadingAction(null);
     }
   };
 
@@ -877,13 +833,7 @@ export function SurveyList({
                           onClick={(e) =>
                             toggleCardExpansion(surveyData._id, e)
                           }
-                          onMouseEnter={(e) =>
-                            handleDescriptionTooltip(surveyData._id, e, true)
-                          }
-                          onMouseLeave={() =>
-                            handleDescriptionTooltip(null, null, false)
-                          }
-                          className="p-2.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 action-button-circular"
+                          className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors duration-100 cursor-pointer"
                           data-type="description"
                           aria-label="Descripción"
                           title="Descripción"
@@ -980,10 +930,10 @@ export function SurveyList({
                             toggleActions(surveyData._id);
                           }}
                           aria-expanded={expandedActionsId === surveyData._id}
-                          className={`action-button-circular flex items-center justify-center rounded-full p-2.5 min-w-[40px] min-h-[40px] border border-transparent backdrop-blur-sm ${
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors duration-100 cursor-pointer ${
                             expandedActionsId === surveyData._id
-                              ? "bg-primary text-white"
-                              : "bg-primary/15 text-primary"
+                              ? "bg-blue-600 text-white"
+                              : "bg-blue-100 text-blue-600 hover:bg-blue-200"
                           }`}
                           data-type="action"
                         >
@@ -1003,91 +953,109 @@ export function SurveyList({
                               transition={{ duration: 0.2 }}
                               className="absolute right-12 top-1/2 -translate-y-1/2 overflow-hidden z-50"
                             >
-                              <div className="flex items-center gap-1.5 px-2 py-2 action-buttons">
-                                {role === "ROLE_ADMIN" && (
-                                  <>
+                              <div>
+                                <div className="flex items-center gap-2 px-2 py-2 action-buttons">
+                                  {role === "ROLE_ADMIN" && (
+                                    <>
+                                      <ActionButton
+                                        action="edit"
+                                        surveyData={surveyData}
+                                        icon={Edit}
+                                        variant="desktop"
+                                      />
+                                    </>
+                                  )}
+
+                                  {role === "ROLE_ADMIN" ||
+                                  role === "SUPERVISOR" ? (
                                     <ActionButton
-                                      action="edit"
+                                      action="answer"
                                       surveyData={surveyData}
-                                      icon={Edit}
+                                      icon={TestTube2}
                                       variant="desktop"
                                     />
-                                  </>
-                                )}
-
-                                {role === "ROLE_ADMIN" ||
-                                role === "SUPERVISOR" ? (
-                                  <ActionButton
-                                    action="answer"
-                                    surveyData={surveyData}
-                                    icon={TestTube2}
-                                    variant="desktop"
-                                  />
-                                ) : (
-                                  <ActionButton
-                                    action="answer"
-                                    surveyData={surveyData}
-                                    icon={Play}
-                                    variant="desktop"
-                                  />
-                                )}
-
-                                {/* Solo mostrar mapa para pollsters, admins ya tienen mapa integrado en análisis */}
-                                {role !== "ROLE_ADMIN" &&
-                                  role !== "SUPERVISOR" && (
+                                  ) : (
                                     <ActionButton
-                                      action="map"
+                                      action="answer"
                                       surveyData={surveyData}
-                                      icon={Map}
+                                      icon={Play}
                                       variant="desktop"
                                     />
                                   )}
 
-                                {(role === "ROLE_ADMIN" ||
-                                  role === "SUPERVISOR") && (
-                                  <>
+                                  {/* Solo mostrar mapa para pollsters, admins ya tienen mapa integrado en análisis */}
+                                  {role !== "ROLE_ADMIN" &&
+                                    role !== "SUPERVISOR" && (
+                                      <ActionButton
+                                        action="map"
+                                        surveyData={surveyData}
+                                        icon={Map}
+                                        variant="desktop"
+                                      />
+                                    )}
+
+                                  {(role === "ROLE_ADMIN" ||
+                                    role === "SUPERVISOR") && (
+                                    <>
+                                      <ActionButton
+                                        action="progress"
+                                        surveyData={surveyData}
+                                        icon={BarChart3}
+                                        variant="desktop"
+                                      />
+                                    </>
+                                  )}
+
+                                  {role === "SUPERVISOR" && (
                                     <ActionButton
-                                      action="progress"
+                                      action="pollsters"
                                       surveyData={surveyData}
-                                      icon={BarChart3}
+                                      icon={Users}
                                       variant="desktop"
                                     />
-                                  </>
-                                )}
+                                  )}
 
-                                {role === "SUPERVISOR" && (
-                                  <ActionButton
-                                    action="pollsters"
-                                    surveyData={surveyData}
-                                    icon={Users}
-                                    variant="desktop"
-                                  />
-                                )}
+                                  {role === "ROLE_ADMIN" && (
+                                    <>
+                                      <ActionButton
+                                        action="clone"
+                                        surveyData={surveyData}
+                                        icon={Copy}
+                                        variant="desktop"
+                                      />
 
-                                {role === "ROLE_ADMIN" && (
-                                  <>
-                                    <ActionButton
-                                      action="clone"
-                                      surveyData={surveyData}
-                                      icon={Copy}
-                                      variant="desktop"
-                                    />
+                                      <ActionButton
+                                        action="deleteAnswers"
+                                        surveyData={surveyData}
+                                        icon={ClipboardX}
+                                        variant="desktop"
+                                      />
 
-                                    <ActionButton
-                                      action="deleteAnswers"
-                                      surveyData={surveyData}
-                                      icon={ClipboardX}
-                                      variant="desktop"
-                                    />
-
-                                    <ActionButton
-                                      action="delete"
-                                      surveyData={surveyData}
-                                      icon={Trash2}
-                                      variant="desktop"
-                                    />
-                                  </>
-                                )}
+                                      <ActionButton
+                                        action="delete"
+                                        surveyData={surveyData}
+                                        icon={Trash2}
+                                        variant="desktop"
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                                <AnimatePresence>
+                                  {loadingAction &&
+                                    loadingAction.includes(surveyData._id) && (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-50  shadow-md"
+                                      >
+                                        <span className="text-xs italic font-medium text-[var(--primary-dark)] shadow">
+                                          Aguarde...
+                                        </span>
+                                      </motion.div>
+                                    )}
+                                </AnimatePresence>
                               </div>
                             </motion.div>
                           )}
@@ -1137,7 +1105,7 @@ export function SurveyList({
 
       {openActionTooltipId && (
         <div
-          className="fixed z-[9999] p-3 text-xs rounded-md shadow-lg bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] max-w-xs pointer-events-none"
+          className="fixed z-[9999] p-2 text-xs rounded-md shadow-lg bg-gray-800 text-white max-w-xs pointer-events-none"
           style={{
             left: `${actionTooltipPosition.x}px`,
             top: `${actionTooltipPosition.y}px`,
