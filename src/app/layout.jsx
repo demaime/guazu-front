@@ -18,7 +18,7 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="icon" href="/logo-mini.png" />
-        <meta name="theme-color" content="#3B82F6" />
+        <meta name="theme-color" content="#3f51b5" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
       <body className={mulish.className}>

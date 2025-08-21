@@ -3,17 +3,20 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
-import { motion } from "framer-motion";
-import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
+import { SplashScreen } from "@/components/SplashScreen";
 
 export default function Home() {
   const router = useRouter();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
 
-  useEffect(() => {
-    const checkAuth = () => {
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+    setIsCheckingAuth(true);
+
+    // Delay mínimo para transición suave
+    setTimeout(() => {
       try {
-        // Normal authentication check
         if (authService.isAuthenticated()) {
           router.replace("/dashboard/encuestas");
         } else {
@@ -25,16 +28,31 @@ export default function Home() {
       } finally {
         setIsCheckingAuth(false);
       }
-    };
+    }, 300);
+  };
 
-    setTimeout(checkAuth, 100);
-  }, [router]);
-
-  if (isCheckingAuth) {
+  // Mostrar splash screen al inicio
+  if (showSplash) {
     return (
-      <LoaderWrapper size="xl" fullScreen text="Actualizando encuestas…" />
+      <SplashScreen
+        isVisible={true}
+        onComplete={handleSplashComplete}
+        duration={3000}
+      />
     );
   }
 
-  return <LoaderWrapper size="xl" fullScreen text="Actualizando encuestas…" />;
+  // Fallback mientras se verifica autenticación (rara vez se ve)
+  if (isCheckingAuth) {
+    return (
+      <div className="fixed inset-0 bg-[var(--primary)] flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="loader mb-4" style={{ "--size": "40px" }} />
+          <p className="text-lg">Iniciando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

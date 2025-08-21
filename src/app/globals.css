@@ -878,3 +878,237 @@ button:disabled {
 .table-row-no-pointer:hover {
   background-color: transparent;
 }
+
+/* Splash Screen Styles */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.splash-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    #2b3675 50%,
+    var(--primary-dark) 100%
+  );
+}
+
+.splash-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(
+      circle at 25% 25%,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 75% 75%,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 50%
+    ),
+    linear-gradient(
+      45deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.05) 50%,
+      transparent 60%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.03) 50%,
+      transparent 60%
+    );
+  background-size: 200px 200px, 300px 300px, 100px 100px, 150px 150px;
+  animation: patternMove 20s ease-in-out infinite;
+}
+
+.splash-geometric {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: polygon-gradient(
+    triangle,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.02)
+  );
+  background-size: 120px 120px;
+  animation: geometricFloat 15s ease-in-out infinite;
+}
+
+.splash-geometric::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: conic-gradient(
+      from 0deg at 20% 30%,
+      transparent,
+      rgba(255, 255, 255, 0.06),
+      transparent
+    ),
+    conic-gradient(
+      from 90deg at 80% 70%,
+      transparent,
+      rgba(255, 255, 255, 0.04),
+      transparent
+    );
+  background-size: 400px 400px, 350px 350px;
+  animation: conicRotate 25s linear infinite;
+}
+
+.splash-geometric::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.02) 2px,
+      rgba(255, 255, 255, 0.02) 4px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.01) 2px,
+      rgba(255, 255, 255, 0.01) 4px
+    );
+  background-size: 60px 60px, 80px 80px;
+  animation: stripesMove 12s ease-in-out infinite;
+}
+
+.splash-blur {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backdrop-filter: blur(0.5px) saturate(120%);
+  background: rgba(63, 81, 181, 0.05);
+}
+
+.splash-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.splash-logo {
+  width: 120px;
+  height: 120px;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+}
+
+.splash-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.05em;
+  font-family: var(--font-mulish, "system-ui");
+}
+
+@keyframes patternMove {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  25% {
+    transform: translateX(20px) translateY(-10px);
+  }
+  50% {
+    transform: translateX(-10px) translateY(20px);
+  }
+  75% {
+    transform: translateX(15px) translateY(10px);
+  }
+}
+
+@keyframes geometricFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-20px) scale(1.02);
+  }
+}
+
+@keyframes conicRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes stripesMove {
+  0%,
+  100% {
+    background-position: 0 0, 0 0;
+  }
+  50% {
+    background-position: 30px 30px, -30px -30px;
+  }
+}
+
+/* Responsive adjustments for splash */
+@media (max-width: 768px) {
+  .splash-logo {
+    width: 100px;
+    height: 100px;
+  }
+
+  .splash-title {
+    font-size: 2.5rem;
+  }
+
+  .splash-content {
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .splash-logo {
+    width: 80px;
+    height: 80px;
+  }
+
+  .splash-title {
+    font-size: 2rem;
+  }
+
+  .splash-content {
+    gap: 1rem;
+  }
+}
