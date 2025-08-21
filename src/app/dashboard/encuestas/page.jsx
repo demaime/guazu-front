@@ -1159,7 +1159,7 @@ export default function Encuestas() {
                         <div className="flex items-center gap-2 lg:flex-shrink-0">
                           <button
                             onClick={() => handleEditDraft(draft._id)}
-                            className="action-button-circular draft-button-edit w-9 h-9 rounded-full flex items-center justify-center"
+                            className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)] transition-all duration-200 hover:-translate-y-0.5 shadow-md hover:shadow-lg"
                             title="Editar borrador"
                           >
                             <Edit className="w-4 h-4" />
@@ -1167,7 +1167,7 @@ export default function Encuestas() {
 
                           <button
                             onClick={() => handlePublishDraft(draft._id)}
-                            className="action-button-circular draft-button-publish w-9 h-9 rounded-full flex items-center justify-center"
+                            className="w-9 h-9 rounded-full flex items-center justify-center bg-green-500 text-white hover:bg-green-600 transition-all duration-200 hover:-translate-y-0.5 shadow-md hover:shadow-lg"
                             title="Publicar borrador"
                           >
                             <Send className="w-4 h-4" />
@@ -1175,7 +1175,7 @@ export default function Encuestas() {
 
                           <button
                             onClick={() => handleDelete(draft._id)}
-                            className="action-button-circular delete-button draft-button-delete w-9 h-9 rounded-full flex items-center justify-center"
+                            className="w-9 h-9 rounded-full flex items-center justify-center bg-red-500 text-white hover:bg-red-600 transition-all duration-200 hover:-translate-y-0.5 shadow-md hover:shadow-lg"
                             title="Eliminar borrador"
                           >
                             <Trash2 className="w-4 h-4" />
