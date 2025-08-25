@@ -146,16 +146,6 @@ export function SurveyList({
   }) => {
     const iconSize = variant === "mobile" ? "w-3 h-3" : "w-4 h-4";
 
-    // Mobile button styles
-    const mobileBackground =
-      action === "answer"
-        ? role === "ROLE_ADMIN" || role === "SUPERVISOR"
-          ? "bg-blue-500/90 hover:bg-blue-500"
-          : "bg-white/10 hover:bg-white/20"
-        : action === "deleteAnswers" || action === "delete"
-        ? "bg-red-500/90 hover:bg-red-500"
-        : "bg-white/10 hover:bg-white/20";
-
     const handleClick = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -188,8 +178,10 @@ export function SurveyList({
           data-type="action"
           aria-label={getTooltipText(action, role)}
         >
-          <Icon className={iconSize} />
-          {text && <span className="font-medium">{text}</span>}
+          <Icon className={`${iconSize} pointer-events-none`} />
+          {text && (
+            <span className="font-medium pointer-events-none">{text}</span>
+          )}
         </button>
       );
     }
@@ -197,7 +189,7 @@ export function SurveyList({
     // Desktop circular button - TUS COLORES + funcionalidad mejorada
     const getButtonStyles = () => {
       const baseStyles =
-        "w-8 h-8 rounded-xl flex items-center justify-center  cursor-pointer";
+        "w-8 h-8 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 relative";
 
       if (action === "edit") {
         return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
@@ -245,11 +237,17 @@ export function SurveyList({
         data-type="action"
         aria-label={getTooltipText(action, role)}
       >
-        {isCurrentLoading ? (
-          <Loader2 className={`${iconSize} animate-spin`} />
-        ) : (
-          <Icon className={iconSize} />
-        )}
+        {/* Área de fondo clickeable */}
+        <div className="absolute inset-0 w-full h-full" />
+
+        {/* Contenido visual - sin interferir en clicks */}
+        <div className="relative z-10 flex items-center justify-center pointer-events-none">
+          {isCurrentLoading ? (
+            <Loader2 className={`${iconSize} animate-spin`} />
+          ) : (
+            <Icon className={iconSize} />
+          )}
+        </div>
       </button>
     );
   };
@@ -1056,13 +1054,13 @@ export function SurveyList({
                                   {loadingAction &&
                                     loadingAction.includes(surveyData._id) && (
                                       <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
+                                        initial={{ opacity: 0, y: 5 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
+                                        exit={{ opacity: 0, y: -5 }}
                                         transition={{ duration: 0.2 }}
-                                        className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-50  shadow-md"
+                                        className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-50 bg-[var(--card-background)] px-2 py-1 rounded-md shadow-lg border border-[var(--card-border)]"
                                       >
-                                        <span className="text-xs italic font-medium text-[var(--primary-dark)] shadow">
+                                        <span className="text-xs font-medium text-[var(--primary-dark)] whitespace-nowrap">
                                           Aguarde...
                                         </span>
                                       </motion.div>
