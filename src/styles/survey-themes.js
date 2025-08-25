@@ -23,12 +23,12 @@ export const GuazuLightTheme = {
     "--sjs-general-forecolor-light": "var(--text-secondary)",
     "--sjs-general-dim-forecolor": "var(--text-muted)",
 
-    // Bordes
-    "--sjs-general-border": "var(--card-border)",
+    // Bordes - más contrastantes para inputs
+    "--sjs-general-border": "#d1d5db",
     "--sjs-general-border-light": "var(--card-border)",
 
     // Estados hover
-    "--sjs-primary-backcolor-semi": "var(--hover-bg)",
+    "--sjs-primary-backcolor-semi": "rgba(63, 81, 181, 0.15)",
 
     // Tipografía
     "--sjs-font-family":
@@ -58,7 +58,7 @@ export const GuazuLightTheme = {
 
     // Elementos de formulario específicos
     "--sjs-editor-background": "var(--input-background)",
-    "--sjs-editor-background-hover": "var(--card-background)",
+    "--sjs-editor-background-hover": "var(--input-background)",
     "--sjs-editorpanel-backcolor": "var(--card-background)",
     "--sjs-editorpanel-hovercolor": "var(--hover-bg)",
 
@@ -98,12 +98,12 @@ export const GuazuDarkTheme = {
     "--sjs-general-forecolor-light": "var(--text-secondary)",
     "--sjs-general-dim-forecolor": "var(--text-muted)",
 
-    // Bordes
-    "--sjs-general-border": "var(--card-border)",
+    // Bordes - más contrastantes para inputs
+    "--sjs-general-border": "#475569",
     "--sjs-general-border-light": "var(--card-border)",
 
     // Estados hover
-    "--sjs-primary-backcolor-semi": "var(--hover-bg)",
+    "--sjs-primary-backcolor-semi": "rgba(128, 145, 245, 0.2)",
 
     // Tipografía
     "--sjs-font-family":
@@ -133,7 +133,7 @@ export const GuazuDarkTheme = {
 
     // Elementos de formulario específicos
     "--sjs-editor-background": "var(--input-background)",
-    "--sjs-editor-background-hover": "var(--card-background)",
+    "--sjs-editor-background-hover": "var(--input-background)",
     "--sjs-editorpanel-backcolor": "var(--card-background)",
     "--sjs-editorpanel-hovercolor": "var(--hover-bg)",
 
