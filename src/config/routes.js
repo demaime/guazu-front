@@ -12,6 +12,7 @@ export const AUTH_ROUTES = {
 // Rutas de encuestas
 export const SURVEY_ROUTES = {
   BASE: `${API_URL}/api/survey`,
+  RECENT_ANSWERS: `${API_URL}/api/surveys/recent-answers`,
   BY_ID: (id) => `${API_URL}/api/survey/${id}`,
   BY_USER_ID: `${API_URL}/api/surveyByUserId`,
   DELETE: (id) => `${API_URL}/api/delete-survey/${id}`,
