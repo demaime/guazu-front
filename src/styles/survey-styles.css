@@ -322,3 +322,8 @@ select:focus,
 .sd-body__navigation {
   padding-top: 0 !important;
 }
+
+.sd-element--with-frame {
+  padding: 0 !important;
+  border: none !important;
+}
