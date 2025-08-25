@@ -38,7 +38,7 @@ export const GuazuLightTheme = {
 
     // Elementos específicos
     "--sjs-general-backcolor-disabled": "var(--disabled-bg)",
-    "--sjs-general-forecolor-disabled": "var(--disabled-text)",
+    "--sjs-general-forecolor-disabled": "var(--primary-text)",
 
     // Errores
     "--sjs-general-danger": "#ef4444",
