@@ -18,6 +18,7 @@ import {
   ChevronDown,
   TestTube2,
   ArrowUp,
+  Clock,
   ArrowDown,
   FileText,
   Copy,
@@ -162,15 +163,33 @@ export function SurveyList({
     };
 
     if (variant === "mobile") {
+      // Nuevo estilo de botón usando solo la paleta del proyecto
+      const newMobileBackground =
+        action === "answer"
+          ? "bg-[var(--primary)] hover:bg-[var(--primary-dark)]"
+          : action === "deleteAnswers" || action === "delete"
+          ? "bg-red-500 hover:bg-red-600"
+          : action === "edit"
+          ? "bg-[var(--primary-light)] hover:bg-[var(--primary-dark)]"
+          : action === "clone"
+          ? "bg-[var(--secondary)] hover:bg-[var(--primary)]"
+          : action === "progress"
+          ? "bg-[var(--primary-dark)] hover:bg-[var(--primary)]"
+          : action === "map"
+          ? "bg-[var(--secondary)] hover:bg-[var(--primary)]"
+          : action === "pollsters"
+          ? "bg-[var(--primary-light)] hover:bg-[var(--primary-dark)]"
+          : "bg-[var(--secondary)] hover:bg-[var(--primary)]";
+
       return (
         <button
           onClick={handleClick}
-          className={`mobile-action-button flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg transition-all duration-150 relative overflow-hidden ${mobileBackground} text-white ${className}`}
+          className={`mobile-action-button flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg transition-all duration-200 relative overflow-hidden ${newMobileBackground} text-white hover:shadow-md hover:-translate-y-0.5 ${className}`}
           data-type="action"
           aria-label={getTooltipText(action, role)}
         >
           <Icon className={iconSize} />
-          {text && <span>{text}</span>}
+          {text && <span className="font-medium">{text}</span>}
         </button>
       );
     }
@@ -541,195 +560,188 @@ export function SurveyList({
 
   const renderMobileView = () => {
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {sortedSurveys.map((item, index) => {
           const surveyData = item;
           const surveyInfo = item.surveyInfo || {};
-          const isExpanded = expandedCardId === surveyData._id;
+
+          // Determinar color del borde superior basado en el progreso
+          const getStatusColor = () => {
+            const progressPercentage = Math.min(
+              ((item.totalAnswers || 0) / (surveyInfo.target || 1)) * 100,
+              100
+            );
+            if (progressPercentage >= 80)
+              return "from-[var(--primary-light)] to-[var(--primary)]";
+            if (progressPercentage >= 50)
+              return "from-[var(--primary)] to-[var(--primary-dark)]";
+            return "from-[var(--secondary)] to-[var(--primary)]";
+          };
 
           return (
             <motion.div
               key={surveyData._id}
-              layout
-              className={`
-                survey-card-mobile rounded-lg shadow-sm overflow-hidden cursor-pointer
-                ${
-                  index % 2 === 0
-                    ? "bg-[var(--primary)]"
-                    : "bg-[var(--secondary)]"
-                }
-              `}
-              onClick={(e) => toggleCardExpansion(surveyData._id, e)}
-              initial={false}
-              animate={{ paddingBottom: isExpanded ? "0.75rem" : "0" }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-[var(--card-background)] rounded-xl shadow-sm border border-[var(--card-border)] overflow-hidden hover:shadow-md transition-shadow duration-200"
             >
-              <div className="flex justify-between items-center p-3 gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-white truncate">
-                    {getLocalizedText(surveyData.survey?.title) || "Sin título"}
-                  </h3>
-                </div>
-                <div className="flex-shrink-0">
-                  <ChevronDown
-                    className={`w-5 h-5 text-indigo-100 transition-transform duration-200 ${
-                      isExpanded ? "rotate-180" : ""
-                    }`}
-                  />
+              {/* Header con borde colorido - similar a PollsterSurvey */}
+              <div className={`bg-gradient-to-r ${getStatusColor()} p-2 px-4`}>
+                <div className="flex justify-between items-center">
+                  <div className="text-white text-xs font-medium">
+                    Progreso:{" "}
+                    {calculateProgress(item.totalAnswers, surveyInfo.target)}
+                  </div>
+                  <div className="text-white text-xs font-medium flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatDate(surveyInfo.endDate)}
+                  </div>
                 </div>
               </div>
 
-              <AnimatePresence>
-                {isExpanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="px-3 text-xs text-indigo-100 overflow-hidden"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="mb-2 text-xs italic">
-                      {getLocalizedText(
-                        surveyData.survey?.description,
-                        "Sin descripción"
-                      ) || "Sin descripción"}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 mb-2 text-xs">
-                      <Calendar className="w-3 h-3 flex-shrink-0" />
-                      <span className="flex-1">
-                        Inicio: {formatDate(surveyInfo.startDate)}
-                      </span>
-                      <span className="flex-1 text-right">
-                        Fin: {formatDate(surveyInfo.endDate)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <span>
-                        Progreso:{" "}
-                        {calculateProgress(
-                          item.totalAnswers,
-                          surveyInfo.target
-                        )}
-                      </span>
-                    </div>
-                    <div className="w-full bg-black/20 rounded-full h-1.5 mt-1">
-                      <div
-                        className={`h-full ${getProgressColor(
-                          item.totalAnswers || 0,
-                          surveyInfo.target || 0
-                        )}`}
-                        style={{
-                          width: `${Math.min(
-                            ((item.totalAnswers || 0) /
-                              (surveyInfo.target || 1)) *
-                              100,
-                            100
-                          )}%`,
-                        }}
-                      ></div>
-                    </div>
-
-                    <div className="mt-3 border-t border-[var(--card-border)] pt-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        {role === "ROLE_ADMIN" && (
-                          <>
-                            <ActionButton
-                              action="edit"
-                              surveyData={surveyData}
-                              icon={Edit}
-                              text="Editar"
-                              variant="mobile"
-                            />
-                          </>
-                        )}
-
-                        {role === "ROLE_ADMIN" || role === "SUPERVISOR" ? (
-                          <ActionButton
-                            action="answer"
-                            surveyData={surveyData}
-                            icon={TestTube2}
-                            text="Prueba Local"
-                            variant="mobile"
-                          />
-                        ) : (
-                          <ActionButton
-                            action="answer"
-                            surveyData={surveyData}
-                            icon={Play}
-                            text="Responder"
-                            variant="mobile"
-                          />
-                        )}
-
-                        {/* Solo mostrar mapa para pollsters, admins ya tienen mapa integrado en análisis */}
-                        {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
-                          <ActionButton
-                            action="map"
-                            surveyData={surveyData}
-                            icon={Map}
-                            text="Ver Mapa"
-                            variant="mobile"
-                          />
-                        )}
-
-                        {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
-                          <>
-                            <ActionButton
-                              action="progress"
-                              surveyData={surveyData}
-                              icon={BarChart3}
-                              text="Progreso"
-                              variant="mobile"
-                            />
-                          </>
-                        )}
-
-                        {role === "SUPERVISOR" && (
-                          <ActionButton
-                            action="pollsters"
-                            surveyData={surveyData}
-                            icon={Users}
-                            text="Asignar Encuestadores"
-                            variant="mobile"
-                            className="col-span-2"
-                          />
-                        )}
-
-                        {role === "ROLE_ADMIN" && (
-                          <>
-                            <ActionButton
-                              action="clone"
-                              surveyData={surveyData}
-                              icon={Copy}
-                              text="Clonar"
-                              variant="mobile"
-                            />
-
-                            <ActionButton
-                              action="deleteAnswers"
-                              surveyData={surveyData}
-                              icon={ClipboardX}
-                              text="Eliminar Respuestas"
-                              variant="mobile"
-                            />
-
-                            <ActionButton
-                              action="delete"
-                              surveyData={surveyData}
-                              icon={Trash2}
-                              text="Eliminar Encuesta"
-                              variant="mobile"
-                            />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
+              {/* Contenido del header - título y descripción */}
+              <div className="p-4 pb-2">
+                <h3 className="text-base font-semibold leading-tight mb-2 text-[var(--text-primary)] line-clamp-2">
+                  {getLocalizedText(surveyData.survey?.title) || "Sin título"}
+                </h3>
+                {getLocalizedText(surveyData.survey?.description) && (
+                  <p className="text-[var(--text-secondary)] text-sm line-clamp-2 mb-3">
+                    {getLocalizedText(surveyData.survey?.description)}
+                  </p>
                 )}
-              </AnimatePresence>
+              </div>
+
+              {/* Contenido principal */}
+              <div className="px-4 pb-4">
+                {/* Información de fechas y progreso */}
+                <div className="flex items-center justify-between mb-3 text-xs text-[var(--text-muted)]">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {formatDate(surveyInfo.startDate)}
+                  </span>
+                  <span>
+                    {item.totalAnswers || 0} / {surveyInfo.target || 0}{" "}
+                    respuestas
+                  </span>
+                </div>
+
+                {/* Barra de progreso */}
+                <div className="w-full bg-[var(--card-border)] rounded-full h-2 mb-4">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${getProgressColor(
+                      item.totalAnswers || 0,
+                      surveyInfo.target || 0
+                    )}`}
+                    style={{
+                      width: `${Math.min(
+                        ((item.totalAnswers || 0) / (surveyInfo.target || 1)) *
+                          100,
+                        100
+                      )}%`,
+                    }}
+                  ></div>
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex flex-wrap gap-2">
+                  {role === "ROLE_ADMIN" && (
+                    <ActionButton
+                      action="edit"
+                      surveyData={surveyData}
+                      icon={Edit}
+                      text="Editar"
+                      variant="mobile"
+                      className="flex-1 min-w-[100px]"
+                    />
+                  )}
+
+                  {role === "ROLE_ADMIN" || role === "SUPERVISOR" ? (
+                    <ActionButton
+                      action="answer"
+                      surveyData={surveyData}
+                      icon={TestTube2}
+                      text="Prueba"
+                      variant="mobile"
+                      className="flex-1 min-w-[90px]"
+                    />
+                  ) : (
+                    <ActionButton
+                      action="answer"
+                      surveyData={surveyData}
+                      icon={Play}
+                      text="Responder"
+                      variant="mobile"
+                      className="flex-1 min-w-[110px]"
+                    />
+                  )}
+
+                  {/* Solo mostrar mapa para pollsters */}
+                  {role !== "ROLE_ADMIN" && role !== "SUPERVISOR" && (
+                    <ActionButton
+                      action="map"
+                      surveyData={surveyData}
+                      icon={Map}
+                      text="Mapa"
+                      variant="mobile"
+                      className="flex-1 min-w-[80px]"
+                    />
+                  )}
+
+                  {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
+                    <ActionButton
+                      action="progress"
+                      surveyData={surveyData}
+                      icon={BarChart3}
+                      text="Progreso"
+                      variant="mobile"
+                      className="flex-1 min-w-[90px]"
+                    />
+                  )}
+
+                  {role === "ROLE_ADMIN" && (
+                    <>
+                      <ActionButton
+                        action="clone"
+                        surveyData={surveyData}
+                        icon={Copy}
+                        text="Clonar"
+                        variant="mobile"
+                        className="flex-1 min-w-[80px]"
+                      />
+
+                      <ActionButton
+                        action="deleteAnswers"
+                        surveyData={surveyData}
+                        icon={ClipboardX}
+                        text="Eliminar Respuestas"
+                        variant="mobile"
+                        className="w-full mt-2"
+                      />
+
+                      <ActionButton
+                        action="delete"
+                        surveyData={surveyData}
+                        icon={Trash2}
+                        text="Eliminar Encuesta"
+                        variant="mobile"
+                        className="w-full"
+                      />
+                    </>
+                  )}
+
+                  {role === "SUPERVISOR" && (
+                    <ActionButton
+                      action="pollsters"
+                      surveyData={surveyData}
+                      icon={Users}
+                      text="Asignar Encuestadores"
+                      variant="mobile"
+                      className="w-full mt-2"
+                    />
+                  )}
+                </div>
+              </div>
             </motion.div>
           );
         })}

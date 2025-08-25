@@ -1101,9 +1101,88 @@ export default function Encuestas() {
                         ease: "easeOut",
                         delay: index * 0.02,
                       }}
-                      className="card border border-[var(--card-border)] bg-[var(--card-background)] rounded-lg p-6 hover:shadow-lg transition-all duration-200"
+                      className="bg-[var(--card-background)] rounded-xl shadow-sm border border-[var(--card-border)] overflow-hidden hover:shadow-md transition-shadow duration-200"
                     >
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      {/* Vista mobile con estilo similar a encuestas activas */}
+                      <div className="lg:hidden">
+                        {/* Header azul con título - similar a las cards de encuestas activas */}
+                        <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] p-3">
+                          <div className="flex justify-between items-center">
+                            <div className="text-white text-sm font-medium">
+                              <span className="line-clamp-1">
+                                {draft.survey?.title?.es ||
+                                  draft.survey?.title ||
+                                  "Borrador sin título"}
+                              </span>
+                            </div>
+                            <div className="text-white text-xs font-medium">
+                              Borrador
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Contenido del cuerpo */}
+                        <div className="p-4">
+                          {/* Descripción si existe */}
+                          {(draft.survey?.description ||
+                            draft.survey?.description?.es) && (
+                            <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-4">
+                              {draft.survey?.description?.es ||
+                                draft.survey?.description}
+                            </p>
+                          )}
+
+                          {/* Metadatos */}
+                          <div className="text-xs text-[var(--text-muted)] mb-4">
+                            Última edición:{" "}
+                            {draft.lastEdited
+                              ? new Date(draft.lastEdited).toLocaleDateString(
+                                  "es-ES",
+                                  {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )
+                              : "N/A"}
+                          </div>
+
+                          {/* Botones de acción */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditDraft(draft._id)}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)] transition-all duration-200 font-medium"
+                              title="Editar borrador"
+                            >
+                              <Edit className="w-3 h-3" />
+                              <span>Editar</span>
+                            </button>
+
+                            <button
+                              onClick={() => handlePublishDraft(draft._id)}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg bg-green-500 text-white hover:bg-green-600 transition-all duration-200 font-medium"
+                              title="Publicar borrador"
+                            >
+                              <Send className="w-3 h-3" />
+                              <span>Publicar</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(draft._id)}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg bg-red-500 text-white hover:bg-red-600 transition-all duration-200 font-medium"
+                              title="Eliminar borrador"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Eliminar</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Vista desktop - mantener como estaba */}
+                      <div className="hidden lg:flex lg:flex-row lg:items-center justify-between gap-4 p-6">
                         {/* Información del borrador */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start gap-3">
