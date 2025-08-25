@@ -327,3 +327,7 @@ select:focus,
   padding: 0 !important;
   border: none !important;
 }
+
+.sd-checkbox__svg {
+  display: none !important;
+}
