@@ -516,23 +516,27 @@ export default function SurveyResponderStable() {
   // Pantalla de captura de ubicación
   if (isCapturingLocation) {
     return (
-      <LoaderWrapper
-        size="lg"
-        fullScreen
-        text="Obteniendo ubicación..."
-        className="text-primary"
-      />
+      <div className="p-4 h-[calc(100vh-64px)] flex items-center justify-center">
+        <LoaderWrapper
+          size="lg"
+          fullScreen={false}
+          text="Obteniendo ubicación..."
+          className="text-primary"
+        />
+      </div>
     );
   }
 
   if (loading) {
     return (
-      <LoaderWrapper
-        size="lg"
-        fullScreen
-        text="Cargando encuesta..."
-        className="text-primary"
-      />
+      <div className="p-4 h-[calc(100vh-64px)] flex items-center justify-center">
+        <LoaderWrapper
+          size="lg"
+          fullScreen={false}
+          text="Cargando encuesta..."
+          className="text-primary"
+        />
+      </div>
     );
   }
 
@@ -553,12 +557,14 @@ export default function SurveyResponderStable() {
 
   if (!surveyModel) {
     return (
-      <LoaderWrapper
-        size="lg"
-        fullScreen
-        text="Preparando encuesta..."
-        className="text-primary"
-      />
+      <div className="p-4 h-[calc(100vh-64px)] flex items-center justify-center">
+        <LoaderWrapper
+          size="lg"
+          fullScreen={false}
+          text="Preparando encuesta..."
+          className="text-primary"
+        />
+      </div>
     );
   }
 

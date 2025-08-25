@@ -318,3 +318,7 @@ select:focus,
   margin-top: 4px !important;
   font-style: italic !important;
 }
+
+.sd-body__navigation {
+  padding-top: 0 !important;
+}
