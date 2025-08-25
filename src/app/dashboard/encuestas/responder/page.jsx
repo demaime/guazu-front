@@ -312,22 +312,61 @@ export default function SurveyResponderStable() {
   }
 
   if (surveyCompletedSuccessfully) {
+    // Configuración de colores según el modo
+    const isOffline = successMode === "offline";
+    const colorConfig = isOffline
+      ? {
+          // Colores amarillo/naranja para offline
+          bgColor: "bg-amber-500",
+          ringColor: "ring-amber-600/30",
+          textColor: "text-white",
+          buttonBgColor: "bg-white",
+          buttonTextColor: "text-amber-600",
+          buttonHoverColor: "hover:bg-white/90",
+          gradientColors:
+            "rgba(245,158,11,0.55) 0%, rgba(251,191,36,0.45) 35%, rgba(217,119,6,0.55) 70%, rgba(245,158,11,0.55) 100%",
+          confettiColors: [
+            "#f59e0b",
+            "#fbbf24",
+            "#f97316",
+            "#fb923c",
+            "#fcd34d",
+          ],
+        }
+      : {
+          // Colores verde para online
+          bgColor: "bg-green-600",
+          ringColor: "ring-green-700/30",
+          textColor: "text-white",
+          buttonBgColor: "bg-white",
+          buttonTextColor: "text-green-700",
+          buttonHoverColor: "hover:bg-white/90",
+          gradientColors:
+            "rgba(34,197,94,0.55) 0%, rgba(16,185,129,0.45) 35%, rgba(5,150,105,0.55) 70%, rgba(34,197,94,0.55) 100%",
+          confettiColors: [
+            "#22c55e",
+            "#16a34a",
+            "#84cc16",
+            "#10b981",
+            "#34d399",
+          ],
+        };
+
     return (
-      <div className="p-8 flex flex-col items-center justify-center min-h-[60vh] text-center">
+      <div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center">
         <AnimatePresence>
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="relative p-4 rounded-2xl shadow-lg max-w-2xl w-full overflow-hidden bg-green-600 text-white ring-1 ring-green-700/30"
+            className={`relative rounded-2xl shadow-xl max-w-lg w-full overflow-hidden ${colorConfig.bgColor} ${colorConfig.textColor} ring-1 ${colorConfig.ringColor}`}
           >
-            {/* Animated background in green tones */}
+            {/* Animated background */}
             <motion.div
               className="absolute inset-0 pointer-events-none"
               style={{
-                backgroundImage:
-                  "linear-gradient(135deg, rgba(34,197,94,0.55) 0%, rgba(16,185,129,0.45) 35%, rgba(5,150,105,0.55) 70%, rgba(34,197,94,0.55) 100%)",
+                backgroundImage: `linear-gradient(135deg, ${colorConfig.gradientColors})`,
                 backgroundSize: "320% 320%",
                 opacity: 0.5,
               }}
@@ -337,19 +376,13 @@ export default function SurveyResponderStable() {
               }}
               transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
             />
-            {/* Confetti simple */}
-            {Array.from({ length: 16 }).map((_, idx) => {
-              const colors = [
-                "#22c55e",
-                "#16a34a",
-                "#84cc16",
-                "#10b981",
-                "#34d399",
-              ];
-              const x = (Math.random() - 0.5) * 260;
-              const y = -140 - Math.random() * 60;
-              const delay = Math.random() * 0.25;
-              const size = 4 + Math.round(Math.random() * 5);
+
+            {/* Confetti animation */}
+            {Array.from({ length: 12 }).map((_, idx) => {
+              const x = (Math.random() - 0.5) * 200;
+              const y = -100 - Math.random() * 40;
+              const delay = Math.random() * 0.3;
+              const size = 3 + Math.round(Math.random() * 4);
               const rotate = (Math.random() - 0.5) * 90;
               return (
                 <motion.span
@@ -357,10 +390,13 @@ export default function SurveyResponderStable() {
                   className="absolute rounded-sm"
                   style={{
                     left: "50%",
-                    top: "40%",
+                    top: "35%",
                     width: size,
                     height: size,
-                    backgroundColor: colors[idx % colors.length],
+                    backgroundColor:
+                      colorConfig.confettiColors[
+                        idx % colorConfig.confettiColors.length
+                      ],
                   }}
                   initial={{ opacity: 0, scale: 0, x: 0, y: 0, rotate: 0 }}
                   animate={{ opacity: 1, scale: 1, x, y, rotate }}
@@ -368,58 +404,97 @@ export default function SurveyResponderStable() {
                 />
               );
             })}
-            <div className="mb-4 flex justify-center relative">
-              <motion.div
-                initial={{ scale: 0.9 }}
-                animate={{ scale: [0.9, 1.08, 1], rotate: [0, -2, 2, 0] }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="relative"
-              >
-                <CheckCircle2 size={96} className="text-white drop-shadow" />
-              </motion.div>
-            </div>
-            <motion.h1
-              className="text-3xl font-extrabold mb-2 text-white tracking-tight"
-              initial={{ x: 0 }}
-              animate={{ x: [0, -2, 2, -1, 1, 0] }}
-              transition={{ duration: 0.6 }}
-            >
-              ¡Encuesta completada con éxito!
-            </motion.h1>
-            <p className="text-white/90 mb-5 flex items-center gap-2 justify-center">
-              <PartyPopper className="w-5 h-5" />
-              {successMode === "offline"
-                ? "Tu respuesta se guardó correctamente y se sincronizará automáticamente cuando haya conexión."
-                : "Tu respuesta fue enviada correctamente."}
-            </p>
-            {/* Countdown progress */}
-            {(() => {
-              const progress = Math.min(
-                100,
-                Math.max(
-                  0,
-                  ((INITIAL_COUNTDOWN - countdown) / INITIAL_COUNTDOWN) * 100
-                )
-              );
-              return (
-                <div className="mx-auto mb-4 w-56 h-2 rounded-full bg-white/25 overflow-hidden">
-                  <div
-                    className="h-full bg-white/80"
-                    style={{
-                      width: `${progress}%`,
-                      transition: "width 300ms ease",
-                    }}
+
+            {/* Content container with better spacing */}
+            <div className="relative px-6 py-8">
+              {/* Icon section */}
+              <div className="mb-6 flex justify-center">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{
+                    scale: [0.8, 1.1, 1],
+                    rotate: [0, -3, 3, 0],
+                    opacity: 1,
+                  }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  className="relative"
+                >
+                  <CheckCircle2
+                    size={80}
+                    className="text-white drop-shadow-lg"
                   />
+                </motion.div>
+              </div>
+
+              {/* Title */}
+              <motion.h1
+                className="text-2xl font-bold mb-4 text-white tracking-tight leading-tight"
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                ¡Encuesta completada con éxito!
+              </motion.h1>
+
+              {/* Description */}
+              <motion.div
+                className="mb-6"
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="flex flex-col justify-center items-center text-center">
+                  <PartyPopper className="w-12 opacity-75 p-2 h-12 flex-shrink-0" />
+                  <p className="text-white/90 text-sm leading-relaxed max-w-xs">
+                    {successMode === "offline"
+                      ? "Tu respuesta se guardó correctamente y se sincronizará automáticamente cuando haya conexión."
+                      : "Tu respuesta fue enviada correctamente."}
+                  </p>
                 </div>
-              );
-            })()}
-            <motion.button
-              onClick={() => router.push("/dashboard/encuestas")}
-              className="mt-2 px-6 py-2 rounded-md bg-white text-green-700 hover:bg-white/90 transition duration-200 shadow-sm hover:shadow-md"
-              whileTap={{ scale: 0.98 }}
-            >
-              Volver ahora {countdown > 0 ? `(${countdown})` : ""}
-            </motion.button>
+              </motion.div>
+
+              {/* Progress bar */}
+              <motion.div
+                className="mb-6"
+                initial={{ scaleX: 0, opacity: 0 }}
+                animate={{ scaleX: 1, opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+              >
+                {(() => {
+                  const progress = Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      ((INITIAL_COUNTDOWN - countdown) / INITIAL_COUNTDOWN) *
+                        100
+                    )
+                  );
+                  return (
+                    <div className="mx-auto w-48 h-2 rounded-full bg-white/20 overflow-hidden">
+                      <div
+                        className="h-full bg-white/80 rounded-full"
+                        style={{
+                          width: `${progress}%`,
+                          transition: "width 300ms ease",
+                        }}
+                      />
+                    </div>
+                  );
+                })()}
+              </motion.div>
+
+              {/* Button */}
+              <motion.button
+                onClick={() => router.push("/dashboard/encuestas")}
+                className={`px-8 py-3 rounded-lg ${colorConfig.buttonBgColor} ${colorConfig.buttonTextColor} ${colorConfig.buttonHoverColor} transition-all duration-200 shadow-md hover:shadow-lg font-medium text-sm`}
+                whileTap={{ scale: 0.98 }}
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+              >
+                Volver ahora {countdown > 0 ? `(${countdown})` : ""}
+              </motion.button>
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
