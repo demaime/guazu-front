@@ -36,9 +36,10 @@ export function PollsterSurveyList({
   // Encuesta universal: permitir minimizar/expandir (persistente)
   const [isUniversalMinimized, setIsUniversalMinimized] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("universalSurveyMinimized") === "true";
+      const stored = localStorage.getItem("universalSurveyMinimized");
+      return stored !== null ? stored === "true" : true; // Por defecto: cerrada
     }
-    return false;
+    return true;
   });
   const toggleUniversalSurvey = useCallback(() => {
     const next = !isUniversalMinimized;
@@ -422,11 +423,12 @@ export function PollsterSurveyList({
             {/* Header - universal con control de minimizar */}
             {!isFinished && (
               <div
+                onClick={() => isUniversal && toggleUniversalSurvey()}
                 className={`bg-gradient-to-r ${
                   isUniversal
                     ? "from-blue-500 to-purple-600"
                     : getStatusColor(survey)
-                } p-2 px-4`}
+                } p-2 px-4 ${isUniversal ? "cursor-pointer select-none" : ""}`}
               >
                 <div className="flex justify-between items-center">
                   {isUniversal ? (
@@ -471,6 +473,11 @@ export function PollsterSurveyList({
                 >
                   {/* Contenido del header - título y descripción */}
                   <div className="p-4 pb-2">
+                    {!isUniversal && (
+                      <h3 className="text-base font-semibold leading-tight mb-2 text-[var(--text-primary)] line-clamp-2">
+                        {getLocalizedText(survey.survey?.title) || "Sin título"}
+                      </h3>
+                    )}
                     <p className="text-[var(--text-secondary)] text-sm line-clamp-1 mb-3">
                       {isUniversal
                         ? "Para probar funcionalidades de la app"
@@ -483,16 +490,18 @@ export function PollsterSurveyList({
 
                   {/* Contenido principal */}
                   <div className="px-4 pb-4">
-                    {/* Información de fechas */}
-                    <div className="flex items-center justify-between text-sm text-[var(--text-secondary)] mb-3">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2 text-[var(--text-muted)]" />
-                        <span>{formatDate(surveyInfo.startDate)}</span>
+                    {/* Información de fechas (no mostrar para universal) */}
+                    {!isUniversal && (
+                      <div className="flex items-center justify-between text-sm text-[var(--text-secondary)] mb-3">
+                        <div className="flex items-center">
+                          <Calendar className="w-4 h-4 mr-2 text-[var(--text-muted)]" />
+                          <span>{formatDate(surveyInfo.startDate)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span>hasta {formatDate(surveyInfo.endDate)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center">
-                        <span>hasta {formatDate(surveyInfo.endDate)}</span>
-                      </div>
-                    </div>
+                    )}
 
                     {/* Progreso (oculto para encuesta universal) */}
                     {!isUniversal && (
@@ -576,8 +585,8 @@ export function PollsterSurveyList({
                         )}
                       </motion.button>
 
-                      {/* Botón de mapa */}
-                      {isOnline && (
+                      {/* Botón de mapa (no mostrar para universal) */}
+                      {!isUniversal && isOnline && (
                         <motion.button
                           onClick={() => {
                             try {
