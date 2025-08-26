@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react"; // Añadir useCallback y useRef
+import { useEffect, useState, useCallback, useRef, useMemo } from "react"; // Añadir useCallback, useRef y useMemo
 import { useRouter, useSearchParams } from "next/navigation";
 import { surveyService } from "@/services/survey.service";
 import {
@@ -713,32 +713,62 @@ export default function Encuestas() {
     }
   };
 
-  // --- Determinar datos y estado de paginación actual basado en activeTab --- //
-  let currentSurveys = [];
-  let currentTotalPages = 0;
-  let currentLoadingState = false;
-  let currentPageForDisplay = 1;
-  let currentCountForTab = 0; // Para mostrar en la tab
-
-  if (activeTab === "active") {
-    currentSurveys = activeSurveysData;
-    currentTotalPages = activeTotalPages;
-    currentLoadingState = isLoading.active;
-    currentPageForDisplay = activeCurrentPage;
-    currentCountForTab = tabCounts.active;
-  } else if (activeTab === "finished") {
-    currentSurveys = finishedSurveysData;
-    currentTotalPages = finishedTotalPages;
-    currentLoadingState = isLoading.finished;
-    currentPageForDisplay = finishedCurrentPage;
-    currentCountForTab = tabCounts.finished;
-  } else if (activeTab === "drafts") {
-    currentSurveys = draftSurveysData;
-    currentTotalPages = 0; // No paginación para drafts
-    currentLoadingState = isLoading.drafts;
-    currentPageForDisplay = 1;
-    currentCountForTab = tabCounts.drafts;
-  }
+  // --- Determinar datos y estado de paginación actual basado en activeTab (MEMOIZADO) --- //
+  const {
+    currentSurveys,
+    currentTotalPages,
+    currentLoadingState,
+    currentPageForDisplay,
+    currentCountForTab,
+  } = useMemo(() => {
+    if (activeTab === "active") {
+      return {
+        currentSurveys: activeSurveysData,
+        currentTotalPages: activeTotalPages,
+        currentLoadingState: isLoading.active,
+        currentPageForDisplay: activeCurrentPage,
+        currentCountForTab: tabCounts.active,
+      };
+    } else if (activeTab === "finished") {
+      return {
+        currentSurveys: finishedSurveysData,
+        currentTotalPages: finishedTotalPages,
+        currentLoadingState: isLoading.finished,
+        currentPageForDisplay: finishedCurrentPage,
+        currentCountForTab: tabCounts.finished,
+      };
+    } else if (activeTab === "drafts") {
+      return {
+        currentSurveys: draftSurveysData,
+        currentTotalPages: 0, // No paginación para drafts
+        currentLoadingState: isLoading.drafts,
+        currentPageForDisplay: 1,
+        currentCountForTab: tabCounts.drafts,
+      };
+    }
+    return {
+      currentSurveys: [],
+      currentTotalPages: 0,
+      currentLoadingState: false,
+      currentPageForDisplay: 1,
+      currentCountForTab: 0,
+    };
+  }, [
+    activeTab,
+    activeSurveysData,
+    activeTotalPages,
+    activeCurrentPage,
+    tabCounts.active,
+    finishedSurveysData,
+    finishedTotalPages,
+    finishedCurrentPage,
+    tabCounts.finished,
+    draftSurveysData,
+    tabCounts.drafts,
+    isLoading.active,
+    isLoading.finished,
+    isLoading.drafts,
+  ]);
 
   // Derivados para indicadores (evita usar locationStatus crudo en JSX)
   const isLocationOn = locationStatus === "granted";

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Play,
   Calendar,
@@ -7,10 +7,17 @@ import {
   Clock,
   MapPin,
   ChevronRight,
+  TestTube2,
+  ChevronUp,
+  ChevronDown,
+  Minimize2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { surveyService } from "@/services/survey.service";
+
+// ID fijo de la encuesta universal visible para todos los pollsters
+const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
 
 export function PollsterSurveyList({
   surveys,
@@ -25,6 +32,23 @@ export function PollsterSurveyList({
   const [isOnline, setIsOnline] = useState(
     typeof navigator === "undefined" ? true : navigator.onLine
   );
+
+  // Encuesta universal: permitir minimizar/expandir (persistente)
+  const [isUniversalMinimized, setIsUniversalMinimized] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("universalSurveyMinimized") === "true";
+    }
+    return false;
+  });
+  const toggleUniversalSurvey = useCallback(() => {
+    const next = !isUniversalMinimized;
+    setIsUniversalMinimized(next);
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("universalSurveyMinimized", String(next));
+      }
+    } catch {}
+  }, [isUniversalMinimized]);
 
   useEffect(() => {
     const updateOnline = () => setIsOnline(navigator.onLine);
@@ -59,13 +83,20 @@ export function PollsterSurveyList({
 
       // Preparar loading states solo para encuestas nuevas
       const newLoadingStates = {};
+
       surveys.forEach((survey) => {
-        newLoadingStates[survey._id] = true;
+        // La encuesta universal no necesita loading de progreso
+        newLoadingStates[survey._id] =
+          survey._id === UNIVERSAL_SURVEY_ID ? false : true;
       });
       setProgressLoading(newLoadingStates);
 
-      // Cargar progreso para cada encuesta
-      const progressPromises = surveys.map(async (survey) => {
+      // Cargar progreso sólo para encuestas que no sean universales
+      const surveysNeedingProgress = surveys.filter(
+        (survey) => survey._id !== UNIVERSAL_SURVEY_ID
+      );
+
+      const progressPromises = surveysNeedingProgress.map(async (survey) => {
         try {
           const progressResponse = await surveyService.getPollsterProgress(
             survey._id,
@@ -76,12 +107,28 @@ export function PollsterSurveyList({
             data: progressResponse,
           };
         } catch (error) {
-          console.error(
-            `❌ Error loading progress for survey ${survey._id}:`,
-            error
-          );
+          // Para la encuesta universal, no mostrar errores en consola
+          if (survey._id !== UNIVERSAL_SURVEY_ID) {
+            console.error(
+              `❌ Error loading progress for survey ${survey._id}:`,
+              error
+            );
+          }
 
-          // Fallback simple sin logging excesivo
+          // Fallback especial para encuesta universal
+          if (survey._id === UNIVERSAL_SURVEY_ID) {
+            return {
+              surveyId: survey._id,
+              data: {
+                assignedCases: 999, // Casos ilimitados para prueba
+                completedAnswers: 0,
+                progressPercentage: 0,
+                isCompleted: false,
+              },
+            };
+          }
+
+          // Fallback normal para otras encuestas
           const userIds = survey.userIds || [];
           const totalTarget = survey.surveyInfo?.target || 0;
           const fallbackCases =
@@ -111,6 +158,13 @@ export function PollsterSurveyList({
           finalLoadingStates[surveyId] = false;
         });
 
+        // Asegurar que la encuesta universal esté marcada como no-loading
+        surveys.forEach((survey) => {
+          if (survey._id === UNIVERSAL_SURVEY_ID) {
+            finalLoadingStates[survey._id] = false;
+          }
+        });
+
         setProgressData(newProgressData);
         setProgressLoading(finalLoadingStates);
       } catch (error) {
@@ -126,10 +180,17 @@ export function PollsterSurveyList({
 
     loadProgressForSurveys();
   }, [
-    JSON.stringify(surveys?.map((s) => s._id)?.sort()),
+    surveys?.length, // Solo el número de encuestas
+    surveys
+      ?.map((s) => s._id)
+      .sort()
+      .join(","), // IDs como string estable
     currentUser?._id,
     refreshToken,
   ]);
+
+  // Helper para identificar encuesta universal
+  const isUniversalSurvey = (survey) => survey?._id === UNIVERSAL_SURVEY_ID;
 
   const getLocalizedText = (textObj, defaultText = "Sin definir") => {
     if (!textObj) return defaultText;
@@ -240,32 +301,35 @@ export function PollsterSurveyList({
     return `${diffDays} días restantes`;
   };
 
-  const handleResponder = async (surveyData) => {
-    const buttonKey = surveyData._id;
-    setLoadingStates((prev) => ({ ...prev, [buttonKey]: true }));
+  const handleResponder = useCallback(
+    async (surveyData) => {
+      const buttonKey = surveyData._id;
+      setLoadingStates((prev) => ({ ...prev, [buttonKey]: true }));
 
-    try {
       try {
-        if (typeof window !== "undefined") {
-          // Usar sessionStorage por pestaña; fallback a localStorage
-          const key = "responder:surveyId";
-          if (window.sessionStorage) {
-            window.sessionStorage.setItem(key, String(surveyData._id));
-          } else if (window.localStorage) {
-            window.localStorage.setItem(key, String(surveyData._id));
+        try {
+          if (typeof window !== "undefined") {
+            // Usar sessionStorage por pestaña; fallback a localStorage
+            const key = "responder:surveyId";
+            if (window.sessionStorage) {
+              window.sessionStorage.setItem(key, String(surveyData._id));
+            } else if (window.localStorage) {
+              window.localStorage.setItem(key, String(surveyData._id));
+            }
           }
-        }
-      } catch {}
-      router.push(`/dashboard/encuestas/responder`);
-    } catch (error) {
-      console.error("Error al navegar:", error);
-    } finally {
-      // Remove loading state after navigation
-      setTimeout(() => {
-        setLoadingStates((prev) => ({ ...prev, [buttonKey]: false }));
-      }, 1000);
-    }
-  };
+        } catch {}
+        router.push(`/dashboard/encuestas/responder`);
+      } catch (error) {
+        console.error("Error al navegar:", error);
+      } finally {
+        // Remove loading state after navigation
+        setTimeout(() => {
+          setLoadingStates((prev) => ({ ...prev, [buttonKey]: false }));
+        }, 1000);
+      }
+    },
+    [router]
+  );
 
   const getStatusColor = (survey) => {
     if (isFinished) return "from-gray-500 to-gray-600";
@@ -311,18 +375,39 @@ export function PollsterSurveyList({
     );
   }
 
+  // Ordenar encuestas colocando la universal primero, luego el resto
+  const pinnedSurveys = useMemo(() => {
+    if (!Array.isArray(surveys)) return [];
+    const universal = surveys.find((s) => isUniversalSurvey(s));
+    const others = surveys.filter((s) => !isUniversalSurvey(s));
+    return universal ? [universal, ...others] : others;
+  }, [
+    surveys
+      ?.map((s) => s._id)
+      .sort()
+      .join(","),
+  ]);
+
+  // Eliminados componentes especializados para la encuesta universal
+
   return (
     <div className="space-y-4">
-      {surveys.map((survey, index) => {
+      {pinnedSurveys.map((survey, index) => {
+        const isUniversal = isUniversalSurvey(survey);
         const surveyInfo = survey.surveyInfo || {};
         const timeRemaining = getTimeRemaining(surveyInfo.endDate);
-        const assignedCases = getAssignedCases(survey);
-        const completedAnswers = getCompletedAnswers(survey);
-        const progress = calculateProgress(survey);
-        const progressValue =
-          assignedCases > 0 ? (completedAnswers / assignedCases) * 100 : 0;
+        const assignedCases = isUniversal ? 0 : getAssignedCases(survey);
+        const completedAnswers = isUniversal ? 0 : getCompletedAnswers(survey);
+        const progress = isUniversal ? null : calculateProgress(survey);
+        const progressValue = isUniversal
+          ? 0
+          : assignedCases > 0
+          ? (completedAnswers / assignedCases) * 100
+          : 0;
         const isLoading = loadingStates[survey._id];
-        const isProgressLoading = progressLoading[survey._id];
+        const isProgressLoading = isUniversal
+          ? false
+          : progressLoading[survey._id];
 
         return (
           <motion.div
@@ -330,99 +415,138 @@ export function PollsterSurveyList({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-[var(--card-background)] rounded-xl shadow-sm border border-[var(--card-border)] overflow-hidden hover:shadow-md transition-shadow duration-200"
+            className={`bg-[var(--card-background)] rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-shadow duration-200 ${
+              isUniversal ? "border-blue-300" : "border-[var(--card-border)]"
+            }`}
           >
-            {/* Header - solo tiempo restante en móvil */}
+            {/* Header - universal con control de minimizar */}
             {!isFinished && (
               <div
-                className={`bg-gradient-to-r ${getStatusColor(
-                  survey
-                )} p-2 px-4`}
+                className={`bg-gradient-to-r ${
+                  isUniversal
+                    ? "from-blue-500 to-purple-600"
+                    : getStatusColor(survey)
+                } p-2 px-4`}
               >
-                <div className="flex justify-end">
-                  <div className="text-white text-xs font-medium">
-                    {timeRemaining}
+                <div className="flex justify-between items-center">
+                  {isUniversal ? (
+                    <div className="text-white text-xs font-medium flex items-center gap-2">
+                      <TestTube2 className="w-4 h-4" />
+                      <span>Encuesta de Prueba</span>
+                    </div>
+                  ) : (
+                    <span />
+                  )}
+                  <div className="flex items-center gap-2">
+                    {!isUniversal && (
+                      <div className="text-white text-xs font-medium">
+                        {timeRemaining}
+                      </div>
+                    )}
+                    {isUniversal && (
+                      <button
+                        onClick={toggleUniversalSurvey}
+                        className="text-white hover:bg-white/20 p-1 rounded transition-colors"
+                        title={isUniversalMinimized ? "Expandir" : "Minimizar"}
+                      >
+                        {isUniversalMinimized ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronUp className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Contenido del header - título y descripción */}
-            <div className="p-4 pb-2">
-              <h3 className="text-base font-semibold leading-tight mb-2 text-[var(--text-primary)] line-clamp-2">
-                {getLocalizedText(survey.survey?.title) || "Sin título"}
-              </h3>
-              <p className="text-[var(--text-secondary)] text-sm line-clamp-1 mb-3">
-                {getLocalizedText(
-                  survey.survey?.description,
-                  "Sin descripción"
-                )}
-              </p>
-            </div>
+            {(!isUniversal || !isUniversalMinimized) && (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Contenido del header - título y descripción */}
+                  <div className="p-4 pb-2">
+                    <p className="text-[var(--text-secondary)] text-sm line-clamp-1 mb-3">
+                      {isUniversal
+                        ? "Para probar funcionalidades de la app"
+                        : getLocalizedText(
+                            survey.survey?.description,
+                            "Sin descripción"
+                          )}
+                    </p>
+                  </div>
 
-            {/* Contenido principal */}
-            <div className="px-4 pb-4">
-              {/* Información de fechas */}
-              <div className="flex items-center justify-between text-sm text-[var(--text-secondary)] mb-3">
-                <div className="flex items-center">
-                  <Calendar className="w-4 h-4 mr-2 text-[var(--text-muted)]" />
-                  <span>{formatDate(surveyInfo.startDate)}</span>
-                </div>
-                <div className="flex items-center">
-                  <span>hasta {formatDate(surveyInfo.endDate)}</span>
-                </div>
-              </div>
+                  {/* Contenido principal */}
+                  <div className="px-4 pb-4">
+                    {/* Información de fechas */}
+                    <div className="flex items-center justify-between text-sm text-[var(--text-secondary)] mb-3">
+                      <div className="flex items-center">
+                        <Calendar className="w-4 h-4 mr-2 text-[var(--text-muted)]" />
+                        <span>{formatDate(surveyInfo.startDate)}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span>hasta {formatDate(surveyInfo.endDate)}</span>
+                      </div>
+                    </div>
 
-              {/* Progreso */}
-              <div className="mb-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-[var(--text-secondary)] flex items-center">
-                    <Target className="w-4 h-4 mr-1" />
-                    Progreso
-                  </span>
-                  <span className="font-medium text-[var(--text-primary)] flex items-center gap-2">
-                    {isProgressLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-[var(--text-muted)] border-t-[var(--primary)] rounded-full animate-spin" />
-                        <span className="text-[var(--text-muted)]">
-                          Cargando...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        {completedAnswers} / {assignedCases} casos asignados
-                      </>
+                    {/* Progreso (oculto para encuesta universal) */}
+                    {!isUniversal && (
+                      <div className="mb-4">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-[var(--text-secondary)] flex items-center">
+                            <Target className="w-4 h-4 mr-1" />
+                            Progreso
+                          </span>
+                          <span className="font-medium text-[var(--text-primary)] flex items-center gap-2">
+                            {isProgressLoading ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-[var(--text-muted)] border-t-[var(--primary)] rounded-full animate-spin" />
+                                <span className="text-[var(--text-muted)]">
+                                  Cargando...
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                {completedAnswers} / {assignedCases} casos
+                                asignados
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        <div className="w-full bg-[var(--card-border)] rounded-full h-2">
+                          <div
+                            className={`${
+                              isProgressLoading
+                                ? "bg-gray-300 animate-pulse"
+                                : getProgressColor(survey)
+                            } h-2 rounded-full transition-all duration-500`}
+                            style={{
+                              width: isProgressLoading
+                                ? "30%"
+                                : `${Math.min(progressValue, 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="text-xs text-[var(--text-muted)] mt-1">
+                          {isProgressLoading
+                            ? "Calculando progreso..."
+                            : `${progress} completado`}
+                        </div>
+                      </div>
                     )}
-                  </span>
-                </div>
-                <div className="w-full bg-[var(--card-border)] rounded-full h-2">
-                  <div
-                    className={`${
-                      isProgressLoading
-                        ? "bg-gray-300 animate-pulse"
-                        : getProgressColor(survey)
-                    } h-2 rounded-full transition-all duration-500`}
-                    style={{
-                      width: isProgressLoading
-                        ? "30%"
-                        : `${Math.min(progressValue, 100)}%`,
-                    }}
-                  />
-                </div>
-                <div className="text-xs text-[var(--text-muted)] mt-1">
-                  {isProgressLoading
-                    ? "Calculando progreso..."
-                    : `${progress} completado`}
-                </div>
-              </div>
 
-              {/* Botones de acción */}
-              <div className="flex gap-3">
-                {/* Botón principal - Responder */}
-                <motion.button
-                  onClick={() => handleResponder(survey)}
-                  disabled={isLoading || isFinished}
-                  className={`
+                    {/* Botones de acción */}
+                    <div className="flex gap-3">
+                      {/* Botón principal - Responder */}
+                      <motion.button
+                        onClick={() => handleResponder(survey)}
+                        disabled={isLoading || isFinished}
+                        className={`
                     flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-lg font-medium text-sm transition-all duration-200
                     ${
                       isFinished
@@ -430,43 +554,59 @@ export function PollsterSurveyList({
                         : "bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white shadow-sm hover:shadow-md active:scale-[0.98]"
                     }
                   `}
-                  whileTap={!isFinished && !isLoading ? { scale: 0.98 } : {}}
-                >
-                  {isLoading ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4" />
-                      {isFinished ? "Finalizada" : "Responder"}
-                    </>
-                  )}
-                </motion.button>
-
-                {/* Botón de mapa */}
-                {isOnline && (
-                  <motion.button
-                    onClick={() => {
-                      try {
-                        const key = "map:surveyId";
-                        if (typeof window !== "undefined") {
-                          window.sessionStorage?.setItem(
-                            key,
-                            String(survey._id)
-                          );
-                          window.localStorage?.setItem(key, String(survey._id));
+                        whileTap={
+                          !isFinished && !isLoading ? { scale: 0.98 } : {}
                         }
-                      } catch {}
-                      router.push(`/dashboard/encuestas/mapa`);
-                    }}
-                    className="flex items-center justify-center w-12 h-12 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] rounded-lg transition-all duration-200"
-                    whileTap={{ scale: 0.98 }}
-                    title="Ver mapa"
-                  >
-                    <MapPin className="w-5 h-5" />
-                  </motion.button>
-                )}
-              </div>
-            </div>
+                      >
+                        {isLoading ? (
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            {isUniversal ? (
+                              <TestTube2 className="w-4 h-4" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                            {isUniversal
+                              ? "Probar App"
+                              : isFinished
+                              ? "Finalizada"
+                              : "Responder"}
+                          </>
+                        )}
+                      </motion.button>
+
+                      {/* Botón de mapa */}
+                      {isOnline && (
+                        <motion.button
+                          onClick={() => {
+                            try {
+                              const key = "map:surveyId";
+                              if (typeof window !== "undefined") {
+                                window.sessionStorage?.setItem(
+                                  key,
+                                  String(survey._id)
+                                );
+                                window.localStorage?.setItem(
+                                  key,
+                                  String(survey._id)
+                                );
+                              }
+                            } catch {}
+                            router.push(`/dashboard/encuestas/mapa`);
+                          }}
+                          className="flex items-center justify-center w-12 h-12 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] rounded-lg transition-all duration-200"
+                          whileTap={{ scale: 0.98 }}
+                          title="Ver mapa"
+                        >
+                          <MapPin className="w-5 h-5" />
+                        </motion.button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            )}
           </motion.div>
         );
       })}

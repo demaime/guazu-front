@@ -843,12 +843,18 @@ export function SurveyList({
                           onClick={(e) =>
                             toggleCardExpansion(surveyData._id, e)
                           }
+                          onMouseEnter={(e) =>
+                            handleDescriptionTooltip(surveyData._id, e, true)
+                          }
+                          onMouseLeave={() =>
+                            handleDescriptionTooltip(null, null, false)
+                          }
                           className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors duration-100 cursor-pointer"
                           data-type="description"
                           aria-label="Descripción"
                           title="Descripción"
                         >
-                          <Eye className="w-5 h-5" />
+                          <Eye className="w-5 h-5 pointer-events-none" />
                         </button>
                       </div>
                     </td>
