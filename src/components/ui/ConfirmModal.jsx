@@ -9,7 +9,7 @@ export function ConfirmModal({
   children,
   confirmText = "Confirmar",
   cancelText = "Cancelar",
-  confirmButtonClass = "bg-red-500 text-white hover:bg-red-600",
+  confirmButtonClass,
   showCancelButton = true,
   isLoading = false,
 }) {
@@ -24,19 +24,22 @@ export function ConfirmModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/80"
+          className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
         />
 
         {/* Dialog */}
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="relative bg-[var(--background)] w-full max-w-md mx-4 rounded-lg shadow-xl border border-[var(--card-border)]"
+          initial={{ y: 16, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 16, opacity: 0 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="relative w-full max-w-md mx-4 rounded-xl shadow-xl border border-[var(--card-border)] bg-[var(--background)]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-[var(--card-border)] bg-[var(--card-background)] rounded-t-lg">
-            <h2 className="text-lg font-semibold">{title}</h2>
+          <div className="flex items-center justify-between p-4 border-b border-[var(--card-border)] bg-[var(--card-background)] rounded-t-xl">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+              {title}
+            </h2>
             <button
               onClick={onClose}
               disabled={isLoading}
@@ -47,17 +50,19 @@ export function ConfirmModal({
           </div>
 
           {/* Content */}
-          <div className="p-4 bg-[var(--background)]">
-            <div className="text-[var(--text-primary)]">{children}</div>
+          <div className="px-5 py-4 bg-[var(--background)]">
+            <div className="text-[var(--text-secondary)] leading-relaxed">
+              {children}
+            </div>
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 p-4 border-t border-[var(--card-border)] bg-[var(--card-background)] rounded-b-lg">
+          <div className="flex justify-end gap-3 p-4 border-t border-[var(--card-border)] bg-[var(--card-background)] rounded-b-xl">
             {showCancelButton && (
               <button
                 onClick={onClose}
                 disabled={isLoading}
-                className="px-4 py-2 btn-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-md bg-[var(--input-background)] text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {cancelText}
               </button>
@@ -65,7 +70,9 @@ export function ConfirmModal({
             <button
               onClick={onConfirm}
               disabled={isLoading}
-              className={`px-4 py-2 rounded-md ${confirmButtonClass} transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
+              className={`px-4 py-2 rounded-md ${
+                confirmButtonClass || "bg-red-600 hover:bg-red-700 text-white"
+              } transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               {confirmText}

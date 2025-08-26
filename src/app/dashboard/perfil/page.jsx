@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 import { userService, updateUserProfile } from "@/services/user.service";
@@ -47,6 +47,7 @@ export default function PerfilPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showNavigationModal, setShowNavigationModal] = useState(false);
   const [pendingNavigationUrl, setPendingNavigationUrl] = useState("");
+  const suppressBeforeUnloadRef = useRef(false);
 
   useEffect(() => {
     if (originalFormData) {
@@ -60,19 +61,16 @@ export default function PerfilPage() {
     }
   }, [formData, originalFormData, imageBase64, isEditing]);
 
+  // beforeunload solo para cierre/refresh. Suprimimos si la navegación es confirmada por nuestro modal.
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (hasUnsavedChanges) {
+      if (hasUnsavedChanges && !suppressBeforeUnloadRef.current) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
   // Interceptar navegación programática
@@ -142,8 +140,15 @@ export default function PerfilPage() {
 
   const confirmNavigation = () => {
     setShowNavigationModal(false);
-    router.push(pendingNavigationUrl);
+    const target = pendingNavigationUrl || "/dashboard/encuestas";
     setPendingNavigationUrl("");
+    suppressBeforeUnloadRef.current = true;
+    setHasUnsavedChanges(false);
+    try {
+      window.location.assign(target);
+    } catch {
+      router.replace(target);
+    }
   };
 
   const cancelNavigation = () => {
@@ -688,7 +693,6 @@ export default function PerfilPage() {
             title="Cambios sin Guardar"
             confirmText="Descartar y Navegar"
             cancelText="Cancelar"
-            confirmButtonClass="bg-orange-500 text-white hover:bg-orange-600"
           >
             Hay cambios sin guardar. ¿Deseas descartarlos y navegar a esta
             página?
