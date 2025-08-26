@@ -86,6 +86,7 @@ export default function SurveyResponderStable() {
   const pendingNavRef = useRef(null);
   const suppressNavRef = useRef(false);
   const blockingRef = useRef(false);
+  const suppressCountRef = useRef(0);
   useEffect(() => {
     blockingRef.current = isBlocking;
   }, [isBlocking]);
@@ -202,9 +203,9 @@ export default function SurveyResponderStable() {
       history.pushState(null, "", location.href);
     } catch {}
     const onPopState = () => {
-      if (suppressNavRef.current) {
-        suppressNavRef.current = false;
-        return; // allow the actual back we just triggered
+      if (suppressCountRef.current > 0) {
+        suppressCountRef.current -= 1;
+        return; // allow our own back(s)
       }
       if (!blockingRef.current) return;
       try {
@@ -725,8 +726,7 @@ export default function SurveyResponderStable() {
             return;
           }
           if (pending.type === "back") {
-            suppressNavRef.current = true;
-            router.back();
+            router.replace("/dashboard/encuestas");
             return;
           }
           if (pending.type === "url") {
