@@ -18,6 +18,7 @@ import {
 import { toast } from "react-toastify";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { motion, AnimatePresence } from "framer-motion";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import GeolocationService from "@/services/geolocation.service";
 
 import "survey-core/survey-core.css";
@@ -79,6 +80,18 @@ export default function SurveyResponderStable() {
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
   const [capturedLocation, setCapturedLocation] = useState(null); // { lat, lng }
 
+  // Leave-blocking state
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const pendingNavRef = useRef(null);
+  const suppressNavRef = useRef(false);
+  const blockingRef = useRef(false);
+  useEffect(() => {
+    blockingRef.current = isBlocking;
+  }, [isBlocking]);
+  const [isConfirmingLeave, setIsConfirmingLeave] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
   // Redirección y cuenta regresiva luego del éxito
   useEffect(() => {
     if (!surveyCompletedSuccessfully) return;
@@ -94,6 +107,10 @@ export default function SurveyResponderStable() {
         clearInterval(countdownIntervalRef.current);
     };
   }, [surveyCompletedSuccessfully, router]);
+
+  useEffect(() => {
+    if (surveyCompletedSuccessfully) setIsBlocking(false);
+  }, [surveyCompletedSuccessfully]);
 
   useEffect(() => {
     if (!surveyId) return;
@@ -162,6 +179,7 @@ export default function SurveyResponderStable() {
         });
 
         setSurveyModel(model);
+        setIsBlocking(true);
       } catch (e) {
         setError(e.message || "Error al cargar la encuesta.");
       } finally {
@@ -178,6 +196,53 @@ export default function SurveyResponderStable() {
         clearInterval(countdownIntervalRef.current);
     };
   }, [surveyId, router, theme]);
+
+  useEffect(() => {
+    try {
+      history.pushState(null, "", location.href);
+    } catch {}
+    const onPopState = () => {
+      if (suppressNavRef.current) {
+        suppressNavRef.current = false;
+        return; // allow the actual back we just triggered
+      }
+      if (!blockingRef.current) return;
+      try {
+        history.pushState(null, "", location.href);
+      } catch {}
+      pendingNavRef.current = { type: "back" };
+      setShowLeaveModal(true);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    const onCaptureClick = (e) => {
+      if (!blockingRef.current) return;
+      const target = e.target;
+      if (!target || typeof target.closest !== "function") return;
+      const anchor = target.closest("a[href]");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:"))
+        return;
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        const url = new URL(anchor.href, window.location.href);
+        pendingNavRef.current = {
+          type: url.origin === window.location.origin ? "url" : "external",
+          target: url.href,
+        };
+      } catch {
+        pendingNavRef.current = { type: "url", target: anchor.href };
+      }
+      setShowLeaveModal(true);
+    };
+    document.addEventListener("click", onCaptureClick, true);
+    return () => document.removeEventListener("click", onCaptureClick, true);
+  }, []);
 
   const handleComplete = async (sender) => {
     try {
@@ -646,6 +711,50 @@ export default function SurveyResponderStable() {
   return (
     <div className="survey-container">
       <Survey model={surveyModel} onComplete={handleComplete} />
+
+      <ConfirmModal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        onConfirm={() => {
+          setShowLeaveModal(false);
+          setIsBlocking(false);
+          const pending = pendingNavRef.current;
+          pendingNavRef.current = null;
+          if (!pending) {
+            router.push("/dashboard/encuestas");
+            return;
+          }
+          if (pending.type === "back") {
+            suppressNavRef.current = true;
+            router.back();
+            return;
+          }
+          if (pending.type === "url") {
+            try {
+              const url = new URL(pending.target);
+              if (url.origin === window.location.origin) {
+                router.push(url.pathname + url.search + url.hash);
+              } else {
+                window.location.assign(pending.target);
+              }
+            } catch {
+              window.location.assign(pending.target);
+            }
+            return;
+          }
+          if (pending.type === "external") {
+            window.location.assign(pending.target);
+            return;
+          }
+          router.push("/dashboard/encuestas");
+        }}
+        title="Abandonar encuesta"
+        confirmText="Salir sin guardar"
+        cancelText="Seguir contestando"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      >
+        <p>Si abandonas ahora, perderás el progreso de esta encuesta.</p>
+      </ConfirmModal>
     </div>
   );
 }
