@@ -853,11 +853,15 @@ export default function NuevaEncuesta({
                     );
                     const operatorMap = {
                       equals: "=",
+                      not_equals: "!=",
                       gt: ">",
                       gte: ">=",
                       lt: "<",
                       lte: "<=",
                       contains: "contains",
+                      not_contains: "notcontains",
+                      contains_all: "contains_all", // handled specially
+                      exactly: "exactly", // handled specially
                     };
                     let op =
                       operatorMap[rule.operator] ||
@@ -924,24 +928,76 @@ export default function NuevaEncuesta({
                         );
                       }
                     } else {
-                      valueExprs = values
-                        .filter(
-                          (v) => v !== undefined && v !== null && v !== ""
-                        )
-                        .map((v) => {
-                          if (op === "contains")
-                            return `\{${parentId}\} contains '${escapeValue(
-                              v
-                            )}'`;
-                          const literal = isNumeric(v)
-                            ? String(Number(v))
-                            : `'${escapeValue(v)}'`;
-                          return `\{${parentId}\} ${op} ${literal}`;
+                      // Non-numeric operators on options or free values
+                      if (op === "notcontains") {
+                        valueExprs = values
+                          .filter(
+                            (v) => v !== undefined && v !== null && v !== ""
+                          )
+                          .map(
+                            (v) =>
+                              `\{${parentId}\} notcontains '${escapeValue(v)}'`
+                          );
+                      } else if (rule.operator === "contains_all") {
+                        // All selected must be present → AND of contains
+                        valueExprs = values
+                          .filter(
+                            (v) => v !== undefined && v !== null && v !== ""
+                          )
+                          .map(
+                            (v) =>
+                              `\{${parentId}\} contains '${escapeValue(v)}'`
+                          );
+                      } else if (rule.operator === "exactly") {
+                        const selected = new Set(
+                          values.filter(
+                            (v) => v !== undefined && v !== null && v !== ""
+                          )
+                        );
+                        const parts = [];
+                        selected.forEach((v) =>
+                          parts.push(
+                            `\{${parentId}\} contains '${escapeValue(v)}'`
+                          )
+                        );
+                        (parentQuestion?.options || []).forEach((opt) => {
+                          if (!selected.has(opt.id)) {
+                            parts.push(
+                              `\{${parentId}\} notcontains '${escapeValue(
+                                opt.id
+                              )}'`
+                            );
+                          }
                         });
+                        valueExprs = parts; // AND join
+                      } else {
+                        valueExprs = values
+                          .filter(
+                            (v) => v !== undefined && v !== null && v !== ""
+                          )
+                          .map((v) => {
+                            if (op === "contains")
+                              return `\{${parentId}\} contains '${escapeValue(
+                                v
+                              )}'`;
+                            if (op === "notcontains")
+                              return `\{${parentId}\} notcontains '${escapeValue(
+                                v
+                              )}'`;
+                            const literal = isNumeric(v)
+                              ? String(Number(v))
+                              : `'${escapeValue(v)}'`;
+                            return `\{${parentId}\} ${op} ${literal}`;
+                          });
+                      }
                     }
                     if (valueExprs.length === 0) return null;
+                    const needsAnd =
+                      rule.operator === "contains_all" ||
+                      rule.operator === "exactly";
+                    const joiner = needsAnd ? " and " : " or ";
                     return valueExprs.length > 1
-                      ? `(${valueExprs.join(" or ")})`
+                      ? `(${valueExprs.join(joiner)})`
                       : `(${valueExprs[0]})`;
                   })
                   .filter(Boolean);

@@ -75,7 +75,7 @@ export default function EditarEncuesta() {
     const map = {}; // { questionId: showCondition }
 
     const condRegex =
-      /\{([^}]+)\}\s*(contains|=|!=|>=|<=|>|<)\s*(?:'([^']*)'|([0-9]+(?:\.[0-9]+)?))/g;
+      /\{([^}]+)\}\s*(contains|notcontains|=|!=|>=|<=|>|<)\s*(?:'([^']*)'|([0-9]+(?:\.[0-9]+)?))/g;
 
     elements.forEach((element) => {
       // Si la pregunta sigue un camino, NO reconstruimos reglas: su visibilidad es heredada
@@ -114,8 +114,9 @@ export default function EditarEncuesta() {
           ) {
             const opMap = {
               contains: "contains",
+              notcontains: "not_contains",
               "=": "equals",
-              "!=": "equals", // no soportado en UI
+              "!=": "not_equals",
               ">": "gt",
               ">=": "gte",
               "<": "lt",

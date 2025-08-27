@@ -759,7 +759,7 @@ export default function QuestionModal({
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
 
         <div className="card relative transform overflow-hidden shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4 bg-[var(--background)] ">
             <h3 className="text-lg font-medium">
               {initialData ? "Editar pregunta" : "Nueva pregunta"}
             </h3>
@@ -921,8 +921,8 @@ export default function QuestionModal({
 
               {/* Configurar condición de visualización */}
               {question.isConditional && (
-                <div className="mt-4 p-4 bg-green-50 rounded-md border border-green-200">
-                  <p className="text-xs text-green-600 mb-3">
+                <div className="card mt-4 p-4 rounded-md">
+                  <p className="text-xs text-primary mb-3">
                     Esta pregunta se mostrará solo cuando se cumpla la condición
                     especificada.
                   </p>
@@ -930,7 +930,7 @@ export default function QuestionModal({
                   <div className="space-y-4">
                     {/* Lógica de grupo AND/OR */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-green-700">
+                      <span className="text-xs text-primary">
                         Mostrar si se cumplen
                       </span>
                       <select
@@ -997,10 +997,10 @@ export default function QuestionModal({
                           return (
                             <div
                               key={idx}
-                              className="p-3 bg-white rounded border border-green-200 space-y-2"
+                              className="card p-3 rounded space-y-2"
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-green-700">
+                                <span className="text-xs text-primary">
                                   Regla #{idx + 1}
                                 </span>
                                 <button
@@ -1013,7 +1013,7 @@ export default function QuestionModal({
 
                               {/* Pregunta padre */}
                               <div>
-                                <label className="block text-xs font-medium text-green-700 mb-1">
+                                <label className="block text-xs font-medium text-primary mb-1">
                                   Pregunta
                                 </label>
                                 <select
@@ -1045,7 +1045,7 @@ export default function QuestionModal({
 
                               {/* Operador */}
                               <div>
-                                <label className="block text-xs font-medium text-green-700 mb-1">
+                                <label className="block text-xs font-medium text-primary mb-1">
                                   Operador
                                 </label>
                                 <select
@@ -1056,10 +1056,26 @@ export default function QuestionModal({
                                   className="w-full p-2 border rounded-md text-sm"
                                 >
                                   {isMultiple && (
-                                    <option value="contains">contiene</option>
+                                    <>
+                                      <option value="contains">contiene</option>
+                                      <option value="not_contains">
+                                        no contiene
+                                      </option>
+                                      <option value="contains_all">
+                                        contiene todos
+                                      </option>
+                                      <option value="exactly">
+                                        exactamente estos
+                                      </option>
+                                    </>
                                   )}
                                   {!isMultiple && (
-                                    <option value="equals">es igual a</option>
+                                    <>
+                                      <option value="equals">es igual a</option>
+                                      <option value="not_equals">
+                                        no es igual a
+                                      </option>
+                                    </>
                                   )}
                                   {(isNumericType ||
                                     (hasOptions && areOptionsNumeric)) && (
@@ -1079,30 +1095,100 @@ export default function QuestionModal({
 
                               {/* Valores */}
                               <div>
-                                <label className="block text-xs font-medium text-green-700 mb-1">
+                                <label className="block text-xs font-medium text-primary mb-1">
                                   Valor/es
                                 </label>
-                                {hasOptions && operator === "contains" && (
-                                  <select
-                                    multiple
-                                    value={(rule.values || []).map(String)}
-                                    onChange={(e) => {
-                                      const selected = Array.from(
-                                        e.target.selectedOptions
-                                      ).map((o) => o.value);
-                                      updateRuleValues(idx, selected);
-                                    }}
-                                    className="w-full p-2 border rounded-md text-sm"
-                                  >
-                                    {getQuestionOptions(
-                                      rule.parentQuestionId
-                                    ).map((opt) => (
-                                      <option key={opt.id} value={opt.id}>
-                                        {opt.text || "Opción sin texto"}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
+                                {hasOptions &&
+                                  (operator === "contains" ||
+                                    operator === "not_contains" ||
+                                    operator === "contains_all" ||
+                                    operator === "exactly") && (
+                                    <div className="card p-3">
+                                      <div className="flex gap-2 mb-2 text-xs">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            updateRuleValues(
+                                              idx,
+                                              getQuestionOptions(
+                                                rule.parentQuestionId
+                                              ).map((o) => String(o.id))
+                                            )
+                                          }
+                                          className="btn-action px-2 py-1 border rounded"
+                                        >
+                                          Seleccionar todas
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            updateRuleValues(idx, [])
+                                          }
+                                          className="btn-action px-2 py-1 border rounded"
+                                        >
+                                          Ninguna
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const opts = getQuestionOptions(
+                                              rule.parentQuestionId
+                                            ).map((o) => String(o.id));
+                                            const current = new Set(
+                                              (rule.values || []).map(String)
+                                            );
+                                            const inverted = opts.filter(
+                                              (id) => !current.has(id)
+                                            );
+                                            updateRuleValues(idx, inverted);
+                                          }}
+                                          className="btn-action px-2 py-1 border rounded"
+                                        >
+                                          Invertir
+                                        </button>
+                                      </div>
+                                      <div className="max-h-40 overflow-y-auto space-y-1">
+                                        {getQuestionOptions(
+                                          rule.parentQuestionId
+                                        ).map((opt) => {
+                                          const checked = (rule.values || [])
+                                            .map(String)
+                                            .includes(String(opt.id));
+                                          return (
+                                            <label
+                                              key={opt.id}
+                                              className="interactive-element rounded px-2 py-1 flex items-center gap-2 text-sm"
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={(e) => {
+                                                  const current = new Set(
+                                                    (rule.values || []).map(
+                                                      String
+                                                    )
+                                                  );
+                                                  if (e.target.checked)
+                                                    current.add(String(opt.id));
+                                                  else
+                                                    current.delete(
+                                                      String(opt.id)
+                                                    );
+                                                  updateRuleValues(
+                                                    idx,
+                                                    Array.from(current)
+                                                  );
+                                                }}
+                                              />
+                                              <span>
+                                                {opt.text || "Opción sin texto"}
+                                              </span>
+                                            </label>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
                                 {hasOptions && operator === "equals" && (
                                   <select
                                     value={
@@ -1170,14 +1256,14 @@ export default function QuestionModal({
               )}
 
               {/* Configurar Camino (heredar visibilidad) */}
-              <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-200">
-                <p className="text-xs text-blue-700 mb-3">
+              <div className="mt-4 p-4 bg-[var(--card-background)] rounded-md border border-[var(--card-border)]">
+                <p className="text-xs text-[var(--text-muted)] mb-3">
                   Camino: esta pregunta puede mostrarse solo cuando se ingresa a
                   un camino activado por otra pregunta. No depende de la
                   respuesta de esa pregunta, solo de haber entrado al camino.
                 </p>
                 <div className="space-y-2">
-                  <label className="block text-xs font-medium text-blue-800">
+                  <label className="block text-xs font-medium text-[var(--primary)]">
                     Seguir camino de la pregunta
                   </label>
                   <select
@@ -1204,7 +1290,7 @@ export default function QuestionModal({
                       ))}
                   </select>
                   {question.pathSourceQuestionId && (
-                    <p className="text-xs text-blue-700">
+                    <p className="text-xs text-[var(--primary)]">
                       Esta pregunta seguirá el mismo camino que la pregunta
                       seleccionada y se mostrará a continuación.
                     </p>

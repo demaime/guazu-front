@@ -431,7 +431,11 @@ export default function QuestionEditor({
               if (Array.isArray(sc.rules) && sc.rules.length > 0) {
                 const opLabel = {
                   equals: "es igual a",
+                  not_equals: "no es igual a",
                   contains: "contiene",
+                  not_contains: "no contiene",
+                  contains_all: "contiene todos",
+                  exactly: "exactamente",
                   gt: "mayor que",
                   gte: "mayor o igual que",
                   lt: "menor que",
