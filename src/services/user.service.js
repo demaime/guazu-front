@@ -70,18 +70,26 @@ class UserService {
   }
 
   getEditableFieldsByRole(role) {
-    const baseFields = ["name", "lastName", "email", "phone", "cellular"];
+    const baseFields = [
+      "name",
+      "lastName",
+      "email",
+      "phone",
+      "cellular",
+      "dni",
+      "city",
+      "province",
+    ]; // permitir completar dni, ciudad y provincia
 
     switch (role) {
       case "ROLE_ADMIN":
-        return ["all"];
+        return ["all"]; // admins pueden editar todo
       case "SUPERVISOR":
         return [
           ...baseFields,
           "address",
           "addressNumber",
           "addressUnity",
-          "city",
           "province",
           "section",
         ];

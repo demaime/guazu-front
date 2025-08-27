@@ -86,10 +86,17 @@ function calculateQuestionNumbers(questions) {
   function findParentInfo(targetId, allQuestions) {
     const targetQuestion = allQuestions.find((q) => q.id === targetId);
     if (targetQuestion && targetQuestion.showCondition) {
-      return {
-        parentId: targetQuestion.showCondition.parentQuestionId,
-        optionIndex: 0,
-      };
+      const sc = targetQuestion.showCondition;
+      // Soportar formato nuevo (rules) y antiguo
+      const parentId = Array.isArray(sc.rules)
+        ? sc.rules[0]?.parentQuestionId
+        : sc.parentQuestionId;
+      if (parentId) {
+        return {
+          parentId,
+          optionIndex: 0,
+        };
+      }
     }
     return null;
   }
@@ -143,7 +150,10 @@ export default function QuestionModal({
       matrixColumns: [],
       isConditional: false,
 
-      showCondition: null,
+      // Formato nuevo por defecto
+      showCondition: { logic: "or", rules: [] },
+      // Camino: hereda visibilidad de otra pregunta
+      pathSourceQuestionId: "",
     };
 
     let initialState = { ...defaults };
@@ -168,10 +178,43 @@ export default function QuestionModal({
       // Configurar pregunta condicional
       if (data.showCondition) {
         initialState.isConditional = true;
-        initialState.showCondition = data.showCondition;
+        // Normalizar a formato nuevo { logic, rules }
+        const sc = data.showCondition;
+        if (Array.isArray(sc.rules)) {
+          initialState.showCondition = {
+            logic: (sc.logic || "or").toLowerCase() === "and" ? "and" : "or",
+            rules: sc.rules.map((r) => ({
+              parentQuestionId: r.parentQuestionId,
+              operator: r.operator || "equals",
+              values: Array.isArray(r.values) ? r.values : [r.values],
+            })),
+          };
+        } else if (sc.parentQuestionId) {
+          initialState.showCondition = {
+            logic: "or",
+            rules: [
+              {
+                parentQuestionId: sc.parentQuestionId,
+                operator: sc.operator || "equals",
+                values:
+                  sc.requiredValue !== undefined &&
+                  sc.requiredValue !== null &&
+                  sc.requiredValue !== ""
+                    ? [sc.requiredValue]
+                    : [],
+              },
+            ],
+          };
+        } else {
+          initialState.showCondition = { logic: "or", rules: [] };
+        }
+        // Camino
+        if (typeof data.pathSourceQuestionId === "string") {
+          initialState.pathSourceQuestionId = data.pathSourceQuestionId;
+        }
       } else {
         initialState.isConditional = false;
-        initialState.showCondition = null;
+        initialState.showCondition = { logic: "or", rules: [] };
       }
     } else {
       // New question, ensure description is prefilled for default type
@@ -221,23 +264,108 @@ export default function QuestionModal({
     });
   };
 
-  // Nueva función para actualizar showCondition (formato nuevo)
-  const updateShowCondition = (
-    parentQuestionId,
-    requiredValue,
-    operator = "equals"
-  ) => {
+  // Helpers para manejar reglas de showCondition (formato nuevo)
+  const ensureAtLeastOneRule = () => {
+    setQuestion((prev) => {
+      const sc = prev.showCondition || { logic: "or", rules: [] };
+      if (!Array.isArray(sc.rules) || sc.rules.length === 0) {
+        return {
+          ...prev,
+          showCondition: {
+            logic: sc.logic || "or",
+            rules: [{ parentQuestionId: "", operator: "equals", values: [] }],
+          },
+        };
+      }
+      return prev;
+    });
+  };
+
+  const setGroupLogic = (logic) => {
     setQuestion((prev) => ({
       ...prev,
-      showCondition: parentQuestionId
-        ? {
-            parentQuestionId,
-            requiredValue,
-            operator,
-            logicType: "AND",
-          }
-        : null,
+      showCondition: {
+        ...(prev.showCondition || { rules: [] }),
+        logic: logic === "and" ? "and" : "or",
+      },
     }));
+  };
+
+  const addRule = () => {
+    setQuestion((prev) => ({
+      ...prev,
+      isConditional: true,
+      showCondition: {
+        ...(prev.showCondition || { logic: "or", rules: [] }),
+        rules: [
+          ...((prev.showCondition && prev.showCondition.rules) || []),
+          { parentQuestionId: "", operator: "equals", values: [] },
+        ],
+      },
+    }));
+  };
+
+  const removeRule = (index) => {
+    setQuestion((prev) => {
+      const rules = (
+        (prev.showCondition && prev.showCondition.rules) ||
+        []
+      ).filter((_, i) => i !== index);
+      return {
+        ...prev,
+        showCondition: { ...(prev.showCondition || { logic: "or" }), rules },
+      };
+    });
+  };
+
+  const updateRuleParent = (index, parentQuestionId) => {
+    setQuestion((prev) => {
+      const sc = prev.showCondition || { logic: "or", rules: [] };
+      const rules = [...(sc.rules || [])];
+      if (!rules[index])
+        rules[index] = { parentQuestionId: "", operator: "equals", values: [] };
+      // Determinar operador por defecto según el tipo de la pregunta padre
+      const parentQuestion = allQuestions.find(
+        (q) => q.id === parentQuestionId
+      );
+      const isMultiple =
+        parentQuestion?.type === QUESTION_TYPES.MULTIPLE_CHOICE ||
+        parentQuestion?.type === QUESTION_TYPES.CHECKBOX;
+      // Si no se ha seleccionado aún un operador o venía con el por defecto, setearlo acorde
+      const defaultOperator = isMultiple ? "contains" : "equals";
+      rules[index] = {
+        ...rules[index],
+        parentQuestionId,
+        operator: defaultOperator,
+        values: [],
+      };
+      return { ...prev, showCondition: { ...sc, rules } };
+    });
+  };
+
+  const updateRuleOperator = (index, operator) => {
+    setQuestion((prev) => {
+      const sc = prev.showCondition || { logic: "or", rules: [] };
+      const rules = [...(sc.rules || [])];
+      if (!rules[index])
+        rules[index] = { parentQuestionId: "", operator: "equals", values: [] };
+      rules[index] = { ...rules[index], operator: operator || "equals" };
+      return { ...prev, showCondition: { ...sc, rules } };
+    });
+  };
+
+  const updateRuleValues = (index, values) => {
+    setQuestion((prev) => {
+      const sc = prev.showCondition || { logic: "or", rules: [] };
+      const rules = [...(sc.rules || [])];
+      if (!rules[index])
+        rules[index] = { parentQuestionId: "", operator: "equals", values: [] };
+      rules[index] = {
+        ...rules[index],
+        values: Array.isArray(values) ? values : [values],
+      };
+      return { ...prev, showCondition: { ...sc, rules } };
+    });
   };
 
   // Función para obtener las opciones de una pregunta específica
@@ -487,32 +615,52 @@ export default function QuestionModal({
       return; // Prevent saving
     }
 
-    // Validaciones para preguntas condicionales
+    // Validaciones para preguntas condicionales (formato nuevo)
     if (question.isConditional) {
-      if (!question.showCondition || !question.showCondition.parentQuestionId) {
-        if (onValidationError) {
-          onValidationError(
-            "Las preguntas condicionales requieren especificar una pregunta padre."
-          );
-        } else {
-          alert(
-            "Las preguntas condicionales requieren especificar una pregunta padre."
-          );
-        }
+      const sc = question.showCondition;
+      if (!sc || !Array.isArray(sc.rules) || sc.rules.length === 0) {
+        const msg = "Las preguntas condicionales requieren al menos una regla.";
+        if (onValidationError) onValidationError(msg);
+        else alert(msg);
         return;
       }
 
-      if (!question.showCondition.requiredValue) {
-        if (onValidationError) {
-          onValidationError(
-            "Las preguntas condicionales requieren especificar un valor de condición."
-          );
-        } else {
-          alert(
-            "Las preguntas condicionales requieren especificar un valor de condición."
-          );
+      // Validar cada regla
+      for (let i = 0; i < sc.rules.length; i++) {
+        const r = sc.rules[i] || {};
+        const op = (r.operator || "equals").toLowerCase();
+        if (!r.parentQuestionId) {
+          const msg = `La regla #${i + 1} requiere seleccionar una pregunta.`;
+          if (onValidationError) onValidationError(msg);
+          else alert(msg);
+          return;
         }
-        return;
+        if (op === "contains") {
+          if (!Array.isArray(r.values) || r.values.length === 0) {
+            const msg = `La regla #${
+              i + 1
+            } requiere seleccionar al menos un valor.`;
+            if (onValidationError) onValidationError(msg);
+            else alert(msg);
+            return;
+          }
+        } else if (op === "equals") {
+          const v = Array.isArray(r.values) ? r.values[0] : r.values;
+          if (v === undefined || v === null || v === "") {
+            const msg = `La regla #${i + 1} requiere un valor.`;
+            if (onValidationError) onValidationError(msg);
+            else alert(msg);
+            return;
+          }
+        } else if (op === "gt" || op === "gte" || op === "lt" || op === "lte") {
+          const v = Array.isArray(r.values) ? r.values[0] : r.values;
+          if (v === undefined || v === null || v === "" || isNaN(Number(v))) {
+            const msg = `La regla #${i + 1} requiere un umbral numérico.`;
+            if (onValidationError) onValidationError(msg);
+            else alert(msg);
+            return;
+          }
+        }
       }
     }
 
@@ -523,8 +671,69 @@ export default function QuestionModal({
       variable: finalVariable, // Use the ensured variable
     };
 
-    // Si no es condicional, limpiar showCondition
-    if (!questionToSave.isConditional) {
+    // Normalizar reglas antes de guardar para evitar que queden con operador incorrecto
+    if (questionToSave.isConditional && questionToSave.showCondition) {
+      const sc = questionToSave.showCondition || { logic: "or", rules: [] };
+      const normalizedRules = (sc.rules || []).map((r) => {
+        if (!r) return r;
+        const parentQuestion = allQuestions.find(
+          (q) => q.id === r.parentQuestionId
+        );
+        const isMultiple =
+          parentQuestion?.type === QUESTION_TYPES.MULTIPLE_CHOICE ||
+          parentQuestion?.type === QUESTION_TYPES.CHECKBOX;
+        const isNumericType =
+          parentQuestion?.type === QUESTION_TYPES.NUMBER ||
+          parentQuestion?.type === QUESTION_TYPES.RATING;
+        const numericOps = ["gt", "gte", "lt", "lte"];
+
+        let op = (r.operator || "").toLowerCase();
+        // Si el operador numérico no es válido para el padre, ajustar
+        if (numericOps.includes(op) && !isNumericType) {
+          op = isMultiple ? "contains" : "equals";
+        }
+        // Si no hay operador o quedó en "equals" para una múltiple, usar contains
+        if (!op) op = isMultiple ? "contains" : "equals";
+        if (isMultiple && op === "equals") op = "contains";
+
+        const values = Array.isArray(r.values)
+          ? r.values
+          : r.values !== undefined && r.values !== null && r.values !== ""
+          ? [r.values]
+          : [];
+
+        return {
+          parentQuestionId: r.parentQuestionId,
+          operator: op,
+          values,
+        };
+      });
+
+      questionToSave.showCondition = {
+        logic: (sc.logic || "or").toLowerCase() === "and" ? "and" : "or",
+        rules: normalizedRules,
+      };
+    }
+
+    // Asegurar consistencia: si hay reglas válidas, marcar como condicional automáticamente
+    const hasValidRules = (() => {
+      const sc = questionToSave.showCondition;
+      if (!sc) return false;
+      if (Array.isArray(sc.rules)) {
+        return sc.rules.some(
+          (r) =>
+            r &&
+            r.parentQuestionId &&
+            ((Array.isArray(r.values) && r.values.length > 0) ||
+              r.values !== undefined)
+        );
+      }
+      return Boolean(sc.parentQuestionId);
+    })();
+
+    const finalIsConditional = questionToSave.isConditional || hasValidRules;
+    questionToSave.isConditional = finalIsConditional;
+    if (!finalIsConditional) {
       questionToSave.showCondition = null;
     }
 
@@ -635,9 +844,26 @@ export default function QuestionModal({
                       setQuestion((prev) => ({
                         ...prev,
                         isConditional: isChecked,
-                        // Limpiar showCondition si se desmarca
-                        showCondition: !isChecked ? null : prev.showCondition,
+                        // Inicializar reglas cuando se activa; limpiar al desactivar
+                        showCondition: !isChecked
+                          ? { logic: "or", rules: [] }
+                          : prev.showCondition &&
+                            Array.isArray(prev.showCondition.rules)
+                          ? prev.showCondition
+                          : {
+                              logic: "or",
+                              rules: [
+                                {
+                                  parentQuestionId: "",
+                                  operator: "equals",
+                                  values: [],
+                                },
+                              ],
+                            },
                       }));
+                      if (isChecked) {
+                        ensureAtLeastOneRule();
+                      }
                     }}
                     className="rounded border-gray-300 text-primary focus:ring-primary"
                   />
@@ -696,117 +922,295 @@ export default function QuestionModal({
               {/* Configurar condición de visualización */}
               {question.isConditional && (
                 <div className="mt-4 p-4 bg-green-50 rounded-md border border-green-200">
-   
                   <p className="text-xs text-green-600 mb-3">
                     Esta pregunta se mostrará solo cuando se cumpla la condición
                     especificada.
                   </p>
 
-                  <div className="space-y-3">
-                    {/* Selector de pregunta padre */}
-                    <div>
-                      <label className="block text-xs font-medium text-green-700 mb-1">
-                        Mostrar esta pregunta cuando:
-                      </label>
+                  <div className="space-y-4">
+                    {/* Lógica de grupo AND/OR */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-green-700">
+                        Mostrar si se cumplen
+                      </span>
                       <select
-                        value={question.showCondition?.parentQuestionId || ""}
-                        onChange={(e) => {
-                          const parentId = e.target.value;
-                          if (parentId) {
-                            // Limpiar valor requerido cuando cambia la pregunta padre
-                            updateShowCondition(parentId, "", "equals");
-                          } else {
-                            updateShowCondition(null, "", "equals");
-                          }
-                        }}
-                        className="w-full p-2 border rounded-md text-sm"
+                        value={(
+                          question.showCondition?.logic || "or"
+                        ).toLowerCase()}
+                        onChange={(e) => setGroupLogic(e.target.value)}
+                        className="p-1.5 border rounded-md text-xs"
                       >
-                        <option value="">- Seleccionar pregunta padre -</option>
-                        {allQuestions
-                          .filter(
-                            (q) =>
-                              q.id !== question.id &&
-                              (!initialData || q.id !== initialData.id) &&
-                              // Solo mostrar preguntas con opciones
-                              q.options &&
-                              q.options.length > 0
-                          )
-                          .map((q) => (
-                            <option key={q.id} value={q.id}>
-                              {`${questionNumberMap[q.id] || "?"}. ${
-                                q.title || "Pregunta sin título"
-                              }`}
-                            </option>
-                          ))}
+                        <option value="and">todas (AND)</option>
+                        <option value="or">cualquiera (OR)</option>
                       </select>
                     </div>
 
-                    {/* Selector de valor requerido */}
-                    {question.showCondition?.parentQuestionId && (
-                      <div>
-                        <label className="block text-xs font-medium text-green-700 mb-1">
-                          Sea igual a:
-                        </label>
-                        <select
-                          value={question.showCondition?.requiredValue || ""}
-                          onChange={(e) => {
-                            const parentQuestion = allQuestions.find(
-                              (q) =>
-                                q.id === question.showCondition.parentQuestionId
-                            );
-                            const operator =
-                              parentQuestion?.type === "multiple_choice"
-                                ? "contains"
-                                : "equals";
-                            updateShowCondition(
-                              question.showCondition.parentQuestionId,
-                              e.target.value,
-                              operator
-                            );
-                          }}
-                          className="w-full p-2 border rounded-md text-sm"
-                        >
-                          <option value="">- Seleccionar valor -</option>
-                          {getQuestionOptions(
-                            question.showCondition.parentQuestionId
-                          ).map((opt) => (
-                            <option key={opt.id} value={opt.id}>
-                              {opt.text || "Opción sin texto"}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                    {/* Reglas */}
+                    <div className="space-y-3">
+                      {(question.showCondition?.rules || []).map(
+                        (rule, idx) => {
+                          const parentQuestion = allQuestions.find(
+                            (q) => q.id === rule.parentQuestionId
+                          );
+                          const hasOptions =
+                            Array.isArray(parentQuestion?.options) &&
+                            parentQuestion.options.length > 0;
+                          const areOptionsNumeric = hasOptions
+                            ? parentQuestion.options.every(
+                                (o) =>
+                                  o &&
+                                  o.text !== undefined &&
+                                  o.text !== null &&
+                                  String(o.text).trim() !== "" &&
+                                  !isNaN(Number(o.text))
+                              )
+                            : false;
+                          const isMultiple =
+                            parentQuestion?.type ===
+                              QUESTION_TYPES.MULTIPLE_CHOICE ||
+                            parentQuestion?.type === QUESTION_TYPES.CHECKBOX;
+                          const isNumericType =
+                            parentQuestion?.type === QUESTION_TYPES.NUMBER ||
+                            parentQuestion?.type === QUESTION_TYPES.RATING;
+                          const numericOps = ["gt", "gte", "lt", "lte"];
 
-                    {/* Mostrar resumen de la condición */}
-                    {question.showCondition?.parentQuestionId &&
-                      question.showCondition?.requiredValue && (
-                        <div className="p-2 bg-white rounded border border-green-300">
-                          <p className="text-xs text-green-800">
-                            <span className="font-medium">Condición:</span> Se
-                            mostrará cuando "
-                            {allQuestions.find(
-                              (q) =>
-                                q.id === question.showCondition.parentQuestionId
-                            )?.title || "Pregunta padre"}
-                            "
-                            {question.showCondition.operator === "contains"
-                              ? " contenga "
-                              : " sea igual a "}
-                            "
-                            {getQuestionOptions(
-                              question.showCondition.parentQuestionId
-                            ).find(
-                              (opt) =>
-                                opt.id === question.showCondition.requiredValue
-                            )?.text || question.showCondition.requiredValue}
-                            "
-                          </p>
-                        </div>
+                          const operator = (() => {
+                            let op =
+                              rule.operator ||
+                              (hasOptions
+                                ? isMultiple
+                                  ? "contains"
+                                  : "equals"
+                                : "equals");
+                            if (
+                              numericOps.includes(op) &&
+                              !(
+                                isNumericType ||
+                                (hasOptions && areOptionsNumeric)
+                              )
+                            ) {
+                              op = isMultiple ? "contains" : "equals";
+                            }
+                            return op;
+                          })();
+
+                          return (
+                            <div
+                              key={idx}
+                              className="p-3 bg-white rounded border border-green-200 space-y-2"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-green-700">
+                                  Regla #{idx + 1}
+                                </span>
+                                <button
+                                  onClick={() => removeRule(idx)}
+                                  className="text-red-500 text-xs"
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+
+                              {/* Pregunta padre */}
+                              <div>
+                                <label className="block text-xs font-medium text-green-700 mb-1">
+                                  Pregunta
+                                </label>
+                                <select
+                                  value={rule.parentQuestionId || ""}
+                                  onChange={(e) =>
+                                    updateRuleParent(idx, e.target.value)
+                                  }
+                                  className="w-full p-2 border rounded-md text-sm"
+                                >
+                                  <option value="">
+                                    - Seleccionar pregunta -
+                                  </option>
+                                  {allQuestions
+                                    .filter(
+                                      (q) =>
+                                        q.id !== question.id &&
+                                        (!initialData ||
+                                          q.id !== initialData.id)
+                                    )
+                                    .map((q) => (
+                                      <option key={q.id} value={q.id}>
+                                        {`${questionNumberMap[q.id] || "?"}. ${
+                                          q.title || "Pregunta sin título"
+                                        }`}
+                                      </option>
+                                    ))}
+                                </select>
+                              </div>
+
+                              {/* Operador */}
+                              <div>
+                                <label className="block text-xs font-medium text-green-700 mb-1">
+                                  Operador
+                                </label>
+                                <select
+                                  value={operator}
+                                  onChange={(e) =>
+                                    updateRuleOperator(idx, e.target.value)
+                                  }
+                                  className="w-full p-2 border rounded-md text-sm"
+                                >
+                                  {isMultiple && (
+                                    <option value="contains">contiene</option>
+                                  )}
+                                  {!isMultiple && (
+                                    <option value="equals">es igual a</option>
+                                  )}
+                                  {(isNumericType ||
+                                    (hasOptions && areOptionsNumeric)) && (
+                                    <>
+                                      <option value="gt">mayor que</option>
+                                      <option value="gte">
+                                        mayor o igual que
+                                      </option>
+                                      <option value="lt">menor que</option>
+                                      <option value="lte">
+                                        menor o igual que
+                                      </option>
+                                    </>
+                                  )}
+                                </select>
+                              </div>
+
+                              {/* Valores */}
+                              <div>
+                                <label className="block text-xs font-medium text-green-700 mb-1">
+                                  Valor/es
+                                </label>
+                                {hasOptions && operator === "contains" && (
+                                  <select
+                                    multiple
+                                    value={(rule.values || []).map(String)}
+                                    onChange={(e) => {
+                                      const selected = Array.from(
+                                        e.target.selectedOptions
+                                      ).map((o) => o.value);
+                                      updateRuleValues(idx, selected);
+                                    }}
+                                    className="w-full p-2 border rounded-md text-sm"
+                                  >
+                                    {getQuestionOptions(
+                                      rule.parentQuestionId
+                                    ).map((opt) => (
+                                      <option key={opt.id} value={opt.id}>
+                                        {opt.text || "Opción sin texto"}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                {hasOptions && operator === "equals" && (
+                                  <select
+                                    value={
+                                      rule.values &&
+                                      rule.values[0] !== undefined
+                                        ? String(rule.values[0])
+                                        : ""
+                                    }
+                                    onChange={(e) =>
+                                      updateRuleValues(idx, e.target.value)
+                                    }
+                                    className="w-full p-2 border rounded-md text-sm"
+                                  >
+                                    <option value="">
+                                      - Seleccionar valor -
+                                    </option>
+                                    {getQuestionOptions(
+                                      rule.parentQuestionId
+                                    ).map((opt) => (
+                                      <option key={opt.id} value={opt.id}>
+                                        {opt.text || "Opción sin texto"}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                {((hasOptions &&
+                                  (operator === "gt" ||
+                                    operator === "gte" ||
+                                    operator === "lt" ||
+                                    operator === "lte")) ||
+                                  !hasOptions) && (
+                                  <input
+                                    type="number"
+                                    value={
+                                      rule.values &&
+                                      rule.values[0] !== undefined
+                                        ? rule.values[0]
+                                        : ""
+                                    }
+                                    onChange={(e) =>
+                                      updateRuleValues(idx, e.target.value)
+                                    }
+                                    className="w-full p-2 border rounded-md text-sm"
+                                    placeholder={
+                                      hasOptions
+                                        ? "Ingrese umbral numérico (p. ej. 3)"
+                                        : "Ingrese un número"
+                                    }
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
                       )}
+                      <button
+                        onClick={addRule}
+                        className="link-action flex items-center gap-1 text-sm"
+                      >
+                        <Plus className="w-4 h-4" /> Agregar regla
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
+
+              {/* Configurar Camino (heredar visibilidad) */}
+              <div className="mt-4 p-4 bg-blue-50 rounded-md border border-blue-200">
+                <p className="text-xs text-blue-700 mb-3">
+                  Camino: esta pregunta puede mostrarse solo cuando se ingresa a
+                  un camino activado por otra pregunta. No depende de la
+                  respuesta de esa pregunta, solo de haber entrado al camino.
+                </p>
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-blue-800">
+                    Seguir camino de la pregunta
+                  </label>
+                  <select
+                    value={question.pathSourceQuestionId || ""}
+                    onChange={(e) =>
+                      setQuestion((prev) => ({
+                        ...prev,
+                        pathSourceQuestionId: e.target.value,
+                      }))
+                    }
+                    className="w-full p-2 border rounded-md text-sm"
+                  >
+                    <option value="">
+                      - Sin camino (pregunta raíz o normal) -
+                    </option>
+                    {allQuestions
+                      .filter((q) => q.id !== question.id)
+                      .map((q) => (
+                        <option key={q.id} value={q.id}>
+                          {`${questionNumberMap[q.id] || "?"}. ${
+                            q.title || "Pregunta sin título"
+                          }`}
+                        </option>
+                      ))}
+                  </select>
+                  {question.pathSourceQuestionId && (
+                    <p className="text-xs text-blue-700">
+                      Esta pregunta seguirá el mismo camino que la pregunta
+                      seleccionada y se mostrará a continuación.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 flex justify-end gap-3">

@@ -72,22 +72,16 @@ const QUESTION_TYPE_ICONS = {
 function findParentInfo(targetId, allQuestions) {
   if (!allQuestions || !Array.isArray(allQuestions)) return null;
 
-  // Verificar si la pregunta objetivo tiene showCondition
   const targetQuestion = allQuestions.find((q) => q.id === targetId);
-  if (targetQuestion?.showCondition?.parentQuestionId) {
-    const parentQuestion = allQuestions.find(
-      (q) => q.id === targetQuestion.showCondition.parentQuestionId
-    );
-    if (parentQuestion) {
-      // Buscar el índice de la opción requerida
-      const optionIndex =
-        parentQuestion.options?.findIndex(
-          (opt) => opt.id === targetQuestion.showCondition.requiredValue
-        ) ?? -1;
-
+  if (targetQuestion && targetQuestion.showCondition) {
+    const sc = targetQuestion.showCondition;
+    const parentId = Array.isArray(sc.rules)
+      ? sc.rules[0]?.parentQuestionId
+      : sc.parentQuestionId;
+    if (parentId) {
       return {
-        parentId: parentQuestion.id,
-        optionIndex: optionIndex >= 0 ? optionIndex : 0,
+        parentId,
+        optionIndex: 0,
       };
     }
   }
@@ -103,9 +97,28 @@ function calculateQuestionNumbers(questions) {
 
   // Función helper para verificar si una pregunta es hija
   const findParentForQuestion = (question) => {
-    // Verificar showCondition
-    if (question.showCondition && question.showCondition.parentQuestionId) {
-      return question.showCondition.parentQuestionId;
+    // 1) Si tiene camino: hereda el padre de la pregunta fuente
+    if (question.pathSourceQuestionId) {
+      const source = questions.find(
+        (q) => q.id === question.pathSourceQuestionId
+      );
+      if (source) {
+        // Padre del source según sus reglas
+        if (source.showCondition) {
+          if (Array.isArray(source.showCondition.rules)) {
+            return source.showCondition.rules[0]?.parentQuestionId || null;
+          }
+          return source.showCondition.parentQuestionId || null;
+        }
+      }
+    }
+
+    // 2) Formato nuevo/antiguo
+    if (question.showCondition) {
+      if (Array.isArray(question.showCondition.rules)) {
+        return question.showCondition.rules[0]?.parentQuestionId || null;
+      }
+      return question.showCondition.parentQuestionId || null;
     }
     return null;
   };
@@ -160,12 +173,12 @@ function calculateQuestionNumbers(questions) {
 
 // Función para determinar si una pregunta es condicional
 function isConditionalQuestion(question) {
-  // Tiene showCondition
-  if (question.showCondition && question.showCondition.parentQuestionId) {
-    return true;
-  }
-
-  return false;
+  // Si sigue un camino, no mostrar como condicional (la visibilidad se hereda)
+  if (question.pathSourceQuestionId) return false;
+  if (!question.showCondition) return false;
+  const sc = question.showCondition;
+  if (Array.isArray(sc.rules)) return sc.rules.length > 0;
+  return Boolean(sc.parentQuestionId);
 }
 
 export default function QuestionEditor({
@@ -406,20 +419,72 @@ export default function QuestionEditor({
 
           // Información sobre el padre si es hijo condicional
           let parentInfoText = "";
+          let parentInfoBlock = null;
           if (parentInfo) {
             const parentQuestion = questions.find(
               (q) => q.id === parentInfo.parentId
             );
             if (parentQuestion) {
               const parentNumber = questionNumberMap[parentQuestion.id] || "?";
-              const requiredOption = parentQuestion.options?.find(
-                (opt) => opt.id === question.showCondition?.requiredValue
-              );
-              const optionText =
-                requiredOption?.text ||
-                question.showCondition?.requiredValue ||
-                "valor desconocido";
-              parentInfoText = `Se muestra si en P${parentNumber} se elige "${optionText}"`;
+              // Resumen basado en reglas
+              const sc = question.showCondition || {};
+              if (Array.isArray(sc.rules) && sc.rules.length > 0) {
+                const opLabel = {
+                  equals: "es igual a",
+                  contains: "contiene",
+                  gt: "mayor que",
+                  gte: "mayor o igual que",
+                  lt: "menor que",
+                  lte: "menor o igual que",
+                };
+                const ruleTexts = sc.rules.map((r) => {
+                  const parentOfRule = questions.find(
+                    (q) => q.id === r.parentQuestionId
+                  );
+                  const resolveText = (val) => {
+                    const t = parentOfRule?.options?.find(
+                      (opt) => String(opt.id) === String(val)
+                    )?.text;
+                    return t || val;
+                  };
+                  const label =
+                    opLabel[r.operator] || r.operator || "es igual a";
+                  if (r.operator === "contains") {
+                    const vals = Array.isArray(r.values)
+                      ? r.values
+                      : [r.values];
+                    const texts = vals
+                      .filter((v) => v !== undefined && v !== null && v !== "")
+                      .map((v) => resolveText(v));
+                    return `${label} ${texts.join(", ")}`;
+                  }
+                  const v = Array.isArray(r.values) ? r.values[0] : r.values;
+                  return `${label} ${resolveText(v)}`;
+                });
+                const logicText =
+                  (sc.logic || "or").toLowerCase() === "and"
+                    ? "todas (AND)"
+                    : "cualquiera (OR)";
+                parentInfoBlock = (
+                  <div className="text-xs mt-1 text-green-600">
+                    <div>↳ Se muestra si: {logicText}</div>
+                    <ul className="list-disc ml-5">
+                      {ruleTexts.map((t, i) => (
+                        <li key={i}>{t}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              } else if (sc.parentQuestionId) {
+                const requiredOption = parentQuestion.options?.find(
+                  (opt) => opt.id === sc.requiredValue
+                );
+                const optionText =
+                  requiredOption?.text ||
+                  sc.requiredValue ||
+                  "valor desconocido";
+                parentInfoText = `Se muestra si en P${parentNumber} se elige "${optionText}"`;
+              }
             }
           }
 
@@ -510,9 +575,18 @@ export default function QuestionEditor({
                         </p>
                       )}
                       {/* Mostrar información del padre si existe */}
-                      {parentInfoText && (
-                        <p className="text-xs mt-1 text-green-600">
-                          ↳ {parentInfoText}
+                      {parentInfoBlock
+                        ? parentInfoBlock
+                        : parentInfoText && (
+                            <p className="text-xs mt-1 text-green-600">
+                              ↳ {parentInfoText}
+                            </p>
+                          )}
+                      {question.pathSourceQuestionId && (
+                        <p className="text-xs mt-1 text-blue-700">
+                          Camino: sigue a{" "}
+                          {questionNumberMap[question.pathSourceQuestionId] ||
+                            "?"}
                         </p>
                       )}
                     </div>

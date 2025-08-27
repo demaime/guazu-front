@@ -751,7 +751,6 @@ export default function SurveyResponderStable() {
         title="Abandonar encuesta"
         confirmText="Salir sin guardar"
         cancelText="Seguir contestando"
-        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
       >
         <p>Si abandonas ahora, perderás el progreso de esta encuesta.</p>
       </ConfirmModal>

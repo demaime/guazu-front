@@ -141,19 +141,14 @@ class AuthService {
     }
   }
 
-  async register(name, lastName, email, password) {
+  async register(payload) {
     try {
       const response = await fetch(AUTH_ROUTES.REGISTER, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          lastName,
-          email,
-          password,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -162,6 +157,8 @@ class AuthService {
         const errorMessage =
           data.validation?.email ||
           data.validation?.password ||
+          data.validation?.dni ||
+          data.validation?.city ||
           data.message ||
           "Error en el registro";
         throw new Error(errorMessage);

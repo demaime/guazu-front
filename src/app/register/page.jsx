@@ -15,6 +15,10 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    dni: "",
+    city: "",
+    province: "",
+    cellular: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,9 +32,18 @@ export default function RegisterPage() {
   };
 
   const validateForm = () => {
-    const { name, lastName, email, password, confirmPassword } = formData;
+    const { name, lastName, email, password, confirmPassword, dni, city } =
+      formData;
     if (!name || !lastName || !email || !password || !confirmPassword) {
       setError("Todos los campos son obligatorios.");
+      return false;
+    }
+    if (!dni || isNaN(Number(dni)) || Number(dni) <= 0) {
+      setError("El DNI es obligatorio y debe ser un número válido.");
+      return false;
+    }
+    if (!city || String(city).trim() === "") {
+      setError("La localidad es obligatoria.");
       return false;
     }
     if (password !== confirmPassword) {
@@ -62,12 +75,17 @@ export default function RegisterPage() {
     setSuccessMessage("");
 
     try {
-      await authService.register(
-        formData.name,
-        formData.lastName,
-        formData.email,
-        formData.password
-      );
+      const payload = {
+        name: formData.name,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        dni: Number(formData.dni),
+        city: formData.city,
+        province: formData.province,
+        cellular: formData.cellular,
+      };
+      await authService.register(payload);
       // Mensaje de éxito basado en la funcionalidad antigua
       setSuccessMessage(
         "¡Cuenta creada! Revisa tu email para activar la cuenta."
@@ -80,6 +98,10 @@ export default function RegisterPage() {
         email: "",
         password: "",
         confirmPassword: "",
+        dni: "",
+        city: "",
+        province: "",
+        cellular: "",
       }); // Limpiar formulario
     } catch (err) {
       setError(err.message || "Ocurrió un error durante el registro.");
@@ -110,7 +132,7 @@ export default function RegisterPage() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="w-full max-w-md p-8 space-y-6 bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl"
+        className="w-full max-w-lg md:max-w-2xl p-8 space-y-6 bg-white/10 backdrop-blur-lg rounded-xl shadow-2xl"
       >
         <motion.h2
           variants={itemVariants}
@@ -194,42 +216,108 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
               />
-            </div>
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-white uppercase"
-              >
-                Contraseña
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
-                placeholder="Ingrese su contraseña"
-                value={formData.password}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-white uppercase"
-              >
-                Confirmar Contraseña
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
-                placeholder="Confirme su contraseña"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="dni"
+                    className="block text-sm font-medium text-white uppercase"
+                  >
+                    DNI
+                  </label>
+                  <input
+                    id="dni"
+                    name="dni"
+                    type="number"
+                    required
+                    className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                    placeholder="Ingrese su DNI"
+                    value={formData.dni}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="city"
+                    className="block text-sm font-medium text-white uppercase"
+                  >
+                    Localidad
+                  </label>
+                  <input
+                    id="city"
+                    name="city"
+                    type="text"
+                    required
+                    className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                    placeholder="Ingrese su localidad"
+                    value={formData.city}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-white uppercase">
+                    Provincia
+                  </label>
+                  <input
+                    name="province"
+                    type="text"
+                    className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                    value={formData.province}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-white uppercase">
+                    Celular
+                  </label>
+                  <input
+                    name="cellular"
+                    type="tel"
+                    className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                    value={formData.cellular}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-white uppercase"
+                >
+                  Contraseña
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                  placeholder="Ingrese su contraseña"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-white uppercase"
+                >
+                  Confirmar Contraseña
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  required
+                  className="mt-1 mb-4 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                  placeholder="Confirme su contraseña"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
 
             {error && (

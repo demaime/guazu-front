@@ -778,44 +778,223 @@ export default function NuevaEncuesta({
           if (!element) return; // Skip if element is undefined
 
           const originalQuestionId = element.name;
-          const visibilityConditions = [];
+          let builtVisibleIf = "";
 
-          // Buscar si esta pregunta es destino de alguna condición
           if (surveyData.questions && Array.isArray(surveyData.questions)) {
-            // Buscar si esta pregunta tiene showCondition
             const currentQuestion = surveyData.questions.find(
               (q) => q.id === originalQuestionId
             );
-            if (
-              currentQuestion &&
-              currentQuestion.showCondition &&
-              currentQuestion.showCondition.parentQuestionId
-            ) {
-              const parentId = currentQuestion.showCondition.parentQuestionId;
-              const requiredValue = currentQuestion.showCondition.requiredValue;
 
-              // Encontrar la pregunta padre para determinar el operador
-              const parentQuestion = surveyData.questions.find(
-                (q) => q.id === parentId
-              );
-              if (parentQuestion) {
+            const escapeValue = (val) => String(val).replace(/'/g, "\\'");
+            const isNumeric = (val) =>
+              typeof val === "number" ||
+              (typeof val === "string" &&
+                val.trim() !== "" &&
+                !isNaN(Number(val)));
+
+            if (currentQuestion) {
+              const sc = currentQuestion.showCondition;
+              // Nuevo formato con rules
+              if (sc && Array.isArray(sc.rules) && sc.rules.length > 0) {
+                const groupLogic =
+                  (sc.logic || "or").toLowerCase() === "and" ? "and" : "or";
+                const ruleExpressions = sc.rules
+                  .map((rule) => {
+                    if (!rule || !rule.parentQuestionId) return null;
+                    const parentId = rule.parentQuestionId;
+                    const parentQuestion = surveyData.questions.find(
+                      (q) => q.id === parentId
+                    );
+                    const operatorMap = {
+                      equals: "=",
+                      gt: ">",
+                      gte: ">=",
+                      lt: "<",
+                      lte: "<=",
+                      contains: "contains",
+                    };
+                    let op =
+                      operatorMap[rule.operator] ||
+                      (parentQuestion &&
+                      (parentQuestion.type === "multiple_choice" ||
+                        parentQuestion.type === "checkbox")
+                        ? "contains"
+                        : "=");
+                    const values = Array.isArray(rule.values)
+                      ? rule.values
+                      : [rule.values];
+
+                    const isNumericOp =
+                      op === ">" || op === ">=" || op === "<" || op === "<=";
+                    const parentHasOptions =
+                      Array.isArray(parentQuestion?.options) &&
+                      parentQuestion.options.length > 0;
+                    const parentOptionsAreNumeric = parentHasOptions
+                      ? parentQuestion.options.every(
+                          (opt) => !isNaN(Number(opt?.text))
+                        )
+                      : false;
+                    const parentIsMultiple =
+                      parentQuestion &&
+                      (parentQuestion.type === "multiple_choice" ||
+                        parentQuestion.type === "checkbox");
+                    const parentIsSingle =
+                      parentQuestion && parentQuestion.type === "single_choice";
+
+                    let valueExprs = [];
+                    if (
+                      isNumericOp &&
+                      parentHasOptions &&
+                      parentOptionsAreNumeric &&
+                      (parentIsMultiple || parentIsSingle)
+                    ) {
+                      const thresholdRaw = values.find(
+                        (v) => v !== undefined && v !== null && v !== ""
+                      );
+                      const threshold = Number(thresholdRaw);
+                      if (!isNaN(threshold)) {
+                        const qualifies = parentQuestion.options.filter(
+                          (opt) => {
+                            const n = Number(opt.text);
+                            switch (op) {
+                              case ">":
+                                return n > threshold;
+                              case ">=":
+                                return n >= threshold;
+                              case "<":
+                                return n < threshold;
+                              case "<=":
+                                return n <= threshold;
+                              default:
+                                return false;
+                            }
+                          }
+                        );
+                        valueExprs = qualifies.map(
+                          (opt) =>
+                            `\{${parentId}\} ${
+                              parentIsMultiple ? "contains" : "="
+                            } '${escapeValue(opt.id)}'`
+                        );
+                      }
+                    } else {
+                      valueExprs = values
+                        .filter(
+                          (v) => v !== undefined && v !== null && v !== ""
+                        )
+                        .map((v) => {
+                          if (op === "contains")
+                            return `\{${parentId}\} contains '${escapeValue(
+                              v
+                            )}'`;
+                          const literal = isNumeric(v)
+                            ? String(Number(v))
+                            : `'${escapeValue(v)}'`;
+                          return `\{${parentId}\} ${op} ${literal}`;
+                        });
+                    }
+                    if (valueExprs.length === 0) return null;
+                    return valueExprs.length > 1
+                      ? `(${valueExprs.join(" or ")})`
+                      : `(${valueExprs[0]})`;
+                  })
+                  .filter(Boolean);
+                if (ruleExpressions.length > 0)
+                  builtVisibleIf = ruleExpressions.join(` ${groupLogic} `);
+              } else if (sc && sc.parentQuestionId) {
+                // Formato antiguo
+                const parentId = sc.parentQuestionId;
+                const parentQuestion = surveyData.questions.find(
+                  (q) => q.id === parentId
+                );
                 let operator = "=";
-                if (parentQuestion.type === "multiple_choice") {
+                if (
+                  parentQuestion &&
+                  (parentQuestion.type === "multiple_choice" ||
+                    parentQuestion.type === "checkbox")
+                )
                   operator = "contains";
-                } else if (parentQuestion.type === "checkbox") {
-                  operator = "contains";
-                }
+                const literal = isNumeric(sc.requiredValue)
+                  ? String(Number(sc.requiredValue))
+                  : `'${escapeValue(sc.requiredValue)}'`;
+                builtVisibleIf = `\{${parentId}\} ${operator} ${literal}`;
+              }
 
-                // Construir la condición
-                const condition = `{${parentId}} ${operator} '${requiredValue}'`;
-                visibilityConditions.push(condition);
+              // Herencia de camino si no hay reglas propias
+              if (!builtVisibleIf && currentQuestion.pathSourceQuestionId) {
+                const sourceId = currentQuestion.pathSourceQuestionId;
+                const srcElement = surveyJSElements.find(
+                  (el) => el && el.name === sourceId
+                );
+                if (srcElement && srcElement.visibleIf) {
+                  builtVisibleIf = srcElement.visibleIf;
+                } else {
+                  const srcQ = surveyData.questions.find(
+                    (q) => q.id === sourceId
+                  );
+                  const sc2 = srcQ?.showCondition;
+                  if (sc2 && Array.isArray(sc2.rules) && sc2.rules.length > 0) {
+                    const groupLogic2 =
+                      (sc2.logic || "or").toLowerCase() === "and"
+                        ? "and"
+                        : "or";
+                    const exprs2 = sc2.rules
+                      .map((rule) => {
+                        if (!rule || !rule.parentQuestionId) return null;
+                        const parentId = rule.parentQuestionId;
+                        const parentQuestion = surveyData.questions.find(
+                          (q) => q.id === parentId
+                        );
+                        const operatorMap = {
+                          equals: "=",
+                          gt: ">",
+                          gte: ">=",
+                          lt: "<",
+                          lte: "<=",
+                          contains: "contains",
+                        };
+                        let op =
+                          operatorMap[rule.operator] ||
+                          (parentQuestion &&
+                          (parentQuestion.type === "multiple_choice" ||
+                            parentQuestion.type === "checkbox")
+                            ? "contains"
+                            : "=");
+                        const values = Array.isArray(rule.values)
+                          ? rule.values
+                          : [rule.values];
+                        const parts = values
+                          .filter(
+                            (v) => v !== undefined && v !== null && v !== ""
+                          )
+                          .map((v) => {
+                            if (op === "contains")
+                              return `\{${parentId}\} contains '${escapeValue(
+                                v
+                              )}'`;
+                            const literal = isNumeric(v)
+                              ? String(Number(v))
+                              : `'${escapeValue(v)}'`;
+                            return `\{${parentId}\} ${op} ${literal}`;
+                          });
+                        if (parts.length === 0) return null;
+                        return parts.length > 1
+                          ? `(${parts.join(" or ")})`
+                          : `(${parts[0]})`;
+                      })
+                      .filter(Boolean);
+                    if (exprs2.length > 0)
+                      builtVisibleIf = exprs2.join(` ${groupLogic2} `);
+                  }
+                }
+                // Guardar metadato de camino
+                element.pathSourceQuestionId = sourceId;
               }
             }
           }
 
-          // Si se encontraron condiciones, unirlas con OR y asignarlas
-          if (visibilityConditions.length > 0) {
-            element.visibleIf = visibilityConditions.join(" or ");
+          if (builtVisibleIf) {
+            element.visibleIf = builtVisibleIf;
           }
         });
       }
@@ -1860,7 +2039,6 @@ export default function NuevaEncuesta({
           title="Confirmar cancelación"
           confirmText="Salir sin guardar"
           cancelText="Permanecer"
-          confirmButtonClass="bg-red-500 text-white hover:bg-red-600"
         >
           <p>
             ¿Estás seguro que deseas salir? Los cambios no guardados se
@@ -1944,7 +2122,6 @@ export default function NuevaEncuesta({
         title="Error de Validación"
         confirmText="Aceptar"
         showCancelButton={false}
-        confirmButtonClass="btn-primary"
       >
         <p>{validationErrorMessage}</p>
       </ConfirmModal>

@@ -9,7 +9,6 @@ export function ConfirmModal({
   children,
   confirmText = "Confirmar",
   cancelText = "Cancelar",
-  confirmButtonClass,
   showCancelButton = true,
   isLoading = false,
 }) {
@@ -70,9 +69,7 @@ export function ConfirmModal({
             <button
               onClick={onConfirm}
               disabled={isLoading}
-              className={`px-4 py-2 rounded-md ${
-                confirmButtonClass || "bg-red-600 hover:bg-red-700 text-white"
-              } transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
+              className={`px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               {confirmText}

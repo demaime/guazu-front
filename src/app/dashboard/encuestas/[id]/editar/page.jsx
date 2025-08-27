@@ -70,45 +70,77 @@ export default function EditarEncuesta() {
     return "";
   };
 
-  // Función para analizar las condiciones visibleIf y extraer las relaciones de preguntas
+  // Función para analizar visibleIf y reconstruir showCondition { logic, rules }
   const parseVisibleIfConditions = (elements) => {
-    // Mapa para almacenar las relaciones: { questionId: { parentId, optionValue } }
-    const conditionalRelations = {};
+    const map = {}; // { questionId: showCondition }
 
-    // Analizar cada elemento para encontrar condiciones visibleIf
+    const condRegex =
+      /\{([^}]+)\}\s*(contains|=|!=|>=|<=|>|<)\s*(?:'([^']*)'|([0-9]+(?:\.[0-9]+)?))/g;
+
     elements.forEach((element) => {
-      if (element.visibleIf) {
-        try {
-          // Las condiciones visibleIf tienen formato "{parentId} operator 'optionValue'"
-          // o pueden ser múltiples condiciones separadas por "or"
-          const conditions = element.visibleIf.split(" or ");
+      // Si la pregunta sigue un camino, NO reconstruimos reglas: su visibilidad es heredada
+      if (element?.pathSourceQuestionId) {
+        return;
+      }
+      const expr = element.visibleIf;
+      if (!expr || typeof expr !== "string") return;
 
-          // Tomamos la primera condición para simplificar (podría mejorarse para manejar múltiples)
-          const condition = conditions[0].trim();
-
-          // Extraer parentId y optionValue
-          const regex = /\{([^}]+)\}\s*(=|contains)\s*'([^']+)'/;
-          const match = condition.match(regex);
-
-          if (match) {
-            const [_, parentId, operator, optionValue] = match;
-            conditionalRelations[element.name] = {
-              parentId,
-              optionValue,
-              operator,
-            };
-          }
-        } catch (err) {
-          console.warn(
-            "Error parsing visibleIf condition:",
-            element.visibleIf,
-            err
-          );
+      try {
+        // Determinar la lógica de grupo de forma simple
+        let logic = "or";
+        const hasAnd = expr.toLowerCase().includes(" and ");
+        const hasOr = expr.toLowerCase().includes(" or ");
+        if (hasAnd && !hasOr) logic = "and";
+        if (!hasAnd && hasOr) logic = "or";
+        if (hasAnd && hasOr) {
+          // Mezcla: por simplicidad asumimos AND (se podrá ajustar manualmente en UI)
+          logic = "and";
         }
+
+        // Extraer todas las condiciones atómicas SIN agrupar por parentId/operator
+        // para que cada cláusula del visibleIf se refleje como una regla independiente.
+        const rules = [];
+        let m;
+        while ((m = condRegex.exec(expr)) !== null) {
+          const parentId = m[1];
+          const operator = m[2];
+          const strVal = m[3];
+          const numVal = m[4];
+          const value = numVal !== undefined ? Number(numVal) : strVal;
+          if (
+            parentId &&
+            operator &&
+            (strVal !== undefined || numVal !== undefined)
+          ) {
+            const opMap = {
+              contains: "contains",
+              "=": "equals",
+              "!=": "equals", // no soportado en UI
+              ">": "gt",
+              ">=": "gte",
+              "<": "lt",
+              "<=": "lte",
+            };
+            const norm = opMap[operator] || "equals";
+            rules.push({
+              parentQuestionId: parentId,
+              operator: norm,
+              values:
+                value !== undefined && value !== null && value !== ""
+                  ? [value]
+                  : [],
+            });
+          }
+        }
+        if (rules.length > 0) {
+          map[element.name] = { logic, rules };
+        }
+      } catch (err) {
+        console.warn("Error parsing visibleIf condition:", expr, err);
       }
     });
 
-    return conditionalRelations;
+    return map;
   };
 
   // Función para aplanar el árbol en el orden correcto
@@ -249,16 +281,20 @@ export default function EditarEncuesta() {
 
   // Procesar las preguntas primero para mantener referencias
   const processedQuestions = elements.map((question) => {
-    // Buscar si esta pregunta tiene una condición para ser mostrada
-    const conditionalRelation = conditionalRelations[question.name];
-    let showCondition = null;
-
-    if (conditionalRelation) {
-      showCondition = {
-        parentQuestionId: conditionalRelation.parentId,
-        requiredValue: conditionalRelation.optionValue,
-      };
-    }
+    // Reconstruir showCondition si existe visibleIf
+    const showCondition = conditionalRelations[question.name] || null;
+    // Restaurar metadato de camino si viene en el JSON de SurveyJS
+    const pathSourceQuestionId = question.pathSourceQuestionId || "";
+    try {
+      if (pathSourceQuestionId) {
+        console.log(
+          "[Editor] pathSourceQuestionId detectado",
+          question.name,
+          "->",
+          pathSourceQuestionId
+        );
+      }
+    } catch {}
 
     return {
       id: question.name,
@@ -275,6 +311,7 @@ export default function EditarEncuesta() {
       ...(showCondition && { showCondition }),
       // Inicialmente, marca como no condicional - actualizaremos después
       isConditional: false,
+      pathSourceQuestionId,
       options: (question.choices || []).map((choice) => ({
         id: choice.value || choice.id,
         text: getLocalizedText(choice.text),
@@ -293,25 +330,7 @@ export default function EditarEncuesta() {
     };
   });
 
-  // Ahora, configurar las relaciones condicionales
-  Object.entries(conditionalRelations).forEach(([childId, relation]) => {
-    const parentQuestion = processedQuestions.find(
-      (q) => q.id === relation.parentId
-    );
-    if (parentQuestion) {
-      // Marcar la pregunta padre como condicional
-      parentQuestion.isConditional = true;
-
-      // Encontrar la opción correcta y establecer nextQuestionId
-      const optionIndex = parentQuestion.options.findIndex(
-        (opt) => opt.id === relation.optionValue
-      );
-
-      if (optionIndex !== -1) {
-        parentQuestion.options[optionIndex].nextQuestionId = childId;
-      }
-    }
-  });
+  // Relaciones condicionales para jerarquía: omitimos enlace explícito (puede no ser árbol)
 
   // Crear la estructura jerárquica y obtener la numeración
   const { numberMap } = createHierarchicalStructure(processedQuestions);
@@ -342,7 +361,6 @@ export default function EditarEncuesta() {
     questions: processedQuestions,
     quotas: survey.surveyInfo?.quotas || [],
   };
-
 
   return (
     <NuevaEncuesta

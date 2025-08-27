@@ -22,9 +22,7 @@ export default function PerfilPage() {
     lastName: "",
     email: "",
     phone: "",
-    address: "",
-    addressNumber: "",
-    addressUnity: "",
+    // address fields removidos de UI, mantenemos city y province
     birthDate: "",
     cellular: "",
     city: "",
@@ -34,7 +32,6 @@ export default function PerfilPage() {
     section: "",
     study: "",
     workHistory: "",
-    aboutSurvey: "",
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -197,6 +194,18 @@ export default function PerfilPage() {
               study: userData?.study || "",
               workHistory: userData?.workHistory || "",
               aboutSurvey: userData?.aboutSurvey || "",
+              obs: userData?.obs || "",
+              skill: userData?.skill || "",
+              avg: userData?.avg ?? "",
+              quotaF: userData?.quotaF ?? "",
+              quotaM: userData?.quotaM ?? "",
+              quotaTarget: userData?.quotaTarget ?? "",
+              quotaRangeAge: userData?.quotaRangeAge ?? "",
+              quotaRangeAge2: userData?.quotaRangeAge2 ?? "",
+              quotaRangeAge3: userData?.quotaRangeAge3 ?? "",
+              quotaRangeAge4: userData?.quotaRangeAge4 ?? "",
+              quotaRangeAge5: userData?.quotaRangeAge5 ?? "",
+              quotaRangeAge6: userData?.quotaRangeAge6 ?? "",
             };
             setFormData(initialFormData);
             setOriginalFormData(initialFormData);
@@ -226,6 +235,18 @@ export default function PerfilPage() {
             study: updatedUser?.study || "",
             workHistory: updatedUser?.workHistory || "",
             aboutSurvey: updatedUser?.aboutSurvey || "",
+            obs: updatedUser?.obs || "",
+            skill: updatedUser?.skill || "",
+            avg: updatedUser?.avg ?? "",
+            quotaF: updatedUser?.quotaF ?? "",
+            quotaM: updatedUser?.quotaM ?? "",
+            quotaTarget: updatedUser?.quotaTarget ?? "",
+            quotaRangeAge: updatedUser?.quotaRangeAge ?? "",
+            quotaRangeAge2: updatedUser?.quotaRangeAge2 ?? "",
+            quotaRangeAge3: updatedUser?.quotaRangeAge3 ?? "",
+            quotaRangeAge4: updatedUser?.quotaRangeAge4 ?? "",
+            quotaRangeAge5: updatedUser?.quotaRangeAge5 ?? "",
+            quotaRangeAge6: updatedUser?.quotaRangeAge6 ?? "",
           };
           setFormData(initialFormData);
           setOriginalFormData(initialFormData);
@@ -261,6 +282,18 @@ export default function PerfilPage() {
             study: userData?.study || "",
             workHistory: userData?.workHistory || "",
             aboutSurvey: userData?.aboutSurvey || "",
+            obs: userData?.obs || "",
+            skill: userData?.skill || "",
+            avg: userData?.avg ?? "",
+            quotaF: userData?.quotaF ?? "",
+            quotaM: userData?.quotaM ?? "",
+            quotaTarget: userData?.quotaTarget ?? "",
+            quotaRangeAge: userData?.quotaRangeAge ?? "",
+            quotaRangeAge2: userData?.quotaRangeAge2 ?? "",
+            quotaRangeAge3: userData?.quotaRangeAge3 ?? "",
+            quotaRangeAge4: userData?.quotaRangeAge4 ?? "",
+            quotaRangeAge5: userData?.quotaRangeAge5 ?? "",
+            quotaRangeAge6: userData?.quotaRangeAge6 ?? "",
           };
           setFormData(initialFormData);
           setOriginalFormData(initialFormData);
@@ -373,13 +406,33 @@ export default function PerfilPage() {
         throw new Error("Usuario o token no disponible");
       }
 
-      // Preparar los datos a actualizar
-      const updateData = {
-        name: formData.name,
-        lastName: formData.lastName,
-        email: formData.email,
-        cellular: formData.cellular,
-      };
+      // Preparar los datos a actualizar (todos los campos del modelo presentes en el formulario)
+      const updateData = { ...formData };
+      // Normalizar tipos numéricos si vienen como string
+      [
+        "dni",
+        "addressNumber",
+        "avg",
+        "quotaF",
+        "quotaM",
+        "quotaTarget",
+        "quotaRangeAge",
+        "quotaRangeAge2",
+        "quotaRangeAge3",
+        "quotaRangeAge4",
+        "quotaRangeAge5",
+        "quotaRangeAge6",
+      ].forEach((k) => {
+        if (
+          updateData[k] !== "" &&
+          updateData[k] !== null &&
+          updateData[k] !== undefined
+        ) {
+          updateData[k] = Number(updateData[k]);
+        } else {
+          delete updateData[k];
+        }
+      });
 
       // Si hay una nueva imagen, agregarla como base64
       if (imageBase64) {
@@ -617,29 +670,78 @@ export default function PerfilPage() {
                 )}
               </div>
 
-              {/* Dirección */}
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                  Dirección
-                </label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) =>
-                      setFormData({ ...formData, address: e.target.value })
-                    }
-                    className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  />
-                ) : (
-                  <div className="flex items-center">
-                    <MapPin className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
-                    <span className="text-[var(--text-primary)]">
-                      {user?.address || "No especificada"}
-                    </span>
-                  </div>
-                )}
+              {/* DNI y Localidad */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    DNI
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={formData.dni}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dni: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    />
+                  ) : (
+                    <div className="flex items-center">
+                      <span className="text-[var(--text-primary)]">
+                        {user?.dni || "Sin DNI"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Localidad
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) =>
+                        setFormData({ ...formData, city: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    />
+                  ) : (
+                    <div className="flex items-center">
+                      <span className="text-[var(--text-primary)]">
+                        {user?.city || "Sin localidad"}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Provincia */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Provincia
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={formData.province}
+                      onChange={(e) =>
+                        setFormData({ ...formData, province: e.target.value })
+                      }
+                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    />
+                  ) : (
+                    <div className="flex items-center">
+                      <span className="text-[var(--text-primary)]">
+                        {user?.province || ""}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Se eliminaron Unidad y Sección */}
 
               {/* Botón de guardar - se muestra cuando hay cambios pendientes */}
               {hasUnsavedChanges && (
@@ -680,7 +782,6 @@ export default function PerfilPage() {
             title="Eliminar Foto de Perfil"
             confirmText="Eliminar"
             cancelText="Cancelar"
-            confirmButtonClass="bg-red-500 text-white hover:bg-red-600"
           >
             ¿Estás seguro de que quieres eliminar tu foto de perfil?
           </ConfirmModal>

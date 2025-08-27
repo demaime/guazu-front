@@ -1358,7 +1358,6 @@ export default function Encuestas() {
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
         title="Confirmar Eliminación"
-        confirmButtonClass="bg-red-600 hover:bg-red-700" // Tailwind classes
         isLoading={isConfirmLoading}
       >
         <p>
@@ -1371,7 +1370,6 @@ export default function Encuestas() {
         onClose={() => setShowPublishModal(false)}
         onConfirm={confirmPublish}
         title="Confirmar Publicación"
-        confirmButtonClass="bg-green-600 hover:bg-green-700" // Tailwind classes
         isLoading={isConfirmLoading}
       >
         <p>
