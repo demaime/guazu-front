@@ -278,7 +278,41 @@ export default function QuestionEditor({
         updatedQuestions[index] = question;
       }
     } else {
-      updatedQuestions.push(question);
+      // Inserción inteligente: si es condicional, colocarlo después del padre (o del último hijo del mismo padre)
+      const getParentId = (q) => {
+        const sc = q?.showCondition;
+        if (!sc) return "";
+        if (Array.isArray(sc.rules)) return sc.rules[0]?.parentQuestionId || "";
+        return sc.parentQuestionId || "";
+      };
+
+      const parentId = getParentId(question);
+      if (parentId) {
+        const parentIndex = updatedQuestions.findIndex(
+          (q) => q.id === parentId
+        );
+        if (parentIndex !== -1) {
+          // Buscar el último hijo existente de ese padre
+          let insertIndex = parentIndex + 1;
+          for (let i = parentIndex + 1; i < updatedQuestions.length; i++) {
+            const sibling = updatedQuestions[i];
+            const siblingParentId = getParentId(sibling);
+            if (siblingParentId === parentId) {
+              insertIndex = i + 1; // insertar después del último hijo encontrado
+            } else if (siblingParentId && siblingParentId !== parentId) {
+              // otro subárbol, detenemos si ya pasamos la zona de hijos contiguos
+              // (no estricto, solo evita saltar demasiado más allá)
+            }
+          }
+          updatedQuestions.splice(insertIndex, 0, question);
+        } else {
+          // Si no encontramos al padre, agregar al final como fallback
+          updatedQuestions.push(question);
+        }
+      } else {
+        // No condicional: agregar al final
+        updatedQuestions.push(question);
+      }
     }
     onChange(updatedQuestions);
     setShowModal(false);

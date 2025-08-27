@@ -943,6 +943,20 @@ export default function QuestionModal({
                         <option value="and">todas (AND)</option>
                         <option value="or">cualquiera (OR)</option>
                       </select>
+                      {(() => {
+                        const gl = (
+                          question.showCondition?.logic || "or"
+                        ).toLowerCase();
+                        const txt =
+                          gl === "and"
+                            ? "Todas las siguientes reglas deben cumplirse"
+                            : "Al menos una de las siguientes reglas debe cumplirse";
+                        return (
+                          <span className="text-xs text-[var(--text-muted)]">
+                            {txt}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Reglas */}
@@ -1060,9 +1074,6 @@ export default function QuestionModal({
                                       <option value="contains">contiene</option>
                                       <option value="not_contains">
                                         no contiene
-                                      </option>
-                                      <option value="contains_all">
-                                        contiene todos
                                       </option>
                                       <option value="exactly">
                                         exactamente estos
