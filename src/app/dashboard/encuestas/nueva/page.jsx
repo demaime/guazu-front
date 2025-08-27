@@ -651,30 +651,6 @@ export default function NuevaEncuesta({
                       }))
                     : [];
                 break;
-              case "date":
-                element.type = "text";
-                element.inputType = "date";
-                break;
-              case "time":
-                element.type = "text";
-                element.inputType = "time";
-                break;
-              case "email":
-                element.type = "text";
-                element.inputType = "email";
-                // Opcional: validador de email
-                element.validators = [{ type: "email" }];
-                break;
-              case "number":
-                element.type = "text";
-                element.inputType = "number";
-                // Opcional: validador numérico
-                element.validators = [{ type: "numeric" }];
-                break;
-              case "phone":
-                element.type = "text";
-                element.inputType = "tel";
-                break;
               case "checkbox": // Nuestro tipo Checkbox (que es diferente de multiple_choice)
                 element.type = "checkbox"; // Mapea directamente
                 element.choices =
@@ -755,28 +731,6 @@ export default function NuevaEncuesta({
                       }))
                     : [];
                 break;
-              case "date":
-                element.type = "text";
-                element.inputType = "date";
-                break;
-              case "time":
-                element.type = "text";
-                element.inputType = "time";
-                break;
-              case "email":
-                element.type = "text";
-                element.inputType = "email";
-                element.validators = [{ type: "email" }];
-                break;
-              case "number":
-                element.type = "text";
-                element.inputType = "number";
-                element.validators = [{ type: "numeric" }];
-                break;
-              case "phone":
-                element.type = "text";
-                element.inputType = "tel";
-                break;
               case "checkbox":
                 element.type = "checkbox";
                 element.choices =
@@ -853,15 +807,11 @@ export default function NuevaEncuesta({
                     );
                     const operatorMap = {
                       equals: "=",
-                      not_equals: "!=",
                       gt: ">",
                       gte: ">=",
                       lt: "<",
                       lte: "<=",
                       contains: "contains",
-                      not_contains: "notcontains",
-                      contains_all: "contains_all", // handled specially
-                      exactly: "exactly", // handled specially
                     };
                     let op =
                       operatorMap[rule.operator] ||
@@ -928,76 +878,24 @@ export default function NuevaEncuesta({
                         );
                       }
                     } else {
-                      // Non-numeric operators on options or free values
-                      if (op === "notcontains") {
-                        valueExprs = values
-                          .filter(
-                            (v) => v !== undefined && v !== null && v !== ""
-                          )
-                          .map(
-                            (v) =>
-                              `\{${parentId}\} notcontains '${escapeValue(v)}'`
-                          );
-                      } else if (rule.operator === "contains_all") {
-                        // All selected must be present → AND of contains
-                        valueExprs = values
-                          .filter(
-                            (v) => v !== undefined && v !== null && v !== ""
-                          )
-                          .map(
-                            (v) =>
-                              `\{${parentId}\} contains '${escapeValue(v)}'`
-                          );
-                      } else if (rule.operator === "exactly") {
-                        const selected = new Set(
-                          values.filter(
-                            (v) => v !== undefined && v !== null && v !== ""
-                          )
-                        );
-                        const parts = [];
-                        selected.forEach((v) =>
-                          parts.push(
-                            `\{${parentId}\} contains '${escapeValue(v)}'`
-                          )
-                        );
-                        (parentQuestion?.options || []).forEach((opt) => {
-                          if (!selected.has(opt.id)) {
-                            parts.push(
-                              `\{${parentId}\} notcontains '${escapeValue(
-                                opt.id
-                              )}'`
-                            );
-                          }
+                      valueExprs = values
+                        .filter(
+                          (v) => v !== undefined && v !== null && v !== ""
+                        )
+                        .map((v) => {
+                          if (op === "contains")
+                            return `\{${parentId}\} contains '${escapeValue(
+                              v
+                            )}'`;
+                          const literal = isNumeric(v)
+                            ? String(Number(v))
+                            : `'${escapeValue(v)}'`;
+                          return `\{${parentId}\} ${op} ${literal}`;
                         });
-                        valueExprs = parts; // AND join
-                      } else {
-                        valueExprs = values
-                          .filter(
-                            (v) => v !== undefined && v !== null && v !== ""
-                          )
-                          .map((v) => {
-                            if (op === "contains")
-                              return `\{${parentId}\} contains '${escapeValue(
-                                v
-                              )}'`;
-                            if (op === "notcontains")
-                              return `\{${parentId}\} notcontains '${escapeValue(
-                                v
-                              )}'`;
-                            const literal = isNumeric(v)
-                              ? String(Number(v))
-                              : `'${escapeValue(v)}'`;
-                            return `\{${parentId}\} ${op} ${literal}`;
-                          });
-                      }
                     }
                     if (valueExprs.length === 0) return null;
-                    const needsAnd =
-                      rule.operator === "contains_all" ||
-                      rule.operator === "exactly";
-                    const joiner = needsAnd ? " and " : " or ";
                     return valueExprs.length > 1
-                      ? `(${valueExprs.join(joiner)})`
+                      ? `(${valueExprs.join(" or ")})`
                       : `(${valueExprs[0]})`;
                   })
                   .filter(Boolean);

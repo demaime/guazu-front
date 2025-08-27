@@ -314,9 +314,51 @@ export default function QuestionEditor({
         updatedQuestions.push(question);
       }
     }
-    onChange(updatedQuestions);
+    // Reordenar jerárquicamente antes de propagar
+    const reordered = reorderQuestionsHierarchically(updatedQuestions);
+    onChange(reordered);
     setShowModal(false);
     setEditingQuestion(null);
+  };
+
+  // Reordenamiento jerárquico para que 2.1 vaya detrás de 2, etc.
+  const reorderQuestionsHierarchically = (list) => {
+    if (!Array.isArray(list) || list.length === 0) return list || [];
+
+    const getParentId = (q) => {
+      if (!q) return "";
+      if (q.pathSourceQuestionId) return q.pathSourceQuestionId; // hereda camino
+      const sc = q.showCondition;
+      if (!sc) return "";
+      if (Array.isArray(sc.rules)) return sc.rules[0]?.parentQuestionId || "";
+      return sc.parentQuestionId || "";
+    };
+
+    const byId = new Map(list.map((q) => [q.id, q]));
+    const children = new Map();
+    list.forEach((q) => {
+      const pid = getParentId(q);
+      if (pid) {
+        if (!children.has(pid)) children.set(pid, []);
+        children.get(pid).push(q);
+      }
+    });
+
+    const roots = list.filter((q) => !getParentId(q));
+
+    const result = [];
+    const visit = (q) => {
+      result.push(q);
+      const kids = children.get(q.id) || [];
+      kids.forEach((k) => visit(k));
+    };
+
+    roots.forEach((r) => visit(r));
+    // fallback: si quedó algún nodo sin visitar (inconsistencias), lo agregamos al final
+    list.forEach((q) => {
+      if (!result.find((x) => x.id === q.id)) result.push(q);
+    });
+    return result;
   };
 
   const handleDeleteClick = (question) => {
