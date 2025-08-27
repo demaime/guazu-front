@@ -505,7 +505,7 @@ export default function QuestionEditor({
                 </div>
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="w-full md:w-2/3 pr-3 min-w-0">
                       <h4 className="font-medium text-sm flex items-center gap-2">
                         {/* Question Number - Apply conditional background */}
                         {(() => {
@@ -567,7 +567,9 @@ export default function QuestionEditor({
                             </div>
                           );
                         })()}
-                        {question.title}
+                        <span className="break-words whitespace-normal">
+                          {question.title}
+                        </span>
                       </h4>
                       {question.description && (
                         <p className="text-text-secondary text-xs mt-0.5">
@@ -590,7 +592,7 @@ export default function QuestionEditor({
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="w-full md:w-1/3 md:justify-end justify-start mt-2 md:mt-0 flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-text-secondary">
                         {QUESTION_TYPE_LABELS_ES[question.type] ||
                           question.type}

@@ -298,12 +298,20 @@ export default function EditarEncuesta() {
 
     return {
       id: question.name,
-      type:
-        question.type === "checkbox"
-          ? "multiple_choice"
-          : question.type === "radiogroup"
-          ? "single_choice"
-          : question.type,
+      type: (() => {
+        if (question.type === "checkbox") return "multiple_choice";
+        if (question.type === "radiogroup") return "single_choice";
+        // Reinterpretar inputs HTML generados
+        if (question.type === "text") {
+          const it = (question.inputType || "").toLowerCase();
+          if (it === "date") return "date";
+          if (it === "time") return "time";
+          if (it === "email") return "email";
+          if (it === "number") return "number";
+          if (it === "tel") return "phone";
+        }
+        return question.type;
+      })(),
       title: getLocalizedText(question.title),
       description: getLocalizedText(question.description) || "",
       required: question.isRequired || false,

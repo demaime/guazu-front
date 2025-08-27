@@ -651,6 +651,30 @@ export default function NuevaEncuesta({
                       }))
                     : [];
                 break;
+              case "date":
+                element.type = "text";
+                element.inputType = "date";
+                break;
+              case "time":
+                element.type = "text";
+                element.inputType = "time";
+                break;
+              case "email":
+                element.type = "text";
+                element.inputType = "email";
+                // Opcional: validador de email
+                element.validators = [{ type: "email" }];
+                break;
+              case "number":
+                element.type = "text";
+                element.inputType = "number";
+                // Opcional: validador numérico
+                element.validators = [{ type: "numeric" }];
+                break;
+              case "phone":
+                element.type = "text";
+                element.inputType = "tel";
+                break;
               case "checkbox": // Nuestro tipo Checkbox (que es diferente de multiple_choice)
                 element.type = "checkbox"; // Mapea directamente
                 element.choices =
@@ -730,6 +754,28 @@ export default function NuevaEncuesta({
                         text: { es: opt?.text || "" },
                       }))
                     : [];
+                break;
+              case "date":
+                element.type = "text";
+                element.inputType = "date";
+                break;
+              case "time":
+                element.type = "text";
+                element.inputType = "time";
+                break;
+              case "email":
+                element.type = "text";
+                element.inputType = "email";
+                element.validators = [{ type: "email" }];
+                break;
+              case "number":
+                element.type = "text";
+                element.inputType = "number";
+                element.validators = [{ type: "numeric" }];
+                break;
+              case "phone":
+                element.type = "text";
+                element.inputType = "tel";
                 break;
               case "checkbox":
                 element.type = "checkbox";
