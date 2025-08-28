@@ -168,6 +168,13 @@ const mapQuestionType = (type) => {
       return "checkbox";
     case "single_choice":
       return "radiogroup";
+    // Tipos que en SurveyJS se representan como text + inputType
+    case "date":
+    case "time":
+    case "email":
+    case "number":
+    case "phone":
+      return "text";
     default:
       return type;
   }
@@ -685,6 +692,38 @@ export default function NuevaEncuesta({
                   question.rateMin !== undefined ? question.rateMin : 1;
                 element.rateMax = question.rateMax || 5;
                 break;
+              case "date":
+                element.type = "text";
+                element.inputType = "date";
+                break;
+              case "time":
+                element.type = "text";
+                element.inputType = "time";
+                break;
+              case "email":
+                element.type = "text";
+                element.inputType = "email";
+                element.validators = [
+                  ...(Array.isArray(element.validators)
+                    ? element.validators
+                    : []),
+                  { type: "email" },
+                ];
+                break;
+              case "number":
+                element.type = "text";
+                element.inputType = "number";
+                element.validators = [
+                  ...(Array.isArray(element.validators)
+                    ? element.validators
+                    : []),
+                  { type: "numeric" },
+                ];
+                break;
+              case "phone":
+                element.type = "text";
+                element.inputType = "tel";
+                break;
               default:
                 break;
             }
@@ -762,6 +801,38 @@ export default function NuevaEncuesta({
                 element.rateMin =
                   question.rateMin !== undefined ? question.rateMin : 1;
                 element.rateMax = question.rateMax || 5;
+                break;
+              case "date":
+                element.type = "text";
+                element.inputType = "date";
+                break;
+              case "time":
+                element.type = "text";
+                element.inputType = "time";
+                break;
+              case "email":
+                element.type = "text";
+                element.inputType = "email";
+                element.validators = [
+                  ...(Array.isArray(element.validators)
+                    ? element.validators
+                    : []),
+                  { type: "email" },
+                ];
+                break;
+              case "number":
+                element.type = "text";
+                element.inputType = "number";
+                element.validators = [
+                  ...(Array.isArray(element.validators)
+                    ? element.validators
+                    : []),
+                  { type: "numeric" },
+                ];
+                break;
+              case "phone":
+                element.type = "text";
+                element.inputType = "tel";
                 break;
               default:
                 break;
