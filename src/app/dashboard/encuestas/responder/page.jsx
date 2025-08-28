@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Model, surveyLocalization } from "survey-core";
 import { Survey } from "survey-react-ui";
 import { surveyService } from "@/services/survey.service";
@@ -43,8 +43,14 @@ surveyLocalization.defaultLocale = "es";
 
 export default function SurveyResponderStable() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [surveyId, setSurveyId] = useState(null);
+  const [isTestMode, setIsTestMode] = useState(false);
   useEffect(() => {
+    // Detectar si estamos en modo test
+    const mode = searchParams.get("mode");
+    setIsTestMode(mode === "test");
+
     try {
       const goodKey = "responder:surveyId";
       const legacyKey = "respondersurveyId"; // compat
@@ -64,7 +70,7 @@ export default function SurveyResponderStable() {
     } catch {
       router.replace("/dashboard/encuestas");
     }
-  }, [router]);
+  }, [router, searchParams]);
   const { theme } = useTheme();
   const [surveyModel, setSurveyModel] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -247,6 +253,13 @@ export default function SurveyResponderStable() {
 
   const handleComplete = async (sender) => {
     try {
+      // Si estamos en modo test, no guardar nada, solo mostrar éxito
+      if (isTestMode) {
+        setSuccessMode("test");
+        setSurveyCompletedSuccessfully(true);
+        return;
+      }
+
       setIsCapturingLocation(true);
       setLocationError(null);
 
@@ -380,7 +393,27 @@ export default function SurveyResponderStable() {
   if (surveyCompletedSuccessfully) {
     // Configuración de colores según el modo
     const isOffline = successMode === "offline";
-    const colorConfig = isOffline
+    const isTest = successMode === "test";
+    const colorConfig = isTest
+      ? {
+          // Colores azul para modo test usando la paleta oficial
+          bgColor: "bg-primary",
+          ringColor: "ring-primary-dark/30",
+          textColor: "text-white",
+          buttonBgColor: "bg-white",
+          buttonTextColor: "text-primary",
+          buttonHoverColor: "hover:bg-white/90",
+          gradientColors:
+            "rgba(63,81,181,0.55) 0%, rgba(128,145,245,0.45) 35%, rgba(43,55,117,0.55) 70%, rgba(63,81,181,0.55) 100%",
+          confettiColors: [
+            "var(--primary)",
+            "var(--primary-light)",
+            "var(--primary-dark)",
+            "var(--secondary)",
+            "var(--secondary-light)",
+          ],
+        }
+      : isOffline
       ? {
           // Colores amarillo/naranja para offline
           bgColor: "bg-amber-500",
@@ -499,7 +532,9 @@ export default function SurveyResponderStable() {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
-                ¡Encuesta completada con éxito!
+                {successMode === "test"
+                  ? "¡Prueba local completada!"
+                  : "¡Encuesta completada con éxito!"}
               </motion.h1>
 
               {/* Description */}
@@ -512,7 +547,9 @@ export default function SurveyResponderStable() {
                 <div className="flex flex-col justify-center items-center text-center">
                   <PartyPopper className="w-12 opacity-75 p-2 h-12 flex-shrink-0" />
                   <p className="text-white/90 text-sm leading-relaxed max-w-xs">
-                    {successMode === "offline"
+                    {successMode === "test"
+                      ? "Esta fue una prueba local. No se guardó ningún caso real en la base de datos."
+                      : successMode === "offline"
                       ? "Tu respuesta se guardó correctamente y se sincronizará automáticamente cuando haya conexión."
                       : "Tu respuesta fue enviada correctamente."}
                   </p>
