@@ -829,7 +829,7 @@ export function SurveyList({
                           onMouseLeave={() =>
                             handleDescriptionTooltip(null, null, false)
                           }
-                          className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors duration-100 cursor-pointer"
+                          className="w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--primary-light)] text-[var(--primary-dark)] hover:bg-[var(--primary-dark)] hover:text-[var(--primary-light)] transition-colors duration-100 cursor-pointer"
                           data-type="description"
                           aria-label="Descripción"
                           title="Descripción"
@@ -922,7 +922,7 @@ export function SurveyList({
                       <div className="relative flex items-center justify-end">
                         <div className="group relative">
                           {/* Etiqueta visible por defecto */}
-                          <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium transition-opacity group-hover:opacity-0 select-none">
+                          <span className="inline-block px-3 py-1 rounded-full bg-[var(--primary-dark)] text-gray-50 text-xs font-medium transition-opacity group-hover:opacity-0 select-none">
                             Ver acciones
                           </span>
 
