@@ -152,7 +152,7 @@ export default function LoginPage() {
                   priority
                 />
               </motion.div>
-              <div className="loader-caption text-gray-50 text-base font-medium">
+              <div className="loader-caption text-white text-base font-medium">
                 <span>Iniciando sesión...</span>
                 <div className="loading-underline mt-2" />
               </div>
