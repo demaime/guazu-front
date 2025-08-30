@@ -154,14 +154,28 @@ class AuthService {
       const data = await response.json();
 
       if (!response.ok) {
+        // Detectar el campo que falló según la estructura del backend
+        const validation = data && data.validation ? data.validation : {};
+        const fieldKey =
+          (validation.email && "email") ||
+          (validation.pwd && "password") ||
+          (validation.pwd2 && "confirmPassword") ||
+          (validation.dni && "dni") ||
+          (validation.city && "city") ||
+          null;
+
         const errorMessage =
-          data.validation?.email ||
-          data.validation?.password ||
-          data.validation?.dni ||
-          data.validation?.city ||
+          validation.email ||
+          validation.pwd ||
+          validation.pwd2 ||
+          validation.dni ||
+          validation.city ||
           data.message ||
           "Error en el registro";
-        throw new Error(errorMessage);
+
+        const error = new Error(errorMessage);
+        if (fieldKey) error.field = fieldKey;
+        throw error;
       }
 
       return data;

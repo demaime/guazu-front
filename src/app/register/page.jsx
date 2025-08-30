@@ -22,6 +22,7 @@ export default function RegisterPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
 
   const handleChange = (e) => {
@@ -29,35 +30,71 @@ export default function RegisterPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
     setError(""); // Limpiar error al empezar a escribir
     setSuccessMessage(""); // Limpiar mensaje de éxito
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
   };
 
   const validateForm = () => {
     const { name, lastName, email, password, confirmPassword, dni, city } =
       formData;
-    if (!name || !lastName || !email || !password || !confirmPassword) {
-      setError("Todos los campos son obligatorios.");
-      return false;
-    }
+    const newErrors = {};
+
+    if (!name) newErrors.name = "Ingrese su nombre para continuar.";
+    if (!lastName) newErrors.lastName = "Ingrese su apellido para continuar.";
+    if (!email) newErrors.email = "Ingrese un email para crear la cuenta.";
+    if (!password)
+      newErrors.password = "Cree una contraseña para proteger su cuenta.";
+    if (!confirmPassword)
+      newErrors.confirmPassword =
+        "Confirme la contraseña para evitar errores de tipeo.";
+
     if (!dni || isNaN(Number(dni)) || Number(dni) <= 0) {
-      setError("El DNI es obligatorio y debe ser un número válido.");
-      return false;
+      newErrors.dni =
+        "El DNI debe ser un número positivo, sin puntos ni letras.";
     }
     if (!city || String(city).trim() === "") {
-      setError("La localidad es obligatoria.");
-      return false;
+      newErrors.city = "Indique su localidad (ciudad o pueblo).";
     }
-    if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
-      return false;
+
+    if (password && confirmPassword && password !== confirmPassword) {
+      const msg = "Verifique que las contraseñas sean idénticas.";
+      newErrors.password = msg;
+      newErrors.confirmPassword = msg;
     }
-    // Validación simple de email (puedes mejorarla)
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError("El formato del email no es válido.");
-      return false;
+
+    if (email && !/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email =
+        "El email no tiene un formato válido. Ej: usuario@dominio.com";
     }
-    if (password.length < 6) {
-      // Ejemplo: requiere al menos 6 caracteres
-      setError("La contraseña debe tener al menos 6 caracteres.");
+
+    // Reglas del backend: 6-10 chars, mayúscula, minúscula, número, sin espacios
+    if (password) {
+      const rules = [
+        {
+          test: (v) => v.length >= 6,
+          msg: "Debe tener un mínimo de 6 caracteres",
+        },
+        {
+          test: (v) => v.length <= 10,
+          msg: "Debe tener un máximo de 10 caracteres",
+        },
+        {
+          test: (v) => /[A-Z]/.test(v),
+          msg: "Debe tener al menos una mayúscula",
+        },
+        {
+          test: (v) => /[a-z]/.test(v),
+          msg: "Debe tener al menos una minúscula",
+        },
+        { test: (v) => /\d/.test(v), msg: "Debe tener al menos un número" },
+        { test: (v) => !/\s/.test(v), msg: "No debe contener espacios" },
+      ];
+      const firstFailed = rules.find((r) => !r.test(password));
+      if (firstFailed) newErrors.password = firstFailed.msg;
+    }
+
+    setFieldErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      setError("");
       return false;
     }
     setError("");
@@ -104,7 +141,49 @@ export default function RegisterPage() {
         cellular: "",
       }); // Limpiar formulario
     } catch (err) {
-      setError(err.message || "Ocurrió un error durante el registro.");
+      if (err && err.field) {
+        const mismatch = /coincid|idéntic/.test(
+          (err.message || "").toLowerCase()
+        );
+        if (
+          mismatch &&
+          (err.field === "confirmPassword" || err.field === "password")
+        ) {
+          setFieldErrors({
+            password: err.message,
+            confirmPassword: err.message,
+          });
+        } else {
+          setFieldErrors({ [err.field]: err.message });
+        }
+        setError("");
+      } else {
+        if (
+          err?.message &&
+          [
+            "mínimo",
+            "máximo",
+            "mayúscula",
+            "minúscula",
+            "número",
+            "espacios",
+            "coincid",
+          ].some((k) => err.message.toLowerCase().includes(k))
+        ) {
+          const isConfirm = /coincid|idéntic/.test(err.message.toLowerCase());
+          if (isConfirm) {
+            setFieldErrors({
+              password: err.message,
+              confirmPassword: err.message,
+            });
+          } else {
+            setFieldErrors({ password: err.message });
+          }
+          setError("");
+        } else {
+          setError("");
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -119,6 +198,14 @@ export default function RegisterPage() {
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1 },
+  };
+
+  const getInputClass = (fieldName) => {
+    const base =
+      "mt-1 block w-full px-3 py-2 bg-white/60 border rounded-md shadow-sm focus:outline-none focus:ring-2 text-gray-900 placeholder-gray-500 sm:text-sm";
+    return fieldErrors[fieldName]
+      ? `${base} border-red-500 focus:ring-red-500`
+      : `${base} border-transparent focus:ring-white/80 focus:border-transparent`;
   };
 
   return (
@@ -175,11 +262,19 @@ export default function RegisterPage() {
                 name="name"
                 type="text"
                 required
-                className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                className={getInputClass("name")}
                 placeholder="Ingrese su nombre"
                 value={formData.name}
                 onChange={handleChange}
               />
+              {fieldErrors.name && (
+                <p
+                  role="alert"
+                  className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                >
+                  {fieldErrors.name}
+                </p>
+              )}
             </div>
             <div>
               <label
@@ -193,11 +288,19 @@ export default function RegisterPage() {
                 name="lastName"
                 type="text"
                 required
-                className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                className={getInputClass("lastName")}
                 placeholder="Ingrese su apellido"
                 value={formData.lastName}
                 onChange={handleChange}
               />
+              {fieldErrors.lastName && (
+                <p
+                  role="alert"
+                  className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                >
+                  {fieldErrors.lastName}
+                </p>
+              )}
             </div>
             <div>
               <label
@@ -211,11 +314,19 @@ export default function RegisterPage() {
                 name="email"
                 type="email"
                 required
-                className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                className={getInputClass("email")}
                 placeholder="Ingrese su email"
                 value={formData.email}
                 onChange={handleChange}
               />
+              {fieldErrors.email && (
+                <p
+                  role="alert"
+                  className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                >
+                  {fieldErrors.email}
+                </p>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -230,11 +341,19 @@ export default function RegisterPage() {
                     name="dni"
                     type="number"
                     required
-                    className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                    className={getInputClass("dni")}
                     placeholder="Ingrese su DNI"
                     value={formData.dni}
                     onChange={handleChange}
                   />
+                  {fieldErrors.dni && (
+                    <p
+                      role="alert"
+                      className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                    >
+                      {fieldErrors.dni}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -248,11 +367,19 @@ export default function RegisterPage() {
                     name="city"
                     type="text"
                     required
-                    className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                    className={getInputClass("city")}
                     placeholder="Ingrese su localidad"
                     value={formData.city}
                     onChange={handleChange}
                   />
+                  {fieldErrors.city && (
+                    <p
+                      role="alert"
+                      className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                    >
+                      {fieldErrors.city}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -294,11 +421,24 @@ export default function RegisterPage() {
                   name="password"
                   type="password"
                   required
-                  className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                  className={getInputClass("password")}
                   placeholder="Ingrese su contraseña"
                   value={formData.password}
                   onChange={handleChange}
                 />
+                {fieldErrors.password ? (
+                  <p
+                    role="alert"
+                    className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                  >
+                    {fieldErrors.password}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-white/70">
+                    6–10 caracteres, al menos 1 mayúscula, 1 minúscula y 1
+                    número, sin espacios.
+                  </p>
+                )}
               </div>
               <div>
                 <label
@@ -312,24 +452,23 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   type="password"
                   required
-                  className="mt-1 mb-4 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+                  className={`${getInputClass("confirmPassword")} mb-4`}
                   placeholder="Confirme su contraseña"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                 />
+                {fieldErrors.confirmPassword && (
+                  <p
+                    role="alert"
+                    className="-mt-3 mb-4 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                  >
+                    {fieldErrors.confirmPassword}
+                  </p>
+                )}
               </div>
             </div>
 
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="text-white bg-red-500/80 p-3 rounded-md text-sm text-center"
-              >
-                {error}
-              </motion.div>
-            )}
+            {/* Mensaje general suprimido a pedido: se muestran tags por campo */}
 
             <div>
               <button
