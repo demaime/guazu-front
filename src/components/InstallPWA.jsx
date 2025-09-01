@@ -142,7 +142,7 @@ export default function InstallPWA() {
       <div className="install-button-float">
         <button
           onClick={handleInstall}
-          className="bg-primary-dark text-primary-light px-6 py-3 rounded-lg shadow-lg font-medium text-sm hover:bg-[var(--primary-light)] hover:text-[var(--primary-dark)] cursor-pointer transition-colors duration-200"
+          className="bg-primary-dark text-primary-light px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-lg font-medium text-xs sm:text-sm hover:bg-[var(--primary-light)] hover:text-[var(--primary-dark)] cursor-pointer transition-colors duration-200"
         >
           Instalar
         </button>

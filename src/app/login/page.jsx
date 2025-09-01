@@ -121,7 +121,7 @@ export default function LoginPage() {
         setShowOverlay(false);
         setIsFadingOut(false);
       }}
-      className="login-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+      className="login-page min-h-[100dvh] flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8"
     >
       {/* Overlay de inicio de sesión fullscreen */}
       <AnimatePresence>
@@ -166,7 +166,7 @@ export default function LoginPage() {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.4 }}
-        className="max-w-xl w-full space-y-8 bg-white/10 backdrop-blur-sm p-8 rounded-2xl shadow-xl"
+        className="max-w-md w-full space-y-6 bg-white/10 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-xl mx-auto"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
@@ -174,7 +174,7 @@ export default function LoginPage() {
           transition={{ delay: 0.4, duration: 0.3 }}
           className="flex justify-center w-full"
         >
-          <div className="w-[350px] h-[120px] relative mx-auto">
+          <div className="w-[280px] sm:w-[320px] h-[100px] sm:h-[110px] relative mx-auto">
             <Image
               src="/login-logo.png"
               alt="Guazú - Argentina - Santa Fe - Encuestas"
@@ -189,10 +189,10 @@ export default function LoginPage() {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.4 }}
-          className="mt-12 space-y-8"
+          className="mt-6 sm:mt-8 space-y-6"
           onSubmit={handleSubmit}
         >
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <motion.div
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
