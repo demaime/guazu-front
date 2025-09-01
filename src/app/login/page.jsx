@@ -298,7 +298,11 @@ export default function LoginPage() {
             href="/register"
             className="text-sm text-white/80 hover:text-white"
           >
-            ¿No tiene una cuenta? Regístrese
+            ¿No tiene una cuenta?{" "}
+            <span className="font-semibold text-[var(--primary-dark)]">
+              {" "}
+              Regístrese
+            </span>
           </Link>
         </motion.div>
       </motion.div>
