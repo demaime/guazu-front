@@ -8,6 +8,7 @@ import { authService } from "@/services/auth.service";
 import { Loader } from "@/components/ui/Loader";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { motion, AnimatePresence } from "framer-motion";
+import InstallPWA from "@/components/InstallPWA";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -301,6 +302,9 @@ export default function LoginPage() {
           </Link>
         </motion.div>
       </motion.div>
+
+      {/* Componente de instalación PWA */}
+      <InstallPWA />
     </motion.div>
   );
 }
