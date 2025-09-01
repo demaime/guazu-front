@@ -166,7 +166,7 @@ export default function LoginPage() {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.4 }}
-        className="max-w-md w-full space-y-6 bg-white/10 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-xl mx-auto"
+        className="max-w-md w-full space-y-6 bg-white/20 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-xl mx-auto"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
