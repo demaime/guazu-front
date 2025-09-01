@@ -847,10 +847,17 @@ button:disabled {
 /* Install PWA Styles */
 .install-button-float {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: 4rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
+}
+
+/* Ajuste específico para iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .install-button-float {
+    bottom: 6rem;
+  }
 }
 
 .install-modal-overlay {

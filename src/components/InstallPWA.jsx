@@ -7,60 +7,108 @@ let deferredPrompt;
 export default function InstallPWA() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
+  const [showIncognitoModal, setShowIncognitoModal] = useState(false);
+
+  // Función para detectar modo incógnito
+  const detectIncognito = async () => {
+    try {
+      // Método 1: Storage quota en incógnito es muy limitado
+      const quota = await navigator.storage?.estimate?.();
+      if (quota && quota.quota < 120000000) return true; // < 120MB sugiere incógnito
+
+      // Método 2: sessionStorage se comporta diferente
+      try {
+        sessionStorage.setItem("__incognito_test", "1");
+        sessionStorage.removeItem("__incognito_test");
+        return false;
+      } catch {
+        return true;
+      }
+    } catch {
+      // Método 3: IndexedDB fallback
+      return new Promise((resolve) => {
+        const db = indexedDB.open("__incognito_test");
+        db.onsuccess = () => resolve(false);
+        db.onerror = () => resolve(true);
+      });
+    }
+  };
 
   useEffect(() => {
-    // Detección de plataforma
-    const isIOS =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const isIOSSafari = isIOS && isSafari;
-
-    // Detección PWA instalada
-    const isPWA =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      window.navigator.standalone === true;
-
-    // Si ya está instalado como PWA, no mostrar nada
-    if (isPWA) {
-      return;
-    }
-
-    // Para iOS Safari, mostrar botón que abrirá modal
-    if (isIOSSafari) {
-      setShowPrompt(true);
-      return;
-    }
-
-    // Para navegadores compatibles con beforeinstallprompt
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      setShowPrompt(true);
-    };
-
-    const handleAppInstalled = () => {
-      deferredPrompt = null;
-      setShowPrompt(false);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
-
-    return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt
+    const initDetection = async () => {
+      // Detección de plataforma
+      const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isSafari = /^((?!chrome|android).)*safari/i.test(
+        navigator.userAgent
       );
-      window.removeEventListener("appinstalled", handleAppInstalled);
+      const isIOSSafari = isIOS && isSafari;
+
+      // Detección PWA instalada
+      const isPWA =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+
+      // Detección modo incógnito
+      const isIncognito = await detectIncognito();
+
+      // Si ya está instalado como PWA, no mostrar nada
+      if (isPWA) {
+        return;
+      }
+
+      // Si estamos en modo incógnito, mostrar botón pero con modal específico
+      if (isIncognito) {
+        setShowPrompt(true);
+        return;
+      }
+
+      // Para iOS Safari, mostrar botón que abrirá modal
+      if (isIOSSafari) {
+        setShowPrompt(true);
+        return;
+      }
+
+      // Para navegadores compatibles con beforeinstallprompt
+      const handleBeforeInstallPrompt = (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        setShowPrompt(true);
+      };
+
+      const handleAppInstalled = () => {
+        deferredPrompt = null;
+        setShowPrompt(false);
+      };
+
+      window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.addEventListener("appinstalled", handleAppInstalled);
+
+      return () => {
+        window.removeEventListener(
+          "beforeinstallprompt",
+          handleBeforeInstallPrompt
+        );
+        window.removeEventListener("appinstalled", handleAppInstalled);
+      };
     };
+
+    initDetection();
   }, []);
 
   const handleInstall = async () => {
-    // Detectar iOS Safari para mostrar modal
+    // Detectar contexto actual
     const isIOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     const isIOSSafari = isIOS && isSafari;
+    const isIncognito = await detectIncognito();
+
+    // Prioridad: Incógnito > iOS > beforeinstallprompt
+    if (isIncognito) {
+      setShowIncognitoModal(true);
+      return;
+    }
 
     if (isIOSSafari) {
       setShowIOSModal(true);
@@ -79,6 +127,10 @@ export default function InstallPWA() {
 
   const closeIOSModal = () => {
     setShowIOSModal(false);
+  };
+
+  const closeIncognitoModal = () => {
+    setShowIncognitoModal(false);
   };
 
   // No mostrar nada si no hay prompt disponible
@@ -125,6 +177,42 @@ export default function InstallPWA() {
 
               <button
                 onClick={closeIOSModal}
+                className="bg-white text-primary px-6 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para modo incógnito */}
+      {showIncognitoModal && (
+        <div className="install-modal-overlay" onClick={closeIncognitoModal}>
+          <div
+            className="install-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center space-y-6">
+              <h2 className="text-2xl font-bold text-white">Instalar Guazú</h2>
+
+              <div className="space-y-4 text-white">
+                <p className="text-base opacity-90">
+                  Para instalar la aplicación, necesitas usar una ventana normal
+                  del navegador.
+                </p>
+
+                <div className="text-left bg-white/10 rounded-lg p-4">
+                  <p className="font-medium mb-2">¿Cómo hacerlo?</p>
+                  <p className="text-sm opacity-90">
+                    Sal del modo incógnito y visita esta página nuevamente para
+                    poder instalar la aplicación.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={closeIncognitoModal}
                 className="bg-white text-primary px-6 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
               >
                 Entendido

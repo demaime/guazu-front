@@ -121,7 +121,7 @@ export default function LoginPage() {
         setShowOverlay(false);
         setIsFadingOut(false);
       }}
-      className="login-page min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+      className="login-page flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
     >
       {/* Overlay de inicio de sesión fullscreen */}
       <AnimatePresence>
@@ -303,8 +303,8 @@ export default function LoginPage() {
         </motion.div>
       </motion.div>
 
-      {/* Componente de instalación PWA */}
-      <InstallPWA />
+      {/* Componente de instalación PWA - solo visible cuando no hay overlay */}
+      {!showOverlay && <InstallPWA />}
     </motion.div>
   );
 }
