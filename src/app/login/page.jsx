@@ -23,6 +23,24 @@ export default function LoginPage() {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
 
+  // Bloquear scroll del documento mientras está el login visible (PWA Android)
+  useEffect(() => {
+    try {
+      const prevOverflow = document.documentElement.style.overflow;
+      const prevBodyOverflow = document.body.style.overflow;
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overscrollBehaviorY = "none";
+      document.body.style.overscrollBehaviorY = "none";
+      return () => {
+        document.documentElement.style.overflow = prevOverflow || "";
+        document.body.style.overflow = prevBodyOverflow || "";
+        document.documentElement.style.overscrollBehaviorY = "";
+        document.body.style.overscrollBehaviorY = "";
+      };
+    } catch {}
+  }, []);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {

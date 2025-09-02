@@ -300,9 +300,11 @@ body {
   min-height: 100dvh; /* Android/iOS barras dinámicas */
   min-height: 100svh; /* Soporte adicional */
   min-height: 100vh; /* Fallback */
+  height: 100dvh;
   padding-bottom: env(safe-area-inset-bottom, 0);
   width: 100%;
-  overflow-x: hidden;
+  overflow: hidden; /* eliminar barra de scroll */
+  overscroll-behavior-y: none; /* evitar el efecto estirar */
 }
 
 .login input::placeholder {
