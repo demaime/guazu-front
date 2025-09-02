@@ -27,6 +27,8 @@ function parseUserCookie(userCookie) {
 export function middleware(request) {
   const token = request.cookies.get("token");
   const user = parseUserCookie(request.cookies.get("user"));
+  const pathname = request.nextUrl.pathname;
+  const method = request.method || "GET";
 
   // Si las cookies están corruptas, limpiar y redirigir a login
   if (user?.corrupted) {
@@ -39,9 +41,17 @@ export function middleware(request) {
     return response;
   }
 
-  // Si no hay token, redirigir a /login
-  if (!token && request.nextUrl.pathname !== "/login") {
-    return NextResponse.redirect(new URL("/login", request.url));
+  // Si no hay token, permitir app-shell offline para rutas estables del encuestador
+  // Dejar que el cliente decida (localStorage) y evitar redirección del lado servidor
+  if (!token) {
+    const isOfflineStableRoute =
+      method === "GET" &&
+      (pathname === "/dashboard/encuestas" ||
+        pathname === "/dashboard/encuestas/responder" ||
+        pathname === "/dashboard");
+    if (!isOfflineStableRoute && pathname !== "/login") {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
   // Si hay token y estamos en login, redirigir según el rol
@@ -52,13 +62,13 @@ export function middleware(request) {
   }
 
   // Redirigir pollsters de /dashboard a /dashboard/encuestas
-  if (user?.role === "POLLSTER" && request.nextUrl.pathname === "/dashboard") {
+  if (user?.role === "POLLSTER" && pathname === "/dashboard") {
     return NextResponse.redirect(new URL("/dashboard/encuestas", request.url));
   }
 
   // Verificar permisos para rutas protegidas
-  if (user && request.nextUrl.pathname.startsWith("/dashboard/")) {
-    const path = request.nextUrl.pathname;
+  if (user && pathname.startsWith("/dashboard/")) {
+    const path = pathname;
     const allowedRoles = protectedRoutes[path];
 
     // Si la ruta está protegida y el usuario no tiene el rol adecuado
