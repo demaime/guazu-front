@@ -191,6 +191,14 @@ body {
     sans-serif;
 }
 
+/* En modo standalone, alinea el color de fondo para evitar franjas blancas en recargas */
+@media (display-mode: standalone) {
+  html,
+  body {
+    background-color: var(--primary);
+  }
+}
+
 .bg-primary {
   background-color: var(--primary);
 }
@@ -240,6 +248,8 @@ body {
 }
 
 .login-wrapper {
+  min-height: 100dvh;
+  min-height: 100svh;
   min-height: 100vh;
   overflow: auto;
   overflow-x: hidden;
@@ -287,7 +297,10 @@ body {
 
 .login-page {
   background-color: var(--primary);
-  min-height: 100vh;
+  min-height: 100dvh; /* Android/iOS barras dinámicas */
+  min-height: 100svh; /* Soporte adicional */
+  min-height: 100vh; /* Fallback */
+  padding-bottom: env(safe-area-inset-bottom, 0);
   width: 100%;
   overflow-x: hidden;
 }
