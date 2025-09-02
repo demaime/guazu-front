@@ -8,6 +8,19 @@ export default function InstallPWA() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
   const [showIncognitoModal, setShowIncognitoModal] = useState(false);
+  const [showAndroidHelpModal, setShowAndroidHelpModal] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() => {
+    try {
+      if (typeof window === "undefined") return false;
+      return (
+        window.matchMedia &&
+        (window.matchMedia("(display-mode: standalone)").matches ||
+          window.navigator.standalone === true)
+      );
+    } catch {
+      return false;
+    }
+  });
 
   // Función para detectar modo incógnito
   const detectIncognito = async () => {
@@ -49,13 +62,19 @@ export default function InstallPWA() {
         window.matchMedia("(display-mode: standalone)").matches ||
         window.navigator.standalone === true;
 
+      setIsInstalled(!!isPWA);
+
       // Detección modo incógnito
       const isIncognito = await detectIncognito();
 
-      // Si ya está instalado como PWA, no mostrar nada
+      // Si ya está instalada la PWA, no mostramos el botón en modo standalone
       if (isPWA) {
+        setShowPrompt(false);
         return;
       }
+
+      // Mostrar el botón en el resto de los casos
+      setShowPrompt(true);
 
       // Si estamos en modo incógnito, mostrar botón pero con modal específico
       if (isIncognito) {
@@ -115,8 +134,21 @@ export default function InstallPWA() {
       return;
     }
 
+    // Si ya está instalada, informamos y no hacemos nada más
+    if (isInstalled) {
+      try {
+        // Evitar depender de Toast: usar alerta simple para universalidad
+        alert("La aplicación ya está instalada en este dispositivo.");
+      } catch {}
+      return;
+    }
+
     // Para navegadores con beforeinstallprompt
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      // Fallback: mostrar ayuda para Android/Chrome cuando no llega el evento
+      setShowAndroidHelpModal(true);
+      return;
+    }
 
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
@@ -133,8 +165,8 @@ export default function InstallPWA() {
     setShowIncognitoModal(false);
   };
 
-  // No mostrar nada si no hay prompt disponible
-  if (!showPrompt) return null;
+  // No mostrar nada si explícitamente se ocultó
+  if (!showPrompt || isInstalled) return null;
 
   return (
     <>
@@ -213,6 +245,35 @@ export default function InstallPWA() {
 
               <button
                 onClick={closeIncognitoModal}
+                className="bg-white/20 backdrop-blur-sm text-white border border-white/30 px-6 py-2 rounded-lg font-medium hover:bg-white/30 hover:border-white/50 transition-all duration-200"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de ayuda Android/Chrome cuando no hay beforeinstallprompt */}
+      {showAndroidHelpModal && (
+        <div
+          className="install-modal-overlay"
+          onClick={() => setShowAndroidHelpModal(false)}
+        >
+          <div
+            className="install-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center space-y-6">
+              <h2 className="text-2xl font-bold text-white">Instalar Guazú</h2>
+              <div className="space-y-4 text-white">
+                <p className="text-base opacity-90">
+                  Para instalar, abre el menú del navegador (⋮) y elige "Agregar
+                  a pantalla de inicio".
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAndroidHelpModal(false)}
                 className="bg-white/20 backdrop-blur-sm text-white border border-white/30 px-6 py-2 rounded-lg font-medium hover:bg-white/30 hover:border-white/50 transition-all duration-200"
               >
                 Entendido
