@@ -107,6 +107,56 @@ export default function DashboardLayout({ children }) {
     setIsSidebarCollapsed(true);
   }, [pathname]);
 
+  // Evitar pull-to-refresh en Android cuando el scroll está en el tope
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isAndroid = /Android/i.test(window.navigator.userAgent || "");
+    if (!isAndroid) return;
+
+    const mainContent = document.querySelector(".main-content");
+    if (!mainContent) return;
+
+    let touchStartY = 0;
+    let touchStartX = 0;
+    let isMultiTouch = false;
+
+    const handleTouchStart = (event) => {
+      if (!event.touches || event.touches.length === 0) return;
+      isMultiTouch = event.touches.length > 1;
+      if (isMultiTouch) return;
+      touchStartY = event.touches[0].clientY;
+      touchStartX = event.touches[0].clientX;
+    };
+
+    const handleTouchMove = (event) => {
+      if (!event.touches || event.touches.length === 0) return;
+      if (isMultiTouch) return;
+      const currentY = event.touches[0].clientY;
+      const currentX = event.touches[0].clientX;
+      const deltaY = currentY - touchStartY;
+      const deltaX = Math.abs(currentX - touchStartX);
+      const pullingDown = deltaY > 10 && deltaY > deltaX;
+      const atTop = mainContent.scrollTop <= 0;
+      if (pullingDown && atTop) {
+        // Cancelar gesto para evitar que Chrome Android haga refresh
+        event.preventDefault();
+      }
+    };
+
+    mainContent.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    // Necesitamos passive: false para poder llamar preventDefault
+    mainContent.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
+
+    return () => {
+      mainContent.removeEventListener("touchstart", handleTouchStart);
+      mainContent.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [pathname]);
+
   const handleProfileClick = () => {
     // Profile click handler (logs removed for cleaner console)
   };
