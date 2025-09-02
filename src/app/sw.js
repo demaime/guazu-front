@@ -76,3 +76,80 @@ async function precacheGoogleFonts() {
 self.addEventListener("install", (event) => {
   event.waitUntil(precacheGoogleFonts());
 });
+
+// Limpieza de cualquier entrada de /login previamente cacheada
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    (async () => {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map(async (name) => {
+          const cache = await caches.open(name);
+          const requests = await cache.keys();
+          await Promise.all(
+            requests.map((req) => {
+              const url = new URL(req.url);
+              if (url.pathname === "/login") {
+                return cache.delete(req);
+              }
+              return Promise.resolve(false);
+            })
+          );
+        })
+      );
+      // Garantizar que el SW controle inmediatamente
+      await self.clients.claim();
+    })()
+  );
+});
+
+// Política de navegación: mantener app-shell del dashboard en offline
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  if (request.mode !== "navigate") return;
+
+  const handleNavigation = async () => {
+    // 1) Intentar red si hay conexión
+    try {
+      const netResponse = await fetch(request);
+      const netUrl = new URL(netResponse.url);
+      const isRedirect =
+        netResponse.type === "opaqueredirect" ||
+        (netResponse.status >= 300 && netResponse.status < 400);
+      // Bloquear redirecciones a /login para no propagarlas al flujo offline
+      if (isRedirect && netUrl.pathname === "/login") {
+        throw new Error("Redirect to /login blocked for offline shell");
+      }
+      return netResponse;
+    } catch (_) {
+      // 2) Offline: intentar el propio request ignorando search (RSC/queries)
+      try {
+        const cached = await caches.match(request, { ignoreSearch: true });
+        if (cached) {
+          const cachedUrl = new URL(cached.url);
+          const cachedIsRedirect =
+            cached.type === "opaqueredirect" ||
+            (cached.status >= 300 && cached.status < 400);
+          if (!cachedIsRedirect && cachedUrl.pathname !== "/login") {
+            return cached;
+          }
+        }
+      } catch {}
+
+      // 3) App-shell estable para el encuestador
+      const shell = await caches.match("/dashboard/encuestas", {
+        ignoreSearch: true,
+      });
+      if (shell) return shell;
+
+      // 4) Último recurso: página offline
+      const fallback = await caches.match("/offline", { ignoreSearch: true });
+      if (fallback) return fallback;
+
+      // 5) Como extremo, una respuesta básica
+      return new Response("Offline", { status: 503, statusText: "Offline" });
+    }
+  };
+
+  event.respondWith(handleNavigation());
+});
