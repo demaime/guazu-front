@@ -21,9 +21,7 @@ export const metadata = {
     description: "Descarga Guazú para responder encuestas en el momento!",
     images: [
       {
-        url: "/icon-512x512.png",
-        width: 512,
-        height: 512,
+        url: "/logo-full.png",
         alt: "Guazu App Logo",
       },
     ],
@@ -31,10 +29,10 @@ export const metadata = {
     url: "https://guazu2.vercel.app",
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "Guazu App",
     description: "Descarga Guazú para responder encuestas en el momento!",
-    images: ["/icon-512x512.png"],
+    images: ["/logo-full.png"],
   },
 };
 
