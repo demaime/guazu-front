@@ -1,7 +1,7 @@
 {
-  "name": "Guazú - Sistema de Encuestas",
-  "short_name": "Guazú",
-  "description": "Sistema de Encuestas Guazú",
+  "name": "Guazu App",
+  "short_name": "Guazu App",
+  "description": "Descarga Guazú para responder encuestas en el momento!",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",
