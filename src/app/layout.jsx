@@ -54,7 +54,14 @@ export default function RootLayout({ children }) {
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-2ZV4LVXFNY');
+            (function(){
+              try {
+                var isLocal = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/i.test(location.hostname);
+                gtag('config', 'G-2ZV4LVXFNY', { debug_mode: isLocal });
+              } catch(e) {
+                gtag('config', 'G-2ZV4LVXFNY');
+              }
+            })();
           `}
         </Script>
       </head>
