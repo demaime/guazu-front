@@ -36,6 +36,7 @@ import { toast } from "react-toastify";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { Loader } from "@/components/ui/Loader";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Encuestas() {
   const router = useRouter();
@@ -480,20 +481,46 @@ export default function Encuestas() {
             name: "geolocation",
           });
           if (mounted) setLocationStatus(status.state || "unknown");
+          try {
+            trackEvent("location_permission_status", {
+              status: status.state || "unknown",
+            });
+          } catch {}
           status.onchange = () => {
             if (mounted) setLocationStatus(status.state || "unknown");
+            try {
+              trackEvent("location_permission_status", {
+                status: status.state || "unknown",
+              });
+            } catch {}
           };
         } else if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
-            () => mounted && setLocationStatus("granted"),
-            () => mounted && setLocationStatus("denied"),
+            () => {
+              if (mounted) setLocationStatus("granted");
+              try {
+                trackEvent("location_permission_status", { status: "granted" });
+              } catch {}
+            },
+            () => {
+              if (mounted) setLocationStatus("denied");
+              try {
+                trackEvent("location_permission_status", { status: "denied" });
+              } catch {}
+            },
             { maximumAge: 0, timeout: 800 }
           );
         } else {
           if (mounted) setLocationStatus("unsupported");
+          try {
+            trackEvent("location_permission_status", { status: "unsupported" });
+          } catch {}
         }
       } catch {
         if (mounted) setLocationStatus("unknown");
+        try {
+          trackEvent("location_permission_status", { status: "unknown" });
+        } catch {}
       }
     };
     checkLocation();

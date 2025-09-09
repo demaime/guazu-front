@@ -9,6 +9,7 @@ import { Loader } from "@/components/ui/Loader";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { motion, AnimatePresence } from "framer-motion";
 import InstallPWA from "@/components/InstallPWA";
+import { setUserId, setUserProperties, trackEvent } from "@/lib/analytics";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -83,6 +84,11 @@ export default function LoginPage() {
 
       if (loginResult) {
         const user = authService.getUser();
+        try {
+          if (user?._id) setUserId(user._id);
+          setUserProperties({ role: user?.role || "UNKNOWN" });
+          trackEvent("login_success", { role: user?.role || "UNKNOWN" });
+        } catch {}
         // Redirigir según el rol
         const redirectPath =
           user?.role === "POLLSTER" ? "/dashboard/encuestas" : "/dashboard";

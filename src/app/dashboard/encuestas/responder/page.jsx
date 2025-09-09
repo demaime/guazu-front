@@ -20,6 +20,7 @@ import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import GeolocationService from "@/services/geolocation.service";
+import { trackEvent } from "@/lib/analytics";
 
 import "survey-core/survey-core.css";
 import "survey-core/i18n/spanish";
@@ -185,7 +186,30 @@ export default function SurveyResponderStable() {
           }
         });
 
+        // Traquear avance de página desde el modelo (más compatible que pasar prop)
+        try {
+          model.onCurrentPageChanged.add((sender) => {
+            try {
+              trackEvent("survey_page_advanced", {
+                survey_id: resolved || surveyId,
+                page_index: sender?.currentPageNo ?? 0,
+              });
+            } catch {}
+          });
+        } catch {}
+
         setSurveyModel(model);
+        try {
+          const totalQuestions = model.getAllQuestions()?.length || 0;
+          trackEvent("survey_started", {
+            survey_id: resolved || surveyId,
+            mode:
+              typeof navigator !== "undefined" && !navigator.onLine
+                ? "offline"
+                : "online",
+            num_questions: totalQuestions,
+          });
+        } catch {}
         setIsBlocking(true);
       } catch (e) {
         setError(e.message || "Error al cargar la encuesta.");
@@ -271,6 +295,12 @@ export default function SurveyResponderStable() {
       } catch (geoError) {
         setIsCapturingLocation(false);
         setLocationError(geoError.message);
+        try {
+          trackEvent("geolocation_error", {
+            survey_id: surveyId,
+            error_type: geoError.message || "UNKNOWN",
+          });
+        } catch {}
         return; // Detener envío si no hay coordenadas
       }
 
@@ -315,6 +345,17 @@ export default function SurveyResponderStable() {
         await queueResponseForSync(payload);
         setSuccessMode("offline");
         setSurveyCompletedSuccessfully(true);
+        try {
+          trackEvent("survey_completed", {
+            survey_id: surveyId,
+            mode: "offline",
+            duration_seconds: Math.round(sender.timeSpent || 0),
+            num_questions: sender?.getAllQuestions?.().length || 0,
+            location_captured: "true",
+            location_accuracy_m:
+              payload?.accuracy || locationData?.accuracy || undefined,
+          });
+        } catch {}
         return;
       }
 
@@ -330,6 +371,16 @@ export default function SurveyResponderStable() {
 
       setSuccessMode("online");
       setSurveyCompletedSuccessfully(true);
+      try {
+        trackEvent("survey_completed", {
+          survey_id: surveyId,
+          mode: "online",
+          duration_seconds: Math.round(sender.timeSpent || 0),
+          num_questions: sender?.getAllQuestions?.().length || 0,
+          location_captured: "true",
+          location_accuracy_m: locationData?.accuracy || undefined,
+        });
+      } catch {}
       try {
         const key = "responder:surveyId";
         if (typeof window !== "undefined") {
@@ -754,6 +805,13 @@ export default function SurveyResponderStable() {
         isOpen={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
         onConfirm={() => {
+          try {
+            const pageIdx = surveyModel?.currentPageNo ?? 0;
+            trackEvent("survey_abandon_confirmed", {
+              survey_id: surveyId,
+              page_index: pageIdx,
+            });
+          } catch {}
           setShowLeaveModal(false);
           setIsBlocking(false);
           const pending = pendingNavRef.current;

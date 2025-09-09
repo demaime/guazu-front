@@ -1,4 +1,5 @@
 import Pouch from "pouchdb-browser";
+import { trackEvent } from "@/lib/analytics";
 
 function getOutboxDB() {
   return new Pouch("responses", { adapter: "idb" });
@@ -10,6 +11,11 @@ export async function queueResponseForSync(doc) {
   const payload = { _id, status: "pending", ...doc };
   try {
     await db.put(payload);
+    try {
+      if (doc?.surveyId) {
+        trackEvent("offline_saved", { survey_id: doc.surveyId });
+      }
+    } catch {}
   } catch (e) {
     if (e.status === 409) {
       const existing = await db.get(_id);

@@ -1,4 +1,5 @@
 import { getPendingResponses, removeDoc } from "@/services/db/outbox";
+import { trackEvent } from "@/lib/analytics";
 
 export async function syncPendingResponses() {
   const pending = await getPendingResponses();
@@ -29,6 +30,15 @@ export async function syncPendingResponses() {
       break;
     }
   }
+
+  try {
+    if (synced > 0) {
+      trackEvent("offline_synced", {
+        count: synced,
+        total: pending.length,
+      });
+    }
+  } catch {}
 
   return { synced, total: pending.length };
 }

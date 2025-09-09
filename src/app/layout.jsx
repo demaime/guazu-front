@@ -7,6 +7,7 @@ import { Mulish } from "next/font/google";
 import { ClientThemeWrapper } from "@/components/ClientThemeWrapper";
 import { ToastContainer } from "react-toastify";
 import Script from "next/script";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
 
 const mulish = Mulish({
   subsets: ["latin"],
@@ -59,6 +60,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className={mulish.className}>
         <ClientThemeWrapper>
+          <AnalyticsProvider />
           {children}
           <ToastContainer
             position="bottom-right"
