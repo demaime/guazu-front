@@ -374,7 +374,8 @@ export function SurveyList({
           break;
 
         case "pollsters":
-          router.push(`/dashboard/encuestas/${surveyId}/encuestadores`);
+          // Ruta legacy eliminada. Reservado para ADMIN si en el futuro existe UI.
+          router.push(`/dashboard/encuestadores`);
           break;
 
         case "map":
@@ -708,12 +709,13 @@ export function SurveyList({
                     </>
                   )}
 
-                  {role === "SUPERVISOR" && (
+                  {/* Quitar botón huérfano para SUPERVISOR */}
+                  {role === "ROLE_ADMIN" && (
                     <ActionButton
                       action="pollsters"
                       surveyData={surveyData}
                       icon={Users}
-                      text="Asignar Encuestadores"
+                      text="Encuestadores"
                       variant="mobile"
                       className="w-full mt-2"
                     />
@@ -972,7 +974,7 @@ export function SurveyList({
                               />
                             )}
 
-                            {role === "SUPERVISOR" && (
+                            {role === "ROLE_ADMIN" && (
                               <ActionButton
                                 action="pollsters"
                                 surveyData={surveyData}

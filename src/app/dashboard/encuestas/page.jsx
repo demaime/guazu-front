@@ -1019,7 +1019,7 @@ export default function Encuestas() {
                 Finalizadas ({isLoading.finished ? "..." : tabCounts.finished})
               </button>
             )}
-            {(user?.role === "ROLE_ADMIN" || user?.role === "SUPERVISOR") && (
+            {user?.role === "ROLE_ADMIN" && (
               <button
                 onClick={() => setActiveTab("drafts")}
                 className={`px-4 py-2 rounded-lg text-sm cursor-pointer font-medium transition-colors ${

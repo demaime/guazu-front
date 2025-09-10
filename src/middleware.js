@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 const protectedRoutes = {
   "/dashboard/usuarios": ["ROLE_ADMIN"],
   "/dashboard/encuestas": ["ROLE_ADMIN", "SUPERVISOR", "POLLSTER"],
-  "/dashboard/encuestas/nueva": ["ROLE_ADMIN", "SUPERVISOR"],
+  "/dashboard/encuestas/nueva": ["ROLE_ADMIN"],
   "/dashboard/encuestadores": ["ROLE_ADMIN", "SUPERVISOR"],
   "/dashboard/configuracion": ["ROLE_ADMIN", "SUPERVISOR", "POLLSTER"],
 };
@@ -69,7 +69,31 @@ export function middleware(request) {
   // Verificar permisos para rutas protegidas
   if (user && pathname.startsWith("/dashboard/")) {
     const path = pathname;
-    const allowedRoles = protectedRoutes[path];
+
+    // Reglas dinámicas por patrón de ruta
+    let allowedRoles = protectedRoutes[path];
+    if (!allowedRoles) {
+      // Edición de encuestas: solo admin
+      const isEditPage = /^\/dashboard\/encuestas\/[^/]+\/editar$/.test(path);
+      if (isEditPage) {
+        allowedRoles = ["ROLE_ADMIN"];
+      }
+
+      // Gestión de encuestadores por encuesta (ruta inexistente hoy): solo admin
+      const isPerSurveyPollsters =
+        /^\/dashboard\/encuestas\/[^/]+\/encuestadores$/.test(path);
+      if (isPerSurveyPollsters) {
+        allowedRoles = ["ROLE_ADMIN"];
+      }
+
+      // Progreso/análisis: admin y supervisor
+      const isProgressPage = /^\/dashboard\/encuestas\/[^/]+\/progreso$/.test(
+        path
+      );
+      if (isProgressPage) {
+        allowedRoles = ["ROLE_ADMIN", "SUPERVISOR"];
+      }
+    }
 
     // Si la ruta está protegida y el usuario no tiene el rol adecuado
     if (allowedRoles && !allowedRoles.includes(user.role)) {

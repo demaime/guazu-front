@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { surveyService } from "@/services/survey.service";
 import { Loader } from "@/components/ui/Loader";
 import NuevaEncuesta from "../../nueva/page";
+import { authService } from "@/services/auth.service";
 
 export default function EditarEncuesta() {
   const params = useParams();
@@ -14,6 +15,15 @@ export default function EditarEncuesta() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Guard de rol: solo admin puede editar
+    try {
+      const currentUser = authService.getUser?.();
+      if (!currentUser || currentUser.role !== "ROLE_ADMIN") {
+        router.replace("/dashboard/encuestas");
+        return;
+      }
+    } catch {}
+
     const loadSurvey = async () => {
       try {
         const data = await surveyService.getSurvey(params.id);

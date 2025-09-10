@@ -476,8 +476,8 @@ export default function NuevaEncuesta({
           return;
         }
 
-        // Solo permitir acceso a admin y supervisor
-        if (!["ROLE_ADMIN", "SUPERVISOR"].includes(userData.role)) {
+        // Solo permitir acceso a admin
+        if (!(userData.role === "ROLE_ADMIN")) {
           router.replace("/dashboard/encuestas");
           return;
         }
