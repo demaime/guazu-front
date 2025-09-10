@@ -133,18 +133,13 @@ const RecentAnswersWidget = () => {
   };
 
   const formatTimeAgo = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays > 0) {
-      return `hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
-    } else if (diffHours > 0) {
-      return `hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
-    } else {
-      return "hace unos minutos";
+    try {
+      const d = new Date(dateString);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    } catch {
+      return "--:--";
     }
   };
 

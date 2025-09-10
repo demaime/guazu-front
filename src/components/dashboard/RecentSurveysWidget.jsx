@@ -4,15 +4,19 @@ import { useState, useEffect } from "react";
 import { FileText, Calendar, Plus, Clock, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { surveyService } from "@/services/survey.service";
+import { authService } from "@/services/auth.service";
 
 const RecentSurveysWidget = () => {
   const [recentSurveys, setRecentSurveys] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [role, setRole] = useState(null);
 
   useEffect(() => {
     const loadRecentSurveys = async () => {
       try {
         setIsLoading(true);
+        const user = authService.getUser?.();
+        setRole(user?.role || null);
         const { surveys } = await surveyService.getAllSurveys(1, 50);
         console.log("📊 Encuestas cargadas:", surveys);
 
@@ -55,18 +59,13 @@ const RecentSurveysWidget = () => {
   };
 
   const formatTimeAgo = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays > 0) {
-      return `hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
-    } else if (diffHours > 0) {
-      return `hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
-    } else {
-      return "hace unos minutos";
+    try {
+      const d = new Date(dateString);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${hh}:${mm}`;
+    } catch {
+      return "--:--";
     }
   };
 
@@ -111,7 +110,9 @@ const RecentSurveysWidget = () => {
               <FileText className="w-5 h-5 text-white" />
             </div>
             <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-              Últimas Encuestas Creadas
+              {role === "SUPERVISOR"
+                ? "Últimas Encuestas Asignadas"
+                : "Últimas Encuestas Creadas"}
             </h3>
           </div>
           <div className="space-y-4">
@@ -135,7 +136,9 @@ const RecentSurveysWidget = () => {
             <FileText className="w-5 h-5 text-white" />
           </div>
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-            Últimas Encuestas Creadas
+            {role === "SUPERVISOR"
+              ? "Últimas Encuestas Asignadas"
+              : "Últimas Encuestas Creadas"}
           </h3>
         </div>
 

@@ -70,14 +70,7 @@ export default function PollstersPage() {
     loadPollsters();
   }, [router]);
 
-  useEffect(() => {
-    if (selectedPollster?.city) {
-      const coordinates = CITY_COORDINATES[selectedPollster.city];
-      if (coordinates) {
-        setMapCoordinates(coordinates);
-      }
-    }
-  }, [selectedPollster]);
+  // Residuo eliminado: setMapCoordinates no está definido aún (feature futura de mapa)
 
   // Filtrar usuarios por el campo seleccionado
   const filteredUsers =
