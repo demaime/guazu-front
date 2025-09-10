@@ -8,6 +8,7 @@ import { ClientThemeWrapper } from "@/components/ClientThemeWrapper";
 import { ToastContainer } from "react-toastify";
 import Script from "next/script";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import { Suspense } from "react";
 
 const mulish = Mulish({
   subsets: ["latin"],
@@ -67,7 +68,9 @@ export default function RootLayout({ children }) {
       </head>
       <body className={mulish.className}>
         <ClientThemeWrapper>
-          <AnalyticsProvider />
+          <Suspense fallback={null}>
+            <AnalyticsProvider />
+          </Suspense>
           {children}
           <ToastContainer
             position="bottom-right"

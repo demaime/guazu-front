@@ -38,7 +38,11 @@ export async function syncPendingResponses() {
         total: pending.length,
       });
     }
-  } catch {}
+  } catch (e) {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("offline_synced trackEvent failed", e);
+    }
+  }
 
   return { synced, total: pending.length };
 }

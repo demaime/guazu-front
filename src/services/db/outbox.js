@@ -15,7 +15,11 @@ export async function queueResponseForSync(doc) {
       if (doc?.surveyId) {
         trackEvent("offline_saved", { survey_id: doc.surveyId });
       }
-    } catch {}
+    } catch (e) {
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("offline_saved trackEvent failed", e);
+      }
+    }
   } catch (e) {
     if (e.status === 409) {
       const existing = await db.get(_id);
