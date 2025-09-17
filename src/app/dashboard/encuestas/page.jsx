@@ -148,19 +148,29 @@ export default function Encuestas() {
       setActiveCurrentPage(1);
       setFinishedCurrentPage(1);
 
-      // Borradores
+      // Borradores (solo ADMIN)
       try {
-        if (typeof navigator !== "undefined" && navigator.onLine) {
-          const draftsResp = await surveyService.getDrafts();
-          const drafts = draftsResp.drafts || [];
-          setDraftSurveysData(drafts);
-          setTabCounts({
-            active: active.length,
-            finished: finished.length,
-            drafts: drafts.length,
-          });
+        if (user?.role === "ROLE_ADMIN") {
+          if (typeof navigator !== "undefined" && navigator.onLine) {
+            const draftsResp = await surveyService.getDrafts();
+            const drafts = draftsResp.drafts || [];
+            setDraftSurveysData(drafts);
+            setTabCounts({
+              active: active.length,
+              finished: finished.length,
+              drafts: drafts.length,
+            });
+          } else {
+            // offline: no intentar drafts
+            setDraftSurveysData([]);
+            setTabCounts({
+              active: active.length,
+              finished: finished.length,
+              drafts: 0,
+            });
+          }
         } else {
-          // offline: no intentar drafts
+          // No admin: no consultar drafts
           setDraftSurveysData([]);
           setTabCounts({
             active: active.length,
@@ -180,6 +190,7 @@ export default function Encuestas() {
       // Reemplazar completamente el cache con las encuestas actuales del servidor (solo índices)
       try {
         await safeReplaceAllSurveys(active);
+        // Registrar la hora de sync solo en la carga inicial
         await setLastSync(Date.now());
       } catch {}
     } catch (e) {
@@ -192,6 +203,12 @@ export default function Encuestas() {
   const fetchDataForTab = useCallback(
     async (tabName, page) => {
       if (tabName === "drafts") {
+        // Solo ADMIN consulta borradores
+        if (user?.role !== "ROLE_ADMIN") {
+          setDraftSurveysData([]);
+          setTabCounts((prev) => ({ ...prev, drafts: 0 }));
+          return;
+        }
         setIsLoading((prev) => ({ ...prev, drafts: true }));
         setError(null);
         try {
@@ -309,7 +326,6 @@ export default function Encuestas() {
         // Reemplazar completamente el cache EN POUCH SÓLO con ACTIVAS
         try {
           await replaceAllSurveys(activeSurveys);
-          await setLastSync(Date.now());
           setSyncProgress((prev) => (prev < 60 ? 60 : prev));
           // Prefetch: descargar detalle completo de encuestas activas para responder offline sin haberlas abierto
           try {

@@ -242,7 +242,7 @@ export default function AnalisisEncuesta() {
   }, [survey, params.id]);
 
   if (isLoading) {
-    return <LoaderWrapper />;
+    return <LoaderWrapper text="Preparando análisis" />;
   }
 
   if (error) {

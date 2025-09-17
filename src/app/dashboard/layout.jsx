@@ -17,7 +17,6 @@ import {
   LogOut,
   LayoutGrid,
   Settings,
-  UserRoundPen,
 } from "lucide-react";
 import { themeService } from "@/services/theme.service";
 import { motion, AnimatePresence } from "framer-motion";
@@ -201,15 +200,16 @@ export default function DashboardLayout({ children }) {
 
       if (userRole === "ROLE_ADMIN") {
         items.push(
-          { path: "usuarios", label: "Usuarios", icon: Users },
-          { path: "encuestadores", label: "Encuestadores", icon: UserRoundPen }
+          { path: "usuarios", label: "Usuarios", icon: Users }
+          // { path: "encuestadores", label: "Encuestadores", icon: UserRoundPen }
         );
       } else if (userRole === "SUPERVISOR") {
-        items.push({
-          path: "encuestadores",
-          label: "Encuestadores",
-          icon: UserRoundPen,
-        });
+        // Ocultar temporalmente el ítem "Encuestadores" para supervisores
+        // items.push({
+        //   path: "encuestadores",
+        //   label: "Encuestadores",
+        //   icon: UserRoundPen,
+        // });
       }
 
       // Agregar Configuración al final
