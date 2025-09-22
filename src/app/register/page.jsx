@@ -5,7 +5,59 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { authService } from "@/services/auth.service";
+import LocationSelector from "@/components/LocationSelector";
 import { Loader } from "@/components/ui/Loader"; // Asumiendo que tienes un componente Loader
+
+// Normalizador de nombres y apellidos ("María del Carmen", "O'Connor", "San Martín")
+function normalizePersonName(input) {
+  try {
+    if (!input && input !== 0) return "";
+    const raw = String(input).trim().replace(/\s+/g, " ");
+    if (raw === "") return "";
+
+    const lowerConnectors = new Set([
+      "de",
+      "del",
+      "la",
+      "las",
+      "los",
+      "y",
+      "e",
+      "o",
+      "u",
+      "da",
+      "di",
+      "do",
+      "van",
+      "von",
+    ]);
+
+    const capitalizeToken = (token) => {
+      const hyphenParts = token.split("-").map((part) => {
+        const hasApostrophe = part.includes("'") || part.includes("’");
+        if (hasApostrophe) {
+          const apo = part.includes("’") ? "’" : "'";
+          return part
+            .split(apo)
+            .map((p) => (p ? p.charAt(0).toUpperCase() + p.slice(1) : ""))
+            .join(apo);
+        }
+        return part ? part.charAt(0).toUpperCase() + part.slice(1) : "";
+      });
+      return hyphenParts.join("-");
+    };
+
+    const tokens = raw.toLowerCase().split(" ");
+    return tokens
+      .map((tk, idx) => {
+        if (idx > 0 && lowerConnectors.has(tk)) return tk;
+        return capitalizeToken(tk);
+      })
+      .join(" ");
+  } catch (_) {
+    return String(input || "").trim();
+  }
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -24,6 +76,13 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [location, setLocation] = useState({
+    province: null,
+    municipality: null,
+    department: null,
+    locality: null,
+    commune: null,
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,6 +90,46 @@ export default function RegisterPage() {
     setError(""); // Limpiar error al empezar a escribir
     setSuccessMessage(""); // Limpiar mensaje de éxito
     setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+  };
+
+  const handleNameBlur = () => {
+    setFormData((prev) => ({ ...prev, name: normalizePersonName(prev.name) }));
+  };
+
+  const handleLastNameBlur = () => {
+    setFormData((prev) => ({
+      ...prev,
+      lastName: normalizePersonName(prev.lastName),
+    }));
+  };
+
+  const computeCityFromLocation = (loc) => {
+    const provName = loc?.province?.name?.toLowerCase() || "";
+    const isCaba =
+      loc?.province?.id === "02" ||
+      provName.includes("autónoma de buenos aires") ||
+      provName === "caba";
+    if (isCaba) return loc?.commune?.name || "";
+    return (
+      loc?.locality?.name ||
+      loc?.municipality?.name ||
+      loc?.department?.name ||
+      ""
+    );
+  };
+
+  const handleLocationChange = (loc) => {
+    setLocation(loc);
+    setFormData((prev) => ({
+      ...prev,
+      province: loc?.province?.name || "",
+      city: computeCityFromLocation(loc),
+    }));
+    setFieldErrors((prev) => ({
+      ...prev,
+      province: undefined,
+      city: undefined,
+    }));
   };
 
   const validateForm = () => {
@@ -51,8 +150,22 @@ export default function RegisterPage() {
       newErrors.dni =
         "El DNI debe ser un número positivo, sin puntos ni letras.";
     }
-    if (!city || String(city).trim() === "") {
-      newErrors.city = "Indique su localidad (ciudad o pueblo).";
+    if (!location?.province?.id) newErrors.city = "Seleccione una provincia.";
+    const provName = location?.province?.name?.toLowerCase() || "";
+    const isCaba =
+      location?.province?.id === "02" ||
+      provName.includes("autónoma de buenos aires") ||
+      provName === "caba";
+    if (isCaba) {
+      if (!location?.commune?.id) newErrors.city = "Seleccione una comuna.";
+    } else {
+      if (
+        !location?.locality?.id &&
+        !location?.municipality?.id &&
+        !location?.department?.id
+      ) {
+        newErrors.city = "Seleccione municipio/departamento y localidad.";
+      }
     }
 
     if (password && confirmPassword && password !== confirmPassword) {
@@ -112,14 +225,17 @@ export default function RegisterPage() {
     setSuccessMessage("");
 
     try {
+      // Normalizar antes de enviar (sin depender solo del onBlur)
+      const normalizedName = normalizePersonName(formData.name);
+      const normalizedLastName = normalizePersonName(formData.lastName);
       const payload = {
-        name: formData.name,
-        lastName: formData.lastName,
+        name: normalizedName,
+        lastName: normalizedLastName,
         email: formData.email,
         password: formData.password,
         dni: Number(formData.dni),
-        city: formData.city,
-        province: formData.province,
+        city: computeCityFromLocation(location) || formData.city,
+        province: location?.province?.name || formData.province,
         cellular: formData.cellular,
       };
       await authService.register(payload);
@@ -266,6 +382,7 @@ export default function RegisterPage() {
                 placeholder="Ingrese su nombre"
                 value={formData.name}
                 onChange={handleChange}
+                onBlur={handleNameBlur}
               />
               {fieldErrors.name && (
                 <p
@@ -292,6 +409,7 @@ export default function RegisterPage() {
                 placeholder="Ingrese su apellido"
                 value={formData.lastName}
                 onChange={handleChange}
+                onBlur={handleLastNameBlur}
               />
               {fieldErrors.lastName && (
                 <p
@@ -356,26 +474,14 @@ export default function RegisterPage() {
                   )}
                 </div>
                 <div>
-                  <label
-                    htmlFor="city"
-                    className="block text-sm font-medium text-white uppercase"
-                  >
-                    Localidad
-                  </label>
-                  <input
-                    id="city"
-                    name="city"
-                    type="text"
-                    required
-                    className={getInputClass("city")}
-                    placeholder="Ingrese su localidad"
-                    value={formData.city}
-                    onChange={handleChange}
+                  <LocationSelector
+                    value={location}
+                    onChange={handleLocationChange}
                   />
                   {fieldErrors.city && (
                     <p
                       role="alert"
-                      className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                      className="mt-2 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
                     >
                       {fieldErrors.city}
                     </p>
@@ -384,18 +490,6 @@ export default function RegisterPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white uppercase">
-                    Provincia
-                  </label>
-                  <input
-                    name="province"
-                    type="text"
-                    className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
-                    value={formData.province}
-                    onChange={handleChange}
-                  />
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-white uppercase">
                     Celular
