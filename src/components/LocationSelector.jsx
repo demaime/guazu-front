@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { georefClient } from "@/services/georef.service";
+
+// Helper para normalizar texto para búsqueda (quita tildes y a minúsculas)
+const normalizeText = (text) => {
+  if (!text) return "";
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+};
 
 export default function LocationSelector({
   value,
@@ -9,17 +18,14 @@ export default function LocationSelector({
   disabled = false,
 }) {
   const [provinces, setProvinces] = useState([]);
-  const [municipios, setMunicipios] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
-  const [localidades, setLocalidades] = useState([]);
-  const [comunas, setComunas] = useState([]);
+  const [localities, setLocalities] = useState([]); // Almacena todas las de la prov
+  const [filteredLocalities, setFilteredLocalities] = useState([]); // Para mostrar
   const [loading, setLoading] = useState({
     prov: false,
-    muni: false,
-    depto: false,
     loc: false,
-    comuna: false,
   });
+  const [localidadQuery, setLocalidadQuery] = useState("");
+  const [isLocalidadInputFocused, setIsLocalidadInputFocused] = useState(false);
 
   const isCABA = useMemo(
     () =>
@@ -28,9 +34,10 @@ export default function LocationSelector({
         ?.toLowerCase()
         .includes("autónoma de buenos aires") ||
       value?.province?.name?.toLowerCase() === "caba",
-    [value]
+    [value?.province]
   );
 
+  // Carga inicial de provincias
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -47,113 +54,84 @@ export default function LocationSelector({
     };
   }, []);
 
+  // Carga de localidades/comunas cuando cambia la provincia
   useEffect(() => {
-    // Cuando cambia provincia, limpiar niveles inferiores
-    setMunicipios([]);
-    setDepartamentos([]);
-    setLocalidades([]);
-    setComunas([]);
-    if (!value?.province?.id) return;
+    if (!value?.province?.id) {
+      setLocalities([]);
+      return;
+    }
 
-    (async () => {
-      if (isCABA) {
-        setLoading((s) => ({ ...s, comuna: true }));
-        try {
-          const cms = await georefClient.getComunasCABA();
-          setComunas(cms);
-        } finally {
-          setLoading((s) => ({ ...s, comuna: false }));
-        }
-        return;
-      }
-
-      // Intentar municipios; si no hay, usar departamentos
-      setLoading((s) => ({ ...s, muni: true }));
-      try {
-        const munis = await georefClient.getMunicipios(value.province.id);
-        setMunicipios(munis);
-      } catch {
-        setMunicipios([]);
-      } finally {
-        setLoading((s) => ({ ...s, muni: false }));
-      }
-
-      if (!municipios || municipios.length === 0) {
-        setLoading((s) => ({ ...s, depto: true }));
-        try {
-          const deptos = await georefClient.getDepartamentos(value.province.id);
-          setDepartamentos(deptos);
-        } finally {
-          setLoading((s) => ({ ...s, depto: false }));
-        }
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value?.province?.id]);
-
-  useEffect(() => {
-    // Cuando cambia municipio/departamento, cargar localidades
-    setLocalidades([]);
-    if (isCABA) return; // En CABA no usamos localidades
-
-    const municipioId = value?.municipality?.id || null;
-    const departamentoId = value?.department?.id || null;
-    if (!municipioId && !departamentoId && !value?.province?.id) return;
-
+    let mounted = true;
     (async () => {
       setLoading((s) => ({ ...s, loc: true }));
       try {
-        const locs = await georefClient.getLocalidades({
-          municipioId,
-          departamentoId,
-          provinciaId: value?.province?.id,
-        });
-        setLocalidades(locs);
+        const items = await georefClient.getLocalidades(value.province.id);
+        if (mounted) setLocalities(items);
+      } catch (err) {
+        console.error("Error cargando localidades/comunas", err);
+        if (mounted) setLocalities([]);
       } finally {
-        setLoading((s) => ({ ...s, loc: false }));
+        if (mounted) setLoading((s) => ({ ...s, loc: false }));
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value?.municipality?.id, value?.department?.id]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [value?.province?.id]);
+
+  // Filtrado de localidades en el cliente (instantáneo)
+  useEffect(() => {
+    if (!localidadQuery) {
+      setFilteredLocalities([]);
+      return;
+    }
+
+    const normalizedQuery = normalizeText(localidadQuery);
+    const queryWords = normalizedQuery.split(" ").filter(Boolean);
+
+    const results = localities
+      .filter((loc) => {
+        const normalizedName = normalizeText(loc.name);
+        // Búsqueda precisa: cada palabra de la consulta debe estar al inicio de alguna palabra en el nombre
+        return queryWords.every((qw) =>
+          normalizedName.split(" ").some((nameWord) => nameWord.startsWith(qw))
+        );
+      })
+      .slice(0, 100);
+
+    setFilteredLocalities(results);
+  }, [localidadQuery, localities]);
 
   const handleProvinceChange = (e) => {
     const id = e.target.value || "";
     const province = provinces.find((p) => String(p.id) === String(id)) || null;
+    setLocalidadQuery("");
+    setLocalities([]);
+    setFilteredLocalities([]);
     onChange({
       province,
-      municipality: null,
-      department: null,
+      // Reseteamos todo al cambiar de provincia
       locality: null,
       commune: null,
     });
   };
 
-  const handleMunicipioChange = (e) => {
-    const id = e.target.value || "";
-    const municipality =
-      municipios.find((m) => String(m.id) === String(id)) || null;
-    onChange({ ...value, municipality, department: null, locality: null });
+  const handleLocalidadSelect = (localidad) => {
+    setLocalidadQuery(localidad.name);
+    setIsLocalidadInputFocused(false);
+
+    const finalSelection = {
+      ...value,
+      locality: !isCABA ? localidad : null,
+      commune: isCABA ? localidad : null,
+    };
+    onChange(finalSelection);
   };
 
-  const handleDepartamentoChange = (e) => {
-    const id = e.target.value || "";
-    const department =
-      departamentos.find((d) => String(d.id) === String(id)) || null;
-    onChange({ ...value, department, municipality: null, locality: null });
-  };
-
-  const handleLocalidadChange = (e) => {
-    const id = e.target.value || "";
-    const locality =
-      localidades.find((l) => String(l.id) === String(id)) || null;
-    onChange({ ...value, locality });
-  };
-
-  const handleComunaChange = (e) => {
-    const id = e.target.value || "";
-    const commune = comunas.find((c) => String(c.id) === String(id)) || null;
-    onChange({ ...value, commune });
-  };
+  const currentSelectionName = isCABA
+    ? value?.commune?.name
+    : value?.locality?.name;
 
   return (
     <div className="space-y-3">
@@ -168,7 +146,7 @@ export default function LocationSelector({
           onChange={handleProvinceChange}
         >
           <option value="" disabled>
-            {loading.prov ? "Cargando..." : "Seleccionar provincia"}
+            {loading.prov ? "Cargando..." : "Seleccionar"}
           </option>
           {provinces.map((p) => (
             <option key={p.id} value={p.id}>
@@ -178,100 +156,60 @@ export default function LocationSelector({
         </select>
       </div>
 
-      {isCABA ? (
-        <div>
-          <label className="block text-sm font-medium text-white uppercase">
-            Comuna
-          </label>
-          <select
-            disabled={disabled || !value?.province?.id || loading.comuna}
-            className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
-            value={value?.commune?.id || ""}
-            onChange={handleComunaChange}
-          >
-            <option value="" disabled>
-              {loading.comuna ? "Cargando..." : "Seleccionar comuna"}
-            </option>
-            {comunas.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : (
-        <>
-          <div>
-            <label className="block text-sm font-medium text-white uppercase">
-              Municipio
-            </label>
-            <select
-              disabled={disabled || !value?.province?.id || loading.muni}
-              className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
-              value={value?.municipality?.id || ""}
-              onChange={handleMunicipioChange}
-            >
-              <option value="" disabled>
-                {loading.muni ? "Cargando..." : "Seleccionar municipio"}
-              </option>
-              {municipios.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="relative">
+        <label className="block text-sm font-medium text-white uppercase">
+          {isCABA ? "Comuna" : "Localidad"}
+        </label>
+        <input
+          type="text"
+          disabled={disabled || !value?.province?.id || loading.loc}
+          className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
+          placeholder={
+            loading.loc
+              ? "Cargando..."
+              : !value?.province?.id
+              ? "Seleccione una provincia"
+              : `Buscar ${isCABA ? "comuna" : "localidad"}`
+          }
+          value={localidadQuery || currentSelectionName || ""}
+          onFocus={() => {
+            setIsLocalidadInputFocused(true);
+            // Si el usuario vuelve a hacer foco, mostramos la lista para que pueda cambiar
+            if (currentSelectionName) setLocalidadQuery("");
+          }}
+          onChange={(e) => setLocalidadQuery(e.target.value)}
+          onBlur={() => {
+            setTimeout(() => setIsLocalidadInputFocused(false), 200);
+            // Si el campo queda vacío, reseteamos la selección
+            if (!localidadQuery && !currentSelectionName)
+              handleLocalidadSelect({ name: "", id: null });
+            else if (!localidadQuery && currentSelectionName)
+              setLocalidadQuery(currentSelectionName);
+          }}
+        />
 
-          {(!municipios || municipios.length === 0) && (
-            <div>
-              <label className="block text-sm font-medium text-white uppercase">
-                Departamento
-              </label>
-              <select
-                disabled={disabled || !value?.province?.id || loading.depto}
-                className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
-                value={value?.department?.id || ""}
-                onChange={handleDepartamentoChange}
+        {isLocalidadInputFocused && filteredLocalities.length > 0 && (
+          <ul className="absolute z-10 w-full bg-white mt-1 rounded-md shadow-lg max-h-60 overflow-auto">
+            {filteredLocalities.map((loc) => (
+              <li
+                key={loc.id}
+                className="p-2 text-sm text-gray-900 hover:bg-gray-100 cursor-pointer"
+                onMouseDown={() => handleLocalidadSelect(loc)}
               >
-                <option value="" disabled>
-                  {loading.depto ? "Cargando..." : "Seleccionar departamento"}
-                </option>
-                {departamentos.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                {loc.name}
+              </li>
+            ))}
+          </ul>
+        )}
+        {isLocalidadInputFocused &&
+          localidadQuery.length > 0 &&
+          filteredLocalities.length === 0 &&
+          !loading.loc && (
+            <div className="absolute z-10 w-full bg-white mt-1 rounded-md shadow-lg p-2 text-sm text-gray-500">
+              No se encontraron resultados.
             </div>
           )}
-
-          <div>
-            <label className="block text-sm font-medium text-white uppercase">
-              Localidad
-            </label>
-            <select
-              disabled={
-                disabled ||
-                !value?.province?.id ||
-                (!value?.municipality?.id && !value?.department?.id) ||
-                loading.loc
-              }
-              className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
-              value={value?.locality?.id || ""}
-              onChange={handleLocalidadChange}
-            >
-              <option value="" disabled>
-                {loading.loc ? "Cargando..." : "Seleccionar localidad"}
-              </option>
-              {localidades.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </>
-      )}
+      </div>
     </div>
   );
 }
