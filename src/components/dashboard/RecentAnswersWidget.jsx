@@ -11,14 +11,13 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { surveyService } from "@/services/survey.service";
-import GeocodingService from "@/services/geocoding.service";
+// Geocodificación cliente eliminada: usamos answer.location desde el backend
 
 const RecentAnswersWidget = () => {
   const [allAnswers, setAllAnswers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [citiesCache, setCitiesCache] = useState(new Map());
-  const [loadingCities, setLoadingCities] = useState(false);
+  // Geocodificación local eliminada
 
   // Obtener los primeros 3 para mostrar en el widget
   const recentAnswers = allAnswers.slice(0, 3);
@@ -27,13 +26,12 @@ const RecentAnswersWidget = () => {
     const loadAllAnswers = async () => {
       try {
         setIsLoading(true);
-        // Traer 20 de una vez para evitar fetch posterior
-        const answers = await surveyService.getRecentAnswersForUser(20);
+        // Incluir finalizadas para que aparezcan también
+        const answers = await surveyService.getRecentAnswersForUser(20, {
+          includeFinished: true,
+        });
         console.log("🔍 Todas las respuestas cargadas:", answers.length);
         setAllAnswers(answers);
-
-        // Cargar ciudades para respuestas que tienen coordenadas
-        await loadCitiesForAnswers(answers);
       } catch (error) {
         console.error("Error loading answers:", error);
         setAllAnswers([]);
@@ -45,86 +43,37 @@ const RecentAnswersWidget = () => {
     loadAllAnswers();
   }, []);
 
-  const loadCitiesForAnswers = async (answers) => {
-    if (!answers || answers.length === 0) return;
-
-    try {
-      setLoadingCities(true);
-      const newCitiesCache = new Map(citiesCache);
-
-      // Filtrar respuestas que tienen coordenadas y no están en cache
-      const answersWithCoords = answers.filter(
-        (answer) =>
-          answer.lat &&
-          answer.lng &&
-          !newCitiesCache.has(`${answer.lat},${answer.lng}`)
-      );
-
-      if (answersWithCoords.length === 0) {
-        return;
-      }
-
-      console.log(
-        `🌍 Cargando ciudades para ${answersWithCoords.length} respuestas...`
-      );
-
-      // Cargar ciudades en paralelo
-      const cityPromises = answersWithCoords.map(async (answer) => {
-        const key = `${answer.lat},${answer.lng}`;
-        try {
-          const cityInfo = await GeocodingService.getCityFromCoordinates(
-            answer.lat,
-            answer.lng
-          );
-          return { key, cityInfo };
-        } catch (error) {
-          console.warn(`Error geocodificando ${key}:`, error);
-          return { key, cityInfo: { city: "Ubicación no disponible" } };
-        }
-      });
-
-      const cityResults = await Promise.all(cityPromises);
-
-      // Actualizar cache
-      cityResults.forEach(({ key, cityInfo }) => {
-        newCitiesCache.set(key, cityInfo);
-      });
-
-      setCitiesCache(newCitiesCache);
-      console.log(
-        `✅ Ciudades cargadas. Cache total: ${newCitiesCache.size} ubicaciones`
-      );
-    } catch (error) {
-      console.error("Error cargando ciudades:", error);
-    } finally {
-      setLoadingCities(false);
-    }
-  };
+  // Geocodificación eliminada
 
   const getCityForAnswer = (answer) => {
-    if (!answer.lat || !answer.lng) {
-      return null;
-    }
-
-    const key = `${answer.lat},${answer.lng}`;
-    const cityInfo = citiesCache.get(key);
-
-    if (!cityInfo) {
-      return loadingCities ? "Cargando..." : null;
-    }
-
-    return cityInfo.city;
+    // Sólo usamos la ciudad del backend
+    const backendCity = answer?.location?.city;
+    return backendCity && backendCity !== "Ubicación no disponible"
+      ? backendCity
+      : null;
   };
 
   const formatPollsterWithCity = (answer) => {
-    const pollsterName = answer.fullName || "Usuario anónimo";
-    const city = getCityForAnswer(answer);
+    // Dejamos solo el nombre; la ubicación se muestra a la derecha junto al reloj
+    return answer.fullName || "Usuario anónimo";
+  };
 
-    if (city && city !== "Ubicación no disponible" && city !== "Cargando...") {
-      return `${pollsterName} - ${city}`;
+  const getLocationLabel = (answer) => {
+    const state = answer?.location?.state || null;
+    const city = answer?.location?.city || null;
+
+    if (state === "CABA") {
+      if (city && city.toLowerCase().includes("comuna")) {
+        return `${city}, CABA`;
+      }
+      return "CABA";
     }
 
-    return pollsterName;
+    if (city && city !== "Ubicación no disponible" && state) {
+      return `${city}, ${state}`;
+    }
+
+    return state || city || null;
   };
 
   const openModal = () => {
@@ -132,14 +81,17 @@ const RecentAnswersWidget = () => {
     setShowModal(true);
   };
 
-  const formatTimeAgo = (dateString) => {
+  const formatDateTime = (dateString) => {
     try {
       const d = new Date(dateString);
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mo = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = String(d.getFullYear()).slice(-2);
       const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      return `${hh}:${mm}`;
+      const mi = String(d.getMinutes()).padStart(2, "0");
+      return `${dd}-${mo}-${yy} - ${hh}:${mi}`;
     } catch {
-      return "--:--";
+      return "--/--/-- - --:--";
     }
   };
 
@@ -203,22 +155,21 @@ const RecentAnswersWidget = () => {
             className="space-y-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.5 }}
           >
             <AnimatePresence mode="popLayout">
               {recentAnswers.map((answer, index) => (
                 <motion.div
                   key={answer._id || index}
                   className="relative p-4 bg-[var(--card-border)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl hover:shadow-md hover:border-primary/30 transition-all duration-200 group/item overflow-hidden"
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{
-                    duration: 0.4,
-                    delay: index * 0.1,
-                    ease: "easeOut",
+                    duration: 0.2,
+                    delay: index * 0.05,
+                    ease: "linear",
                   }}
-                  layout
                 >
                   <div className="absolute inset-y-0 left-0 w-1 bg-primary rounded-r-full"></div>
                   <div className="flex items-start justify-between gap-3 ml-3">
@@ -234,21 +185,31 @@ const RecentAnswersWidget = () => {
                           <span className="text-xs text-[var(--text-secondary)] truncate font-medium">
                             {formatPollsterWithCity(answer)}
                           </span>
-                          {getCityForAnswer(answer) && (
-                            <div className="ml-1 p-0.5 bg-primary/10 rounded-full">
-                              <MapPin className="w-2.5 h-2.5 text-primary" />
-                            </div>
+                          {getLocationLabel(answer) && (
+                            <>
+                              <span className="text-[var(--text-muted)]">
+                                ·
+                              </span>
+                              <div className="p-1 bg-[var(--card-background)] rounded-full border border-[var(--card-border)]">
+                                <MapPin className="w-3 h-3 text-primary" />
+                              </div>
+                              <span className="text-xs text-[var(--text-secondary)] truncate max-w-[160px]">
+                                {getLocationLabel(answer)}
+                              </span>
+                            </>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] flex-shrink-0">
-                      <div className="p-1 bg-[var(--card-background)] rounded-full border border-[var(--card-border)]">
-                        <Clock className="w-3 h-3" />
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] flex-shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <div className="p-1 bg-[var(--card-background)] rounded-full border border-[var(--card-border)]">
+                          <Clock className="w-3 h-3" />
+                        </div>
+                        <span className="font-medium">
+                          {formatDateTime(answer.createdAt)}
+                        </span>
                       </div>
-                      <span className="font-medium">
-                        {formatTimeAgo(answer.createdAt)}
-                      </span>
                     </div>
                   </div>
                 </motion.div>
@@ -263,10 +224,10 @@ const RecentAnswersWidget = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.5, ease: "easeOut" }}
       >
-        <div className="text-sm">
+        <div className="text-sm flex items-center justify-center">
           <button
             onClick={openModal}
-            className="font-medium text-white hover:text-primary-light transition-colors flex items-center gap-2 group/link w-full justify-center cursor-pointer"
+            className="font-medium text-white hover:text-primary-light transition-colors flex items-center gap-2 group/link cursor-pointer"
           >
             Ver más
             <ChevronRight className="w-4 h-4 transform group-hover/link:translate-x-1 transition-transform" />
@@ -335,13 +296,25 @@ const RecentAnswersWidget = () => {
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <div className="p-1 bg-[var(--card-background)] rounded-full border border-[var(--card-border)]">
-                                <Clock className="w-3 h-3" />
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1 bg-[var(--card-background)] rounded-full border border-[var(--card-border)]">
+                                  <Clock className="w-3 h-3" />
+                                </div>
+                                <span className="font-medium">
+                                  {formatDateTime(answer.createdAt)}
+                                </span>
                               </div>
-                              <span className="font-medium">
-                                {formatTimeAgo(answer.createdAt)}
-                              </span>
+                              {getLocationLabel(answer) && (
+                                <div className="flex items-center gap-1.5">
+                                  <div className="p-1 bg-[var(--card-background)] rounded-full border border-[var(--card-border)]">
+                                    <MapPin className="w-3 h-3 text-primary" />
+                                  </div>
+                                  <span className="font-medium">
+                                    {getLocationLabel(answer)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -366,6 +339,7 @@ const RecentAnswersWidget = () => {
           </div>
         </div>
       )}
+      {/* Modal de JSON crudo eliminado */}
     </div>
   );
 };

@@ -49,23 +49,17 @@ const RecentSurveysWidget = () => {
     loadRecentSurveys();
   }, []);
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
-  const formatTimeAgo = (dateString) => {
+  const formatDateTime = (dateString) => {
     try {
       const d = new Date(dateString);
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mo = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = String(d.getFullYear()).slice(-2);
       const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      return `${hh}:${mm}`;
+      const mi = String(d.getMinutes()).padStart(2, "0");
+      return `${dd}-${mo}-${yy} - ${hh}:${mi}`;
     } catch {
-      return "--:--";
+      return "--/--/-- - --:--";
     }
   };
 
@@ -171,7 +165,7 @@ const RecentSurveysWidget = () => {
             className="space-y-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             <AnimatePresence mode="popLayout">
               {recentSurveys.map((survey, index) => {
@@ -180,15 +174,14 @@ const RecentSurveysWidget = () => {
                   <motion.div
                     key={survey._id || index}
                     className="relative p-4 bg-[var(--card-border)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-xl hover:shadow-md hover:border-primary/30 transition-all duration-200 group/item overflow-hidden"
-                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     transition={{
-                      duration: 0.4,
-                      delay: index * 0.1,
-                      ease: "easeOut",
+                      duration: 0.2,
+                      delay: index * 0.05,
+                      ease: "linear",
                     }}
-                    layout
                   >
                     <div className="absolute inset-y-0 left-0 w-1 bg-secondary rounded-r-full"></div>
                     <div className="flex items-start justify-between gap-3 ml-3">
@@ -204,9 +197,9 @@ const RecentSurveysWidget = () => {
                             <span
                               className={`px-2 py-1 text-xs font-medium rounded-full ${
                                 statusInfo.status === "active"
-                                  ? "bg-[var(--hover-bg)] text-[var(--primary-light)]"
+                                  ? "bg-[var(--hover-bg)] text-[var(--primary-dark)]"
                                   : statusInfo.status === "finished"
-                                  ? "bg-[var(--disabled-bg)] text-[var(--disabled-text)]"
+                                  ? "bg-[var(--disabled-bg)] text-[var(--primary)]"
                                   : statusInfo.status === "pending"
                                   ? "bg-[var(--hover-bg)] text-[var(--primary-dark)]"
                                   : "bg-[var(--input-background)] text-[var(--text-secondary)]"
@@ -222,7 +215,7 @@ const RecentSurveysWidget = () => {
                           <Clock className="w-3 h-3" />
                         </div>
                         <span className="font-medium">
-                          {formatTimeAgo(survey.createdAt)}
+                          {formatDateTime(survey.createdAt)}
                         </span>
                       </div>
                     </div>
