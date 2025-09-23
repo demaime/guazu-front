@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { authService } from "@/services/auth.service";
 import LocationSelector from "@/components/LocationSelector";
 import { Loader } from "@/components/ui/Loader"; // Asumiendo que tienes un componente Loader
@@ -83,6 +84,7 @@ export default function RegisterPage() {
     locality: null,
     commune: null,
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -446,7 +448,8 @@ export default function RegisterPage() {
                 </p>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Fila DNI y Celular */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                 <div>
                   <label
                     htmlFor="dni"
@@ -474,23 +477,6 @@ export default function RegisterPage() {
                   )}
                 </div>
                 <div>
-                  <LocationSelector
-                    value={location}
-                    onChange={handleLocationChange}
-                  />
-                  {fieldErrors.city && (
-                    <p
-                      role="alert"
-                      className="mt-2 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
-                    >
-                      {fieldErrors.city}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
                   <label className="block text-sm font-medium text-white uppercase">
                     Celular
                   </label>
@@ -500,65 +486,121 @@ export default function RegisterPage() {
                     className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 placeholder-gray-500 sm:text-sm"
                     value={formData.cellular}
                     onChange={handleChange}
+                    placeholder="Opcional"
                   />
                 </div>
               </div>
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-white uppercase"
-                >
-                  Contraseña
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  className={getInputClass("password")}
-                  placeholder="Ingrese su contraseña"
-                  value={formData.password}
-                  onChange={handleChange}
+
+              {/* Fila Provincia y Localidad */}
+              <div className="pt-4">
+                <LocationSelector
+                  value={location}
+                  onChange={handleLocationChange}
                 />
-                {fieldErrors.password ? (
+                {fieldErrors.city && (
                   <p
                     role="alert"
-                    className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                    className="mt-2 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
                   >
-                    {fieldErrors.password}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-xs text-white/70">
-                    6–10 caracteres, al menos 1 mayúscula, 1 minúscula y 1
-                    número, sin espacios.
+                    {fieldErrors.city}
                   </p>
                 )}
               </div>
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-sm font-medium text-white uppercase"
-                >
-                  Confirmar Contraseña
-                </label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  className={`${getInputClass("confirmPassword")} mb-4`}
-                  placeholder="Confirme su contraseña"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                />
-                {fieldErrors.confirmPassword && (
-                  <p
-                    role="alert"
-                    className="-mt-3 mb-4 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
-                  >
-                    {fieldErrors.confirmPassword}
-                  </p>
-                )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                <div>
+                  <div className="relative">
+                    <label
+                      htmlFor="password"
+                      className="block text-sm font-medium text-white uppercase"
+                    >
+                      Contraseña
+                    </label>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      className={getInputClass("password")}
+                      placeholder="Ingrese su contraseña"
+                      value={formData.password}
+                      onChange={handleChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-400 hover:text-white"
+                      aria-label={
+                        showPassword
+                          ? "Ocultar contraseña"
+                          : "Mostrar contraseña"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeSlashIcon className="h-5 w-5" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                  {fieldErrors.password ? (
+                    <p
+                      role="alert"
+                      className="mt-1 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                    >
+                      {fieldErrors.password}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-white/70">
+                      6–10 caracteres, al menos 1 mayúscula, 1 minúscula y 1
+                      número, sin espacios.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <div className="relative">
+                    <label
+                      htmlFor="confirmPassword"
+                      className="block text-sm font-medium text-white uppercase"
+                    >
+                      Confirmar Contraseña
+                    </label>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      className={`${getInputClass("confirmPassword")} mb-4`}
+                      placeholder="Confirme su contraseña"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 top-6 flex items-center pr-3 text-gray-400 hover:text-white"
+                      aria-label={
+                        showPassword
+                          ? "Ocultar contraseña"
+                          : "Mostrar contraseña"
+                      }
+                    >
+                      {showPassword ? (
+                        <EyeSlashIcon className="h-5 w-5" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                  {fieldErrors.confirmPassword && (
+                    <p
+                      role="alert"
+                      className="-mt-3 mb-4 inline-flex items-center px-2 py-1 rounded-full bg-red-700 text-white text-xs font-medium"
+                    >
+                      {fieldErrors.confirmPassword}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -584,11 +626,9 @@ export default function RegisterPage() {
         )}
 
         <motion.div variants={itemVariants} className="text-center">
-          <Link
-            href="/login"
-            className="text-sm text-white/80 hover:text-white"
-          >
-            ¿Ya tiene una cuenta? Iniciar sesión
+          <Link href="/login" className="text-sm hover:text-white">
+            ¿Ya tiene una cuenta?{" "}
+            <span clasName="text-[var(--primary-dark)]">Iniciar sesión</span>
           </Link>
         </motion.div>
       </motion.div>
