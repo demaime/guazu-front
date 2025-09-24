@@ -11,6 +11,15 @@ import {
   Clock,
   BarChart4,
   Map,
+  Target,
+  TrendingUp,
+  Activity,
+  Eye,
+  Download,
+  MapPin,
+  ArrowLeft,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
@@ -21,6 +30,10 @@ import ExportControls from "@/components/ExportControls/ExportControls";
 import SurveyMap from "@/components/SurveyMap";
 import CasesTable from "@/components/CasesTable";
 import MapModal from "@/components/MapModal";
+import CollapsingSection from "@/components/ui/CollapsingSection";
+import StatCard from "@/components/ui/StatCard";
+import ProgressBar from "@/components/ui/ProgressBar";
+import VirtualizedList from "@/components/ui/VirtualizedList";
 
 // Función auxiliar para formatear fechas considerando diferentes formatos
 const formatSurveyDate = (dateValue) => {
@@ -161,6 +174,7 @@ export default function AnalisisEncuesta() {
     pollsterName: "",
     date: null,
   });
+  const [expandedAnswer, setExpandedAnswer] = useState(null);
 
   useEffect(() => {
     // Comprobar permisos - solo admin y supervisor pueden ver análisis
@@ -394,584 +408,65 @@ export default function AnalisisEncuesta() {
   }, []);
 
   return (
-    <div className="h-full overflow-y-auto py-4 px-4">
-      <div className="flex flex-col h-full space-y-4">
-        {/* Header y botón de volver */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">
-              Análisis de Encuesta:{" "}
-              {survey.survey?.title?.es || survey.survey?.title}
+    <div className="min-h-screen bg-[var(--background)] overflow-y-auto">
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        {/* Modern Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-primary rounded-2xl p-6 border border-[var(--card-border)]"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => router.back()}
+              className="p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <Activity className="w-8 h-8 text-[var(--primary)]" />
+            <h1 className="text-3xl font-bold text-[var(--text-primary)]">
+              Análisis
             </h1>
-            <p className="text-[var(--text-secondary)]">
-              {survey.survey?.description?.es ||
-                survey.survey?.description ||
-                "Sin descripción"}
-            </p>
           </div>
-          <button
-            onClick={() => router.back()}
-            className="px-4 py-2 text-sm border border-[var(--border)] rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+        </motion.div>
+
+        {/* Survey Information */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <CollapsingSection
+            title="Información de la Encuesta"
+            icon={Calendar}
+            variant="default"
+            defaultExpanded={true}
           >
-            Volver
-          </button>
-        </div>
-
-        {/* Top Stats Cards - Total Respuestas y Meta */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="card p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-[var(--primary-light)] text-[var(--primary)] dark:bg-[rgba(128,145,245,0.2)] dark:text-[var(--primary-light)]">
-              <FileSpreadsheet className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-sm text-[var(--text-secondary)]">
-                Total Respuestas
-              </h3>
-              <p className="text-2xl font-semibold">{totalAnswers}</p>
-            </div>
-          </div>
-
-          <div className="card p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-[var(--secondary-light)] text-[var(--secondary)] dark:bg-[rgba(167,151,253,0.2)] dark:text-[var(--secondary-light)]">
-              <Users className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-sm text-[var(--text-secondary)]">Meta</h3>
-              <p className="text-2xl font-semibold">{surveyInfo.target || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Progreso general */}
-        <div className="card p-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-[var(--card-border)]">
-            <BarChart4 className="w-5 h-5 text-[var(--primary)]" />
-            <h2 className="text-xl font-semibold">Progreso Total</h2>
-          </div>
-          <div className="pt-3">
-            <div className="flex items-center py-2">
-              <div className="flex-1 flex items-center gap-3">
-                <div className="w-full bg-[var(--input-background)] rounded-full h-3">
-                  <div
-                    className="bg-[var(--primary)] h-3 rounded-full"
-                    style={{ width: `${completionRate}%` }}
-                  ></div>
-                </div>
-                <div className="flex items-center gap-2 text-sm min-w-24">
-                  <span className="text-[var(--primary)]">
-                    {completionRate}%
-                  </span>
-                  <span className="text-xs text-[var(--text-secondary)]">
-                    ({totalAnswers}/{surveyInfo.target || 0})
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Avance de Cuotas - Segmentos en tarjetas separadas */}
-        <div>
-          <h2 className="text-xl font-bold mb-4">Avance de Cuotas</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {survey.surveyInfo?.quotas &&
-            survey.surveyInfo.quotas.length > 0 ? (
-              survey.surveyInfo.quotas.map((quota, qIndex) => (
-                <div key={qIndex} className="card p-4">
-                  <h3 className="font-medium text-lg border-b border-[var(--card-border)] pb-2 mb-3">
-                    {quota.category}
-                  </h3>
-                  <div className="flex flex-col gap-3">
-                    {quota.segments.map((segment, sIndex) => {
-                      const segmentPercentage =
-                        segment.target > 0
-                          ? Math.min(
-                              100,
-                              Math.round(
-                                (segment.current / segment.target) * 100
-                              )
-                            )
-                          : 0;
-                      const remaining = Math.max(
-                        0,
-                        segment.target - segment.current
-                      );
-
-                      return (
-                        <div key={sIndex} className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{segment.name}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold">
-                                {segment.current}/{segment.target}
-                              </span>
-                              <span
-                                className={`text-xs px-1.5 py-0.5 rounded ${
-                                  segmentPercentage >= 100
-                                    ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
-                                    : "bg-[rgba(63,81,181,0.2)] text-[var(--primary)] dark:bg-[rgba(128,145,245,0.3)] dark:text-[var(--primary-light)]"
-                                }`}
-                              >
-                                {segmentPercentage}%
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div className="w-full bg-[var(--input-background)] rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${
-                                  segmentPercentage >= 100
-                                    ? "bg-[#00c853]"
-                                    : "bg-[var(--primary)]"
-                                }`}
-                                style={{ width: `${segmentPercentage}%` }}
-                              ></div>
-                            </div>
-                            {remaining > 0 && (
-                              <span className="text-xs bg-[rgba(244,67,54,0.2)] text-[#f44336] dark:bg-[rgba(244,67,54,0.3)] dark:text-[#ff867c] px-1.5 py-0.5 rounded whitespace-nowrap">
-                                Faltan: {remaining}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))
-            ) : quotaSummary.length > 0 ? (
-              quotaSummary.map((quota, qIndex) => (
-                <div key={qIndex} className="card p-4">
-                  <h3 className="font-medium text-lg border-b border-[var(--card-border)] pb-2 mb-3">
-                    {quota.category}
-                  </h3>
-                  <div className="flex flex-col gap-3">
-                    {quota.segments.map((segment, sIndex) => {
-                      // Use target values from the defined segment target, not an estimate
-                      const target = segment.target || 0;
-                      const segmentPercentage =
-                        target > 0
-                          ? Math.min(
-                              100,
-                              Math.round((segment.current / target) * 100)
-                            )
-                          : 0;
-                      const remaining = Math.max(0, target - segment.current);
-
-                      return (
-                        <div key={sIndex} className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{segment.name}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold">
-                                {segment.current}/{target}
-                              </span>
-                              <span
-                                className={`text-xs px-1.5 py-0.5 rounded ${
-                                  segmentPercentage >= 100
-                                    ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
-                                    : "bg-[rgba(63,81,181,0.2)] text-[var(--primary)] dark:bg-[rgba(128,145,245,0.3)] dark:text-[var(--primary-light)]"
-                                }`}
-                              >
-                                {segmentPercentage}%
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div className="w-full bg-[var(--input-background)] rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${
-                                  segmentPercentage >= 100
-                                    ? "bg-[#00c853]"
-                                    : "bg-[var(--primary)]"
-                                }`}
-                                style={{ width: `${segmentPercentage}%` }}
-                              ></div>
-                            </div>
-                            {remaining > 0 && (
-                              <span className="text-xs bg-[rgba(244,67,54,0.2)] text-[#f44336] dark:bg-[rgba(244,67,54,0.3)] dark:text-[#ff867c] px-1.5 py-0.5 rounded whitespace-nowrap">
-                                Faltan: {remaining}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-full card p-4 text-center">
-                <p className="text-[var(--text-secondary)]">
-                  No hay datos de cuotas disponibles
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Progreso Individual por Pollster */}
-        <div>
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-[var(--primary)]" />
-            Progreso Individual por Pollster
-          </h2>
-
-          {/* Resumen del progreso de pollsters */}
-          {!pollsterProgressLoading && pollsterProgress.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="card p-3 text-center">
-                <div className="text-sm text-[var(--text-secondary)]">
-                  Total Pollsters
-                </div>
-                <div className="text-xl font-semibold text-[var(--primary)]">
-                  {pollsterProgress.length}
-                </div>
-              </div>
-              <div className="card p-3 text-center">
-                <div className="text-sm text-[var(--text-secondary)]">
-                  Completados
-                </div>
-                <div className="text-xl font-semibold text-[#00c853]">
-                  {
-                    pollsterProgress.filter(
-                      (p) =>
-                        p.assignedCases > 0 &&
-                        p.completedAnswers >= p.assignedCases
-                    ).length
-                  }
-                </div>
-              </div>
-              <div className="card p-3 text-center">
-                <div className="text-sm text-[var(--text-secondary)]">
-                  En Progreso
-                </div>
-                <div className="text-xl font-semibold text-[#ffc107]">
-                  {
-                    pollsterProgress.filter(
-                      (p) =>
-                        p.assignedCases > 0 &&
-                        p.completedAnswers < p.assignedCases
-                    ).length
-                  }
-                </div>
-              </div>
-            </div>
-          )}
-
-          {pollsterProgressLoading ? (
-            <div className="card p-4 text-center">
-              <div className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--primary)]"></div>
-                <span className="text-[var(--text-secondary)]">
-                  Cargando progreso individual...
-                </span>
-              </div>
-            </div>
-          ) : pollsterProgress.length > 0 ? (
-            <div className="space-y-3">
-              {/* Mostrar solo los primeros 5 pollsters */}
-              {pollsterProgress.slice(0, 5).map((pollster, index) => {
-                const progressPercentage =
-                  pollster.assignedCases > 0
-                    ? Math.min(
-                        100,
-                        Math.round(
-                          (pollster.completedAnswers / pollster.assignedCases) *
-                            100
-                        )
-                      )
-                    : 0;
-
-                // Mantener visualización de progreso pero no como limitante
-                const hasCompletedAssigned = progressPercentage >= 100;
-                const remaining = Math.max(
-                  0,
-                  pollster.assignedCases - pollster.completedAnswers
-                );
-
-                return (
-                  <div key={index} className="card p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-base">
-                        {pollster.pollsterName ||
-                          `Pollster ${pollster.pollsterId}`}
+            <div className="space-y-6">
+              {/* Encuesta Details */}
+              <div className="bg-[var(--input-background)] rounded-xl p-6">
+                <h1 className="text-4xl font-bold text-[var(--text-primary)] mb-6 leading-tight">
+                  {survey?.survey?.title || "Título no disponible"}
+                </h1>
+                {survey?.survey?.description && (
+                  <div>
+                    <div className="mt-4 pt-4 border-t border-[var(--card-border)]">
+                      <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">
+                        Descripción
                       </h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">
-                          {pollster.completedAnswers}/{pollster.assignedCases}
-                        </span>
-                        <span
-                          className={`text-xs px-1.5 py-0.5 rounded ${
-                            hasCompletedAssigned
-                              ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
-                              : progressPercentage > 50
-                              ? "bg-[rgba(255,193,7,0.2)] text-[#ffc107] dark:bg-[rgba(255,193,7,0.3)] dark:text-[#ffecb3]"
-                              : "bg-[rgba(63,81,181,0.2)] text-[var(--primary)] dark:bg-[rgba(128,145,245,0.3)] dark:text-[var(--primary-light)]"
-                          }`}
-                        >
-                          {progressPercentage}%
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-[var(--input-background)] rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            hasCompletedAssigned
-                              ? "bg-[#00c853]"
-                              : progressPercentage > 50
-                              ? "bg-[#ffc107]"
-                              : "bg-[var(--primary)]"
-                          }`}
-                          style={{ width: `${progressPercentage}%` }}
-                        ></div>
-                      </div>
-
-                      {remaining > 0 && !hasCompletedAssigned && (
-                        <span className="text-xs bg-[rgba(244,67,54,0.2)] text-[#f44336] dark:bg-[rgba(244,67,54,0.3)] dark:text-[#ff867c] px-2 py-1 rounded whitespace-nowrap">
-                          Faltan: {remaining}
-                        </span>
-                      )}
-
-                      {hasCompletedAssigned && (
-                        <span className="text-xs bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82] px-2 py-1 rounded whitespace-nowrap">
-                          ✓ Meta inicial alcanzada
-                        </span>
-                      )}
+                      <p className="text-[var(--text-secondary)] text-base leading-relaxed">
+                        {survey.survey.description}
+                      </p>
                     </div>
                   </div>
-                );
-              })}
-
-              {/* Botón Ver Todos si hay más de 5 pollsters */}
-              {pollsterProgress.length > 5 && (
-                <div className="text-center pt-2">
-                  <button
-                    onClick={() => setShowAllPollstersModal(true)}
-                    className="text-[var(--primary)] hover:text-[var(--primary-dark)] text-sm font-medium hover:underline"
-                  >
-                    Ver todos ({pollsterProgress.length} encuestadores)
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="card p-4 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <Users className="w-8 h-8 text-[var(--text-secondary)]" />
-                <p className="text-[var(--text-secondary)]">
-                  No hay datos de progreso individual disponibles
-                </p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Los pollsters aparecerán aquí una vez que se les asignen casos
-                </p>
+                )}
               </div>
-            </div>
-          )}
 
-          {/* Modal para ver todos los pollsters */}
-          {showAllPollstersModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-[var(--card-background)] rounded-lg w-full max-w-4xl max-h-[80vh] overflow-hidden">
-                <div className="p-4 border-b border-[var(--card-border)] flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">
-                    Progreso de Todos los Encuestadores (
-                    {pollsterProgress.length})
-                  </h2>
-                  <button
-                    onClick={() => setShowAllPollstersModal(false)}
-                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-2xl"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                <div className="p-4 overflow-y-auto max-h-[calc(80vh-80px)]">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {pollsterProgress.map((pollster, index) => {
-                      const progressPercentage =
-                        pollster.assignedCases > 0
-                          ? Math.min(
-                              100,
-                              Math.round(
-                                (pollster.completedAnswers /
-                                  pollster.assignedCases) *
-                                  100
-                              )
-                            )
-                          : 0;
-
-                      const hasCompletedAssigned = progressPercentage >= 100;
-                      const remaining = Math.max(
-                        0,
-                        pollster.assignedCases - pollster.completedAnswers
-                      );
-
-                      return (
-                        <div
-                          key={index}
-                          className="border border-[var(--card-border)] rounded-lg p-3"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium text-base">
-                              {pollster.pollsterName ||
-                                `Pollster ${pollster.pollsterId}`}
-                            </h3>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold">
-                                {pollster.completedAnswers}/
-                                {pollster.assignedCases}
-                              </span>
-                              <span
-                                className={`text-xs px-1.5 py-0.5 rounded ${
-                                  hasCompletedAssigned
-                                    ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
-                                    : progressPercentage > 50
-                                    ? "bg-[rgba(255,193,7,0.2)] text-[#ffc107] dark:bg-[rgba(255,193,7,0.3)] dark:text-[#ffecb3]"
-                                    : "bg-[rgba(63,81,181,0.2)] text-[var(--primary)] dark:bg-[rgba(128,145,245,0.3)] dark:text-[var(--primary-light)]"
-                                }`}
-                              >
-                                {progressPercentage}%
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-[var(--input-background)] rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full transition-all duration-300 ${
-                                  hasCompletedAssigned
-                                    ? "bg-[#00c853]"
-                                    : progressPercentage > 50
-                                    ? "bg-[#ffc107]"
-                                    : "bg-[var(--primary)]"
-                                }`}
-                                style={{ width: `${progressPercentage}%` }}
-                              ></div>
-                            </div>
-
-                            {remaining > 0 && !hasCompletedAssigned && (
-                              <span className="text-xs bg-[rgba(244,67,54,0.2)] text-[#f44336] dark:bg-[rgba(244,67,54,0.3)] dark:text-[#ff867c] px-2 py-1 rounded whitespace-nowrap">
-                                Faltan: {remaining}
-                              </span>
-                            )}
-
-                            {hasCompletedAssigned && (
-                              <span className="text-xs bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82] px-2 py-1 rounded whitespace-nowrap">
-                                ✓ Meta inicial alcanzada
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Últimas respuestas */}
-        <div className="card p-4 flex-1">
-          <div className="flex items-center gap-2 pb-3 border-b border-[var(--card-border)]">
-            <FileSpreadsheet className="w-5 h-5 text-[var(--primary)]" />
-            <h2 className="text-xl font-semibold">Últimas Respuestas</h2>
-          </div>
-
-          {latestAnswers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm mt-2">
-                <thead>
-                  <tr className="border-b border-[var(--card-border)]">
-                    <th className="px-2 py-3 text-left">Encuestador</th>
-                    <th className="px-2 py-3 text-left">Fecha</th>
-                    <th className="px-2 py-3 text-left">Cuotas</th>
-                    <th className="px-2 py-3 text-left">Ubicación</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {latestAnswers.map((answer) => (
-                    <tr
-                      key={answer._id}
-                      className="border-b border-[var(--card-border)] hover:bg-[var(--hover-bg)]"
-                    >
-                      <td className="px-2 py-3">
-                        {answer.fullName || "Anónimo"}
-                      </td>
-                      <td className="px-2 py-3">
-                        {new Date(answer.createdAt).toLocaleString()}
-                      </td>
-                      <td className="px-2 py-3">
-                        {answer.quotaAnswers ? (
-                          <div className="flex flex-col">
-                            {Object.entries(answer.quotaAnswers).map(
-                              ([key, value]) => (
-                                <span key={key} className="text-xs">
-                                  <span className="font-medium">{key}:</span>{" "}
-                                  {value}
-                                </span>
-                              )
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-[var(--text-secondary)]">
-                            Sin cuotas
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-3">
-                        {answer.lat && answer.lng ? (
-                          <button
-                            onClick={() =>
-                              openMapModal(
-                                answer.lat,
-                                answer.lng,
-                                answer.fullName,
-                                answer.createdAt
-                              )
-                            }
-                            className="text-[var(--primary)] hover:underline cursor-pointer"
-                          >
-                            Ver mapa
-                          </button>
-                        ) : (
-                          <span className="text-xs text-[var(--text-secondary)]">
-                            No disponible
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center p-4 text-[var(--text-secondary)]">
-              <p>No hay respuestas registradas aún.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Información de la encuesta */}
-        <div className="card p-4">
-          <h3 className="text-lg font-semibold pb-3 border-b border-[var(--card-border)]">
-            Información de la Encuesta
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-[var(--input-background)] text-[var(--text-secondary)]">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm text-[var(--text-secondary)]">Período</p>
-                <p>
-                  {(() => {
+              {/* Survey Stats */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <StatCard
+                  title="Período de Ejecución"
+                  value={(() => {
                     const startDateFormatted = formatSurveyDate(
                       surveyInfo?.startDate
                     );
@@ -986,123 +481,802 @@ export default function AnalisisEncuesta() {
                     } else if (endDateFormatted) {
                       return `Hasta: ${endDateFormatted}`;
                     } else {
-                      return "Fechas no disponibles";
+                      return "No definido";
                     }
                   })()}
-                </p>
+                  icon={Calendar}
+                  variant="glass"
+                />
+
+                <StatCard
+                  title="Meta Objetivo"
+                  value={(surveyInfo.target || 0).toLocaleString()}
+                  icon={Target}
+                  variant="glass"
+                  subtitle={
+                    surveyInfo.target
+                      ? "respuestas objetivo"
+                      : "Sin límite definido"
+                  }
+                />
+
+                <StatCard
+                  title="Última Actualización"
+                  value={new Date().toLocaleDateString()}
+                  subtitle={new Date().toLocaleTimeString()}
+                  icon={Clock}
+                  variant="glass"
+                />
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-[var(--input-background)] text-[var(--text-secondary)]">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Actualizado
-                </p>
-                <p>{new Date().toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Sección del Mapa Completo */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="card p-4"
-        >
-          <div className="flex items-center gap-2 pb-3 border-b border-[var(--card-border)]">
-            <Map className="w-5 h-5 text-[var(--primary)]" />
-            <h2 className="text-xl font-semibold">Mapa de Casos</h2>
-          </div>
-
-          {/* Solo mostrar filtros si no es encuestador */}
-          {user?.role !== "POLLSTER" && uniqueUsers.length > 0 && (
-            <div className="mt-4 mb-6">
-              <h3 className="text-lg font-semibold mb-4">
-                Filtrar por encuestador
-              </h3>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={mostrarTodos}
-                    onChange={(e) => {
-                      const newValue = e.target.checked;
-                      setMostrarTodos(newValue);
-                      if (newValue) {
-                        setSelectedUsers([]);
-                      }
-                    }}
-                    className="form-checkbox h-5 w-5 text-blue-600"
-                  />
-                  <span>Mostrar todos</span>
-                </label>
-
-                {uniqueUsers.map((userItem) => (
-                  <label
-                    key={userItem.id}
-                    className="flex items-center space-x-2"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.includes(userItem.id)}
-                      onChange={() => handleUserSelection(userItem.id)}
-                      className="form-checkbox h-5 w-5 text-blue-600"
-                    />
-                    <span>{userItem.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="bg-[var(--card-background)] rounded-lg shadow-lg p-6">
-            <SurveyMap
-              survey={survey}
-              answers={answers}
-              mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
-              selectedUsers={
-                user?.role === "POLLSTER" ? [user._id] : selectedUsers
-              }
-            />
-          </div>
+          </CollapsingSection>
         </motion.div>
 
-        {/* Tabla de casos debajo del mapa */}
+        {/* Modern Stats Grid */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.5 }}
-          className="card p-0"
+          transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
         >
-          <CasesTable
-            survey={survey}
-            answers={answers}
-            mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
-            selectedUsers={
-              user?.role === "POLLSTER" ? [user._id] : selectedUsers
+          <StatCard
+            title="Total Respuestas"
+            value={totalAnswers.toLocaleString()}
+            icon={FileSpreadsheet}
+            variant="primary"
+            subtitle={`${Math.round(
+              (totalAnswers / Math.max(surveyInfo.target || 1, 1)) * 100
+            )}% del objetivo`}
+          />
+
+          <StatCard
+            title="Meta Objetivo"
+            value={(surveyInfo.target || 0).toLocaleString()}
+            icon={Target}
+            variant="secondary"
+            subtitle={`${Math.max(
+              0,
+              (surveyInfo.target || 0) - totalAnswers
+            ).toLocaleString()} restantes`}
+          />
+
+          <StatCard
+            title="Encuestadores Activos"
+            value={pollsterProgress.length}
+            icon={Users}
+            variant="success"
+            subtitle={`${
+              pollsterProgress.filter((p) => p.completedAnswers > 0).length
+            } con respuestas`}
+          />
+
+          <StatCard
+            title="Tasa de Finalización"
+            value={`${completionRate}%`}
+            icon={TrendingUp}
+            variant={
+              completionRate >= 100
+                ? "success"
+                : completionRate >= 75
+                ? "warning"
+                : "glass"
+            }
+            subtitle={
+              completionRate >= 100 ? "¡Objetivo alcanzado!" : "En progreso"
             }
           />
         </motion.div>
 
-        {/* Sección de Exportar Datos */}
+        {/* Progress Overview */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="card p-4"
+          transition={{ delay: 0.3 }}
         >
-          <div className="flex items-center gap-2 pb-3 border-b border-[var(--card-border)]">
-            <FileSpreadsheet className="w-5 h-5 text-[var(--primary)]" />
-            <h2 className="text-xl font-semibold">Exportar Datos</h2>
-          </div>
-          <div className="mt-4">
-            <ExportControls answers={answers} titleSurvey={survey?.title} />
-          </div>
+          <CollapsingSection
+            title="Progreso General"
+            icon={BarChart4}
+            variant="glass"
+            defaultExpanded={true}
+          >
+            <div className="space-y-6">
+              <ProgressBar
+                current={totalAnswers}
+                target={surveyInfo.target || 0}
+                label="Progreso hacia el objetivo"
+                animated={true}
+              />
+
+              {/* Additional progress metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div className="text-center p-4 bg-[var(--input-background)] rounded-lg">
+                  <div className="text-2xl font-bold text-[var(--primary)]">
+                    {totalAnswers > 0 && surveyInfo.target
+                      ? Math.round(
+                          (totalAnswers /
+                            Math.max(
+                              1,
+                              Math.ceil(
+                                (new Date() -
+                                  new Date(
+                                    surveyInfo.startDate || Date.now()
+                                  )) /
+                                  (1000 * 60 * 60 * 24)
+                              )
+                            )) *
+                            100
+                        ) / 100
+                      : "0"}
+                  </div>
+                  <div className="text-sm text-[var(--text-secondary)]">
+                    Respuestas por día promedio
+                  </div>
+                </div>
+
+                <div className="text-center p-4 bg-[var(--input-background)] rounded-lg">
+                  <div className="text-2xl font-bold text-[var(--primary)]">
+                    {
+                      pollsterProgress.filter(
+                        (p) =>
+                          p.assignedCases > 0 &&
+                          p.completedAnswers >= p.assignedCases
+                      ).length
+                    }
+                  </div>
+                  <div className="text-sm text-[var(--text-secondary)]">
+                    Encuestadores que completaron su meta
+                  </div>
+                </div>
+
+                <div className="text-center p-4 bg-[var(--input-background)] rounded-lg">
+                  <div className="text-2xl font-bold text-[var(--primary)]">
+                    {pollsterProgress.reduce(
+                      (total, p) =>
+                        total +
+                        Math.max(0, p.assignedCases - p.completedAnswers),
+                      0
+                    )}
+                  </div>
+                  <div className="text-sm text-[var(--text-secondary)]">
+                    Respuestas pendientes asignadas
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CollapsingSection>
+        </motion.div>
+
+        {/* Quota Progress Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <CollapsingSection
+            title="Avance de Cuotas"
+            icon={Percent}
+            variant="default"
+            defaultExpanded={true}
+            headerContent={
+              (survey.surveyInfo?.quotas?.length ||
+                quotaSummary.length > 0) && (
+                <div className="text-sm text-[var(--text-secondary)]">
+                  {survey.surveyInfo?.quotas?.length || quotaSummary.length}{" "}
+                  categorías
+                </div>
+              )
+            }
+          >
+            {survey.surveyInfo?.quotas &&
+            survey.surveyInfo.quotas.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {survey.surveyInfo.quotas.map((quota, qIndex) => (
+                  <motion.div
+                    key={qIndex}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * qIndex }}
+                    className="glass-primary rounded-xl p-6 border border-[var(--card-border)]"
+                  >
+                    <h3 className="font-semibold text-lg text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[var(--primary)]"></div>
+                      {quota.category}
+                    </h3>
+                    <div className="space-y-4">
+                      {quota.segments.map((segment, sIndex) => (
+                        <ProgressBar
+                          key={sIndex}
+                          current={segment.current}
+                          target={segment.target}
+                          label={segment.name}
+                          animated={true}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : quotaSummary.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {quotaSummary.map((quota, qIndex) => (
+                  <motion.div
+                    key={qIndex}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * qIndex }}
+                    className="glass-primary rounded-xl p-6 border border-[var(--card-border)]"
+                  >
+                    <h3 className="font-semibold text-lg text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[var(--primary)]"></div>
+                      {quota.category}
+                    </h3>
+                    <div className="space-y-4">
+                      {quota.segments.map((segment, sIndex) => (
+                        <ProgressBar
+                          key={sIndex}
+                          current={segment.current}
+                          target={segment.target || 0}
+                          label={segment.name}
+                          animated={true}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 bg-[var(--input-background)] rounded-full flex items-center justify-center">
+                  <Percent className="w-8 h-8 text-[var(--text-secondary)]" />
+                </div>
+                <p className="text-[var(--text-secondary)] text-lg">
+                  No hay datos de cuotas disponibles
+                </p>
+                <p className="text-[var(--text-secondary)] text-sm mt-2">
+                  Las cuotas aparecerán aquí una vez configuradas
+                </p>
+              </div>
+            )}
+          </CollapsingSection>
+        </motion.div>
+
+        {/* Individual Pollster Progress */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <CollapsingSection
+            title="Progreso Individual por Encuestador"
+            icon={Users}
+            variant="default"
+            defaultExpanded={true}
+            headerContent={
+              pollsterProgress.length > 0 && (
+                <div className="text-sm text-[var(--text-secondary)]">
+                  {pollsterProgress.length} encuestadores
+                </div>
+              )
+            }
+          >
+            {pollsterProgressLoading ? (
+              <div className="text-center py-8">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <div className="loader" style={{ "--size": "32px" }}></div>
+                  <span className="text-[var(--text-secondary)]">
+                    Cargando progreso individual...
+                  </span>
+                </div>
+              </div>
+            ) : pollsterProgress.length > 0 ? (
+              <div className="space-y-6">
+                {/* Summary Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <StatCard
+                    title="Total Encuestadores"
+                    value={pollsterProgress.length}
+                    icon={Users}
+                    variant="glass"
+                  />
+                  <StatCard
+                    title="Completados"
+                    value={
+                      pollsterProgress.filter(
+                        (p) =>
+                          p.assignedCases > 0 &&
+                          p.completedAnswers >= p.assignedCases
+                      ).length
+                    }
+                    icon={Target}
+                    variant="success"
+                  />
+                  <StatCard
+                    title="En Progreso"
+                    value={
+                      pollsterProgress.filter(
+                        (p) =>
+                          p.assignedCases > 0 &&
+                          p.completedAnswers < p.assignedCases
+                      ).length
+                    }
+                    icon={Activity}
+                    variant="warning"
+                  />
+                </div>
+
+                {/* Virtualized Pollster List */}
+                <VirtualizedList
+                  items={pollsterProgress.map((pollster, index) => ({
+                    id: pollster.pollsterId || index,
+                    pollsterName:
+                      pollster.pollsterName ||
+                      `Encuestador ${pollster.pollsterId}`,
+                    completedAnswers: pollster.completedAnswers,
+                    assignedCases: pollster.assignedCases,
+                    progressPercentage:
+                      pollster.assignedCases > 0
+                        ? Math.min(
+                            100,
+                            Math.round(
+                              (pollster.completedAnswers /
+                                pollster.assignedCases) *
+                                100
+                            )
+                          )
+                        : 0,
+                  }))}
+                  renderItem={(pollster) => (
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      className="glass-primary p-4 rounded-xl border border-[var(--card-border)]"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-lg text-[var(--text-primary)]">
+                          {pollster.pollsterName}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-[var(--text-primary)]">
+                            {pollster.completedAnswers}/{pollster.assignedCases}
+                          </span>
+                          <span
+                            className={`text-xs px-3 py-1 rounded-full font-medium ${
+                              pollster.progressPercentage >= 100
+                                ? "bg-[rgba(0,200,83,0.2)] text-[#00c853] dark:bg-[rgba(0,200,83,0.3)] dark:text-[#5efc82]"
+                                : pollster.progressPercentage >= 75
+                                ? "bg-[rgba(255,193,7,0.2)] text-[#ffc107] dark:bg-[rgba(255,193,7,0.3)] dark:text-[#ffecb3]"
+                                : "bg-[rgba(63,81,181,0.2)] text-[var(--primary)] dark:bg-[rgba(128,145,245,0.3)] dark:text-[var(--primary-light)]"
+                            }`}
+                          >
+                            {pollster.progressPercentage}%
+                          </span>
+                        </div>
+                      </div>
+                      <ProgressBar
+                        current={pollster.completedAnswers}
+                        target={pollster.assignedCases}
+                        showNumbers={false}
+                        animated={true}
+                      />
+                    </motion.div>
+                  )}
+                  searchable={true}
+                  searchPlaceholder="Buscar encuestador..."
+                  searchKeys={["pollsterName"]}
+                  filterable={true}
+                  filters={[
+                    {
+                      key: "progressPercentage",
+                      placeholder: "Filtrar por estado",
+                      options: [
+                        { value: "completed", label: "Completados (100%)" },
+                        { value: "inProgress", label: "En progreso (1-99%)" },
+                        { value: "notStarted", label: "Sin comenzar (0%)" },
+                      ],
+                    },
+                  ]}
+                  pageSize={8}
+                  itemHeight={120}
+                  emptyState={
+                    <div className="text-center py-12">
+                      <Users className="w-16 h-16 mx-auto mb-4 text-[var(--text-secondary)]" />
+                      <p className="text-[var(--text-secondary)] text-lg">
+                        No se encontraron encuestadores
+                      </p>
+                    </div>
+                  }
+                />
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 bg-[var(--input-background)] rounded-full flex items-center justify-center">
+                  <Users className="w-8 h-8 text-[var(--text-secondary)]" />
+                </div>
+                <p className="text-[var(--text-secondary)] text-lg">
+                  No hay datos de progreso individual disponibles
+                </p>
+                <p className="text-[var(--text-secondary)] text-sm mt-2">
+                  Los encuestadores aparecerán aquí una vez asignados
+                </p>
+              </div>
+            )}
+          </CollapsingSection>
+        </motion.div>
+
+        {/* Recent Answers Section - Combined with Cases Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <CollapsingSection
+            title="Respuestas y Casos Detallados"
+            icon={Eye}
+            variant="default"
+            defaultExpanded={true}
+            headerContent={
+              totalAnswers > 0 && (
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-[var(--text-secondary)]">
+                    {totalAnswers} respuestas totales
+                  </div>
+                  <div className="text-sm text-[var(--text-secondary)]">
+                    Hacer clic para ver detalles
+                  </div>
+                </div>
+              )
+            }
+          >
+            {sortedAnswers.length > 0 ? (
+              <VirtualizedList
+                items={sortedAnswers.map((answer, index) => ({
+                  id: answer._id || index,
+                  fullName: answer.fullName || "Anónimo",
+                  createdAt: answer.createdAt,
+                  quotaAnswers: answer.quotaAnswers,
+                  lat: answer.lat,
+                  lng: answer.lng,
+                  dateFormatted: new Date(answer.createdAt).toLocaleString(),
+                  rawAnswer: answer,
+                }))}
+                renderItem={(answer) => (
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    className={`glass-primary p-4 rounded-xl border border-[var(--card-border)] cursor-pointer transition-all duration-200 ${
+                      expandedAnswer === answer.id
+                        ? "ring-2 ring-[var(--primary)]"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      setExpandedAnswer(
+                        expandedAnswer === answer.id ? null : answer.id
+                      )
+                    }
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center text-white font-semibold">
+                            {answer.fullName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-[var(--text-primary)]">
+                              {answer.fullName}
+                            </h3>
+                            <p className="text-sm text-[var(--text-secondary)]">
+                              {answer.dateFormatted}
+                            </p>
+                          </div>
+                        </div>
+
+                        {answer.quotaAnswers &&
+                          Object.keys(answer.quotaAnswers).length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {Object.entries(answer.quotaAnswers).map(
+                                ([key, value]) => (
+                                  <span
+                                    key={key}
+                                    className="text-xs px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full"
+                                  >
+                                    <span className="font-medium">{key}:</span>{" "}
+                                    {value}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {answer.lat && answer.lng ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openMapModal(
+                                answer.lat,
+                                answer.lng,
+                                answer.fullName,
+                                answer.createdAt
+                              );
+                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors text-sm"
+                          >
+                            <MapPin className="w-4 h-4" />
+                            Ver ubicación
+                          </button>
+                        ) : (
+                          <span className="text-xs text-[var(--text-secondary)] px-3 py-1.5 bg-[var(--input-background)] rounded-lg">
+                            Sin ubicación
+                          </span>
+                        )}
+                        <button className="text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors">
+                          {expandedAnswer === answer.id ? (
+                            <ChevronUp className="w-5 h-5" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded Details */}
+                    {expandedAnswer === answer.id && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="mt-4 pt-4 border-t border-[var(--card-border)]"
+                      >
+                        <div className="space-y-4">
+                          <h4 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                            <FileSpreadsheet className="w-5 h-5 text-[var(--primary)]" />
+                            Respuestas Detalladas
+                          </h4>
+
+                          {answer.rawAnswer?.answer &&
+                          Object.keys(answer.rawAnswer.answer).length > 0 ? (
+                            <div className="bg-[var(--input-background)] rounded-lg p-4 max-h-96 overflow-y-auto">
+                              <div className="grid gap-3">
+                                {Object.entries(answer.rawAnswer.answer).map(
+                                  ([questionKey, answerValue], index) => (
+                                    <div
+                                      key={index}
+                                      className="bg-[var(--card-background)] rounded-lg p-3 border border-[var(--card-border)]"
+                                    >
+                                      <div className="flex flex-col gap-2">
+                                        <div className="text-sm font-medium text-[var(--text-primary)]">
+                                          Pregunta {index + 1}:
+                                        </div>
+                                        <div className="text-sm text-[var(--text-secondary)] mb-2 bg-[var(--input-background)] p-3 rounded font-medium">
+                                          {questionKey}
+                                        </div>
+                                        <div className="text-sm text-[var(--text-primary)] font-medium">
+                                          Respuesta:
+                                        </div>
+                                        <div className="text-sm text-[var(--text-primary)] bg-[var(--primary)]/10 p-3 rounded border-l-4 border-[var(--primary)]">
+                                          {typeof answerValue === "object"
+                                            ? Array.isArray(answerValue)
+                                              ? answerValue.join(", ")
+                                              : JSON.stringify(
+                                                  answerValue,
+                                                  null,
+                                                  2
+                                                )
+                                            : answerValue || "Sin respuesta"}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 bg-[var(--input-background)] rounded-lg">
+                              <FileSpreadsheet className="w-12 h-12 mx-auto mb-3 text-[var(--text-secondary)]" />
+                              <p className="text-[var(--text-secondary)]">
+                                No hay respuestas detalladas disponibles para
+                                este caso
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Additional Info */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <div className="bg-[var(--input-background)] rounded-lg p-3">
+                              <div className="text-xs font-medium text-[var(--text-secondary)] mb-1">
+                                ID del Caso
+                              </div>
+                              <div className="text-sm font-mono text-[var(--text-primary)]">
+                                {answer.rawAnswer._id}
+                              </div>
+                            </div>
+                            <div className="bg-[var(--input-background)] rounded-lg p-3">
+                              <div className="text-xs font-medium text-[var(--text-secondary)] mb-1">
+                                Usuario ID
+                              </div>
+                              <div className="text-sm font-mono text-[var(--text-primary)]">
+                                {answer.rawAnswer.userId}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+                searchable={true}
+                searchPlaceholder="Buscar por encuestador..."
+                searchKeys={["fullName"]}
+                filterable={true}
+                filters={[
+                  {
+                    key: "hasLocation",
+                    placeholder: "Filtrar por ubicación",
+                    options: [
+                      { value: "withLocation", label: "Con ubicación" },
+                      { value: "withoutLocation", label: "Sin ubicación" },
+                    ],
+                  },
+                ]}
+                pageSize={6}
+                itemHeight={120}
+                emptyState={
+                  <div className="text-center py-12">
+                    <FileSpreadsheet className="w-16 h-16 mx-auto mb-4 text-[var(--text-secondary)]" />
+                    <p className="text-[var(--text-secondary)] text-lg">
+                      No hay respuestas registradas aún
+                    </p>
+                    <p className="text-[var(--text-secondary)] text-sm mt-2">
+                      Las respuestas aparecerán aquí conforme se completen las
+                      encuestas
+                    </p>
+                  </div>
+                }
+              />
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 bg-[var(--input-background)] rounded-full flex items-center justify-center">
+                  <FileSpreadsheet className="w-8 h-8 text-[var(--text-secondary)]" />
+                </div>
+                <p className="text-[var(--text-secondary)] text-lg">
+                  No hay respuestas registradas aún
+                </p>
+                <p className="text-[var(--text-secondary)] text-sm mt-2">
+                  Las respuestas aparecerán aquí conforme se completen las
+                  encuestas
+                </p>
+              </div>
+            )}
+          </CollapsingSection>
+        </motion.div>
+
+        {/* Interactive Map Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+        >
+          <CollapsingSection
+            title="Mapa Interactivo de Casos"
+            icon={Map}
+            variant="default"
+            defaultExpanded={false}
+            headerContent={
+              <div className="text-sm text-[var(--text-secondary)]">
+                {answers.filter((a) => a.lat && a.lng).length} ubicaciones
+                registradas
+              </div>
+            }
+          >
+            <div className="space-y-6">
+              {/* Map Filters */}
+              {user?.role !== "POLLSTER" && uniqueUsers.length > 0 && (
+                <div className="bg-[var(--input-background)] rounded-xl p-4">
+                  <h3 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">
+                    Filtros de visualización
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    <label className="flex items-center space-x-2 px-3 py-2 bg-[var(--card-background)] rounded-lg border border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={mostrarTodos}
+                        onChange={(e) => {
+                          const newValue = e.target.checked;
+                          setMostrarTodos(newValue);
+                          if (newValue) {
+                            setSelectedUsers([]);
+                          }
+                        }}
+                        className="w-4 h-4 text-[var(--primary)] bg-[var(--input-background)] border-[var(--card-border)] rounded focus:ring-[var(--primary)]"
+                      />
+                      <span className="text-sm font-medium">Mostrar todos</span>
+                    </label>
+
+                    {uniqueUsers.map((userItem) => (
+                      <label
+                        key={userItem.id}
+                        className="flex items-center space-x-2 px-3 py-2 bg-[var(--card-background)] rounded-lg border border-[var(--card-border)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.includes(userItem.id)}
+                          onChange={() => handleUserSelection(userItem.id)}
+                          className="w-4 h-4 text-[var(--primary)] bg-[var(--input-background)] border-[var(--card-border)] rounded focus:ring-[var(--primary)]"
+                        />
+                        <span className="text-sm font-medium">
+                          {userItem.name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Map Container */}
+              <div className="glass-primary rounded-xl overflow-hidden border border-[var(--card-border)]">
+                <SurveyMap
+                  survey={survey}
+                  answers={answers}
+                  mostrarTodos={user?.role === "POLLSTER" ? true : mostrarTodos}
+                  selectedUsers={
+                    user?.role === "POLLSTER" ? [user._id] : selectedUsers
+                  }
+                />
+              </div>
+            </div>
+          </CollapsingSection>
+        </motion.div>
+
+        {/* Export Data Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+        >
+          <CollapsingSection
+            title="Exportar Datos"
+            icon={Download}
+            variant="gradient"
+            defaultExpanded={false}
+            headerContent={
+              <div className="text-sm text-white/80">
+                Múltiples formatos disponibles
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              <div className="p-4 bg-[var(--input-background)] rounded-xl">
+                <h3 className="font-semibold text-[var(--text-primary)] mb-2">
+                  Opciones de exportación disponibles
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Descarga los datos de la encuesta en diferentes formatos para
+                  análisis posterior.
+                </p>
+                <ExportControls
+                  answers={answers}
+                  titleSurvey={survey?.survey?.title}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <StatCard
+                  title="Total de Respuestas"
+                  value={answers.length.toLocaleString()}
+                  icon={FileSpreadsheet}
+                  variant="glass"
+                  subtitle="Registros para exportar"
+                />
+                <StatCard
+                  title="Última Exportación"
+                  value="Nunca"
+                  icon={Clock}
+                  variant="glass"
+                  subtitle="Historial no disponible"
+                />
+              </div>
+            </div>
+          </CollapsingSection>
         </motion.div>
       </div>
 

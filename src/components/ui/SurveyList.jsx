@@ -708,18 +708,6 @@ export function SurveyList({
                       />
                     </>
                   )}
-
-                  {/* Quitar botón huérfano para SUPERVISOR */}
-                  {role === "ROLE_ADMIN" && (
-                    <ActionButton
-                      action="pollsters"
-                      surveyData={surveyData}
-                      icon={Users}
-                      text="Encuestadores"
-                      variant="mobile"
-                      className="w-full mt-2"
-                    />
-                  )}
                 </div>
               </div>
             </motion.div>
@@ -970,15 +958,6 @@ export function SurveyList({
                                 action="progress"
                                 surveyData={surveyData}
                                 icon={BarChart3}
-                                variant="desktop"
-                              />
-                            )}
-
-                            {role === "ROLE_ADMIN" && (
-                              <ActionButton
-                                action="pollsters"
-                                surveyData={surveyData}
-                                icon={Users}
                                 variant="desktop"
                               />
                             )}

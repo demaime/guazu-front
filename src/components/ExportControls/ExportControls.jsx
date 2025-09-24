@@ -40,6 +40,20 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
     if (!answers || answers.length === 0) {
       return;
     }
+
+    const now = new Date();
+    const day = now.getDate();
+    const month = now.toLocaleString("es-ES", { month: "long" });
+    const year = now.getFullYear();
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+
+    const formattedDate = `${day}_${month}_${year}`;
+    const formattedTime = `${hours}:${minutes}hs`;
+    const baseFileName = `${
+      titleSurvey || "guazu-datos"
+    } - ${formattedDate} - ${formattedTime}`;
+
     const dataToExport = processDataForExport(answers);
     const ws = XLSX.utils.json_to_sheet(dataToExport);
 
@@ -49,14 +63,14 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
       const data = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
       });
-      const fileName = (titleSurvey || "export") + fileExtension;
+      const fileName = baseFileName + fileExtension;
       FileSaver.saveAs(data, fileName);
     } else if (fileType === "csv") {
       const csvOutput = XLSX.utils.sheet_to_csv(ws);
       const data = new Blob(["\uFEFF" + csvOutput], {
         type: "text/csv;charset=utf-8;",
       });
-      const fileName = (titleSurvey || "export") + ".csv";
+      const fileName = baseFileName + ".csv";
       FileSaver.saveAs(data, fileName);
     }
   };
