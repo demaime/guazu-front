@@ -25,7 +25,7 @@ import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { QuotaProgress } from "@/components/QuotaProgress";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import ExportControls from "@/components/ExportControls/ExportControls";
 import SurveyMap from "@/components/SurveyMap";
 import CasesTable from "@/components/CasesTable";
@@ -175,6 +175,8 @@ export default function AnalisisEncuesta() {
     date: null,
   });
   const [expandedAnswer, setExpandedAnswer] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 6;
 
   useEffect(() => {
     // Comprobar permisos - solo admin y supervisor pueden ver análisis
@@ -212,7 +214,6 @@ export default function AnalisisEncuesta() {
         // Normalizar las fechas antes de establecer el estado
         const normalizedSurvey = normalizeSurveyDates(surveyData.survey);
 
-        console.log("Normalized Survey:", normalizedSurvey);
         setSurvey(normalizedSurvey);
         setAnswers(surveyData.answers || []);
 
@@ -805,12 +806,11 @@ export default function AnalisisEncuesta() {
                 </div>
 
                 {/* Virtualized Pollster List */}
+                {console.log("Datos actuales del progreso:", pollsterProgress)}
                 <VirtualizedList
                   items={pollsterProgress.map((pollster, index) => ({
                     id: pollster.pollsterId || index,
-                    pollsterName:
-                      pollster.pollsterName ||
-                      `Encuestador ${pollster.pollsterId}`,
+                    pollsterName: pollster.pollsterName,
                     completedAnswers: pollster.completedAnswers,
                     assignedCases: pollster.assignedCases,
                     progressPercentage:
@@ -831,9 +831,18 @@ export default function AnalisisEncuesta() {
                       className="glass-primary p-4 rounded-xl border border-[var(--card-border)]"
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-lg text-[var(--text-primary)]">
-                          {pollster.pollsterName}
-                        </h3>
+                        <div className="flex flex-col">
+                          <h3 className="font-semibold text-lg text-[var(--text-primary)]">
+                            {pollster.pollsterName?.startsWith("Pollster ")
+                              ? "Usuario eliminado"
+                              : pollster.pollsterName}
+                          </h3>
+                          {pollster.pollsterName?.startsWith("Pollster ") && (
+                            <span className="text-sm text-[var(--text-secondary)] italic">
+                              Id: {pollster.id}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-[var(--text-primary)]">
                             {pollster.completedAnswers}/{pollster.assignedCases}
@@ -927,212 +936,231 @@ export default function AnalisisEncuesta() {
             }
           >
             {sortedAnswers.length > 0 ? (
-              <VirtualizedList
-                items={sortedAnswers.map((answer, index) => ({
-                  id: answer._id || index,
-                  fullName: answer.fullName || "Anónimo",
-                  createdAt: answer.createdAt,
-                  quotaAnswers: answer.quotaAnswers,
-                  lat: answer.lat,
-                  lng: answer.lng,
-                  dateFormatted: new Date(answer.createdAt).toLocaleString(),
-                  rawAnswer: answer,
-                }))}
-                renderItem={(answer) => (
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className={`glass-primary p-4 rounded-xl border border-[var(--card-border)] cursor-pointer transition-all duration-200 ${
-                      expandedAnswer === answer.id
-                        ? "ring-2 ring-[var(--primary)]"
-                        : ""
-                    }`}
-                    onClick={() =>
-                      setExpandedAnswer(
-                        expandedAnswer === answer.id ? null : answer.id
-                      )
-                    }
-                  >
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center text-white font-semibold">
-                            {answer.fullName.charAt(0).toUpperCase()}
+              <div>
+                <div className="space-y-4">
+                  {sortedAnswers
+                    .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                    .map((answer) => (
+                      <div
+                        key={answer._id}
+                        className={`glass-primary p-4 rounded-xl border border-[var(--card-border)] cursor-pointer transition-colors duration-200 ${
+                          expandedAnswer === answer._id
+                            ? "ring-2 ring-[var(--primary)]"
+                            : "hover:bg-[var(--hover-bg)]"
+                        }`}
+                        onClick={() =>
+                          setExpandedAnswer(
+                            expandedAnswer === answer._id ? null : answer._id
+                          )
+                        }
+                      >
+                        {/* Contenido del caso que ya tienes */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center text-white font-semibold">
+                                {(answer.fullName || "A")
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-[var(--text-primary)]">
+                                  {answer.fullName || "Anónimo"}
+                                </h3>
+                                <p className="text-sm text-[var(--text-secondary)]">
+                                  {new Date(answer.createdAt).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+
+                            {answer.quotaAnswers &&
+                              Object.keys(answer.quotaAnswers).length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {Object.entries(answer.quotaAnswers).map(
+                                    ([key, value]) => (
+                                      <span
+                                        key={key}
+                                        className="text-xs px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full"
+                                      >
+                                        <span className="font-medium">
+                                          {key}:
+                                        </span>{" "}
+                                        {value}
+                                      </span>
+                                    )
+                                  )}
+                                </div>
+                              )}
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-[var(--text-primary)]">
-                              {answer.fullName}
-                            </h3>
-                            <p className="text-sm text-[var(--text-secondary)]">
-                              {answer.dateFormatted}
-                            </p>
+
+                          <div className="flex items-center gap-2">
+                            {answer.lat && answer.lng ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openMapModal(
+                                    answer.lat,
+                                    answer.lng,
+                                    answer.fullName,
+                                    answer.createdAt
+                                  );
+                                }}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors text-sm"
+                              >
+                                <MapPin className="w-4 h-4" />
+                                Ver ubicación
+                              </button>
+                            ) : (
+                              <span className="text-xs text-[var(--text-secondary)] px-3 py-1.5 bg-[var(--input-background)] rounded-lg">
+                                Sin ubicación
+                              </span>
+                            )}
+                            <button className="text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors">
+                              {expandedAnswer === answer._id ? (
+                                <ChevronUp className="w-5 h-5" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5" />
+                              )}
+                            </button>
                           </div>
                         </div>
 
-                        {answer.quotaAnswers &&
-                          Object.keys(answer.quotaAnswers).length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {Object.entries(answer.quotaAnswers).map(
-                                ([key, value]) => (
-                                  <span
-                                    key={key}
-                                    className="text-xs px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full"
-                                  >
-                                    <span className="font-medium">{key}:</span>{" "}
-                                    {value}
-                                  </span>
-                                )
-                              )}
-                            </div>
-                          )}
-                      </div>
+                        {/* Expanded Details */}
+                        <AnimatePresence>
+                          {expandedAnswer === answer._id && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.3, ease: "easeInOut" }}
+                              className="overflow-hidden"
+                            >
+                              <div className="mt-4 pt-4 border-t border-[var(--card-border)]">
+                                <div className="space-y-4">
+                                  <h4 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                                    <FileSpreadsheet className="w-5 h-5 text-[var(--primary)]" />
+                                    Respuestas Detalladas
+                                  </h4>
 
-                      <div className="flex items-center gap-2">
-                        {answer.lat && answer.lng ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openMapModal(
-                                answer.lat,
-                                answer.lng,
-                                answer.fullName,
-                                answer.createdAt
-                              );
-                            }}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors text-sm"
-                          >
-                            <MapPin className="w-4 h-4" />
-                            Ver ubicación
-                          </button>
-                        ) : (
-                          <span className="text-xs text-[var(--text-secondary)] px-3 py-1.5 bg-[var(--input-background)] rounded-lg">
-                            Sin ubicación
-                          </span>
-                        )}
-                        <button className="text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors">
-                          {expandedAnswer === answer.id ? (
-                            <ChevronUp className="w-5 h-5" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Expanded Details */}
-                    {expandedAnswer === answer.id && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="mt-4 pt-4 border-t border-[var(--card-border)]"
-                      >
-                        <div className="space-y-4">
-                          <h4 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                            <FileSpreadsheet className="w-5 h-5 text-[var(--primary)]" />
-                            Respuestas Detalladas
-                          </h4>
-
-                          {answer.rawAnswer?.answer &&
-                          Object.keys(answer.rawAnswer.answer).length > 0 ? (
-                            <div className="bg-[var(--input-background)] rounded-lg p-4 max-h-96 overflow-y-auto">
-                              <div className="grid gap-3">
-                                {Object.entries(answer.rawAnswer.answer).map(
-                                  ([questionKey, answerValue], index) => (
-                                    <div
-                                      key={index}
-                                      className="bg-[var(--card-background)] rounded-lg p-3 border border-[var(--card-border)]"
-                                    >
-                                      <div className="flex flex-col gap-2">
-                                        <div className="text-sm font-medium text-[var(--text-primary)]">
-                                          Pregunta {index + 1}:
-                                        </div>
-                                        <div className="text-sm text-[var(--text-secondary)] mb-2 bg-[var(--input-background)] p-3 rounded font-medium">
-                                          {questionKey}
-                                        </div>
-                                        <div className="text-sm text-[var(--text-primary)] font-medium">
-                                          Respuesta:
-                                        </div>
-                                        <div className="text-sm text-[var(--text-primary)] bg-[var(--primary)]/10 p-3 rounded border-l-4 border-[var(--primary)]">
-                                          {typeof answerValue === "object"
-                                            ? Array.isArray(answerValue)
-                                              ? answerValue.join(", ")
-                                              : JSON.stringify(
-                                                  answerValue,
-                                                  null,
-                                                  2
-                                                )
-                                            : answerValue || "Sin respuesta"}
-                                        </div>
+                                  {answer.answer &&
+                                  Object.keys(answer.answer).length > 0 ? (
+                                    <div className="bg-[var(--input-background)] rounded-lg p-4 max-h-96 overflow-y-auto border-2 border-solid border-[var(--primary-light)]">
+                                      <div className="grid gap-3">
+                                        {Object.entries(answer.answer).map(
+                                          (
+                                            [questionKey, answerValue],
+                                            index
+                                          ) => (
+                                            <div
+                                              key={index}
+                                              className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start p-3 bg-[var(--card-background)] rounded-lg border border-[var(--card-border)]"
+                                            >
+                                              <div>
+                                                <div className="text-sm font-medium text-[var(--text-secondary)] mb-2">
+                                                  Pregunta {index + 1}
+                                                </div>
+                                                <div className="text-base text-[var(--text-primary)] font-semibold p-3 bg-[var(--input-background)] rounded-md">
+                                                  {questionKey}
+                                                </div>
+                                              </div>
+                                              <div>
+                                                <div className="text-sm font-medium text-[var(--text-secondary)] mb-2">
+                                                  Respuesta
+                                                </div>
+                                                <div className="text-base text-[var(--text-primary)] p-3 bg-[var(--primary)]/10 rounded-md border-l-4 border-[var(--primary)]">
+                                                  {typeof answerValue ===
+                                                  "object"
+                                                    ? Array.isArray(answerValue)
+                                                      ? answerValue.join(", ")
+                                                      : JSON.stringify(
+                                                          answerValue,
+                                                          null,
+                                                          2
+                                                        )
+                                                    : answerValue ||
+                                                      "Sin respuesta"}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )
+                                        )}
                                       </div>
                                     </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 bg-[var(--input-background)] rounded-lg">
-                              <FileSpreadsheet className="w-12 h-12 mx-auto mb-3 text-[var(--text-secondary)]" />
-                              <p className="text-[var(--text-secondary)]">
-                                No hay respuestas detalladas disponibles para
-                                este caso
-                              </p>
-                            </div>
-                          )}
+                                  ) : (
+                                    <div className="text-center py-8 bg-[var(--input-background)] rounded-lg">
+                                      <FileSpreadsheet className="w-12 h-12 mx-auto mb-3 text-[var(--text-secondary)]" />
+                                      <p className="text-[var(--text-secondary)]">
+                                        No hay respuestas detalladas
+                                      </p>
+                                    </div>
+                                  )}
 
-                          {/* Additional Info */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                            <div className="bg-[var(--input-background)] rounded-lg p-3">
-                              <div className="text-xs font-medium text-[var(--text-secondary)] mb-1">
-                                ID del Caso
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                    <div className="bg-[var(--input-background)] rounded-lg p-3">
+                                      <div className="text-xs font-medium text-[var(--text-secondary)] mb-1">
+                                        ID del Caso
+                                      </div>
+                                      <div className="text-sm font-mono text-[var(--text-primary)]">
+                                        {answer._id}
+                                      </div>
+                                    </div>
+                                    <div className="bg-[var(--input-background)] rounded-lg p-3">
+                                      <div className="text-xs font-medium text-[var(--text-secondary)] mb-1">
+                                        Usuario ID
+                                      </div>
+                                      <div className="text-sm font-mono text-[var(--text-primary)]">
+                                        {answer.userId}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="text-sm font-mono text-[var(--text-primary)]">
-                                {answer.rawAnswer._id}
-                              </div>
-                            </div>
-                            <div className="bg-[var(--input-background)] rounded-lg p-3">
-                              <div className="text-xs font-medium text-[var(--text-secondary)] mb-1">
-                                Usuario ID
-                              </div>
-                              <div className="text-sm font-mono text-[var(--text-primary)]">
-                                {answer.rawAnswer.userId}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </motion.div>
-                )}
-                searchable={true}
-                searchPlaceholder="Buscar por encuestador..."
-                searchKeys={["fullName"]}
-                filterable={true}
-                filters={[
-                  {
-                    key: "hasLocation",
-                    placeholder: "Filtrar por ubicación",
-                    options: [
-                      { value: "withLocation", label: "Con ubicación" },
-                      { value: "withoutLocation", label: "Sin ubicación" },
-                    ],
-                  },
-                ]}
-                pageSize={6}
-                itemHeight={120}
-                emptyState={
-                  <div className="text-center py-12">
-                    <FileSpreadsheet className="w-16 h-16 mx-auto mb-4 text-[var(--text-secondary)]" />
-                    <p className="text-[var(--text-secondary)] text-lg">
-                      No hay respuestas registradas aún
-                    </p>
-                    <p className="text-[var(--text-secondary)] text-sm mt-2">
-                      Las respuestas aparecerán aquí conforme se completen las
-                      encuestas
-                    </p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ))}
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="flex justify-between items-center mt-6">
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    Mostrando {(currentPage - 1) * pageSize + 1}-
+                    {Math.min(currentPage * pageSize, sortedAnswers.length)} de{" "}
+                    {sortedAnswers.length} elementos
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 rounded-md bg-[var(--input-background)] hover:bg-[var(--hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      &lt;
+                    </button>
+                    <span className="text-sm text-[var(--text-secondary)]">
+                      Página {currentPage} de{" "}
+                      {Math.ceil(sortedAnswers.length / pageSize)}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setCurrentPage((p) =>
+                          Math.min(
+                            Math.ceil(sortedAnswers.length / pageSize),
+                            p + 1
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPage ===
+                        Math.ceil(sortedAnswers.length / pageSize)
+                      }
+                      className="px-3 py-1 rounded-md bg-[var(--input-background)] hover:bg-[var(--hover-bg)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      &gt;
+                    </button>
                   </div>
-                }
-              />
+                </div>
+              </div>
             ) : (
               <div className="text-center py-12">
                 <div className="w-16 h-16 mx-auto mb-4 bg-[var(--input-background)] rounded-full flex items-center justify-center">

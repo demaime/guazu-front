@@ -43,7 +43,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/logo-mini.png" />
+        <link rel="icon" href="favicon.ico" />
         <meta name="theme-color" content="#3f51b5" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <Script
