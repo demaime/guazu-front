@@ -24,7 +24,7 @@ export const metadata = {
     description: "Descarga Guazú para responder encuestas en el momento!",
     images: [
       {
-        url: "/logo-squarel.png",
+        url: "/logo-square.png",
         alt: "Guazu App Logo",
       },
     ],
