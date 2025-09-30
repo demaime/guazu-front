@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"; // Añadir useCallback, useRef y useMemo
 import { useRouter, useSearchParams } from "next/navigation";
 import { surveyService } from "@/services/survey.service";
+import { tutorialService } from "@/services/tutorial.service";
+import { useTutorial } from "@/contexts/TutorialContext";
+import { TutorialDriver } from "@/components/TutorialDriver";
 import {
   getAllSurveysLocal,
   upsertSurveys,
@@ -42,7 +45,9 @@ export default function Encuestas() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isMobile } = useWindowSize();
+  const { shouldStartTutorial } = useTutorial();
   const [activeTab, setActiveTab] = useState("active"); // 'active', 'finished', 'drafts'
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // --- Estados por Pestaña --- //
   const [activeSurveysData, setActiveSurveysData] = useState([]);
@@ -411,6 +416,11 @@ export default function Encuestas() {
       }
       setUser(userData);
 
+      // Verificar si debe mostrar el tutorial automáticamente
+      if (tutorialService.shouldShowTutorial()) {
+        setShowTutorial(true);
+      }
+
       // Intento de sincronización de outbox durante el loader inicial si hay conexión
       try {
         if (typeof navigator !== "undefined" && navigator.onLine) {
@@ -446,6 +456,14 @@ export default function Encuestas() {
     };
     init();
   }, [loadAllSurveys, router]);
+
+  // useEffect para reaccionar al trigger manual del tutorial desde el menú
+  useEffect(() => {
+    if (shouldStartTutorial) {
+      console.log("📊 [Encuestas] Activando tutorial manualmente");
+      setShowTutorial(true);
+    }
+  }, [shouldStartTutorial]);
 
   // --- useEffect para Cambios de Tab --- //
   useEffect(() => {
@@ -865,7 +883,10 @@ export default function Encuestas() {
           >
             {user?.role === "POLLSTER" ? "Mis Encuestas" : "Encuestas"}
           </motion.h1>
-          <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-3"
+            data-tutorial="status-indicators"
+          >
             {/* Conexión */}
             {isOnline ? (
               <Tippy
@@ -1420,6 +1441,32 @@ export default function Encuestas() {
           será visible para los encuestadores asignados.
         </p>
       </ConfirmModal>
+
+      {/* Tutorial Driver - mostrar solo para pollsters */}
+      {user?.role === "POLLSTER" && showTutorial && (
+        <TutorialDriver
+          autoStart={true}
+          isFirstTime={tutorialService.shouldShowTutorial()}
+          onComplete={async () => {
+            console.log("✅ [Encuestas] Tutorial completado - cerrando");
+
+            // Inmediatamente ocultar el tutorial
+            setShowTutorial(false);
+
+            try {
+              // Solo completar en backend si es primera vez
+              if (tutorialService.shouldShowTutorial()) {
+                console.log("   → Es primera vez, marcando en backend");
+                await tutorialService.completeTutorial();
+              } else {
+                console.log("   → No es primera vez, solo cerrado");
+              }
+            } catch (error) {
+              console.error("   ❌ Error al completar tutorial:", error);
+            }
+          }}
+        />
+      )}
     </motion.div>
   );
 }

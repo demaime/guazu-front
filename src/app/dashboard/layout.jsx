@@ -22,10 +22,13 @@ import { themeService } from "@/services/theme.service";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { API_URL } from "@/config/constants";
+import { UserMenu } from "@/components/ui/UserMenu";
+import { TutorialProvider, useTutorial } from "@/contexts/TutorialContext";
 
-export default function DashboardLayout({ children }) {
+function DashboardLayoutContent({ children }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { startTutorial } = useTutorial();
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -232,12 +235,14 @@ export default function DashboardLayout({ children }) {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
         className="dashboard-header"
+        data-tutorial="dashboard-header"
       >
         <div className="header-content bg-primary">
           <div className="header-wrapper">
             <button
               onClick={toggleSidebar}
               className="lg:hidden p-2 rounded-md hover:bg-opacity-80"
+              data-tutorial="menu-button"
             >
               <Menu className="w-6 h-6 text-white" />
             </button>
@@ -257,15 +262,21 @@ export default function DashboardLayout({ children }) {
                 className="object-contain h-8"
               />
             </div>
-            <button
-              onClick={() => {
-                authService.logout();
-                router.replace("/login");
+            <UserMenu
+              onStartTutorial={() => {
+                console.log("🔧 [Layout] onStartTutorial llamado");
+                console.log("   Current pathname:", pathname);
+                // Navegar a encuestas si no estamos allí
+                if (pathname !== "/dashboard/encuestas") {
+                  console.log("   → Navegando a /dashboard/encuestas");
+                  router.push("/dashboard/encuestas");
+                } else {
+                  // Ya estamos en la página correcta, inmediato
+                  console.log("   → Llamando startTutorial() (inmediato)");
+                  startTutorial();
+                }
               }}
-              className="p-2 hover:opacity-80 transition-opacity"
-            >
-              <LogOut className="w-5 h-5 text-white" />
-            </button>
+            />
           </div>
         </div>
       </motion.header>
@@ -440,5 +451,13 @@ export default function DashboardLayout({ children }) {
         </motion.main>
       </div>
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }) {
+  return (
+    <TutorialProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </TutorialProvider>
   );
 }

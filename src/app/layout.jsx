@@ -3,6 +3,8 @@ import "survey-core/survey-core.css";
 import "react-toastify/dist/ReactToastify.css";
 import "tippy.js/dist/tippy.css";
 import "tippy.js/themes/light.css";
+import "driver.js/dist/driver.css";
+import "@/styles/tutorial.css";
 import { Mulish } from "next/font/google";
 import { ClientThemeWrapper } from "@/components/ClientThemeWrapper";
 import { ToastContainer } from "react-toastify";

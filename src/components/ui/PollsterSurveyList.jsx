@@ -419,6 +419,13 @@ export function PollsterSurveyList({
             className={`bg-[var(--card-background)] rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-shadow duration-200 ${
               isUniversal ? "border-blue-300" : "border-[var(--card-border)]"
             }`}
+            data-tutorial={
+              isUniversal
+                ? "test-survey"
+                : index === 1
+                ? "survey-card"
+                : undefined
+            }
           >
             {/* Header - universal con control de minimizar */}
             {!isFinished && (
@@ -555,6 +562,9 @@ export function PollsterSurveyList({
                       <motion.button
                         onClick={() => handleResponder(survey)}
                         disabled={isLoading || isFinished}
+                        data-tutorial={
+                          isUniversal ? "respond-button" : undefined
+                        }
                         className={`
                     flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-lg font-medium text-sm transition-all duration-200
                     ${
