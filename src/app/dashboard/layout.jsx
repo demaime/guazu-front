@@ -25,6 +25,7 @@ import { API_URL } from "@/config/constants";
 import { UserMenu } from "@/components/ui/UserMenu";
 import { TutorialProvider, useTutorial } from "@/contexts/TutorialContext";
 import { StatusIndicators } from "@/components/StatusIndicators";
+import { RefreshButton } from "@/components/RefreshButton";
 
 function DashboardLayoutContent({ children }) {
   const router = useRouter();
@@ -267,6 +268,7 @@ function DashboardLayoutContent({ children }) {
               <StatusIndicators />
             ) : (
               <UserMenu
+                showTutorialOption={pathname === "/dashboard/encuestas"}
                 onStartTutorial={() => {
                   console.log("🔧 [Layout] onStartTutorial llamado");
                   console.log("   Current pathname:", pathname);
@@ -455,6 +457,9 @@ function DashboardLayoutContent({ children }) {
           {children}
         </motion.main>
       </div>
+
+      {/* Botón flotante de actualizar */}
+      <RefreshButton />
     </div>
   );
 }

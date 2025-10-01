@@ -461,26 +461,27 @@ export default function Encuestas() {
   useEffect(() => {
     if (shouldStartTutorial) {
       console.log("📊 [Encuestas] Activando tutorial manualmente");
+      // Forzar pestaña activa si estamos en finalizadas
+      if (activeTab !== "active") {
+        console.log("   → Forzando pestaña activa para el tutorial");
+        setActiveTab("active");
+      }
       setShowTutorial(true);
     }
-  }, [shouldStartTutorial]);
+  }, [shouldStartTutorial, activeTab]);
 
   // --- useEffect para Cambios de Tab --- //
   useEffect(() => {
-    // Cargar datos cuando cambia la pestaña activa.
-    // La función fetchDataForTab manejará el estado isLoading internamente.
+    // Solo resetear la página al cambiar de pestaña
     if (activeTab === "active") {
-      setActiveCurrentPage(1); // Resetear a página 1
-      fetchDataForTab("active", 1);
+      setActiveCurrentPage(1);
     } else if (activeTab === "finished") {
-      setFinishedCurrentPage(1); // Resetear a página 1
-      fetchDataForTab("finished", 1);
+      setFinishedCurrentPage(1);
     } else if (activeTab === "drafts") {
-      // Los borradores no tienen paginación propia aquí
+      // Los borradores necesitan fetch porque no se cargan con loadAllSurveys
       fetchDataForTab("drafts", 1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, fetchDataForTab]); // Quitar isLoading de las condiciones if
+  }, [activeTab, fetchDataForTab]);
 
   // Monitorear red y contar pendientes
   useEffect(() => {
