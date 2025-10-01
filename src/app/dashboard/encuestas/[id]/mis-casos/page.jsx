@@ -12,6 +12,7 @@ import {
   Loader2,
   X,
   FileInput,
+  ClipboardType,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
@@ -292,7 +293,7 @@ export default function MisCasosPage() {
                           {caseItem.observation ? (
                             <AlertTriangle className="w-5 h-5" />
                           ) : (
-                            <FileInput className="w-5 h-5" />
+                            <ClipboardType className="w-5 h-5" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -443,7 +444,7 @@ export default function MisCasosPage() {
                     {selectedCaseDetails.observation ? (
                       <AlertTriangle className="w-5 h-5" />
                     ) : (
-                      <FileInput className="w-5 h-5" />
+                      <ClipboardType className="w-5 h-5" />
                     )}
                   </div>
                   <div>
