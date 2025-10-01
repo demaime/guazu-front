@@ -34,6 +34,7 @@ export const ANSWER_ROUTES = {
   SAVE: `${API_URL}/api/insert-answer`,
   BY_SURVEY_ID: (id) => `${API_URL}/api/answerBySurveyId/${id}`,
   DELETE: (id) => `${API_URL}/api/answer-delete/${id}`,
+  OBSERVE: (id) => `${API_URL}/api/answer-observe/${id}`,
 };
 
 // Rutas de usuarios

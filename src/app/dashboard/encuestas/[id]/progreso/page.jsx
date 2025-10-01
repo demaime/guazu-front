@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   ChevronUp,
   ChevronDown,
+  AlertTriangle,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
@@ -943,11 +944,15 @@ export default function AnalisisEncuesta() {
                     .map((answer) => (
                       <div
                         key={answer._id}
-                        className={`glass-primary p-4 rounded-xl border border-[var(--card-border)] cursor-pointer transition-colors duration-200 ${
+                        className={`glass-primary p-4 rounded-xl border transition-colors duration-200 ${
+                          answer.observation
+                            ? "border-red-500 bg-red-50/10"
+                            : "border-[var(--card-border)]"
+                        } ${
                           expandedAnswer === answer._id
                             ? "ring-2 ring-[var(--primary)]"
                             : "hover:bg-[var(--hover-bg)]"
-                        }`}
+                        } cursor-pointer`}
                         onClick={() =>
                           setExpandedAnswer(
                             expandedAnswer === answer._id ? null : answer._id
@@ -958,15 +963,33 @@ export default function AnalisisEncuesta() {
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <div className="w-10 h-10 bg-[var(--primary)] rounded-full flex items-center justify-center text-white font-semibold">
-                                {(answer.fullName || "A")
-                                  .charAt(0)
-                                  .toUpperCase()}
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
+                                  answer.observation
+                                    ? "bg-red-500"
+                                    : "bg-[var(--primary)]"
+                                }`}
+                              >
+                                {answer.observation ? (
+                                  <AlertTriangle className="w-5 h-5" />
+                                ) : (
+                                  (answer.fullName || "A")
+                                    .charAt(0)
+                                    .toUpperCase()
+                                )}
                               </div>
-                              <div>
-                                <h3 className="font-semibold text-[var(--text-primary)]">
-                                  {answer.fullName || "Anónimo"}
-                                </h3>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-[var(--text-primary)]">
+                                    {answer.fullName || "Anónimo"}
+                                  </h3>
+                                  {answer.observation && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
+                                      <AlertTriangle className="w-3 h-3" />
+                                      Observado
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-sm text-[var(--text-secondary)]">
                                   {new Date(answer.createdAt).toLocaleString()}
                                 </p>
@@ -1092,6 +1115,23 @@ export default function AnalisisEncuesta() {
                                       <p className="text-[var(--text-secondary)]">
                                         No hay respuestas detalladas
                                       </p>
+                                    </div>
+                                  )}
+
+                                  {/* Mostrar observación si existe */}
+                                  {answer.observation && (
+                                    <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg">
+                                      <div className="flex items-start gap-3">
+                                        <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                        <div className="flex-1">
+                                          <h5 className="text-sm font-semibold text-red-700 dark:text-red-400 mb-1">
+                                            Caso Observado
+                                          </h5>
+                                          <p className="text-sm text-red-600 dark:text-red-300">
+                                            {answer.observation}
+                                          </p>
+                                        </div>
+                                      </div>
                                     </div>
                                   )}
 

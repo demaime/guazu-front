@@ -11,6 +11,7 @@ import {
   ChevronUp,
   ChevronDown,
   Minimize2,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -614,12 +615,12 @@ export function PollsterSurveyList({
                         )}
                       </motion.button>
 
-                      {/* Botón de mapa (no mostrar para universal) */}
-                      {!isUniversal && isOnline && (
+                      {/* Botón Ver Casos (no mostrar para universal) */}
+                      {!isUniversal && (
                         <motion.button
                           onClick={() => {
                             try {
-                              const key = "map:surveyId";
+                              const key = "cases:surveyId";
                               if (typeof window !== "undefined") {
                                 window.sessionStorage?.setItem(
                                   key,
@@ -631,13 +632,15 @@ export function PollsterSurveyList({
                                 );
                               }
                             } catch {}
-                            router.push(`/dashboard/encuestas/mapa`);
+                            router.push(
+                              `/dashboard/encuestas/${survey._id}/mis-casos`
+                            );
                           }}
                           className="flex items-center justify-center w-12 h-12 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] rounded-lg transition-all duration-200"
                           whileTap={{ scale: 0.98 }}
-                          title="Ver mapa"
+                          title="Ver mis casos"
                         >
-                          <MapPin className="w-5 h-5" />
+                          <FileText className="w-5 h-5" />
                         </motion.button>
                       )}
                     </div>

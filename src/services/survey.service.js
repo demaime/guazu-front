@@ -852,6 +852,39 @@ class SurveyService {
       throw error;
     }
   }
+
+  async observeAnswer(answerId, observation) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+
+      const response = await fetch(ANSWER_ROUTES.OBSERVE(answerId), {
+        method: "PUT",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+        body: JSON.stringify({ observation }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Error al observar el caso: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error in observeAnswer:", error);
+      throw error;
+    }
+  }
 }
 
 export const surveyService = new SurveyService();
