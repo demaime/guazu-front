@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import GeolocationService from "@/services/geolocation.service";
 import { trackEvent } from "@/lib/analytics";
+import { StatusIndicators } from "@/components/StatusIndicators";
 
 import "survey-core/survey-core.css";
 import "survey-core/i18n/spanish";

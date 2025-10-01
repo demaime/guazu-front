@@ -24,6 +24,7 @@ import Image from "next/image";
 import { API_URL } from "@/config/constants";
 import { UserMenu } from "@/components/ui/UserMenu";
 import { TutorialProvider, useTutorial } from "@/contexts/TutorialContext";
+import { StatusIndicators } from "@/components/StatusIndicators";
 
 function DashboardLayoutContent({ children }) {
   const router = useRouter();
@@ -262,21 +263,25 @@ function DashboardLayoutContent({ children }) {
                 className="object-contain h-8"
               />
             </div>
-            <UserMenu
-              onStartTutorial={() => {
-                console.log("🔧 [Layout] onStartTutorial llamado");
-                console.log("   Current pathname:", pathname);
-                // Navegar a encuestas si no estamos allí
-                if (pathname !== "/dashboard/encuestas") {
-                  console.log("   → Navegando a /dashboard/encuestas");
-                  router.push("/dashboard/encuestas");
-                } else {
-                  // Ya estamos en la página correcta, inmediato
-                  console.log("   → Llamando startTutorial() (inmediato)");
-                  startTutorial();
-                }
-              }}
-            />
+            {pathname === "/dashboard/encuestas/responder" ? (
+              <StatusIndicators />
+            ) : (
+              <UserMenu
+                onStartTutorial={() => {
+                  console.log("🔧 [Layout] onStartTutorial llamado");
+                  console.log("   Current pathname:", pathname);
+                  // Navegar a encuestas si no estamos allí
+                  if (pathname !== "/dashboard/encuestas") {
+                    console.log("   → Navegando a /dashboard/encuestas");
+                    router.push("/dashboard/encuestas");
+                  } else {
+                    // Ya estamos en la página correcta, inmediato
+                    console.log("   → Llamando startTutorial() (inmediato)");
+                    startTutorial();
+                  }
+                }}
+              />
+            )}
           </div>
         </div>
       </motion.header>
