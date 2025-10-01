@@ -18,6 +18,7 @@ export function StatusIndicators({ className = "" }) {
     typeof navigator === "undefined" ? true : navigator.onLine
   );
   const [locationStatus, setLocationStatus] = useState("unknown"); // granted | denied | prompt | unsupported | unknown
+  const [isCheckingLocation, setIsCheckingLocation] = useState(false);
 
   // Monitorear cambios de conexión en tiempo real
   useEffect(() => {
@@ -36,54 +37,79 @@ export function StatusIndicators({ className = "" }) {
     let mounted = true;
     const checkLocation = async () => {
       try {
-        if (typeof navigator === "undefined") return;
-        if (navigator.permissions && navigator.permissions.query) {
-          const status = await navigator.permissions.query({
-            name: "geolocation",
-          });
-          if (mounted) setLocationStatus(status.state || "unknown");
-          try {
-            trackEvent("location_permission_status", {
-              status: status.state || "unknown",
-            });
-          } catch {}
-          status.onchange = () => {
-            if (mounted) setLocationStatus(status.state || "unknown");
-            try {
-              trackEvent("location_permission_status", {
-                status: status.state || "unknown",
-              });
-            } catch {}
-          };
-        } else if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            () => {
-              if (mounted) setLocationStatus("granted");
+        if (typeof navigator === "undefined" || !navigator.geolocation) {
+          if (mounted) setLocationStatus("unsupported");
+          return;
+        }
+
+        // Intentar obtener la posición directamente (dispara el prompt si es necesario)
+        navigator.geolocation.getCurrentPosition(
+          () => {
+            if (mounted) {
+              setLocationStatus("granted");
               try {
                 trackEvent("location_permission_status", { status: "granted" });
               } catch {}
-            },
-            () => {
-              if (mounted) setLocationStatus("denied");
-              try {
-                trackEvent("location_permission_status", { status: "denied" });
-              } catch {}
-            },
-            { maximumAge: 0, timeout: 800 }
-          );
-        } else {
-          if (mounted) setLocationStatus("unsupported");
+            }
+          },
+          (error) => {
+            if (mounted) {
+              // PERMISSION_DENIED = 1, POSITION_UNAVAILABLE = 2, TIMEOUT = 3
+              if (error.code === 1) {
+                setLocationStatus("denied");
+                try {
+                  trackEvent("location_permission_status", {
+                    status: "denied",
+                  });
+                } catch {}
+              } else if (error.code === 3) {
+                // Timeout - asumir que está disponible pero tardó mucho
+                setLocationStatus("prompt");
+                try {
+                  trackEvent("location_permission_status", {
+                    status: "timeout",
+                  });
+                } catch {}
+              } else {
+                setLocationStatus("unknown");
+                try {
+                  trackEvent("location_permission_status", { status: "error" });
+                } catch {}
+              }
+            }
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 2000,
+            maximumAge: Infinity, // Usar cache si está disponible
+          }
+        );
+
+        // Opcional: También escuchar cambios de permisos si el navegador lo soporta
+        if (navigator.permissions && navigator.permissions.query) {
           try {
-            trackEvent("location_permission_status", { status: "unsupported" });
-          } catch {}
+            const status = await navigator.permissions.query({
+              name: "geolocation",
+            });
+            status.onchange = () => {
+              if (mounted) {
+                setLocationStatus(status.state || "unknown");
+                try {
+                  trackEvent("location_permission_change", {
+                    status: status.state || "unknown",
+                  });
+                } catch {}
+              }
+            };
+          } catch {
+            // Algunos navegadores no soportan permissions.query para geolocation
+          }
         }
-      } catch {
+      } catch (error) {
         if (mounted) setLocationStatus("unknown");
-        try {
-          trackEvent("location_permission_status", { status: "unknown" });
-        } catch {}
       }
     };
+
     checkLocation();
     return () => {
       mounted = false;
@@ -91,18 +117,68 @@ export function StatusIndicators({ className = "" }) {
   }, []);
 
   // Solicitar permiso de ubicación bajo demanda (al tocar el ícono rojo)
-  const requestLocationPermission = () => {
+  const requestLocationPermission = async () => {
+    if (isCheckingLocation) return; // Evitar múltiples clicks
+
     try {
-      if (typeof navigator === "undefined" || !navigator.geolocation) return;
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        toast.error("Tu dispositivo no soporta geolocalización.");
+        return;
+      }
+
+      setIsCheckingLocation(true);
+
       navigator.geolocation.getCurrentPosition(
-        () => setLocationStatus("granted"),
-        () => {
-          setLocationStatus("denied");
-          toast.error("No se pudo obtener la ubicación.");
+        (position) => {
+          setLocationStatus("granted");
+          setIsCheckingLocation(false);
+          toast.success("Ubicación activada correctamente");
+          try {
+            trackEvent("location_permission_granted_manual", {
+              accuracy: position.coords.accuracy,
+            });
+          } catch {}
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        (error) => {
+          setIsCheckingLocation(false);
+
+          if (error.code === 1) {
+            // PERMISSION_DENIED
+            setLocationStatus("denied");
+            toast.error(
+              "Permiso denegado. Ve a la configuración de tu navegador para activar la ubicación.",
+              { autoClose: 5000 }
+            );
+          } else if (error.code === 2) {
+            // POSITION_UNAVAILABLE
+            setLocationStatus("unknown");
+            toast.error("No se pudo determinar tu ubicación. Verifica tu GPS.");
+          } else if (error.code === 3) {
+            // TIMEOUT
+            setLocationStatus("unknown");
+            toast.error("Tiempo de espera agotado. Intenta nuevamente.");
+          } else {
+            setLocationStatus("unknown");
+            toast.error("Error al obtener la ubicación.");
+          }
+
+          try {
+            trackEvent("location_permission_error", {
+              error_code: error.code,
+              error_message: error.message,
+            });
+          } catch {}
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0, // Forzar nueva ubicación, no cache
+        }
       );
-    } catch {}
+    } catch (error) {
+      setIsCheckingLocation(false);
+      toast.error("Error inesperado al solicitar ubicación.");
+    }
   };
 
   const isLocationOn = locationStatus === "granted";
@@ -137,26 +213,44 @@ export function StatusIndicators({ className = "" }) {
       )}
       {/* Ubicación */}
       <Tippy
-        content={isLocationOn ? "Ubicación activada" : "Ubicación desactivada"}
+        content={
+          isCheckingLocation
+            ? "Verificando ubicación..."
+            : isLocationOn
+            ? "Ubicación activada"
+            : "Click para activar ubicación"
+        }
         theme="light"
         placement="bottom"
         offset={[0, 8]}
       >
         <span
-          className={`inline-flex ${isLocationOn ? "" : "cursor-pointer"}`}
+          className={`inline-flex ${
+            isLocationOn || isCheckingLocation
+              ? ""
+              : "cursor-pointer hover:scale-110 transition-transform"
+          }`}
           onClick={() => {
-            if (!isLocationOn) requestLocationPermission();
+            if (!isLocationOn && !isCheckingLocation) {
+              requestLocationPermission();
+            }
           }}
-          role={isLocationOn ? undefined : "button"}
+          role={isLocationOn || isCheckingLocation ? undefined : "button"}
           aria-label={
-            isLocationOn
+            isCheckingLocation
+              ? "Verificando ubicación"
+              : isLocationOn
               ? "Ubicación activada"
               : "Solicitar permiso de ubicación"
           }
         >
           <MapPin
             className={`w-5 h-5 ${
-              isLocationOn ? "text-green-500" : "text-red-500"
+              isCheckingLocation
+                ? "text-yellow-400 animate-pulse"
+                : isLocationOn
+                ? "text-green-500"
+                : "text-red-500"
             }`}
           />
         </span>
