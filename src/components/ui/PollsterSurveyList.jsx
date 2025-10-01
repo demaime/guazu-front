@@ -15,6 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { surveyService } from "@/services/survey.service";
+import { useTutorial } from "@/contexts/TutorialContext";
 
 // ID fijo de la encuesta universal visible para todos los pollsters
 const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
@@ -26,6 +27,7 @@ export function PollsterSurveyList({
   refreshToken = 0,
 }) {
   const router = useRouter();
+  const { shouldStartTutorial } = useTutorial();
   const [loadingStates, setLoadingStates] = useState({});
   const [progressData, setProgressData] = useState({}); // { surveyId: { assignedCases, completedAnswers, ... } }
   const [progressLoading, setProgressLoading] = useState({});
@@ -60,6 +62,23 @@ export function PollsterSurveyList({
       window.removeEventListener("offline", updateOnline);
     };
   }, []);
+
+  // Expandir encuesta de prueba cuando se activa el tutorial
+  useEffect(() => {
+    if (shouldStartTutorial) {
+      console.log(
+        "📚 [PollsterSurveyList] Tutorial activado - expandiendo encuesta de prueba"
+      );
+      setIsUniversalMinimized(false);
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("universalSurveyMinimized", "false");
+        }
+      } catch (error) {
+        console.warn("No se pudo actualizar localStorage:", error);
+      }
+    }
+  }, [shouldStartTutorial]);
 
   // Cargar el progreso del pollster para cada encuesta
   useEffect(() => {
