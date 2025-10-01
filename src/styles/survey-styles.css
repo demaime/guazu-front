@@ -239,6 +239,11 @@ select:focus,
   background: var(--sjs-general-backcolor-dim) !important;
 }
 
+.sd-btn--action {
+  background: var(--sjs-primary-backcolor) !important;
+  color: var(--sjs-primary-forecolor) !important;
+} 
+
 /* === RESPONSIVE DESIGN === */
 @media (max-width: 768px) {
   .sd-question--matrix .sd-table {
