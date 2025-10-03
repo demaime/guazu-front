@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "gaa": "git add . && git commit -m 'update' && git push"
+    "lint": "next lint"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
