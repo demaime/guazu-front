@@ -147,6 +147,12 @@
   --hover-bg: rgba(63, 81, 181, 0.1);
   --disabled-bg: #f1f5f9;
   --disabled-text: #94a3b8;
+
+  /* Error colors */
+  --error-bg: #fef2f2;
+  --error-border: #ef4444;
+  --error-text: #b91c1c;
+  --error-icon: #ef4444;
 }
 
 /* Dark theme */
@@ -163,6 +169,12 @@
   --hover-bg: rgba(99, 102, 241, 0.2);
   --disabled-bg: #1e293b;
   --disabled-text: #475569;
+
+  /* Error colors */
+  --error-bg: rgba(127, 29, 29, 0.2);
+  --error-border: #ef4444;
+  --error-text: #fca5a5;
+  --error-icon: #ef4444;
 }
 
 /* Agregamos estilos específicos para el nav-item en modo oscuro */

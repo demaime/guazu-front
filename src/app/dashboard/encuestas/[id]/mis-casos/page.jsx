@@ -273,10 +273,10 @@ export default function MisCasosPage() {
                     setSelectedCaseDetails(caseItem);
                     setShowDetailsModal(true);
                   }}
-                  className={`bg-[var(--card-background)] rounded-xl shadow-sm border transition-colors duration-200 cursor-pointer hover:shadow-md ${
+                  className={`rounded-xl shadow-sm border transition-colors duration-200 cursor-pointer hover:shadow-md ${
                     caseItem.observation
-                      ? "border-red-500 bg-red-50/10"
-                      : "border-[var(--card-border)]"
+                      ? "border-[var(--error-border)] bg-[var(--error-bg)]"
+                      : "border-[var(--card-border)] bg-[var(--card-background)]"
                   }`}
                 >
                   <div className="p-4">
@@ -285,7 +285,7 @@ export default function MisCasosPage() {
                         <div
                           className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
                             caseItem.observation
-                              ? "bg-red-500"
+                              ? "bg-[var(--error-icon)]"
                               : "bg-[var(--primary)]"
                           }`}
                         >
@@ -301,7 +301,7 @@ export default function MisCasosPage() {
                               Caso #{(currentPage - 1) * pageSize + index + 1}
                             </h3>
                             {caseItem.observation && (
-                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--error-icon)] text-white text-xs font-medium rounded-full">
                                 <AlertTriangle className="w-3 h-3" />
                                 Observado
                               </span>
@@ -436,7 +436,7 @@ export default function MisCasosPage() {
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${
                       selectedCaseDetails.observation
-                        ? "bg-red-500"
+                        ? "bg-[var(--error-icon)]"
                         : "bg-[var(--primary)]"
                     }`}
                   >
@@ -467,14 +467,14 @@ export default function MisCasosPage() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Mostrar observación si existe */}
                 {selectedCaseDetails.observation && (
-                  <div className="p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg">
+                  <div className="p-4 bg-[var(--error-bg)] border-l-4 border-[var(--error-border)] rounded-lg">
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <AlertTriangle className="w-5 h-5 text-[var(--error-icon)] flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <h5 className="text-sm font-semibold text-red-700 dark:text-red-400 mb-1">
+                        <h5 className="text-sm font-semibold text-[var(--error-text)] mb-1">
                           Caso Observado
                         </h5>
-                        <p className="text-sm text-red-600 dark:text-red-300">
+                        <p className="text-sm text-[var(--error-text)]">
                           {selectedCaseDetails.observation}
                         </p>
                       </div>

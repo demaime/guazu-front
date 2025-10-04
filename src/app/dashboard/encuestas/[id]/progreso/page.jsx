@@ -21,7 +21,10 @@ import {
   ChevronUp,
   ChevronDown,
   AlertTriangle,
+  HelpCircle,
 } from "lucide-react";
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
@@ -179,6 +182,9 @@ export default function AnalisisEncuesta() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
 
+  // Estados para los tutoriales
+  const [mainDriverObj, setMainDriverObj] = useState(null);
+
   useEffect(() => {
     // Comprobar permisos - solo admin y supervisor pueden ver análisis
     const checkPermissions = () => {
@@ -256,6 +262,117 @@ export default function AnalisisEncuesta() {
       fetchPollsterProgress();
     }
   }, [survey, params.id]);
+
+  // Inicializar tutorial principal
+  useEffect(() => {
+    if (survey && answers.length > 0) {
+      const driverInstance = driver({
+        showProgress: true,
+        showButtons: ["next", "previous", "close"],
+        nextBtnText: "Siguiente",
+        prevBtnText: "Anterior",
+        doneBtnText: "Entendido",
+        progressText: "{{current}} de {{total}}",
+        steps: [
+          {
+            element: "#analysis-header",
+            popover: {
+              title: "Vista de Análisis",
+              description:
+                "Aquí puedes monitorear el progreso completo de tu encuesta, ver estadísticas detalladas, revisar todas las respuestas y exportar los datos.",
+              side: "bottom",
+              align: "start",
+            },
+          },
+          {
+            element: "#section-info",
+            popover: {
+              title: "Información de la Encuesta",
+              description:
+                "Datos básicos de tu encuesta: título, descripción, fechas de inicio y fin, estado actual y objetivo de respuestas.",
+              side: "bottom",
+              align: "start",
+            },
+          },
+          {
+            element: "#section-progress",
+            popover: {
+              title: "Progreso General",
+              description:
+                "Visualiza cuántas respuestas llevas recolectadas, el porcentaje de avance hacia tu objetivo y las tendencias de participación.",
+              side: "top",
+              align: "start",
+            },
+          },
+          {
+            element: "#section-quotas",
+            popover: {
+              title: "Avance de Cuotas",
+              description:
+                "Monitorea el progreso de cada cuota o segmento definido. Aquí ves cómo se distribuyen las respuestas según las categorías establecidas.",
+              side: "top",
+              align: "start",
+            },
+          },
+          {
+            element: "#section-pollsters",
+            popover: {
+              title: "Progreso Individual",
+              description:
+                "Revisa el desempeño de cada encuestador: cuántos casos ha completado y su avance individual.",
+              side: "top",
+              align: "start",
+            },
+          },
+          {
+            element: "#section-answers",
+            popover: {
+              title: "Respuestas y Casos Detallados",
+              description:
+                "Explora todas las respuestas registradas. Puedes expandir cada caso para ver detalles completos y revisar casos observados por los encuestadores.",
+              side: "top",
+              align: "start",
+            },
+          },
+          {
+            element: "#section-map",
+            popover: {
+              title: "Mapa Interactivo",
+              description:
+                "Visualiza la ubicación GPS de cada caso registrado en un mapa. Filtra por encuestador y explora la distribución geográfica de tus respuestas.",
+              side: "top",
+              align: "start",
+            },
+          },
+          {
+            element: "#section-export",
+            popover: {
+              title: "Exportar Datos",
+              description:
+                "Descarga todos los datos de la encuesta en formato XLSX o CSV para realizar análisis externos o crear reportes personalizados.",
+              side: "top",
+              align: "start",
+            },
+          },
+        ],
+      });
+
+      setMainDriverObj(driverInstance);
+
+      return () => {
+        if (driverInstance) {
+          driverInstance.destroy();
+        }
+      };
+    }
+  }, [survey, answers]);
+
+  // Función para iniciar el tutorial principal
+  const startMainTutorial = () => {
+    if (mainDriverObj) {
+      mainDriverObj.drive();
+    }
+  };
 
   if (isLoading) {
     return <LoaderWrapper text="Preparando análisis" />;
@@ -414,6 +531,7 @@ export default function AnalisisEncuesta() {
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Modern Header */}
         <motion.div
+          id="analysis-header"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="glass-primary rounded-2xl p-6 border border-[var(--card-border)]"
@@ -429,11 +547,19 @@ export default function AnalisisEncuesta() {
             <h1 className="text-3xl font-bold text-[var(--text-primary)]">
               Análisis
             </h1>
+            <button
+              onClick={startMainTutorial}
+              className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors group ml-2"
+              title="Ver tutorial completo"
+            >
+              <HelpCircle className="w-7 h-7 text-blue-500 group-hover:text-blue-600 transition-colors" />
+            </button>
           </div>
         </motion.div>
 
         {/* Survey Information */}
         <motion.div
+          id="section-info"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -571,6 +697,7 @@ export default function AnalisisEncuesta() {
 
         {/* Progress Overview */}
         <motion.div
+          id="section-progress"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -650,6 +777,7 @@ export default function AnalisisEncuesta() {
 
         {/* Quota Progress Section */}
         <motion.div
+          id="section-quotas"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
@@ -744,6 +872,7 @@ export default function AnalisisEncuesta() {
 
         {/* Individual Pollster Progress */}
         <motion.div
+          id="section-pollsters"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
@@ -914,6 +1043,7 @@ export default function AnalisisEncuesta() {
 
         {/* Recent Answers Section - Combined with Cases Table */}
         <motion.div
+          id="section-answers"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
@@ -946,7 +1076,7 @@ export default function AnalisisEncuesta() {
                         key={answer._id}
                         className={`glass-primary p-4 rounded-xl border transition-colors duration-200 ${
                           answer.observation
-                            ? "border-red-500 bg-red-50/10"
+                            ? "border-[var(--error-border)] bg-[var(--error-bg)]"
                             : "border-[var(--card-border)]"
                         } ${
                           expandedAnswer === answer._id
@@ -966,7 +1096,7 @@ export default function AnalisisEncuesta() {
                               <div
                                 className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${
                                   answer.observation
-                                    ? "bg-red-500"
+                                    ? "bg-[var(--error-icon)]"
                                     : "bg-[var(--primary)]"
                                 }`}
                               >
@@ -984,7 +1114,7 @@ export default function AnalisisEncuesta() {
                                     {answer.fullName || "Anónimo"}
                                   </h3>
                                   {answer.observation && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white text-xs font-medium rounded-full">
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--error-icon)] text-white text-xs font-medium rounded-full">
                                       <AlertTriangle className="w-3 h-3" />
                                       Observado
                                     </span>
@@ -1120,14 +1250,14 @@ export default function AnalisisEncuesta() {
 
                                   {/* Mostrar observación si existe */}
                                   {answer.observation && (
-                                    <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg">
+                                    <div className="mb-4 p-4 bg-[var(--error-bg)] border-l-4 border-[var(--error-border)] rounded-lg">
                                       <div className="flex items-start gap-3">
-                                        <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                        <AlertTriangle className="w-5 h-5 text-[var(--error-icon)] flex-shrink-0 mt-0.5" />
                                         <div className="flex-1">
-                                          <h5 className="text-sm font-semibold text-red-700 dark:text-red-400 mb-1">
+                                          <h5 className="text-sm font-semibold text-[var(--error-text)] mb-1">
                                             Caso Observado
                                           </h5>
-                                          <p className="text-sm text-red-600 dark:text-red-300">
+                                          <p className="text-sm text-[var(--error-text)]">
                                             {answer.observation}
                                           </p>
                                         </div>
@@ -1220,6 +1350,7 @@ export default function AnalisisEncuesta() {
 
         {/* Interactive Map Section */}
         <motion.div
+          id="section-map"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
@@ -1297,6 +1428,7 @@ export default function AnalisisEncuesta() {
 
         {/* Export Data Section */}
         <motion.div
+          id="section-export"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
@@ -1324,23 +1456,6 @@ export default function AnalisisEncuesta() {
                 <ExportControls
                   answers={answers}
                   titleSurvey={survey?.survey?.title}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard
-                  title="Total de Respuestas"
-                  value={answers.length.toLocaleString()}
-                  icon={FileSpreadsheet}
-                  variant="glass"
-                  subtitle="Registros para exportar"
-                />
-                <StatCard
-                  title="Última Exportación"
-                  value="Nunca"
-                  icon={Clock}
-                  variant="glass"
-                  subtitle="Historial no disponible"
                 />
               </div>
             </div>
