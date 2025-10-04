@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertTriangle, Loader2 } from "lucide-react";
+import { X, AlertTriangle, Loader2, HelpCircle, Check } from "lucide-react";
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 
 export function ObserveCaseModal({
   isOpen,
@@ -12,17 +14,92 @@ export function ObserveCaseModal({
   isLoading = false,
 }) {
   const [observation, setObservation] = useState("");
+  const [driverObj, setDriverObj] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Inicializar driver.js
+  useEffect(() => {
+    if (isOpen) {
+      const driverInstance = driver({
+        showProgress: true,
+        showButtons: ["next", "previous", "close"],
+        nextBtnText: "Siguiente",
+        prevBtnText: "Anterior",
+        doneBtnText: "Entendido",
+        progressText: "{{current}} de {{total}}",
+        steps: [
+          {
+            element: "#observe-modal-header",
+            popover: {
+              title: "Observar Caso",
+              description:
+                "Esta función te permite reportar casos que requieren atención especial de tu supervisor.",
+              side: "bottom",
+              align: "center",
+            },
+          },
+          {
+            element: "#observation-textarea",
+            popover: {
+              title: "Escribe tu observación",
+              description:
+                "Aquí puedes explicar por qué este caso debe ser revisado. Por ejemplo: si el encuestado no cumple los requisitos, si hay datos incorrectos, si necesita ser repetido, eliminado o cualquier otra situación especial.",
+              side: "top",
+              align: "start",
+            },
+          },
+          {
+            element: "#observation-submit-btn",
+            popover: {
+              title: "Enviar al supervisor",
+              description:
+                "Una vez que hayas escrito tu observación, presiona este botón para marcar el caso como observado. Tu supervisor recibirá tu mensaje y tomará las acciones necesarias.",
+              side: "top",
+              align: "end",
+            },
+          },
+        ],
+      });
+
+      setDriverObj(driverInstance);
+
+      return () => {
+        driverInstance.destroy();
+      };
+    }
+  }, [isOpen]);
+
+  const handleStartTutorial = () => {
+    if (driverObj) {
+      driverObj.drive();
+    }
+  };
 
   const handleConfirm = async () => {
     if (observation.trim()) {
       await onConfirm(observation.trim());
-      setObservation(""); // Limpiar el campo después de confirmar
+
+      // Mostrar el check de éxito
+      setShowSuccess(true);
+
+      // Esperar 1 segundo antes de cerrar el modal
+      setTimeout(() => {
+        setShowSuccess(false);
+        setObservation(""); // Limpiar el campo después de confirmar
+        onClose();
+      }, 1000);
     }
   };
 
   const handleClose = () => {
-    setObservation("");
-    onClose();
+    if (!isLoading && !showSuccess) {
+      setObservation("");
+      setShowSuccess(false);
+      if (driverObj) {
+        driverObj.destroy();
+      }
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -48,20 +125,35 @@ export function ObserveCaseModal({
           className="relative w-full max-w-md mx-4 rounded-xl shadow-xl border border-[var(--card-border)] bg-[var(--background)]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-[var(--card-border)] bg-[var(--card-background)] rounded-t-xl">
+          <div
+            id="observe-modal-header"
+            className="flex items-center justify-between p-4 border-b border-[var(--card-border)] bg-[var(--card-background)] rounded-t-xl"
+          >
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-orange-500" />
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">
                 Observar Caso
               </h2>
             </div>
-            <button
-              onClick={handleClose}
-              disabled={isLoading}
-              className="p-1 hover:bg-[var(--hover-bg)] rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {/* Botón de ayuda */}
+              <button
+                onClick={handleStartTutorial}
+                disabled={isLoading}
+                className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+                title="Ver tutorial"
+              >
+                <HelpCircle className="w-5 h-5 text-blue-500 group-hover:text-blue-600 transition-colors" />
+              </button>
+              {/* Botón de cerrar */}
+              <button
+                onClick={handleClose}
+                disabled={isLoading}
+                className="p-1 hover:bg-[var(--hover-bg)] rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Content */}
@@ -77,7 +169,7 @@ export function ObserveCaseModal({
               </div>
             )}
 
-            <div className="mb-4">
+            <div id="observation-textarea" className="mb-4">
               <label
                 htmlFor="observation"
                 className="block text-sm font-medium text-[var(--text-primary)] mb-2"
@@ -110,11 +202,21 @@ export function ObserveCaseModal({
               Cancelar
             </button>
             <button
+              id="observation-submit-btn"
               onClick={handleConfirm}
-              disabled={isLoading || !observation.trim()}
-              className="px-4 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              disabled={isLoading || !observation.trim() || showSuccess}
+              className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                showSuccess
+                  ? "bg-green-500"
+                  : "bg-orange-500 hover:bg-orange-600"
+              }`}
             >
-              {isLoading ? (
+              {showSuccess ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  ¡Listo!
+                </>
+              ) : isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Observando...
@@ -129,7 +231,3 @@ export function ObserveCaseModal({
     </AnimatePresence>
   );
 }
-
-
-
-

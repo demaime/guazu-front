@@ -138,9 +138,8 @@ export default function MisCasosPage() {
         )
       );
 
-      setShowObserveModal(false);
+      // No cerramos el modal aquí, el modal se cierra solo después de mostrar el check
       setSelectedCase(null);
-      addToast("Caso marcado como observado exitosamente", "success");
     } catch (error) {
       console.error("Error al observar caso:", error);
 
@@ -327,9 +326,9 @@ export default function MisCasosPage() {
                                 caseItem.createdAt
                               );
                             }}
-                            className="flex items-center gap-2 px-3 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors text-sm"
+                            className="flex items-center justify-center w-10 h-10 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors"
                           >
-                            <MapPin className="w-4 h-4" />
+                            <MapPin className="w-5 h-5" />
                           </button>
                         )}
 
@@ -341,9 +340,9 @@ export default function MisCasosPage() {
                               setSelectedCase(caseItem);
                               setShowObserveModal(true);
                             }}
-                            className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
+                            className="flex items-center justify-center w-10 h-10 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-5 h-5" />
                           </button>
                         )}
                       </div>
