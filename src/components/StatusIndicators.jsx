@@ -32,7 +32,7 @@ export function StatusIndicators({ className = "" }) {
     };
   }, []);
 
-  // Comprobar permiso de geolocalización (y reaccionar a cambios)
+  // Comprobar permiso de geolocalización (sin disparar el prompt)
   useEffect(() => {
     let mounted = true;
     const checkLocation = async () => {
@@ -42,55 +42,25 @@ export function StatusIndicators({ className = "" }) {
           return;
         }
 
-        // Intentar obtener la posición directamente (dispara el prompt si es necesario)
-        navigator.geolocation.getCurrentPosition(
-          () => {
-            if (mounted) {
-              setLocationStatus("granted");
-              try {
-                trackEvent("location_permission_status", { status: "granted" });
-              } catch {}
-            }
-          },
-          (error) => {
-            if (mounted) {
-              // PERMISSION_DENIED = 1, POSITION_UNAVAILABLE = 2, TIMEOUT = 3
-              if (error.code === 1) {
-                setLocationStatus("denied");
-                try {
-                  trackEvent("location_permission_status", {
-                    status: "denied",
-                  });
-                } catch {}
-              } else if (error.code === 3) {
-                // Timeout - asumir que está disponible pero tardó mucho
-                setLocationStatus("prompt");
-                try {
-                  trackEvent("location_permission_status", {
-                    status: "timeout",
-                  });
-                } catch {}
-              } else {
-                setLocationStatus("unknown");
-                try {
-                  trackEvent("location_permission_status", { status: "error" });
-                } catch {}
-              }
-            }
-          },
-          {
-            enableHighAccuracy: false,
-            timeout: 2000,
-            maximumAge: Infinity, // Usar cache si está disponible
-          }
-        );
-
-        // Opcional: También escuchar cambios de permisos si el navegador lo soporta
+        // Usar la API de Permissions para verificar el estado sin disparar el prompt
         if (navigator.permissions && navigator.permissions.query) {
           try {
             const status = await navigator.permissions.query({
               name: "geolocation",
             });
+
+            if (mounted) {
+              // status.state puede ser: 'granted', 'denied', 'prompt'
+              setLocationStatus(status.state || "prompt");
+
+              try {
+                trackEvent("location_permission_status", {
+                  status: status.state || "prompt",
+                });
+              } catch {}
+            }
+
+            // Escuchar cambios de permisos
             status.onchange = () => {
               if (mounted) {
                 setLocationStatus(status.state || "unknown");
@@ -102,11 +72,16 @@ export function StatusIndicators({ className = "" }) {
               }
             };
           } catch {
-            // Algunos navegadores no soportan permissions.query para geolocation
+            // Si la API de Permissions no está disponible o no soporta geolocation,
+            // asumir que el estado es 'prompt' (sin solicitar)
+            if (mounted) setLocationStatus("prompt");
           }
+        } else {
+          // Si no hay API de Permissions, asumir estado 'prompt'
+          if (mounted) setLocationStatus("prompt");
         }
       } catch (error) {
-        if (mounted) setLocationStatus("unknown");
+        if (mounted) setLocationStatus("prompt");
       }
     };
 
@@ -182,6 +157,7 @@ export function StatusIndicators({ className = "" }) {
   };
 
   const isLocationOn = locationStatus === "granted";
+  const isLocationPending = locationStatus === "prompt";
 
   return (
     <div
@@ -218,6 +194,8 @@ export function StatusIndicators({ className = "" }) {
             ? "Verificando ubicación..."
             : isLocationOn
             ? "Ubicación activada"
+            : isLocationPending
+            ? "Click para activar ubicación (opcional ahora, se solicitará al finalizar)"
             : "Click para activar ubicación"
         }
         theme="light"
@@ -250,6 +228,8 @@ export function StatusIndicators({ className = "" }) {
                 ? "text-yellow-400 animate-pulse"
                 : isLocationOn
                 ? "text-green-500"
+                : isLocationPending
+                ? "text-yellow-500"
                 : "text-red-500"
             }`}
           />

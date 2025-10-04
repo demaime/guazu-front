@@ -658,80 +658,200 @@ export default function SurveyResponderStable() {
 
   // Pantalla de error de geolocalización
   if (locationError) {
-    const getErrorMessage = (errorType) => {
+    const getErrorConfig = (errorType) => {
       switch (errorType) {
         case "PERMISSION_DENIED":
-          return "No es posible registrar un caso sin coordenadas. Si ya rechazaste los permisos, busca el ícono de ubicación en la barra de direcciones de tu navegador y permite el acceso.";
+          return {
+            title: "Necesitamos tu ubicación",
+            message:
+              "Para registrar correctamente esta respuesta, necesitamos acceder a tu ubicación GPS.",
+            instruction:
+              "Toca el botón de abajo para activar el permiso de ubicación. Si ya lo rechazaste antes, deberás habilitar el acceso a la ubicación desde la configuración de tu dispositivo o navegador.",
+            icon: MapPin,
+            bgGradient: "from-amber-50 to-orange-50",
+            borderColor: "border-amber-200",
+            iconBg: "bg-amber-100",
+            iconColor: "text-amber-600",
+            titleColor: "text-gray-800",
+            textColor: "text-gray-700",
+            buttonBg:
+              "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600",
+            buttonText: "text-white",
+            cancelBorder: "border-gray-300",
+            cancelText: "text-gray-700",
+            cancelHover: "hover:bg-gray-100",
+          };
         case "POSITION_UNAVAILABLE":
-          return "No se pudo determinar tu ubicación. Verifica que el GPS esté activado.";
+          return {
+            title: "No se pudo obtener tu ubicación",
+            message: "Parece que hay un problema con el GPS de tu dispositivo.",
+            instruction:
+              "Verifica que el GPS esté activado en la configuración de tu dispositivo y que estés en un lugar con buena señal.",
+            icon: AlertTriangle,
+            bgGradient: "from-blue-50 to-indigo-50",
+            borderColor: "border-blue-200",
+            iconBg: "bg-blue-100",
+            iconColor: "text-blue-600",
+            titleColor: "text-gray-800",
+            textColor: "text-gray-700",
+            buttonBg:
+              "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600",
+            buttonText: "text-white",
+            cancelBorder: "border-gray-300",
+            cancelText: "text-gray-700",
+            cancelHover: "hover:bg-gray-100",
+          };
         case "TIMEOUT":
-          return "Se agotó el tiempo para obtener tu ubicación. Inténtalo nuevamente.";
+          return {
+            title: "La búsqueda tomó demasiado tiempo",
+            message: "No pudimos obtener tu ubicación en el tiempo esperado.",
+            instruction:
+              "Intenta nuevamente. Asegúrate de estar en un lugar con buena señal GPS.",
+            icon: AlertTriangle,
+            bgGradient: "from-yellow-50 to-amber-50",
+            borderColor: "border-yellow-200",
+            iconBg: "bg-yellow-100",
+            iconColor: "text-yellow-600",
+            titleColor: "text-gray-800",
+            textColor: "text-gray-700",
+            buttonBg:
+              "bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600",
+            buttonText: "text-white",
+            cancelBorder: "border-gray-300",
+            cancelText: "text-gray-700",
+            cancelHover: "hover:bg-gray-100",
+          };
         case "UNSUPPORTED":
-          return "Tu dispositivo no soporta geolocalización.";
+          return {
+            title: "Geolocalización no disponible",
+            message:
+              "Tu dispositivo o navegador no soporta la función de ubicación GPS.",
+            instruction:
+              "Por favor, intenta usar un navegador moderno como Chrome, Firefox o Safari.",
+            icon: AlertTriangle,
+            bgGradient: "from-red-50 to-rose-50",
+            borderColor: "border-red-200",
+            iconBg: "bg-red-100",
+            iconColor: "text-red-600",
+            titleColor: "text-gray-800",
+            textColor: "text-gray-700",
+            buttonBg:
+              "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600",
+            buttonText: "text-white",
+            cancelBorder: "border-gray-300",
+            cancelText: "text-gray-700",
+            cancelHover: "hover:bg-gray-100",
+          };
         default:
-          return "Error desconocido al obtener la ubicación.";
+          return {
+            title: "Error de ubicación",
+            message: "Ocurrió un error inesperado al obtener tu ubicación.",
+            instruction:
+              "Por favor, intenta nuevamente o contacta con soporte si el problema persiste.",
+            icon: AlertTriangle,
+            bgGradient: "from-gray-50 to-slate-50",
+            borderColor: "border-gray-200",
+            iconBg: "bg-gray-100",
+            iconColor: "text-gray-600",
+            titleColor: "text-gray-800",
+            textColor: "text-gray-700",
+            buttonBg:
+              "bg-gradient-to-r from-gray-500 to-slate-500 hover:from-gray-600 hover:to-slate-600",
+            buttonText: "text-white",
+            cancelBorder: "border-gray-300",
+            cancelText: "text-gray-700",
+            cancelHover: "hover:bg-gray-100",
+          };
       }
     };
 
-    const getErrorIcon = (errorType) => {
-      return errorType === "PERMISSION_DENIED" ? MapPin : AlertTriangle;
-    };
-
-    const ErrorIcon = getErrorIcon(locationError);
+    const config = getErrorConfig(locationError);
+    const ErrorIcon = config.icon;
 
     return (
-      <div className="p-8 flex flex-col items-center justify-center min-h-[60vh] text-center">
+      <div className="p-4 sm:p-8 flex flex-col items-center justify-center min-h-[60vh]">
         <AnimatePresence>
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="relative p-6 rounded-2xl shadow-lg max-w-2xl w-full overflow-hidden bg-red-600 text-white ring-1 ring-red-700/30"
+            className={`relative p-8 rounded-3xl shadow-xl max-w-2xl w-full overflow-hidden bg-gradient-to-br ${config.bgGradient} border-2 ${config.borderColor}`}
           >
-            <div className="mb-4 flex justify-center">
+            {/* Ícono decorativo con animación */}
+            <div className="mb-6 flex justify-center">
               <motion.div
-                initial={{ scale: 0.9 }}
-                animate={{ scale: [0.9, 1.08, 1] }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                initial={{ scale: 0.8, rotate: -10 }}
+                animate={{
+                  scale: [0.8, 1.1, 1],
+                  rotate: [-10, 5, 0],
+                }}
+                transition={{
+                  duration: 0.6,
+                  ease: "easeOut",
+                  times: [0, 0.6, 1],
+                }}
+                className={`${config.iconBg} p-6 rounded-full shadow-lg`}
               >
-                <ErrorIcon size={96} className="text-white drop-shadow" />
+                <ErrorIcon
+                  size={64}
+                  className={`${config.iconColor}`}
+                  strokeWidth={2.5}
+                />
               </motion.div>
             </div>
 
-            <h1 className="text-2xl font-extrabold mb-4 text-white tracking-tight">
-              Ubicación requerida
+            {/* Título */}
+            <h1
+              className={`text-2xl sm:text-3xl font-bold mb-3 ${config.titleColor} text-center`}
+            >
+              {config.title}
             </h1>
 
-            <p className="text-white/90 mb-6 text-lg">
-              {getErrorMessage(locationError)}
+            {/* Mensaje principal */}
+            <p
+              className={`${config.textColor} mb-3 text-base sm:text-lg text-center font-medium`}
+            >
+              {config.message}
             </p>
 
+            {/* Instrucciones detalladas */}
+            <div
+              className={`${config.textColor} mb-8 text-sm sm:text-base text-center bg-white/50 p-4 rounded-xl border ${config.borderColor}`}
+            >
+              <p className="leading-relaxed">{config.instruction}</p>
+            </div>
+
+            {/* Botones de acción */}
             <div className="flex gap-3 justify-center flex-wrap">
               <motion.button
                 onClick={retryLocationCapture}
                 disabled={isCapturingLocation}
-                className="px-6 py-3 rounded-md bg-white text-red-700 hover:bg-white/90 transition duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                whileTap={{ scale: 0.98 }}
+                className={`px-8 py-4 rounded-xl ${config.buttonBg} ${config.buttonText} transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold text-base`}
+                whileHover={{ scale: isCapturingLocation ? 1 : 1.02 }}
+                whileTap={{ scale: isCapturingLocation ? 1 : 0.98 }}
               >
                 {isCapturingLocation ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Obteniendo ubicación...
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Obteniendo ubicación...</span>
                   </>
                 ) : (
                   <>
-                    <MapPin className="w-4 h-4" />
-                    {locationError === "PERMISSION_DENIED"
-                      ? "Reintentar ubicación"
-                      : "Activar ubicación"}
+                    <MapPin className="w-5 h-5" />
+                    <span>
+                      {locationError === "PERMISSION_DENIED"
+                        ? "Activar ubicación"
+                        : "Reintentar"}
+                    </span>
                   </>
                 )}
               </motion.button>
 
               <motion.button
                 onClick={() => router.push("/dashboard/encuestas")}
-                className="px-6 py-3 rounded-md bg-transparent border-2 border-white text-white hover:bg-white/10 transition duration-200"
+                className={`px-8 py-4 rounded-xl bg-white border-2 ${config.cancelBorder} ${config.cancelText} ${config.cancelHover} transition-all duration-200 shadow-md hover:shadow-lg font-semibold text-base`}
+                whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 Cancelar

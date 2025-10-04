@@ -142,27 +142,23 @@ const RecentSurveysWidget = () => {
               <FileText className="w-8 h-8 text-[var(--text-secondary)] opacity-50" />
             </div>
             <p className="text-sm text-[var(--text-secondary)] mb-2">
-              No hay encuestas {role === "SUPERVISOR" ? "asignadas" : "creadas"}
+              No hay encuestas creadas
             </p>
-            {role === "ADMIN" && (
-              <>
-                <p className="text-xs text-[var(--text-muted)] mb-3">
-                  Crea tu primera encuesta para comenzar
-                </p>
-                <motion.a
-                  href="/dashboard/encuestas/crear"
-                  className="inline-flex items-center gap-2 text-xs text-secondary hover:text-secondary-light font-medium hover:underline transition-colors"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, delay: 0.2 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Plus className="w-3 h-3" />
-                  Crear primera encuesta
-                </motion.a>
-              </>
-            )}
+            <p className="text-xs text-[var(--text-muted)] mb-3">
+              Crea tu primera encuesta para comenzar
+            </p>
+            <motion.a
+              href="/dashboard/encuestas/crear"
+              className="inline-flex items-center gap-2 text-xs text-secondary hover:text-secondary-light font-medium hover:underline transition-colors"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Plus className="w-3 h-3" />
+              Crear primera encuesta
+            </motion.a>
           </div>
         ) : (
           <motion.div
