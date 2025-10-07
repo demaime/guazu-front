@@ -149,7 +149,7 @@ const ProfilePhotoUpload = ({
   const imageSrc = getImageSrc();
 
   return (
-    <div className="w-full max-w-sm mx-auto">
+    <div className="w-full h-full">
       {/* Input file oculto */}
       <input
         type="file"
@@ -161,86 +161,42 @@ const ProfilePhotoUpload = ({
 
       {imageSrc ? (
         /* Modo: Imagen existente - Clickeable para cambiar */
-        <div className="text-center">
-          <div
-            className="relative w-32 h-32 mx-auto mb-4 group cursor-pointer"
-            onClick={handleClickToUpload}
-          >
-            <div className="relative w-full h-full">
-              <Image
-                src={imageSrc}
-                alt="Foto de perfil"
-                width={128}
-                height={128}
-                className="w-full h-full rounded-full object-cover border-2 border-[var(--card-border)] group-hover:border-[var(--primary)] transition-colors"
-                onError={(e) => {
-                  console.log(
-                    "Error cargando imagen en ProfilePhotoUpload:",
-                    e
-                  );
-                  setImageExists(false);
-                }}
-              />
+        <div
+          className="relative w-full h-full group cursor-pointer"
+          onClick={handleClickToUpload}
+        >
+          <Image
+            src={imageSrc}
+            alt="Foto de perfil"
+            fill
+            className="object-cover group-hover:opacity-80 transition-opacity"
+            onError={(e) => {
+              console.log("Error cargando imagen en ProfilePhotoUpload:", e);
+              setImageExists(false);
+            }}
+          />
 
-              {/* Overlay en hover */}
-              <div className="absolute inset-0 rounded-full bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Upload className="w-6 h-6 text-white" />
-              </div>
-            </div>
-
-            {/* Botón eliminar */}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={handleRemovePhoto}
-              disabled={isLoading}
-              className={`absolute -top-2 -right-2 p-1.5 text-white rounded-full transition-colors shadow-lg border-2 border-white ${
-                isLoading
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-red-500 hover:bg-red-600"
-              }`}
-              title={isLoading ? "Eliminando..." : "Eliminar imagen"}
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
-              ) : (
-                <X className="w-3 h-3" />
-              )}
-            </motion.button>
+          {/* Overlay en hover */}
+          <div className="absolute inset-0 bg-white/10 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Upload className="w-8 h-8 text-white drop-shadow-lg" />
           </div>
-
-          <p className="text-sm text-[var(--text-secondary)] mb-2">
-            Haz clic en la imagen para cambiarla
-          </p>
         </div>
       ) : (
         /* Modo: Sin imagen - Área de drop/upload */
         <div
-          className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+          className={`relative w-full h-full border-2 border-dashed border-white/30 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
             isDragging
-              ? "border-[var(--primary)] bg-[var(--primary)]/10"
-              : "border-[var(--card-border)] hover:border-[var(--primary)]"
+              ? "border-white/60 bg-white/10"
+              : "hover:border-white/50 hover:bg-white/5"
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={handleClickToUpload}
         >
-          <div className="flex flex-col items-center gap-3">
-            <div className="p-3 rounded-full bg-[var(--input-background)]">
-              <Camera className="w-8 h-8 text-[var(--text-secondary)]" />
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-[var(--text-primary)] mb-1">
-                Subir foto de perfil
-              </p>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Haz clic o arrastra una imagen aquí
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                PNG o JPG hasta 5MB
-              </p>
-            </div>
+          <div className="flex flex-col items-center gap-2 text-white/80">
+            <Camera className="w-8 h-8" />
+            <p className="text-sm font-medium">Subir foto</p>
           </div>
         </div>
       )}

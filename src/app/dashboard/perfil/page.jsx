@@ -21,17 +21,16 @@ export default function PerfilPage() {
     name: "",
     lastName: "",
     email: "",
-    phone: "",
-    // address fields removidos de UI, mantenemos city y province
     birthDate: "",
     cellular: "",
     city: "",
     dni: "",
     job: "",
     province: "",
-    section: "",
     study: "",
-    workHistory: "",
+    address: "",
+    addressNumber: "",
+    addressUnity: "",
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -39,6 +38,14 @@ export default function PerfilPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [imageBase64, setImageBase64] = useState(null);
+
+  // Emitir evento cuando cambia el estado de edición
+  useEffect(() => {
+    const event = new CustomEvent("profileEditingChange", {
+      detail: { isEditing },
+    });
+    window.dispatchEvent(event);
+  }, [isEditing]);
 
   // Estados para modales
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -180,32 +187,18 @@ export default function PerfilPage() {
               name: userData?.name || "",
               lastName: userData?.lastName || "",
               email: userData?.email || "",
-              phone: userData?.phone || "",
-              address: userData?.address || "",
-              addressNumber: userData?.addressNumber || "",
-              addressUnity: userData?.addressUnity || "",
-              birthDate: userData?.birthDate || "",
+              birthDate: userData?.birthDate
+                ? new Date(userData.birthDate).toISOString().split("T")[0]
+                : "",
               cellular: userData?.cellular || "",
               city: userData?.city || "",
               dni: userData?.dni || "",
               job: userData?.job || "",
               province: userData?.province || "",
-              section: userData?.section || "",
               study: userData?.study || "",
-              workHistory: userData?.workHistory || "",
-              aboutSurvey: userData?.aboutSurvey || "",
-              obs: userData?.obs || "",
-              skill: userData?.skill || "",
-              avg: userData?.avg ?? "",
-              quotaF: userData?.quotaF ?? "",
-              quotaM: userData?.quotaM ?? "",
-              quotaTarget: userData?.quotaTarget ?? "",
-              quotaRangeAge: userData?.quotaRangeAge ?? "",
-              quotaRangeAge2: userData?.quotaRangeAge2 ?? "",
-              quotaRangeAge3: userData?.quotaRangeAge3 ?? "",
-              quotaRangeAge4: userData?.quotaRangeAge4 ?? "",
-              quotaRangeAge5: userData?.quotaRangeAge5 ?? "",
-              quotaRangeAge6: userData?.quotaRangeAge6 ?? "",
+              address: userData?.address || "",
+              addressNumber: userData?.addressNumber || "",
+              addressUnity: userData?.addressUnity || "",
             };
             setFormData(initialFormData);
             setOriginalFormData(initialFormData);
@@ -221,32 +214,18 @@ export default function PerfilPage() {
             name: updatedUser?.name || "",
             lastName: updatedUser?.lastName || "",
             email: updatedUser?.email || "",
-            phone: updatedUser?.phone || "",
-            address: updatedUser?.address || "",
-            addressNumber: updatedUser?.addressNumber || "",
-            addressUnity: updatedUser?.addressUnity || "",
-            birthDate: updatedUser?.birthDate || "",
+            birthDate: updatedUser?.birthDate
+              ? new Date(updatedUser.birthDate).toISOString().split("T")[0]
+              : "",
             cellular: updatedUser?.cellular || "",
             city: updatedUser?.city || "",
             dni: updatedUser?.dni || "",
             job: updatedUser?.job || "",
             province: updatedUser?.province || "",
-            section: updatedUser?.section || "",
             study: updatedUser?.study || "",
-            workHistory: updatedUser?.workHistory || "",
-            aboutSurvey: updatedUser?.aboutSurvey || "",
-            obs: updatedUser?.obs || "",
-            skill: updatedUser?.skill || "",
-            avg: updatedUser?.avg ?? "",
-            quotaF: updatedUser?.quotaF ?? "",
-            quotaM: updatedUser?.quotaM ?? "",
-            quotaTarget: updatedUser?.quotaTarget ?? "",
-            quotaRangeAge: updatedUser?.quotaRangeAge ?? "",
-            quotaRangeAge2: updatedUser?.quotaRangeAge2 ?? "",
-            quotaRangeAge3: updatedUser?.quotaRangeAge3 ?? "",
-            quotaRangeAge4: updatedUser?.quotaRangeAge4 ?? "",
-            quotaRangeAge5: updatedUser?.quotaRangeAge5 ?? "",
-            quotaRangeAge6: updatedUser?.quotaRangeAge6 ?? "",
+            address: updatedUser?.address || "",
+            addressNumber: updatedUser?.addressNumber || "",
+            addressUnity: updatedUser?.addressUnity || "",
           };
           setFormData(initialFormData);
           setOriginalFormData(initialFormData);
@@ -268,32 +247,18 @@ export default function PerfilPage() {
             name: userData?.name || "",
             lastName: userData?.lastName || "",
             email: userData?.email || "",
-            phone: userData?.phone || "",
-            address: userData?.address || "",
-            addressNumber: userData?.addressNumber || "",
-            addressUnity: userData?.addressUnity || "",
-            birthDate: userData?.birthDate || "",
+            birthDate: userData?.birthDate
+              ? new Date(userData.birthDate).toISOString().split("T")[0]
+              : "",
             cellular: userData?.cellular || "",
             city: userData?.city || "",
             dni: userData?.dni || "",
             job: userData?.job || "",
             province: userData?.province || "",
-            section: userData?.section || "",
             study: userData?.study || "",
-            workHistory: userData?.workHistory || "",
-            aboutSurvey: userData?.aboutSurvey || "",
-            obs: userData?.obs || "",
-            skill: userData?.skill || "",
-            avg: userData?.avg ?? "",
-            quotaF: userData?.quotaF ?? "",
-            quotaM: userData?.quotaM ?? "",
-            quotaTarget: userData?.quotaTarget ?? "",
-            quotaRangeAge: userData?.quotaRangeAge ?? "",
-            quotaRangeAge2: userData?.quotaRangeAge2 ?? "",
-            quotaRangeAge3: userData?.quotaRangeAge3 ?? "",
-            quotaRangeAge4: userData?.quotaRangeAge4 ?? "",
-            quotaRangeAge5: userData?.quotaRangeAge5 ?? "",
-            quotaRangeAge6: userData?.quotaRangeAge6 ?? "",
+            address: userData?.address || "",
+            addressNumber: userData?.addressNumber || "",
+            addressUnity: userData?.addressUnity || "",
           };
           setFormData(initialFormData);
           setOriginalFormData(initialFormData);
@@ -409,20 +374,7 @@ export default function PerfilPage() {
       // Preparar los datos a actualizar (todos los campos del modelo presentes en el formulario)
       const updateData = { ...formData };
       // Normalizar tipos numéricos si vienen como string
-      [
-        "dni",
-        "addressNumber",
-        "avg",
-        "quotaF",
-        "quotaM",
-        "quotaTarget",
-        "quotaRangeAge",
-        "quotaRangeAge2",
-        "quotaRangeAge3",
-        "quotaRangeAge4",
-        "quotaRangeAge5",
-        "quotaRangeAge6",
-      ].forEach((k) => {
+      ["dni", "addressNumber"].forEach((k) => {
         if (
           updateData[k] !== "" &&
           updateData[k] !== null &&
@@ -516,24 +468,112 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold mb-8 text-[var(--text-primary)]">
-          Mi Perfil
-        </h1>
-
-        {/* Sección de foto de perfil */}
-        <div className="bg-[var(--card-background)] rounded-lg p-6 mb-8 shadow-sm border border-[var(--card-border)]">
-          <h2 className="text-lg font-semibold mb-4 text-[var(--text-primary)]">
-            Foto de Perfil
-          </h2>
-          <ProfilePhotoUpload
-            currentUser={user}
-            onPhotoChange={handlePhotoChange}
-            onRemovePhoto={handleRemovePhoto}
-            isLoading={isSaving}
-          />
+    <div className="min-h-screen bg-[var(--background)]">
+      <div className="container mx-auto px-4 py-8 pb-20 max-w-6xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+            Mi Perfil
+          </h1>
+          <p className="text-[var(--text-secondary)]">
+            Gestiona tu información personal y configuración de cuenta
+          </p>
         </div>
+
+        {/* Banner Principal */}
+        <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-2xl p-6 md:p-8 mb-8 text-white shadow-xl">
+          <div className="flex flex-col md:flex-row items-center md:items-center gap-6 md:gap-8">
+            {/* Foto de perfil */}
+            <div className="relative flex-shrink-0">
+              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-white/20 shadow-lg">
+                <ProfilePhotoUpload
+                  currentUser={user}
+                  onPhotoChange={handlePhotoChange}
+                  onRemovePhoto={handleRemovePhoto}
+                  isLoading={isSaving}
+                />
+              </div>
+            </div>
+
+            {/* Información clave */}
+            <div className="flex-1 text-center md:text-left">
+              <h2 className="text-3xl md:text-5xl font-bold mb-3">
+                {user?.name} {user?.lastName}
+              </h2>
+              <p className="text-lg md:text-xl text-white/80 mb-4">
+                {user?.email}
+              </p>
+              <div className="flex flex-col gap-3 text-base md:text-lg justify-center md:justify-start">
+                <div className="flex items-center justify-center md:justify-start">
+                  <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium">
+                    {user?.role === "ROLE_ADMIN"
+                      ? "Administrador"
+                      : user?.role === "POLLSTER"
+                      ? "Encuestador"
+                      : user?.role === "SUPERVISOR"
+                      ? "Supervisor"
+                      : "Encuestador"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 justify-center md:justify-start">
+                  <svg
+                    className="w-5 h-5 flex-shrink-0 hidden md:block"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                  <span className="text-center md:text-left">
+                    {user?.city}, {user?.province}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Miembro desde */}
+        {user?.createdAt && (
+          <div className="bg-[var(--card-background)] rounded-xl p-4 mb-8 shadow-sm border border-[var(--card-border)]">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 text-[var(--text-secondary)]">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span className="text-sm">
+                  Miembro desde{" "}
+                  {new Date(user.createdAt).toLocaleDateString("es-ES", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mensajes de éxito y error */}
         {error && (
@@ -546,25 +586,24 @@ export default function PerfilPage() {
           </motion.div>
         )}
 
-        {/* Sección de información personal */}
-        <div className="bg-[var(--card-background)] rounded-lg p-6 shadow-sm border border-[var(--card-border)]">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              Información Personal
-            </h2>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                if (isEditing) {
-                  handleCancelChanges();
-                } else {
-                  setIsEditing(true);
-                }
-              }}
-              className="px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)]"
-            >
-              {isEditing ? "Cancelar" : "Editar"}
-            </motion.button>
+        {/* Campos editables */}
+        <div className="bg-[var(--card-background)] rounded-xl p-8 shadow-sm border border-[var(--card-border)]">
+          <div className="mb-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-3">
+              <h3 className="text-xl font-semibold text-[var(--text-primary)]">
+                Información Personal
+              </h3>
+            </div>
+            <p className="text-[var(--text-secondary)] text-sm">
+              Actualiza tu información personal y de contacto
+            </p>
+            {hasUnsavedChanges && (
+              <div className="mt-2">
+                <span className="text-xs text-[var(--text-secondary)]">
+                  Cambios sin guardar
+                </span>
+              </div>
+            )}
           </div>
 
           <form
@@ -573,203 +612,645 @@ export default function PerfilPage() {
               handleSaveChanges();
             }}
           >
-            <div className="space-y-6">
-              {/* Nombre y Apellido */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    Nombre
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                    />
-                  ) : (
-                    <div className="flex items-center">
-                      <User className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
-                      <span className="text-[var(--text-primary)]">
-                        {user?.name || "Sin nombre"}
-                      </span>
-                    </div>
-                  )}
+            <div className="space-y-8">
+              {/* Información Básica */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-6 bg-[var(--primary)] rounded-full"></div>
+                  <h4 className="text-lg font-semibold text-[var(--text-primary)]">
+                    Información Básica
+                  </h4>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    Apellido
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.lastName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, lastName: e.target.value })
-                      }
-                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                    />
-                  ) : (
-                    <div className="flex items-center">
-                      <User className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
-                      <span className="text-[var(--text-primary)]">
-                        {user?.lastName || "Sin apellido"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                  Email
-                </label>
-                {isEditing ? (
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  />
-                ) : (
-                  <div className="flex items-center">
-                    <Mail className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
-                    <span className="text-[var(--text-primary)]">
-                      {user?.email || "Sin email"}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Teléfono */}
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                  Teléfono
-                </label>
-                {isEditing ? (
-                  <input
-                    type="tel"
-                    value={formData.cellular}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cellular: e.target.value })
-                    }
-                    className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                  />
-                ) : (
-                  <div className="flex items-center">
-                    <Phone className="w-5 h-5 text-[var(--text-secondary)] mr-2" />
-                    <span className="text-[var(--text-primary)]">
-                      {user?.cellular || "No especificado"}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* DNI y Localidad */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    DNI
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      value={formData.dni}
-                      onChange={(e) =>
-                        setFormData({ ...formData, dni: e.target.value })
-                      }
-                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                    />
-                  ) : (
-                    <div className="flex items-center">
-                      <span className="text-[var(--text-primary)]">
-                        {user?.dni || "Sin DNI"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    Localidad
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.city}
-                      onChange={(e) =>
-                        setFormData({ ...formData, city: e.target.value })
-                      }
-                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                    />
-                  ) : (
-                    <div className="flex items-center">
-                      <span className="text-[var(--text-primary)]">
-                        {user?.city || "Sin localidad"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Provincia */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    Provincia
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.province}
-                      onChange={(e) =>
-                        setFormData({ ...formData, province: e.target.value })
-                      }
-                      className="w-full px-4 py-2 rounded-lg bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                    />
-                  ) : (
-                    <div className="flex items-center">
-                      <span className="text-[var(--text-primary)]">
-                        {user?.province || ""}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Se eliminaron Unidad y Sección */}
-
-              {/* Botón de guardar - se muestra cuando hay cambios pendientes */}
-              {hasUnsavedChanges && (
-                <div className="flex justify-end gap-3">
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    type="button"
-                    onClick={handleCancelChanges}
-                    disabled={isSaving}
-                    className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
-                  >
-                    Descartar Cambios
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    type="submit"
-                    disabled={isSaving}
-                    className={`px-6 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-dark)]`}
-                  >
-                    {isSaving && (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Nombre
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) =>
+                            setFormData({ ...formData, name: e.target.value })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="Ingresa tu nombre"
+                        />
+                        <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <User className="w-5 h-5 text-[var(--text-secondary)] mr-3" />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.name || "Sin nombre"}
+                        </span>
+                      </div>
                     )}
-                    {isSaving ? "Guardando..." : "Guardar Cambios"}
-                  </motion.button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Apellido
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.lastName}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              lastName: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="Ingresa tu apellido"
+                        />
+                        <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <User className="w-5 h-5 text-[var(--text-secondary)] mr-3" />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.lastName || "Sin apellido"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
+
+              {/* Contacto */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-6 bg-[var(--primary)] rounded-full"></div>
+                  <h4 className="text-lg font-semibold text-[var(--text-primary)]">
+                    Información de Contacto
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Email
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="tu@email.com"
+                        />
+                        <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <Mail className="w-5 h-5 text-[var(--text-secondary)] mr-3" />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.email || "Sin email"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Teléfono
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          value={formData.cellular}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              cellular: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="+54 9 11 1234-5678"
+                        />
+                        <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <Phone className="w-5 h-5 text-[var(--text-secondary)] mr-3" />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.cellular || "No especificado"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Identificación */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-6 bg-[var(--primary)] rounded-full"></div>
+                  <h4 className="text-lg font-semibold text-[var(--text-primary)]">
+                    Identificación
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      DNI
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={formData.dni}
+                          onChange={(e) =>
+                            setFormData({ ...formData, dni: e.target.value })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="12345678"
+                        />
+                        <svg
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+                          />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <svg
+                          className="w-5 h-5 text-[var(--text-secondary)] mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+                          />
+                        </svg>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.dni || "Sin DNI"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Fecha de Nacimiento
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={formData.birthDate}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              birthDate: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                        />
+                        <svg
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <svg
+                          className="w-5 h-5 text-[var(--text-secondary)] mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.birthDate
+                            ? new Date(user.birthDate).toLocaleDateString(
+                                "es-ES"
+                              )
+                            : ""}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Ubicación */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-6 bg-[var(--primary)] rounded-full"></div>
+                  <h4 className="text-lg font-semibold text-[var(--text-primary)]">
+                    Ubicación
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Provincia
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.province}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              province: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="Ciudad Autónoma de Buenos Aires"
+                        />
+                        <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <MapPin className="w-5 h-5 text-[var(--text-secondary)] mr-3" />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.province || "No especificado"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Localidad
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.city}
+                          onChange={(e) =>
+                            setFormData({ ...formData, city: e.target.value })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="BALVANERA"
+                        />
+                        <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <MapPin className="w-5 h-5 text-[var(--text-secondary)] mr-3" />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.city || "No especificado"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Dirección
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.address}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              address: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="Av. Corrientes"
+                        />
+                        <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <MapPin className="w-5 h-5 text-[var(--text-secondary)] mr-3" />
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.address || "No especificado"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Número
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={formData.addressNumber}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              addressNumber: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="1234"
+                        />
+                        <svg
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
+                          />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <svg
+                          className="w-5 h-5 text-[var(--text-secondary)] mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
+                          />
+                        </svg>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.addressNumber || "No especificado"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Unidad
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.addressUnity}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              addressUnity: e.target.value,
+                            })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="A"
+                        />
+                        <svg
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                          />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <svg
+                          className="w-5 h-5 text-[var(--text-secondary)] mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                          />
+                        </svg>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.addressUnity || "No especificado"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Información Profesional */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-6 bg-[var(--primary)] rounded-full"></div>
+                  <h4 className="text-lg font-semibold text-[var(--text-primary)]">
+                    Información Profesional
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Trabajo
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.job}
+                          onChange={(e) =>
+                            setFormData({ ...formData, job: e.target.value })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="Desarrollador"
+                        />
+                        <svg
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6"
+                          />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <svg
+                          className="w-5 h-5 text-[var(--text-secondary)] mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2V6"
+                          />
+                        </svg>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.job || "No especificado"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                      Estudios
+                    </label>
+                    {isEditing ? (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={formData.study}
+                          onChange={(e) =>
+                            setFormData({ ...formData, study: e.target.value })
+                          }
+                          className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
+                          placeholder="Ingeniería en Sistemas"
+                        />
+                        <svg
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 14l9-5-9-5-9 5 9 5z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
+                          />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-[var(--input-background)] rounded-xl">
+                        <svg
+                          className="w-5 h-5 text-[var(--text-secondary)] mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 14l9-5-9-5-9 5 9 5z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
+                          />
+                        </svg>
+                        <span className="text-[var(--text-primary)] font-medium">
+                          {user?.study || "No especificado"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </form>
+        </div>
+      </div>
+
+      {/* Botones de acción - Footer fijo */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[var(--card-background)] border-t border-[var(--card-border)] shadow-lg z-30">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex gap-3 justify-center">
+          {isEditing ? (
+            <>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCancelChanges}
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-[var(--text-secondary)] hover:bg-[var(--text-muted)] text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleSaveChanges();
+                }}
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[140px]"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    Guardando...
+                  </>
+                ) : (
+                  "Guardar Cambios"
+                )}
+              </motion.button>
+            </>
+          ) : (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsEditing(true)}
+              className="px-8 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white rounded-lg font-medium transition-all duration-200 shadow-md"
+            >
+              Editar Perfil
+            </motion.button>
+          )}
         </div>
       </div>
 

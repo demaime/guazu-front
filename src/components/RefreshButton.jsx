@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
@@ -8,13 +8,37 @@ import { usePathname } from "next/navigation";
 /**
  * Botón flotante para actualizar/recargar la página
  * Se oculta automáticamente en la página de responder encuesta
+ * y en la página de perfil cuando se está editando
  */
 export function RefreshButton() {
   const pathname = usePathname();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
 
   // Ocultar en página de responder
   if (pathname === "/dashboard/encuestas/responder") {
+    return null;
+  }
+
+  // Escuchar eventos de edición de perfil
+  useEffect(() => {
+    if (pathname === "/dashboard/perfil") {
+      const handleEditingChange = (e) => {
+        setIsProfileEditing(e.detail.isEditing);
+      };
+
+      window.addEventListener("profileEditingChange", handleEditingChange);
+
+      return () => {
+        window.removeEventListener("profileEditingChange", handleEditingChange);
+      };
+    } else {
+      setIsProfileEditing(false);
+    }
+  }, [pathname]);
+
+  // Ocultar en página de perfil cuando se está editando
+  if (pathname === "/dashboard/perfil" && isProfileEditing) {
     return null;
   }
 
