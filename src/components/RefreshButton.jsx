@@ -15,11 +15,6 @@ export function RefreshButton() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProfileEditing, setIsProfileEditing] = useState(false);
 
-  // Ocultar en página de responder
-  if (pathname === "/dashboard/encuestas/responder") {
-    return null;
-  }
-
   // Escuchar eventos de edición de perfil
   useEffect(() => {
     if (pathname === "/dashboard/perfil") {
@@ -36,6 +31,11 @@ export function RefreshButton() {
       setIsProfileEditing(false);
     }
   }, [pathname]);
+
+  // Ocultar en página de responder
+  if (pathname === "/dashboard/encuestas/responder") {
+    return null;
+  }
 
   // Ocultar en página de perfil cuando se está editando
   if (pathname === "/dashboard/perfil" && isProfileEditing) {
