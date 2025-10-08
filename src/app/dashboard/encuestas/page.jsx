@@ -99,74 +99,102 @@ export default function Encuestas() {
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
   // --- Carga única de todas las encuestas y partición por tabs --- //
-  const loadAllSurveys = useCallback(async () => {
-    setError(null);
-    setIsLoading({ active: true, finished: true, drafts: true });
+  const loadAllSurveys = useCallback(
+    async (userData = null) => {
+      setError(null);
+      setIsLoading({ active: true, finished: true, drafts: true });
 
-    try {
-      // Si offline, leer todo del caché local
-      let all = [];
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        all = await getAllSurveysLocal();
-        // Fallback: si no hay índices pero sí puede haber detalles, reconstruir
-        if (!all || all.length === 0) {
-          try {
-            await reconstructIndexesFromDetails();
-            all = await getAllSurveysLocal();
-          } catch {}
-        }
-      } else {
-        // Obtener todas las páginas del backend en una sola pasada
-        let page = 1;
-        const perPage = 100;
-        while (true) {
-          const { surveys = [], totalPages = 1 } =
-            await surveyService.getAllSurveys(page, perPage, null);
-          all = all.concat(surveys);
-          if (page >= totalPages) break;
-          page += 1;
-        }
-      }
+      // Usar el usuario pasado como parámetro o el del estado
+      const currentUser = userData || user;
+      console.log("📊 loadAllSurveys - Usuario actual:", currentUser);
 
-      const now = new Date();
-      const isActive = (s) => {
-        const info = s?.surveyInfo || {};
-        if (!info.startDate || !info.endDate) return true;
-        const sd = new Date(info.startDate);
-        const ed = new Date(info.endDate);
-        return now >= sd && now <= ed;
-      };
-      const isFinished = (s) => {
-        const info = s?.surveyInfo || {};
-        if (!info.startDate || !info.endDate) return false;
-        const ed = new Date(info.endDate);
-        return now > ed;
-      };
-
-      const active = all.filter(isActive);
-      const finished = all.filter(isFinished);
-
-      setActiveSurveysData(active);
-      setFinishedSurveysData(finished);
-      setActiveTotalPages(Math.max(1, Math.ceil(active.length / limit)));
-      setFinishedTotalPages(Math.max(1, Math.ceil(finished.length / limit)));
-      setActiveCurrentPage(1);
-      setFinishedCurrentPage(1);
-
-      // Borradores (solo ADMIN)
       try {
-        if (user?.role === "ROLE_ADMIN") {
-          if (typeof navigator !== "undefined" && navigator.onLine) {
-            const draftsResp = await surveyService.getDrafts();
-            const drafts = draftsResp.drafts || [];
-            setDraftSurveysData(drafts);
-            setTabCounts({
-              active: active.length,
-              finished: finished.length,
-              drafts: drafts.length,
-            });
+        // Si offline, leer todo del caché local
+        let all = [];
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          all = await getAllSurveysLocal();
+          // Fallback: si no hay índices pero sí puede haber detalles, reconstruir
+          if (!all || all.length === 0) {
+            try {
+              await reconstructIndexesFromDetails();
+              all = await getAllSurveysLocal();
+            } catch {}
+          }
+        } else {
+          // Obtener todas las páginas del backend en una sola pasada
+          let page = 1;
+          const perPage = 100;
+          while (true) {
+            const { surveys = [], totalPages = 1 } =
+              await surveyService.getAllSurveys(page, perPage, null);
+            all = all.concat(surveys);
+            if (page >= totalPages) break;
+            page += 1;
+          }
+        }
+
+        const now = new Date();
+        const isActive = (s) => {
+          const info = s?.surveyInfo || {};
+          if (!info.startDate || !info.endDate) return true;
+          const sd = new Date(info.startDate);
+          const ed = new Date(info.endDate);
+          return now >= sd && now <= ed;
+        };
+        const isFinished = (s) => {
+          const info = s?.surveyInfo || {};
+          if (!info.startDate || !info.endDate) return false;
+          const ed = new Date(info.endDate);
+          return now > ed;
+        };
+
+        const active = all.filter(isActive);
+        const finished = all.filter(isFinished);
+
+        setActiveSurveysData(active);
+        setFinishedSurveysData(finished);
+        setActiveTotalPages(Math.max(1, Math.ceil(active.length / limit)));
+        setFinishedTotalPages(Math.max(1, Math.ceil(finished.length / limit)));
+        setActiveCurrentPage(1);
+        setFinishedCurrentPage(1);
+
+        // Borradores (solo ADMIN)
+        try {
+          console.log("🔍 Verificando rol para borradores:", currentUser?.role);
+          if (currentUser?.role === "ROLE_ADMIN") {
+            console.log("👤 Usuario es ADMIN, cargando borradores...");
+            if (typeof navigator !== "undefined" && navigator.onLine) {
+              const draftsResp = await surveyService.getDrafts();
+              console.log("📦 loadAllSurveys - Respuesta drafts:", draftsResp);
+              const drafts = draftsResp.drafts || [];
+              console.log(
+                "📋 loadAllSurveys - Borradores:",
+                drafts.length,
+                drafts
+              );
+              setDraftSurveysData(drafts);
+              setTabCounts({
+                active: active.length,
+                finished: finished.length,
+                drafts: drafts.length,
+              });
+            } else {
+              // offline: no intentar drafts
+              console.log("📴 Offline - no se cargan borradores");
+              setDraftSurveysData([]);
+              setTabCounts({
+                active: active.length,
+                finished: finished.length,
+                drafts: 0,
+              });
+            }
           } else {
-            // offline: no intentar drafts
+            // No admin: no consultar drafts
+            console.log(
+              "🚫 Usuario no es ADMIN (rol:",
+              currentUser?.role,
+              "), no se consultan borradores"
+            );
             setDraftSurveysData([]);
             setTabCounts({
               active: active.length,
@@ -174,8 +202,8 @@ export default function Encuestas() {
               drafts: 0,
             });
           }
-        } else {
-          // No admin: no consultar drafts
+        } catch (err) {
+          console.error("❌ Error cargando borradores:", err);
           setDraftSurveysData([]);
           setTabCounts({
             active: active.length,
@@ -183,28 +211,22 @@ export default function Encuestas() {
             drafts: 0,
           });
         }
-      } catch {
-        setDraftSurveysData([]);
-        setTabCounts({
-          active: active.length,
-          finished: finished.length,
-          drafts: 0,
-        });
-      }
 
-      // Reemplazar completamente el cache con las encuestas actuales del servidor (solo índices)
-      try {
-        await safeReplaceAllSurveys(active);
-        // Registrar la hora de sync solo en la carga inicial
-        await setLastSync(Date.now());
-      } catch {}
-    } catch (e) {
-      console.error("loadAllSurveys error", e);
-      setError(e.message);
-    } finally {
-      setIsLoading({ active: false, finished: false, drafts: false });
-    }
-  }, [limit]);
+        // Reemplazar completamente el cache con las encuestas actuales del servidor (solo índices)
+        try {
+          await safeReplaceAllSurveys(active);
+          // Registrar la hora de sync solo en la carga inicial
+          await setLastSync(Date.now());
+        } catch {}
+      } catch (e) {
+        console.error("loadAllSurveys error", e);
+        setError(e.message);
+      } finally {
+        setIsLoading({ active: false, finished: false, drafts: false });
+      }
+    },
+    [limit]
+  );
   const fetchDataForTab = useCallback(
     async (tabName, page) => {
       if (tabName === "drafts") {
@@ -217,12 +239,15 @@ export default function Encuestas() {
         setIsLoading((prev) => ({ ...prev, drafts: true }));
         setError(null);
         try {
+          console.log("🔍 Solicitando borradores...");
           const response = await surveyService.getDrafts();
+          console.log("📦 Respuesta de getDrafts:", response);
           const drafts = response.drafts || [];
+          console.log("📋 Borradores encontrados:", drafts.length, drafts);
           setDraftSurveysData(drafts);
           setTabCounts((prev) => ({ ...prev, drafts: drafts.length }));
         } catch (err) {
-          console.error(`Error loading data for tab drafts:`, err);
+          console.error(`❌ Error loading data for tab drafts:`, err);
           setError(err.message);
           setDraftSurveysData([]);
         } finally {
@@ -410,6 +435,9 @@ export default function Encuestas() {
       } catch {}
 
       const userData = authService.getUser();
+      console.log("🔐 Usuario cargado desde localStorage:", userData);
+      console.log("🔑 Rol del usuario:", userData?.role);
+      console.log("✅ ¿Es ROLE_ADMIN?:", userData?.role === "ROLE_ADMIN");
       if (!userData) {
         router.replace("/login");
         return;
@@ -449,7 +477,8 @@ export default function Encuestas() {
 
       try {
         setIsInitialLoadingView(true);
-        await loadAllSurveys();
+        // Pasar el usuario directamente a loadAllSurveys
+        await loadAllSurveys(userData);
       } finally {
         setIsInitialLoadingView(false);
       }
@@ -477,11 +506,9 @@ export default function Encuestas() {
       setActiveCurrentPage(1);
     } else if (activeTab === "finished") {
       setFinishedCurrentPage(1);
-    } else if (activeTab === "drafts") {
-      // Los borradores necesitan fetch porque no se cargan con loadAllSurveys
-      fetchDataForTab("drafts", 1);
     }
-  }, [activeTab, fetchDataForTab]);
+    // Los borradores ya se cargan en loadAllSurveys, no necesitan fetch adicional
+  }, [activeTab]);
 
   // Monitorear red y contar pendientes
   useEffect(() => {
@@ -751,6 +778,24 @@ export default function Encuestas() {
       setError(err.message);
     } finally {
       setIsLoading((prev) => ({ ...prev, [activeTab]: false }));
+    }
+  };
+
+  // Handler para recargar borradores después de clonar
+  const handleSurveyListChange = async () => {
+    console.log("🔄 Recargando borradores después de clonar...");
+    try {
+      if (user?.role === "ROLE_ADMIN") {
+        console.log("👤 Recargando borradores para ADMIN...");
+        const draftsResp = await surveyService.getDrafts();
+        console.log("📦 Borradores actualizados:", draftsResp);
+        const drafts = draftsResp.drafts || [];
+        setDraftSurveysData(drafts);
+        setTabCounts((prev) => ({ ...prev, drafts: drafts.length }));
+        console.log("✅ Borradores recargados:", drafts.length);
+      }
+    } catch (err) {
+      console.error("❌ Error recargando borradores:", err);
     }
   };
 
@@ -1377,6 +1422,7 @@ export default function Encuestas() {
                   onDeleteAnswers={handleDeleteAnswers}
                   onEditDraft={handleEditDraft}
                   onPublishDraft={handlePublishDraft}
+                  onSurveyListChange={handleSurveyListChange}
                   openMenuId={openMenuId}
                   setOpenMenuId={setOpenMenuId}
                 />

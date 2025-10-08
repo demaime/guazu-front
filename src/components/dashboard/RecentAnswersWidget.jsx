@@ -62,6 +62,11 @@ const RecentAnswersWidget = () => {
     const state = answer?.location?.state || null;
     const city = answer?.location?.city || null;
 
+    // Si no hay ubicación o es "Ubicación no disponible", devolver null
+    if (!answer?.location || city === "Ubicación no disponible") {
+      return null;
+    }
+
     if (state === "CABA") {
       if (city && city.toLowerCase().includes("comuna")) {
         return `${city}, CABA`;
@@ -69,7 +74,7 @@ const RecentAnswersWidget = () => {
       return "CABA";
     }
 
-    if (city && city !== "Ubicación no disponible" && state) {
+    if (city && state) {
       return `${city}, ${state}`;
     }
 

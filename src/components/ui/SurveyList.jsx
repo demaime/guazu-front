@@ -395,20 +395,17 @@ export function SurveyList({
             toast.error(result?.message || "Error al clonar la encuesta.");
           }
           setLoadingAction(null);
-          setExpandedActionsId(null);
           break;
 
         case "delete":
           onDelete(surveyId);
           setLoadingAction(null);
-          setExpandedActionsId(null);
           break;
 
         case "deleteAnswers":
           setSelectedSurveyId(surveyId);
           setShowDeleteAnswersModal(true);
           setLoadingAction(null);
-          setExpandedActionsId(null);
           break;
 
         default:

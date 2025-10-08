@@ -595,6 +595,9 @@ class SurveyService {
   async getDrafts() {
     try {
       const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user"));
+      console.log("🔐 getDrafts - Usuario actual:", user);
+      console.log("📍 getDrafts - URL:", SURVEY_ROUTES.GET_DRAFTS);
 
       const response = await fetch(SURVEY_ROUTES.GET_DRAFTS, {
         method: "GET",
@@ -606,14 +609,18 @@ class SurveyService {
         mode: "cors",
       });
 
+      console.log("📡 getDrafts - Response status:", response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("❌ getDrafts - Error response:", errorData);
         throw new Error(
           errorData.message || `HTTP error! status: ${response.status}`
         );
       }
 
       const data = await response.json();
+      console.log("✅ getDrafts - Data received:", data);
 
       if (data.error) {
         return Promise.reject(data.validation);
@@ -622,7 +629,7 @@ class SurveyService {
       // Retornar los borradores
       return { drafts: data.drafts || [] };
     } catch (error) {
-      console.error("Error in getDrafts:", error);
+      console.error("❌ Error in getDrafts:", error);
       throw error;
     }
   }
