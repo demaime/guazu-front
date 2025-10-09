@@ -18,6 +18,8 @@ import {
   Phone,
   Grid,
   Copy,
+  ChevronDown,
+  Layers,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import QuestionModal from "./QuestionModal";
@@ -28,6 +30,7 @@ const QUESTION_TYPES = {
   TEXT: "text",
   MULTIPLE_CHOICE: "multiple_choice",
   SINGLE_CHOICE: "single_choice",
+  DROPDOWN: "dropdown",
   CHECKBOX: "checkbox",
   RATING: "rating",
   DATE: "date",
@@ -36,6 +39,7 @@ const QUESTION_TYPES = {
   NUMBER: "number",
   PHONE: "phone",
   MATRIX: "matrix",
+  PANELDYNAMIC: "paneldynamic",
 };
 
 // Spanish labels (redundant, consider moving to shared file later)
@@ -43,6 +47,7 @@ const QUESTION_TYPE_LABELS_ES = {
   [QUESTION_TYPES.TEXT]: "Texto",
   [QUESTION_TYPES.MULTIPLE_CHOICE]: "Opción Múltiple",
   [QUESTION_TYPES.SINGLE_CHOICE]: "Opción Única",
+  [QUESTION_TYPES.DROPDOWN]: "Menú Desplegable",
   [QUESTION_TYPES.CHECKBOX]: "Casilla Verificación",
   [QUESTION_TYPES.RATING]: "Calificación",
   [QUESTION_TYPES.DATE]: "Fecha",
@@ -51,6 +56,7 @@ const QUESTION_TYPE_LABELS_ES = {
   [QUESTION_TYPES.NUMBER]: "Número",
   [QUESTION_TYPES.PHONE]: "Teléfono",
   [QUESTION_TYPES.MATRIX]: "Matriz",
+  [QUESTION_TYPES.PANELDYNAMIC]: "Panel Dinámico",
 };
 
 // Icon mapping
@@ -58,6 +64,7 @@ const QUESTION_TYPE_ICONS = {
   [QUESTION_TYPES.TEXT]: Type,
   [QUESTION_TYPES.MULTIPLE_CHOICE]: List,
   [QUESTION_TYPES.SINGLE_CHOICE]: ToggleLeft,
+  [QUESTION_TYPES.DROPDOWN]: ChevronDown,
   [QUESTION_TYPES.CHECKBOX]: CheckSquare,
   [QUESTION_TYPES.RATING]: Star,
   [QUESTION_TYPES.DATE]: Calendar,
@@ -66,6 +73,7 @@ const QUESTION_TYPE_ICONS = {
   [QUESTION_TYPES.NUMBER]: Hash,
   [QUESTION_TYPES.PHONE]: Phone,
   [QUESTION_TYPES.MATRIX]: Grid,
+  [QUESTION_TYPES.PANELDYNAMIC]: Layers,
 };
 
 // Helper para encontrar información del padre

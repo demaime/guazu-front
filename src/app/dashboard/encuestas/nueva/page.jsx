@@ -37,6 +37,7 @@ const QUESTION_TYPES = {
   TEXT: "text",
   MULTIPLE_CHOICE: "multiple_choice",
   SINGLE_CHOICE: "single_choice",
+  DROPDOWN: "dropdown",
   CHECKBOX: "checkbox",
   RATING: "rating",
   DATE: "date",
@@ -45,12 +46,14 @@ const QUESTION_TYPES = {
   NUMBER: "number",
   PHONE: "phone",
   MATRIX: "matrix",
+  PANELDYNAMIC: "paneldynamic",
 };
 
 const QUESTION_TYPE_LABELS_ES = {
   [QUESTION_TYPES.TEXT]: "Texto",
   [QUESTION_TYPES.MULTIPLE_CHOICE]: "Opción Múltiple",
   [QUESTION_TYPES.SINGLE_CHOICE]: "Opción Única",
+  [QUESTION_TYPES.DROPDOWN]: "Menú Desplegable",
   [QUESTION_TYPES.CHECKBOX]: "Casilla Verificación",
   [QUESTION_TYPES.RATING]: "Calificación",
   [QUESTION_TYPES.DATE]: "Fecha",
@@ -59,6 +62,7 @@ const QUESTION_TYPE_LABELS_ES = {
   [QUESTION_TYPES.NUMBER]: "Número",
   [QUESTION_TYPES.PHONE]: "Teléfono",
   [QUESTION_TYPES.MATRIX]: "Matriz",
+  [QUESTION_TYPES.PANELDYNAMIC]: "Panel Dinámico",
 };
 
 // Pasos del wizard
@@ -168,6 +172,10 @@ const mapQuestionType = (type) => {
       return "checkbox";
     case "single_choice":
       return "radiogroup";
+    case "dropdown":
+      return "dropdown";
+    case "paneldynamic":
+      return "paneldynamic";
     // Tipos que en SurveyJS se representan como text + inputType
     case "date":
     case "time":
@@ -658,6 +666,16 @@ export default function NuevaEncuesta({
                       }))
                     : [];
                 break;
+              case "dropdown":
+                element.type = "dropdown"; // SurveyJS usa dropdown
+                element.choices =
+                  question.options && Array.isArray(question.options)
+                    ? question.options.map((opt) => ({
+                        value: opt?.id || "",
+                        text: { es: opt?.text || "" },
+                      }))
+                    : [];
+                break;
               case "checkbox": // Nuestro tipo Checkbox (que es diferente de multiple_choice)
                 element.type = "checkbox"; // Mapea directamente
                 element.choices =
@@ -667,6 +685,31 @@ export default function NuevaEncuesta({
                         text: { es: opt?.text || "" },
                       }))
                     : [];
+                break;
+              case "paneldynamic":
+                element.type = "paneldynamic";
+                element.templateElements =
+                  question.panelQuestions &&
+                  Array.isArray(question.panelQuestions)
+                    ? question.panelQuestions.map((panelQ) => ({
+                        type: mapQuestionType(panelQ.type),
+                        name: panelQ.id,
+                        title: { es: panelQ.title || "" },
+                        isRequired: panelQ.required || false,
+                        ...(panelQ.options && Array.isArray(panelQ.options)
+                          ? {
+                              choices: panelQ.options.map((opt) => ({
+                                value: opt?.id || "",
+                                text: { es: opt?.text || "" },
+                              })),
+                            }
+                          : {}),
+                      }))
+                    : [];
+                element.panelCount = 0; // Comienza sin paneles, el usuario los agrega
+                element.minPanelCount = 0;
+                element.panelAddText = { es: "Agregar" };
+                element.panelRemoveText = { es: "Eliminar" };
                 break;
               case "matrix":
                 element.rows =
@@ -770,6 +813,16 @@ export default function NuevaEncuesta({
                       }))
                     : [];
                 break;
+              case "dropdown":
+                element.type = "dropdown";
+                element.choices =
+                  question.options && Array.isArray(question.options)
+                    ? question.options.map((opt) => ({
+                        value: opt?.id || "",
+                        text: { es: opt?.text || "" },
+                      }))
+                    : [];
+                break;
               case "checkbox":
                 element.type = "checkbox";
                 element.choices =
@@ -779,6 +832,31 @@ export default function NuevaEncuesta({
                         text: { es: opt?.text || "" },
                       }))
                     : [];
+                break;
+              case "paneldynamic":
+                element.type = "paneldynamic";
+                element.templateElements =
+                  question.panelQuestions &&
+                  Array.isArray(question.panelQuestions)
+                    ? question.panelQuestions.map((panelQ) => ({
+                        type: mapQuestionType(panelQ.type),
+                        name: panelQ.id,
+                        title: { es: panelQ.title || "" },
+                        isRequired: panelQ.required || false,
+                        ...(panelQ.options && Array.isArray(panelQ.options)
+                          ? {
+                              choices: panelQ.options.map((opt) => ({
+                                value: opt?.id || "",
+                                text: { es: opt?.text || "" },
+                              })),
+                            }
+                          : {}),
+                      }))
+                    : [];
+                element.panelCount = 0;
+                element.minPanelCount = 0;
+                element.panelAddText = { es: "Agregar" };
+                element.panelRemoveText = { es: "Eliminar" };
                 break;
               case "matrix":
                 element.rows =

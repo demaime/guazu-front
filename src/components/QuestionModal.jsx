@@ -37,6 +37,7 @@ const QUESTION_TYPES = {
   TEXT: "text",
   MULTIPLE_CHOICE: "multiple_choice",
   SINGLE_CHOICE: "single_choice",
+  DROPDOWN: "dropdown",
   CHECKBOX: "checkbox",
   RATING: "rating",
   DATE: "date",
@@ -45,6 +46,7 @@ const QUESTION_TYPES = {
   NUMBER: "number",
   PHONE: "phone",
   MATRIX: "matrix",
+  PANELDYNAMIC: "paneldynamic",
 };
 
 // Placeholder descriptions for each question type
@@ -52,6 +54,7 @@ const DESCRIPTION_PLACEHOLDERS = {
   [QUESTION_TYPES.TEXT]: "Respuesta de texto libre.",
   [QUESTION_TYPES.MULTIPLE_CHOICE]: "Seleccione una o más opciones.",
   [QUESTION_TYPES.SINGLE_CHOICE]: "Seleccione solo una opción.",
+  [QUESTION_TYPES.DROPDOWN]: "Seleccione una opción del menú desplegable.",
   [QUESTION_TYPES.CHECKBOX]: "Marque las casillas correspondientes.",
   [QUESTION_TYPES.RATING]: "Valore en una escala.",
   [QUESTION_TYPES.DATE]: "Introduzca una fecha.",
@@ -60,6 +63,8 @@ const DESCRIPTION_PLACEHOLDERS = {
   [QUESTION_TYPES.NUMBER]: "Introduzca un número.",
   [QUESTION_TYPES.PHONE]: "Introduzca un número de teléfono.",
   [QUESTION_TYPES.MATRIX]: "Valore los elementos según las columnas.",
+  [QUESTION_TYPES.PANELDYNAMIC]:
+    "Permite agregar múltiples grupos de respuestas.",
 };
 
 // Spanish labels for question types
@@ -67,6 +72,7 @@ const QUESTION_TYPE_LABELS = {
   [QUESTION_TYPES.TEXT]: "Texto",
   [QUESTION_TYPES.MULTIPLE_CHOICE]: "Opción Múltiple",
   [QUESTION_TYPES.SINGLE_CHOICE]: "Opción Única",
+  [QUESTION_TYPES.DROPDOWN]: "Menú Desplegable",
   [QUESTION_TYPES.CHECKBOX]: "Casilla de Verificación",
   [QUESTION_TYPES.RATING]: "Calificación",
   [QUESTION_TYPES.DATE]: "Fecha",
@@ -75,6 +81,7 @@ const QUESTION_TYPE_LABELS = {
   [QUESTION_TYPES.NUMBER]: "Número",
   [QUESTION_TYPES.PHONE]: "Teléfono",
   [QUESTION_TYPES.MATRIX]: "Matriz",
+  [QUESTION_TYPES.PANELDYNAMIC]: "Panel Dinámico",
 };
 
 // Función para calcular números jerárquicos (formato nuevo)
@@ -407,6 +414,7 @@ export default function QuestionModal({
     switch (question.type) {
       case QUESTION_TYPES.MULTIPLE_CHOICE:
       case QUESTION_TYPES.SINGLE_CHOICE:
+      case QUESTION_TYPES.DROPDOWN:
       case QUESTION_TYPES.CHECKBOX:
         return (
           <div className="space-y-3">
@@ -442,6 +450,31 @@ export default function QuestionModal({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        );
+
+      case QUESTION_TYPES.PANELDYNAMIC:
+        return (
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+              <p className="text-sm text-blue-800">
+                <strong>Panel Dinámico:</strong> El encuestado podrá agregar
+                múltiples grupos de respuestas. Por ahora, esta funcionalidad
+                muestra un panel básico. Para configuración avanzada de
+                preguntas internas del panel, edita la encuesta después de
+                crearla.
+              </p>
+            </div>
+            <div className="text-sm text-gray-600">
+              <p>
+                Este tipo de pregunta permite al usuario agregar múltiples
+                instancias de un grupo de datos.
+              </p>
+              <p className="mt-2">
+                <strong>Ejemplo:</strong> "Agregar miembros de familia" donde
+                cada miembro tiene nombre, edad y ocupación.
+              </p>
             </div>
           </div>
         );

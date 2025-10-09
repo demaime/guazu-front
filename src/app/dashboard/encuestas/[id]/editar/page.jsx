@@ -312,6 +312,8 @@ export default function EditarEncuesta() {
       type: (() => {
         if (question.type === "checkbox") return "multiple_choice";
         if (question.type === "radiogroup") return "single_choice";
+        if (question.type === "dropdown") return "dropdown";
+        if (question.type === "paneldynamic") return "paneldynamic";
         // Reinterpretar inputs HTML generados
         if (question.type === "text") {
           const it = (question.inputType || "").toLowerCase();
@@ -336,6 +338,21 @@ export default function EditarEncuesta() {
         text: getLocalizedText(choice.text),
         // Sin nextQuestionId inicialmente
       })),
+      // Para paneldynamic, guardar las preguntas del template
+      ...(question.type === "paneldynamic" && question.templateElements
+        ? {
+            panelQuestions: question.templateElements.map((tpl) => ({
+              id: tpl.name || generateUniqueId(),
+              type: tpl.type || "text",
+              title: getLocalizedText(tpl.title) || "",
+              required: tpl.isRequired || false,
+              options: (tpl.choices || []).map((choice) => ({
+                id: choice.value || choice.id,
+                text: getLocalizedText(choice.text),
+              })),
+            })),
+          }
+        : {}),
       matrixRows: (question.rows || []).map((row) => ({
         id: row.value || row.id,
         text: getLocalizedText(row.text),
