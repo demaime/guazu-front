@@ -163,6 +163,7 @@ export default function SurveyResponderStable() {
         model.locale = "es";
         model.showQuestionNumbers = true;
         model.questionTitlePattern = "{no}) {title}";
+        model.questionDescriptionLocation = "underTitle";
         model.showProgressBar = "top";
         model.pageNextText = "Siguiente";
         model.pagePrevText = "Anterior";

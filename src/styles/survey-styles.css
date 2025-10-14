@@ -3,9 +3,19 @@
 
 /* === CONFIGURACIÓN BÁSICA === */
 
-/* Ocultar descripción por defecto */
+/* Ocultar descripción de la encuesta (header) */
 .sd-description {
   display: none;
+}
+
+/* Descripción de la pregunta - visible y con estilo */
+.sd-question .sd-description {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--sjs-general-forecolor-light);
+  margin-top: 4px;
+  margin-bottom: 12px;
+  line-height: 1.4;
 }
 
 /* Ajustar tamaño del título */
