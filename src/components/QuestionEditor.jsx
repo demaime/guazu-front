@@ -103,7 +103,7 @@ function calculateQuestionNumbers(questions) {
     return {};
   }
 
-  // Función helper para verificar si una pregunta es hija (SOLO por showCondition, NO por pathSourceQuestionId)
+  // Función helper para verificar si una pregunta es hija por SHOWCONDITON (visibilidad)
   const findParentForQuestion = (question) => {
     // Verificar showCondition (formato nuevo/antiguo)
     if (question.showCondition) {
@@ -115,9 +115,17 @@ function calculateQuestionNumbers(questions) {
     return null;
   };
 
-  // Identificar preguntas raíz (sin padre)
+  // ✅ Función helper para determinar el padre de POSICIÓN (prioriza pathSourceQuestionId)
+  const findPositionParent = (question) => {
+    // Si tiene pathSourceQuestionId, se posiciona después de esa pregunta
+    if (question.pathSourceQuestionId) return question.pathSourceQuestionId;
+    // Si no, usar la jerarquía de showCondition
+    return findParentForQuestion(question);
+  };
+
+  // Identificar preguntas raíz (sin padre de POSICIÓN)
   const rootQuestions = questions.filter((q) => {
-    return !findParentForQuestion(q);
+    return !findPositionParent(q);
   });
 
   // Mapa para almacenar los números
@@ -130,9 +138,9 @@ function calculateQuestionNumbers(questions) {
 
   // Función recursiva para asignar números a hijos
   const assignChildNumbers = (parentId, parentNumber) => {
-    // Encontrar hijos de este padre
+    // Encontrar hijos de este padre (por POSICIÓN, no por showCondition)
     const childQuestions = questions.filter((q) => {
-      const parentIdForQ = findParentForQuestion(q);
+      const parentIdForQ = findPositionParent(q); // ✅ CAMBIO: usar posición
       return parentIdForQ === parentId;
     });
 

@@ -108,7 +108,7 @@ const useConfirmNavigation = (shouldConfirm) => {
   }, [shouldConfirm]);
 };
 
-// Helper para encontrar si una pregunta es hija y de quién
+// Helper para encontrar si una pregunta es hija y de quién (SOLO para visibilidad/showCondition)
 function findParentInfo(targetId, allQuestions) {
   const targetQuestion = allQuestions.find((q) => q.id === targetId);
   if (targetQuestion?.showCondition?.parentQuestionId) {
@@ -120,13 +120,30 @@ function findParentInfo(targetId, allQuestions) {
   return null;
 }
 
+// ✅ Helper para encontrar padre de POSICIÓN (prioriza pathSourceQuestionId)
+function findPositionParentInfo(targetId, allQuestions) {
+  const targetQuestion = allQuestions.find((q) => q.id === targetId);
+  if (!targetQuestion) return null;
+
+  // Prioridad 1: pathSourceQuestionId define la posición explícita
+  if (targetQuestion.pathSourceQuestionId) {
+    return {
+      parentId: targetQuestion.pathSourceQuestionId,
+      optionIndex: 0,
+    };
+  }
+
+  // Prioridad 2: showCondition (visibilidad también afecta posición si no hay pathSourceQuestionId)
+  return findParentInfo(targetId, allQuestions);
+}
+
 // Función para calcular números jerárquicos
 function calculateQuestionNumbers(questions) {
   const questionNumbers = {}; // { questionId: numberString }
   let mainQuestionCounter = 0;
 
   questions.forEach((q) => {
-    const parentInfo = findParentInfo(q.id, questions);
+    const parentInfo = findPositionParentInfo(q.id, questions); // ✅ CAMBIO: usar posición
     if (!parentInfo) {
       mainQuestionCounter++;
       questionNumbers[q.id] = `${mainQuestionCounter}`;
@@ -134,7 +151,7 @@ function calculateQuestionNumbers(questions) {
   });
 
   questions.forEach((q) => {
-    const parentInfo = findParentInfo(q.id, questions);
+    const parentInfo = findPositionParentInfo(q.id, questions); // ✅ CAMBIO: usar posición
     if (parentInfo) {
       const parentNumber = questionNumbers[parentInfo.parentId];
       const mainParentNumber = parentNumber ? parentNumber.split(".")[0] : "?";
@@ -147,7 +164,7 @@ function calculateQuestionNumbers(questions) {
   mainQuestionCounter = 0;
   questions.forEach((q) => {
     if (!questionNumbers[q.id]) {
-      const parentInfo = findParentInfo(q.id, questions);
+      const parentInfo = findPositionParentInfo(q.id, questions); // ✅ CAMBIO: usar posición
       if (!parentInfo) {
         mainQuestionCounter++;
         questionNumbers[q.id] = `${mainQuestionCounter}`;

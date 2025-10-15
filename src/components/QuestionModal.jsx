@@ -89,7 +89,7 @@ function calculateQuestionNumbers(questions) {
   const questionNumbers = {}; // { questionId: numberString }
   let mainQuestionCounter = 0;
 
-  // Helper para encontrar si una pregunta es hija y de quién
+  // Helper para encontrar si una pregunta es hija y de quién (SOLO para visibilidad/showCondition)
   function findParentInfo(targetId, allQuestions) {
     const targetQuestion = allQuestions.find((q) => q.id === targetId);
     if (targetQuestion && targetQuestion.showCondition) {
@@ -108,9 +108,26 @@ function calculateQuestionNumbers(questions) {
     return null;
   }
 
+  // ✅ Helper para encontrar padre de POSICIÓN (prioriza pathSourceQuestionId)
+  function findPositionParentInfo(targetId, allQuestions) {
+    const targetQuestion = allQuestions.find((q) => q.id === targetId);
+    if (!targetQuestion) return null;
+
+    // Prioridad 1: pathSourceQuestionId define la posición explícita
+    if (targetQuestion.pathSourceQuestionId) {
+      return {
+        parentId: targetQuestion.pathSourceQuestionId,
+        optionIndex: 0,
+      };
+    }
+
+    // Prioridad 2: showCondition (visibilidad también afecta posición si no hay pathSourceQuestionId)
+    return findParentInfo(targetId, allQuestions);
+  }
+
   // Asignar números principales primero
   questions.forEach((q) => {
-    const parentInfo = findParentInfo(q.id, questions);
+    const parentInfo = findPositionParentInfo(q.id, questions); // ✅ CAMBIO: usar posición
     if (!parentInfo) {
       mainQuestionCounter++;
       questionNumbers[q.id] = `${mainQuestionCounter}`;
@@ -119,7 +136,7 @@ function calculateQuestionNumbers(questions) {
 
   // Asignar números jerárquicos a hijos
   questions.forEach((q) => {
-    const parentInfo = findParentInfo(q.id, questions);
+    const parentInfo = findPositionParentInfo(q.id, questions); // ✅ CAMBIO: usar posición
     if (parentInfo) {
       const parentNumber = questionNumbers[parentInfo.parentId];
       // Usar solo la parte principal del número padre
