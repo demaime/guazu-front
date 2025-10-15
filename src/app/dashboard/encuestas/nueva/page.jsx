@@ -221,10 +221,37 @@ const createHierarchicalStructure = (questions) => {
   // Mapa para almacenar la jerarquía de preguntas
   const hierarchyMap = {};
 
+  // Función helper para encontrar el padre de una pregunta (SOLO por showCondition)
+  const findParentForQuestion = (question) => {
+    // Verificar showCondition (formato nuevo)
+    if (question.showCondition) {
+      if (Array.isArray(question.showCondition.rules)) {
+        return question.showCondition.rules[0]?.parentQuestionId || null;
+      }
+      return question.showCondition.parentQuestionId || null;
+    }
+
+    return null;
+  };
+
+  // Función para obtener el padre de POSICIÓN (para ordenamiento)
+  const findPositionParent = (question) => {
+    // Si tiene pathSourceQuestionId, se posiciona después de esa pregunta
+    if (question.pathSourceQuestionId) {
+      const source = questions.find(
+        (q) => q.id === question.pathSourceQuestionId
+      );
+      if (source) {
+        return question.pathSourceQuestionId;
+      }
+    }
+    // Si no tiene pathSourceQuestionId, usar la jerarquía de showCondition
+    return findParentForQuestion(question);
+  };
+
   // Primero identificamos las preguntas raíz (sin padre)
   const rootQuestions = questions.filter((q) => {
-    // Verificamos si esta pregunta tiene showCondition
-    return !q.showCondition?.parentQuestionId;
+    return !findParentForQuestion(q);
   });
 
   // Si no hay preguntas raíz, devolver las preguntas originales
@@ -259,10 +286,11 @@ const createHierarchicalStructure = (questions) => {
       number: currentNumber,
     };
 
-    // Buscar preguntas hijas que tienen este ID como padre
-    const childQuestions = questions.filter(
-      (q) => q.showCondition?.parentQuestionId === question.id
-    );
+    // Buscar preguntas hijas que tienen este ID como padre de POSICIÓN
+    const childQuestions = questions.filter((q) => {
+      const parentIdForQ = findPositionParent(q);
+      return parentIdForQ === question.id;
+    });
 
     childQuestions.forEach((childQuestion) => {
       // Añadir a la lista de hijos
@@ -310,18 +338,37 @@ const organizeQuestionsHierarchically = (questions) => {
   const rootQuestions = [];
   const childQuestions = new Map(); // mapa de preguntas hijas por padre
 
-  // Función helper para verificar si una pregunta es hija
+  // Función helper para verificar si una pregunta es hija (SOLO por showCondition)
   const findParentForQuestion = (question) => {
-    // Verificar showCondition
-    if (question.showCondition && question.showCondition.parentQuestionId) {
-      return question.showCondition.parentQuestionId;
+    // Verificar showCondition (formato nuevo)
+    if (question.showCondition) {
+      if (Array.isArray(question.showCondition.rules)) {
+        return question.showCondition.rules[0]?.parentQuestionId || null;
+      }
+      return question.showCondition.parentQuestionId || null;
     }
+
     return null;
   };
 
-  // Clasificar preguntas como raíces o hijas
+  // Función para obtener el padre de POSICIÓN (para ordenamiento)
+  const findPositionParent = (question) => {
+    // Si tiene pathSourceQuestionId, se posiciona después de esa pregunta
+    if (question.pathSourceQuestionId) {
+      const source = questions.find(
+        (q) => q.id === question.pathSourceQuestionId
+      );
+      if (source) {
+        return question.pathSourceQuestionId;
+      }
+    }
+    // Si no tiene pathSourceQuestionId, usar la jerarquía de showCondition
+    return findParentForQuestion(question);
+  };
+
+  // Clasificar preguntas como raíces o hijas (por POSICIÓN)
   questions.forEach((question) => {
-    const parentId = findParentForQuestion(question);
+    const parentId = findPositionParent(question);
 
     if (parentId) {
       // Es hija - agregar a la lista de hijos de su padre
@@ -622,8 +669,28 @@ export default function NuevaEncuesta({
           : [];
 
         // Obtener preguntas ordenadas jerárquicamente
+        console.log(
+          "🟡 [nueva/page - ANTES organizeQuestionsHierarchically]:",
+          questionsToOrganize.map((q) => ({
+            id: q.id,
+            title: q.title?.substring(0, 30),
+            pathSourceQuestionId: q.pathSourceQuestionId,
+            showCondition: q.showCondition?.rules?.[0]?.parentQuestionId,
+          }))
+        );
+
         const { orderedQuestions, numberMap } =
           organizeQuestionsHierarchically(questionsToOrganize);
+
+        console.log(
+          "🟡 [nueva/page - DESPUÉS organizeQuestionsHierarchically]:",
+          orderedQuestions.map((q) => ({
+            id: q.id,
+            title: q.title?.substring(0, 30),
+            pathSourceQuestionId: q.pathSourceQuestionId,
+            showCondition: q.showCondition?.rules?.[0]?.parentQuestionId,
+          }))
+        );
 
         // Guardar el mapa de numeración en surveyData para usar en la interfaz
         surveyData.questionNumberMap = numberMap;
@@ -642,6 +709,10 @@ export default function NuevaEncuesta({
               // Añadir número jerárquico al título visible
               titleLocation: "top",
               showNumber: true,
+              // ✅ AGREGAR: Preservar pathSourceQuestionId para que SurveyJS lo serialice
+              ...(question.pathSourceQuestionId && {
+                pathSourceQuestionId: question.pathSourceQuestionId,
+              }),
             };
 
             // Adaptar tipos y opciones (SIN lógica condicional aquí)
@@ -789,6 +860,10 @@ export default function NuevaEncuesta({
               isRequired: question.required || false,
               titleLocation: "top",
               showNumber: true,
+              // ✅ AGREGAR: Preservar pathSourceQuestionId para que SurveyJS lo serialice
+              ...(question.pathSourceQuestionId && {
+                pathSourceQuestionId: question.pathSourceQuestionId,
+              }),
             };
 
             // Adapt types and options
@@ -1195,6 +1270,16 @@ export default function NuevaEncuesta({
             surveyData.participants.pollsterAssignments || [], // ✅ TAMBIÉN en participants para el backend
         },
       };
+
+      console.log(
+        "🔴 [nueva/page - GUARDANDO EN BD] surveyJSElements:",
+        surveyJSElements.map((el) => ({
+          name: el.name,
+          title: el.title?.substring(0, 30),
+          pathSourceQuestionId: el.pathSourceQuestionId,
+          visibleIf: el.visibleIf?.substring(0, 50),
+        }))
+      );
 
       await surveyService.createOrUpdateSurvey(
         dataToSave,

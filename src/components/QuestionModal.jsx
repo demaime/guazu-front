@@ -704,6 +704,15 @@ export default function QuestionModal({
       variable: finalVariable, // Use the ensured variable
     };
 
+    // 🔍 LOG: Ver qué se está guardando
+    console.log("🔵 [QuestionModal] Guardando pregunta:", {
+      id: questionToSave.id,
+      title: questionToSave.title,
+      pathSourceQuestionId: questionToSave.pathSourceQuestionId,
+      isConditional: questionToSave.isConditional,
+      showCondition: questionToSave.showCondition,
+    });
+
     // Normalizar reglas antes de guardar para evitar que queden con operador incorrecto
     if (questionToSave.isConditional && questionToSave.showCondition) {
       const sc = questionToSave.showCondition || { logic: "or", rules: [] };

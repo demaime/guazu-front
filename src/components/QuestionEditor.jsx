@@ -103,25 +103,9 @@ function calculateQuestionNumbers(questions) {
     return {};
   }
 
-  // Función helper para verificar si una pregunta es hija
+  // Función helper para verificar si una pregunta es hija (SOLO por showCondition, NO por pathSourceQuestionId)
   const findParentForQuestion = (question) => {
-    // 1) Si tiene camino: hereda el padre de la pregunta fuente
-    if (question.pathSourceQuestionId) {
-      const source = questions.find(
-        (q) => q.id === question.pathSourceQuestionId
-      );
-      if (source) {
-        // Padre del source según sus reglas
-        if (source.showCondition) {
-          if (Array.isArray(source.showCondition.rules)) {
-            return source.showCondition.rules[0]?.parentQuestionId || null;
-          }
-          return source.showCondition.parentQuestionId || null;
-        }
-      }
-    }
-
-    // 2) Formato nuevo/antiguo
+    // Verificar showCondition (formato nuevo/antiguo)
     if (question.showCondition) {
       if (Array.isArray(question.showCondition.rules)) {
         return question.showCondition.rules[0]?.parentQuestionId || null;
@@ -323,7 +307,28 @@ export default function QuestionEditor({
       }
     }
     // Reordenar jerárquicamente antes de propagar
+    console.log(
+      "🟢 [QuestionEditor] Antes de reordenar:",
+      updatedQuestions.map((q) => ({
+        id: q.id,
+        title: q.title?.substring(0, 30),
+        pathSourceQuestionId: q.pathSourceQuestionId,
+        showCondition: q.showCondition?.rules?.[0]?.parentQuestionId,
+      }))
+    );
+
     const reordered = reorderQuestionsHierarchically(updatedQuestions);
+
+    console.log(
+      "🟢 [QuestionEditor] Después de reordenar:",
+      reordered.map((q) => ({
+        id: q.id,
+        title: q.title?.substring(0, 30),
+        pathSourceQuestionId: q.pathSourceQuestionId,
+        showCondition: q.showCondition?.rules?.[0]?.parentQuestionId,
+      }))
+    );
+
     onChange(reordered);
     setShowModal(false);
     setEditingQuestion(null);
@@ -335,24 +340,31 @@ export default function QuestionEditor({
 
     const getParentId = (q) => {
       if (!q) return "";
-      if (q.pathSourceQuestionId) return q.pathSourceQuestionId; // hereda camino
       const sc = q.showCondition;
       if (!sc) return "";
       if (Array.isArray(sc.rules)) return sc.rules[0]?.parentQuestionId || "";
       return sc.parentQuestionId || "";
     };
 
+    const getPositionParent = (q) => {
+      if (!q) return "";
+      // Si tiene pathSourceQuestionId, se posiciona después de esa pregunta
+      if (q.pathSourceQuestionId) return q.pathSourceQuestionId;
+      // Si no, usar la jerarquía de showCondition
+      return getParentId(q);
+    };
+
     const byId = new Map(list.map((q) => [q.id, q]));
     const children = new Map();
     list.forEach((q) => {
-      const pid = getParentId(q);
+      const pid = getPositionParent(q); // Usar posición para ordenamiento
       if (pid) {
         if (!children.has(pid)) children.set(pid, []);
         children.get(pid).push(q);
       }
     });
 
-    const roots = list.filter((q) => !getParentId(q));
+    const roots = list.filter((q) => !getPositionParent(q)); // Preguntas sin posición padre
 
     const result = [];
     const visit = (q) => {

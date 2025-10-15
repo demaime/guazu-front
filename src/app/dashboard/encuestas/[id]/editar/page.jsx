@@ -88,10 +88,6 @@ export default function EditarEncuesta() {
       /\{([^}]+)\}\s*(contains|notcontains|=|!=|>=|<=|>|<)\s*(?:'([^']*)'|([0-9]+(?:\.[0-9]+)?))/g;
 
     elements.forEach((element) => {
-      // Si la pregunta sigue un camino, NO reconstruimos reglas: su visibilidad es heredada
-      if (element?.pathSourceQuestionId) {
-        return;
-      }
       const expr = element.visibleIf;
       if (!expr || typeof expr !== "string") return;
 
@@ -187,17 +183,60 @@ export default function EditarEncuesta() {
     // Mapa para almacenar la jerarquía de preguntas
     const hierarchyMap = {};
 
-    // Primero identificamos las preguntas raíz (sin padre)
-    const rootQuestions = questions.filter((q) => {
-      // Verificamos si esta pregunta es destino de alguna pregunta condicional
-      const isChild = questions.some(
+    // Función helper para encontrar el padre de una pregunta (SOLO por showCondition)
+    const findParentForQuestion = (question) => {
+      // Verificar showCondition (formato nuevo)
+      if (question.showCondition) {
+        if (Array.isArray(question.showCondition.rules)) {
+          return question.showCondition.rules[0]?.parentQuestionId || null;
+        }
+        return question.showCondition.parentQuestionId || null;
+      }
+
+      // Formato antiguo: verificar si es destino de nextQuestionId
+      const hasNextQuestionIdParent = questions.some(
         (parentQ) =>
           parentQ &&
           parentQ.isConditional &&
           parentQ.options &&
-          parentQ.options.some((opt) => opt && opt.nextQuestionId === q.id)
+          parentQ.options.some(
+            (opt) => opt && opt.nextQuestionId === question.id
+          )
       );
-      return !isChild;
+      if (hasNextQuestionIdParent) {
+        const parent = questions.find(
+          (parentQ) =>
+            parentQ &&
+            parentQ.isConditional &&
+            parentQ.options &&
+            parentQ.options.some(
+              (opt) => opt && opt.nextQuestionId === question.id
+            )
+        );
+        return parent ? parent.id : null;
+      }
+
+      return null;
+    };
+
+    // Función para obtener el padre de POSICIÓN (para ordenamiento)
+    const findPositionParent = (question) => {
+      // Si tiene pathSourceQuestionId, se posiciona después de esa pregunta
+      if (question.pathSourceQuestionId) {
+        const source = questions.find(
+          (q) => q.id === question.pathSourceQuestionId
+        );
+        if (source) {
+          return question.pathSourceQuestionId;
+        }
+      }
+      // Si no tiene pathSourceQuestionId, usar la jerarquía de showCondition
+      return findParentForQuestion(question);
+    };
+
+    // Primero identificamos las preguntas raíz (sin padre)
+    const rootQuestions = questions.filter((q) => {
+      return !findParentForQuestion(q);
     });
 
     // Si no hay preguntas raíz, devolver las preguntas originales
@@ -232,22 +271,18 @@ export default function EditarEncuesta() {
         number: currentNumber,
       };
 
-      // Si es pregunta condicional, buscar sus hijos
-      if (question.isConditional && question.options) {
-        question.options.forEach((opt) => {
-          if (opt && opt.nextQuestionId) {
-            const childQuestion = questions.find(
-              (q) => q && q.id === opt.nextQuestionId
-            );
-            if (childQuestion) {
-              // Añadir a la lista de hijos
-              hierarchyMap[question.id].children.push(childQuestion);
-              // Construir subárbol recursivamente
-              buildQuestionTree(childQuestion, currentNumber);
-            }
-          }
-        });
-      }
+      // Buscar preguntas hijas que tienen este ID como padre de POSICIÓN
+      const childQuestions = questions.filter((q) => {
+        const parentIdForQ = findPositionParent(q);
+        return parentIdForQ === question.id;
+      });
+
+      childQuestions.forEach((childQuestion) => {
+        // Añadir a la lista de hijos
+        hierarchyMap[question.id].children.push(childQuestion);
+        // Construir subárbol recursivamente
+        buildQuestionTree(childQuestion, currentNumber);
+      });
 
       return hierarchyMap[question.id];
     };
@@ -291,6 +326,16 @@ export default function EditarEncuesta() {
   const conditionalRelations = parseVisibleIfConditions(elements);
 
   // Procesar las preguntas primero para mantener referencias
+  console.log(
+    "🟣 [editar/page - elements RAW desde BD]:",
+    elements.map((el) => ({
+      name: el.name,
+      title: el.title?.substring(0, 30),
+      pathSourceQuestionId: el.pathSourceQuestionId,
+      visibleIf: el.visibleIf?.substring(0, 50),
+    }))
+  );
+
   const processedQuestions = elements.map((question) => {
     // Reconstruir showCondition si existe visibleIf
     const showCondition = conditionalRelations[question.name] || null;
@@ -374,6 +419,76 @@ export default function EditarEncuesta() {
   // Guardar la numeración jerárquica para usarla en la interfaz
   const questionNumberMap = numberMap;
 
+  // Reordenar preguntas jerárquicamente antes de pasarlas a initialData
+  const reorderQuestionsHierarchically = (list) => {
+    if (!Array.isArray(list) || list.length === 0) return list || [];
+
+    const getParentId = (q) => {
+      if (!q) return "";
+      const sc = q.showCondition;
+      if (!sc) return "";
+      if (Array.isArray(sc.rules)) return sc.rules[0]?.parentQuestionId || "";
+      return sc.parentQuestionId || "";
+    };
+
+    const getPositionParent = (q) => {
+      if (!q) return "";
+      // Si tiene pathSourceQuestionId, se posiciona después de esa pregunta
+      if (q.pathSourceQuestionId) return q.pathSourceQuestionId;
+      // Si no, usar la jerarquía de showCondition
+      return getParentId(q);
+    };
+
+    const byId = new Map(list.map((q) => [q.id, q]));
+    const children = new Map();
+    list.forEach((q) => {
+      const pid = getPositionParent(q); // Usar posición para ordenamiento
+      if (pid) {
+        if (!children.has(pid)) children.set(pid, []);
+        children.get(pid).push(q);
+      }
+    });
+
+    const roots = list.filter((q) => !getPositionParent(q)); // Preguntas sin posición padre
+
+    const result = [];
+    const visit = (q) => {
+      result.push(q);
+      const kids = children.get(q.id) || [];
+      kids.forEach((k) => visit(k));
+    };
+
+    roots.forEach((r) => visit(r));
+    // fallback: si quedó algún nodo sin visitar (inconsistencias), lo agregamos al final
+    list.forEach((q) => {
+      if (!result.find((x) => x.id === q.id)) result.push(q);
+    });
+    return result;
+  };
+
+  console.log(
+    "🟣 [editar/page - processedQuestions ANTES reordenar]:",
+    processedQuestions.map((q) => ({
+      id: q.id,
+      title: q.title?.substring(0, 30),
+      pathSourceQuestionId: q.pathSourceQuestionId,
+      showCondition: q.showCondition?.rules?.[0]?.parentQuestionId,
+    }))
+  );
+
+  const orderedProcessedQuestions =
+    reorderQuestionsHierarchically(processedQuestions);
+
+  console.log(
+    "🟣 [editar/page - orderedProcessedQuestions DESPUÉS reordenar]:",
+    orderedProcessedQuestions.map((q) => ({
+      id: q.id,
+      title: q.title?.substring(0, 30),
+      pathSourceQuestionId: q.pathSourceQuestionId,
+      showCondition: q.showCondition?.rules?.[0]?.parentQuestionId,
+    }))
+  );
+
   const initialData = {
     basicInfo: {
       title: getLocalizedText(survey.survey?.title) || "",
@@ -394,7 +509,7 @@ export default function EditarEncuesta() {
         survey.surveyInfo?.pollsterAssignments ||
         [], // ✅ CORREGIDO: buscar en raíz primero, luego en surveyInfo
     },
-    questions: processedQuestions,
+    questions: orderedProcessedQuestions,
     quotas: survey.surveyInfo?.quotas || [],
   };
 
