@@ -1259,31 +1259,33 @@ export default function QuestionModal({
                                       </div>
                                     </div>
                                   )}
-                                {hasOptions && operator === "equals" && (
-                                  <select
-                                    value={
-                                      rule.values &&
-                                      rule.values[0] !== undefined
-                                        ? String(rule.values[0])
-                                        : ""
-                                    }
-                                    onChange={(e) =>
-                                      updateRuleValues(idx, e.target.value)
-                                    }
-                                    className="w-full p-2 border rounded-md text-sm"
-                                  >
-                                    <option value="">
-                                      - Seleccionar valor -
-                                    </option>
-                                    {getQuestionOptions(
-                                      rule.parentQuestionId
-                                    ).map((opt) => (
-                                      <option key={opt.id} value={opt.id}>
-                                        {opt.text || "Opción sin texto"}
+                                {hasOptions &&
+                                  (operator === "equals" ||
+                                    operator === "not_equals") && (
+                                    <select
+                                      value={
+                                        rule.values &&
+                                        rule.values[0] !== undefined
+                                          ? String(rule.values[0])
+                                          : ""
+                                      }
+                                      onChange={(e) =>
+                                        updateRuleValues(idx, e.target.value)
+                                      }
+                                      className="w-full p-2 border rounded-md text-sm"
+                                    >
+                                      <option value="">
+                                        - Seleccionar valor -
                                       </option>
-                                    ))}
-                                  </select>
-                                )}
+                                      {getQuestionOptions(
+                                        rule.parentQuestionId
+                                      ).map((opt) => (
+                                        <option key={opt.id} value={opt.id}>
+                                          {opt.text || "Opción sin texto"}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
                                 {((hasOptions &&
                                   (operator === "gt" ||
                                     operator === "gte" ||

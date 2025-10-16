@@ -1048,11 +1048,13 @@ export default function NuevaEncuesta({
                     );
                     const operatorMap = {
                       equals: "=",
+                      not_equals: "!=",
                       gt: ">",
                       gte: ">=",
                       lt: "<",
                       lte: "<=",
                       contains: "contains",
+                      not_contains: "notcontains",
                     };
                     let op =
                       operatorMap[rule.operator] ||
@@ -1128,6 +1130,10 @@ export default function NuevaEncuesta({
                             return `\{${parentId}\} contains '${escapeValue(
                               v
                             )}'`;
+                          if (op === "notcontains")
+                            return `\{${parentId}\} notcontains '${escapeValue(
+                              v
+                            )}'`;
                           const literal = isNumeric(v)
                             ? String(Number(v))
                             : `'${escapeValue(v)}'`;
@@ -1188,11 +1194,13 @@ export default function NuevaEncuesta({
                         );
                         const operatorMap = {
                           equals: "=",
+                          not_equals: "!=",
                           gt: ">",
                           gte: ">=",
                           lt: "<",
                           lte: "<=",
                           contains: "contains",
+                          not_contains: "notcontains",
                         };
                         let op =
                           operatorMap[rule.operator] ||
@@ -1211,6 +1219,10 @@ export default function NuevaEncuesta({
                           .map((v) => {
                             if (op === "contains")
                               return `\{${parentId}\} contains '${escapeValue(
+                                v
+                              )}'`;
+                            if (op === "notcontains")
+                              return `\{${parentId}\} notcontains '${escapeValue(
                                 v
                               )}'`;
                             const literal = isNumeric(v)

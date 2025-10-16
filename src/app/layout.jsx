@@ -18,6 +18,7 @@ const mulish = Mulish({
 });
 
 export const metadata = {
+  metadataBase: new URL("https://guazu2.vercel.app"),
   title: "Guazu App",
   description: "Descarga Guazú para responder encuestas en el momento!",
   manifest: "/manifest.webmanifest",
@@ -45,7 +46,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="favicon.ico" />
         <meta name="theme-color" content="#3f51b5" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <Script
