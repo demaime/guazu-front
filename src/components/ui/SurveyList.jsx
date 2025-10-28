@@ -414,7 +414,21 @@ export function SurveyList({
       }
     } catch (error) {
       console.error(`Error en la acción ${action}:`, error);
-      toast.error(`Error al ejecutar la acción: ${error.message}`);
+
+      // Traducir error si es necesario
+      let errorMsg =
+        "Error al ejecutar la acción. Por favor, verifica tu conexión e intenta nuevamente.";
+
+      if (
+        error.message &&
+        !error.message.includes("Failed to fetch") &&
+        !error.message.includes("Network request failed") &&
+        !error.message.includes("fetch")
+      ) {
+        errorMsg = `Error al ejecutar la acción: ${error.message}`;
+      }
+
+      toast.error(errorMsg);
       setLoadingAction(null);
     }
   };

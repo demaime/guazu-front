@@ -100,7 +100,20 @@ export default function LoginPage() {
         setIsFadingOut(false);
       }
     } catch (err) {
-      setError(err.message);
+      // Traducir error si es necesario
+      let errorMsg =
+        "No se pudo conectar con el servidor. Por favor, verifica tu conexión e intenta nuevamente.";
+
+      if (
+        err.message &&
+        !err.message.includes("Failed to fetch") &&
+        !err.message.includes("Network request failed") &&
+        !err.message.includes("fetch")
+      ) {
+        errorMsg = err.message; // Usar mensaje si ya está en español
+      }
+
+      setError(errorMsg);
       setShowOverlay(false);
       setIsFadingOut(false);
     } finally {

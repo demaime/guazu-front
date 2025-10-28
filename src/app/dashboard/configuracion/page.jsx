@@ -67,8 +67,21 @@ export default function ConfiguracionPage() {
       });
       setShowPasswordSection(false);
     } catch (err) {
-      setError(err.message || "Error al actualizar la contraseña");
-      toast.error(err.message || "Error al actualizar la contraseña");
+      // Traducir error si es necesario
+      let errorMsg =
+        "Error al actualizar la contraseña. Por favor, verifica tu conexión e intenta nuevamente.";
+
+      if (
+        err.message &&
+        !err.message.includes("Failed to fetch") &&
+        !err.message.includes("Network request failed") &&
+        !err.message.includes("fetch")
+      ) {
+        errorMsg = err.message;
+      }
+
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -88,8 +101,21 @@ export default function ConfiguracionPage() {
       authService.logout();
       router.replace("/login");
     } catch (err) {
-      setError(err.message || "Error al eliminar la cuenta");
-      toast.error(err.message || "Error al eliminar la cuenta");
+      // Traducir error si es necesario
+      let errorMsg =
+        "Error al eliminar la cuenta. Por favor, verifica tu conexión e intenta nuevamente.";
+
+      if (
+        err.message &&
+        !err.message.includes("Failed to fetch") &&
+        !err.message.includes("Network request failed") &&
+        !err.message.includes("fetch")
+      ) {
+        errorMsg = err.message;
+      }
+
+      setError(errorMsg);
+      toast.error(errorMsg);
       setIsLoading(false);
     }
   };

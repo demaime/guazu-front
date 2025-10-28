@@ -89,6 +89,8 @@ export default function Encuestas() {
   const [isNavigatingToEdit, setIsNavigatingToEdit] = useState(false);
   // Estado de permisos/estado de ubicación
   const [locationStatus, setLocationStatus] = useState("unknown"); // granted | denied | prompt | unsupported | unknown
+  // Flag para evitar toast duplicado en carga inicial
+  const fallbackToastShownRef = useRef(false);
 
   // --- Estados existentes que se mantienen --- //
   const [openMenuId, setOpenMenuId] = useState(null); // Considerar si aún es necesario
@@ -218,9 +220,79 @@ export default function Encuestas() {
           // Registrar la hora de sync solo en la carga inicial
           await setLastSync(Date.now());
         } catch {}
+
+        // Reset flag si la carga fue exitosa
+        fallbackToastShownRef.current = false;
       } catch (e) {
         console.error("loadAllSurveys error", e);
-        setError(e.message);
+
+        // Intentar cargar desde caché como fallback
+        try {
+          const cached = await getAllSurveysLocal();
+          if (cached && cached.length > 0) {
+            console.log("⚠️ Usando encuestas en caché:", cached.length);
+
+            // Filtrar activas/finalizadas del caché
+            const now = new Date();
+            const isActive = (s) => {
+              const info = s?.surveyInfo || {};
+              if (!info.startDate || !info.endDate) return true;
+              const sd = new Date(info.startDate);
+              const ed = new Date(info.endDate);
+              return now >= sd && now <= ed;
+            };
+            const isFinished = (s) => {
+              const info = s?.surveyInfo || {};
+              if (!info.startDate || !info.endDate) return false;
+              const ed = new Date(info.endDate);
+              return now > ed;
+            };
+
+            const active = cached.filter(isActive);
+            const finished = cached.filter(isFinished);
+
+            setActiveSurveysData(active);
+            setFinishedSurveysData(finished);
+            setActiveTotalPages(Math.max(1, Math.ceil(active.length / limit)));
+            setFinishedTotalPages(
+              Math.max(1, Math.ceil(finished.length / limit))
+            );
+            setActiveCurrentPage(1);
+            setFinishedCurrentPage(1);
+            setTabCounts({
+              active: active.length,
+              finished: finished.length,
+              drafts: 0,
+            });
+
+            // Limpiar error y mostrar mensaje informativo (solo una vez)
+            setError(null);
+            if (!fallbackToastShownRef.current) {
+              toast.warning(
+                "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente."
+              );
+              fallbackToastShownRef.current = true;
+            }
+            return; // Salir exitosamente
+          }
+        } catch (cacheError) {
+          console.warn("No se pudo leer caché:", cacheError);
+        }
+
+        // No hay servidor NI caché → Error final traducido
+        let errorMsg =
+          "No se pudo conectar con el servidor. Por favor, verifica tu conexión e intenta nuevamente.\n\nDe persistir el inconveniente, puede comunicarse con nosotros.";
+
+        if (
+          e.message &&
+          !e.message.includes("Failed to fetch") &&
+          !e.message.includes("Network request failed") &&
+          !e.message.includes("fetch")
+        ) {
+          errorMsg = e.message; // Usar mensaje si ya está en español
+        }
+
+        setError(errorMsg);
       } finally {
         setIsLoading({ active: false, finished: false, drafts: false });
       }
@@ -248,7 +320,21 @@ export default function Encuestas() {
           setTabCounts((prev) => ({ ...prev, drafts: drafts.length }));
         } catch (err) {
           console.error(`❌ Error loading data for tab drafts:`, err);
-          setError(err.message);
+
+          // Traducir error si es necesario
+          let errorMsg =
+            "No se pudo cargar los borradores. Por favor, verifica tu conexión e intenta nuevamente.";
+
+          if (
+            err.message &&
+            !err.message.includes("Failed to fetch") &&
+            !err.message.includes("Network request failed") &&
+            !err.message.includes("fetch")
+          ) {
+            errorMsg = err.message; // Usar mensaje si ya está en español
+          }
+
+          setError(errorMsg);
           setDraftSurveysData([]);
         } finally {
           setIsLoading((prev) => ({ ...prev, drafts: false }));
@@ -391,9 +477,90 @@ export default function Encuestas() {
         } catch (e) {
           console.warn("[Pouch] save/verify failed", e);
         }
+
+        // Reset flag si la carga fue exitosa
+        fallbackToastShownRef.current = false;
       } catch (err) {
         console.error(`Error loading data for tab ${tabName}:`, err);
-        setError(err.message);
+
+        // Intentar cargar desde caché como fallback
+        try {
+          const cached = await getAllSurveysLocal();
+          if (cached && cached.length > 0) {
+            console.log(
+              `⚠️ Usando encuestas en caché para tab ${tabName}:`,
+              cached.length
+            );
+
+            const now = new Date();
+            const activeSurveys = cached.filter((survey) => {
+              if (
+                !survey.surveyInfo?.startDate ||
+                !survey.surveyInfo?.endDate
+              ) {
+                return true;
+              }
+              const startDate = new Date(survey.surveyInfo.startDate);
+              const endDate = new Date(survey.surveyInfo.endDate);
+              return now >= startDate && now <= endDate;
+            });
+            const finishedSurveys = cached.filter((survey) => {
+              if (
+                !survey.surveyInfo?.startDate ||
+                !survey.surveyInfo?.endDate
+              ) {
+                return false;
+              }
+              const endDate = new Date(survey.surveyInfo.endDate);
+              return now > endDate;
+            });
+
+            const filtered =
+              tabName === "active" ? activeSurveys : finishedSurveys;
+
+            if (tabName === "active") {
+              setActiveSurveysData(filtered);
+              setActiveTotalPages(1);
+              setActiveCurrentPage(1);
+            } else if (tabName === "finished") {
+              setFinishedSurveysData(filtered);
+              setFinishedTotalPages(1);
+              setFinishedCurrentPage(1);
+            }
+            setTabCounts((prev) => ({
+              ...prev,
+              active: activeSurveys.length,
+              finished: finishedSurveys.length,
+            }));
+
+            // Limpiar error y mostrar mensaje informativo (solo una vez)
+            setError(null);
+            if (!fallbackToastShownRef.current) {
+              toast.warning(
+                "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente."
+              );
+              fallbackToastShownRef.current = true;
+            }
+            return; // Salir exitosamente
+          }
+        } catch (cacheError) {
+          console.warn("No se pudo leer caché:", cacheError);
+        }
+
+        // No hay servidor NI caché → Error final traducido
+        let errorMsg =
+          "No se pudo conectar con el servidor. Por favor, verifica tu conexión e intenta nuevamente.\n\nDe persistir el inconveniente, puede comunicarse con nosotros.";
+
+        if (
+          err.message &&
+          !err.message.includes("Failed to fetch") &&
+          !err.message.includes("Network request failed") &&
+          !err.message.includes("fetch")
+        ) {
+          errorMsg = err.message; // Usar mensaje si ya está en español
+        }
+
+        setError(errorMsg);
         if (tabName === "active") {
           setActiveSurveysData([]);
           setActiveTotalPages(0);
@@ -606,7 +773,13 @@ export default function Encuestas() {
         // Recargar datos visibles para el pollster
         await fetchDataForTab("active", 1);
         setProgressRefreshToken((t) => t + 1);
+      } else if (total > 0) {
+        // Hay elementos pero no se pudieron sincronizar (servidor caído/bloqueado)
+        toast.error(
+          "No se pudo sincronizar. El servidor no está disponible. Intenta nuevamente."
+        );
       } else {
+        // Realmente no hay elementos para sincronizar
         toast.info("No hay elementos para sincronizar.");
       }
     } catch (e) {

@@ -92,6 +92,7 @@ export default function SurveyResponderStable() {
   const [showSendWithoutGpsModal, setShowSendWithoutGpsModal] = useState(false);
   const [pendingSurveyData, setPendingSurveyData] = useState(null); // Guardar datos del sender para envío posterior
   const requireGpsRef = useRef(false); // Referencia para mantener el valor actualizado
+  const [isSavingCase, setIsSavingCase] = useState(false); // Estado para pantalla "Guardando caso..."
 
   // Leave-blocking state
   const [isBlocking, setIsBlocking] = useState(false);
@@ -289,9 +290,10 @@ export default function SurveyResponderStable() {
   }, []);
 
   // Función para enviar la encuesta con o sin coordenadas
+  // NUEVO FLUJO ROBUSTO: Guardar SIEMPRE primero, intentar enviar después
   const submitSurvey = async (sender, locationData = null) => {
     try {
-      // Preparar datos de la encuesta
+      // 1. Preparar datos de la encuesta
       const user = authService.getUser();
       const token = localStorage.getItem("token");
       const transformedAnswers = {};
@@ -326,56 +328,97 @@ export default function SurveyResponderStable() {
         lng: locationData?.lng || null,
       };
 
-      // Enviar (online/offline)
-      if (typeof navigator !== "undefined" && !navigator.onLine) {
-        const { queueResponseForSync } = await import("@/services/db/outbox");
-        await queueResponseForSync(payload);
-        setSuccessMode("offline");
-        setSurveyCompletedSuccessfully(true);
+      // 2. SIEMPRE guardar en cola offline PRIMERO (garantía de no perder datos)
+      const { queueResponseForSync } = await import("@/services/db/outbox");
+      await queueResponseForSync(payload);
+      console.log("✅ Caso guardado en cola offline como respaldo");
+
+      // 3. Esperar mínimo 2 segundos para UX (usuario ve "Guardando caso...")
+      const minDelay = new Promise((resolve) => setTimeout(resolve, 2000));
+      const startTime = Date.now();
+
+      // 4. Intentar envío al servidor (con timeout de 5 segundos)
+      let serverSuccess = false;
+      if (typeof navigator !== "undefined" && navigator.onLine) {
         try {
-          trackEvent("survey_completed", {
-            survey_id: surveyId,
-            mode: "offline",
-            duration_seconds: Math.round(sender.timeSpent || 0),
-            num_questions: sender?.getAllQuestions?.().length || 0,
-            location_captured: locationData ? "true" : "false",
-            location_accuracy_m: locationData?.accuracy || undefined,
-          });
-        } catch {}
-        return;
+          console.log("🌐 Intentando enviar al servidor...");
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token,
+              },
+              body: JSON.stringify(payload),
+              signal: controller.signal,
+            }
+          );
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            // Éxito: eliminar de cola offline
+            const { removeDoc } = await import("@/services/db/outbox");
+            await removeDoc(payload._id);
+            serverSuccess = true;
+            console.log(
+              "✅ Enviado al servidor exitosamente, removido de cola"
+            );
+          } else {
+            console.log(
+              `⚠️ Respuesta del servidor no OK (${res.status}), mantener en cola`
+            );
+          }
+        } catch (fetchError) {
+          // Fallo en envío: mantener en cola (ya está guardado)
+          if (fetchError.name === "AbortError") {
+            console.log("⏱️ Timeout al enviar, mantener en cola para sync");
+          } else {
+            console.log("❌ Error al enviar, mantener en cola:", fetchError);
+          }
+        }
+      } else {
+        console.log("📵 Sin conexión, mantener en cola para sync");
       }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: token },
-          body: JSON.stringify(payload),
-        }
-      );
-      if (!res.ok) throw new Error("Error al enviar la encuesta al servidor");
+      // 5. Asegurar mínimo 2 segundos de duración total
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 2000) {
+        await minDelay;
+      }
 
-      setSuccessMode("online");
+      // 6. Mostrar resultado según éxito del envío
+      setSuccessMode(serverSuccess ? "online" : "offline");
       setSurveyCompletedSuccessfully(true);
+
+      // 7. Track analytics
       try {
         trackEvent("survey_completed", {
           survey_id: surveyId,
-          mode: "online",
+          mode: serverSuccess ? "online" : "offline",
           duration_seconds: Math.round(sender.timeSpent || 0),
           num_questions: sender?.getAllQuestions?.().length || 0,
           location_captured: locationData ? "true" : "false",
           location_accuracy_m: locationData?.accuracy || undefined,
         });
       } catch {}
-      try {
-        const key = "responder:surveyId";
-        if (typeof window !== "undefined") {
-          window.sessionStorage?.removeItem(key);
-          window.localStorage?.removeItem(key);
-        }
-      } catch {}
+
+      // 8. Limpiar storage si fue exitoso
+      if (serverSuccess) {
+        try {
+          const key = "responder:surveyId";
+          if (typeof window !== "undefined") {
+            window.sessionStorage?.removeItem(key);
+            window.localStorage?.removeItem(key);
+          }
+        } catch {}
+      }
     } catch (e) {
-      toast.error(e.message || "Error inesperado");
+      console.error("❌ Error crítico en submitSurvey:", e);
+      toast.error("Error al guardar la encuesta");
       setError(e.message);
     }
   };
@@ -397,8 +440,12 @@ export default function SurveyResponderStable() {
       try {
         locationData = await GeolocationService.getCurrentPosition();
         setCapturedLocation(locationData);
-        // Si se obtuvo correctamente, enviar con coordenadas
+        setIsCapturingLocation(false);
+
+        // Si se obtuvo correctamente, activar pantalla "Guardando caso..." y enviar
+        setIsSavingCase(true);
         await submitSurvey(sender, locationData);
+        setIsSavingCase(false);
       } catch (geoError) {
         setIsCapturingLocation(false);
 
@@ -427,6 +474,7 @@ export default function SurveyResponderStable() {
       toast.error(e.message || "Error inesperado");
       setError(e.message);
       setIsCapturingLocation(false);
+      setIsSavingCase(false);
     }
   };
 
@@ -472,6 +520,20 @@ export default function SurveyResponderStable() {
         text="Esperando identificador..."
         className="text-primary"
       />
+    );
+  }
+
+  // Pantalla de guardando caso
+  if (isSavingCase) {
+    return (
+      <div className="p-4 h-[calc(100vh-64px)] flex items-center justify-center">
+        <LoaderWrapper
+          size="lg"
+          fullScreen={false}
+          text="Guardando caso..."
+          className="text-primary"
+        />
+      </div>
     );
   }
 
@@ -1073,7 +1135,7 @@ export default function SurveyResponderStable() {
                 <motion.button
                   onClick={async () => {
                     setShowSendWithoutGpsModal(false);
-                    setIsCapturingLocation(true);
+                    setIsSavingCase(true);
                     try {
                       await submitSurvey(pendingSurveyData, null);
                       try {
@@ -1085,7 +1147,7 @@ export default function SurveyResponderStable() {
                       toast.error(e.message || "Error al enviar la encuesta");
                       setError(e.message);
                     } finally {
-                      setIsCapturingLocation(false);
+                      setIsSavingCase(false);
                       setPendingSurveyData(null);
                     }
                   }}
@@ -1110,12 +1172,18 @@ export default function SurveyResponderStable() {
                           maximumAge: 0,
                         });
                       setCapturedLocation(locationData);
+                      setIsCapturingLocation(false);
+
+                      // Activar pantalla "Guardando caso..." y enviar
+                      setIsSavingCase(true);
                       await submitSurvey(pendingSurveyData, locationData);
+                      setIsSavingCase(false);
                     } catch (geoError) {
                       setLocationError(geoError.message);
                       setShowSendWithoutGpsModal(true);
                     } finally {
                       setIsCapturingLocation(false);
+                      setIsSavingCase(false);
                     }
                   }}
                   className="w-full px-8 py-4 rounded-xl bg-white border-2 border-amber-300 text-amber-700 hover:bg-amber-50 transition-all duration-200 shadow-md hover:shadow-lg font-semibold text-base flex items-center justify-center gap-2"
