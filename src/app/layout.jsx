@@ -18,7 +18,7 @@ const mulish = Mulish({
 });
 
 export const metadata = {
-  metadataBase: new URL("https://guazu2.vercel.app"),
+  metadataBase: new URL("https://guazu.app"),
   title: "Guazu App",
   description: "Descarga Guazú para responder encuestas en el momento!",
   manifest: "/manifest.webmanifest",
@@ -32,7 +32,7 @@ export const metadata = {
       },
     ],
     type: "website",
-    url: "https://guazu2.vercel.app",
+    url: "https://guazu.app",
   },
   twitter: {
     card: "summary",

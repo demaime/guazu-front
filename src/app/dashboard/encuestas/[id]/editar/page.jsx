@@ -500,6 +500,7 @@ export default function EditarEncuesta() {
         ? new Date(survey.surveyInfo.endDate).toISOString().split("T")[0]
         : new Date().toISOString().split("T")[0],
       target: survey.surveyInfo?.target ?? 0,
+      requireGps: survey.surveyInfo?.requireGps ?? false,
     },
     participants: {
       userIds: survey.userIds || [],

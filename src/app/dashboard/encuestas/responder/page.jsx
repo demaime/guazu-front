@@ -14,6 +14,7 @@ import {
   MapPin,
   AlertTriangle,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
@@ -87,6 +88,10 @@ export default function SurveyResponderStable() {
   const [locationError, setLocationError] = useState(null); // null | 'PERMISSION_DENIED' | 'TIMEOUT' | etc.
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
   const [capturedLocation, setCapturedLocation] = useState(null); // { lat, lng }
+  const [requireGps, setRequireGps] = useState(false); // Default false - GPS opcional por defecto
+  const [showSendWithoutGpsModal, setShowSendWithoutGpsModal] = useState(false);
+  const [pendingSurveyData, setPendingSurveyData] = useState(null); // Guardar datos del sender para envío posterior
+  const requireGpsRef = useRef(false); // Referencia para mantener el valor actualizado
 
   // Leave-blocking state
   const [isBlocking, setIsBlocking] = useState(false);
@@ -148,6 +153,12 @@ export default function SurveyResponderStable() {
           serverEnvelope = resp;
           surveyData = resp?.survey?.survey || resp?.survey;
         }
+
+        // Extraer configuración de GPS obligatorio
+        const gpsRequired =
+          serverEnvelope?.survey?.surveyInfo?.requireGps ?? false;
+        setRequireGps(gpsRequired);
+        requireGpsRef.current = gpsRequired; // Guardar también en ref
 
         if (
           !surveyData ||
@@ -277,36 +288,10 @@ export default function SurveyResponderStable() {
     return () => document.removeEventListener("click", onCaptureClick, true);
   }, []);
 
-  const handleComplete = async (sender) => {
+  // Función para enviar la encuesta con o sin coordenadas
+  const submitSurvey = async (sender, locationData = null) => {
     try {
-      // Si estamos en modo test, no guardar nada, solo mostrar éxito
-      if (isTestMode) {
-        setSuccessMode("test");
-        setSurveyCompletedSuccessfully(true);
-        return;
-      }
-
-      setIsCapturingLocation(true);
-      setLocationError(null);
-
-      // 1. Capturar geolocalización OBLIGATORIA
-      let locationData;
-      try {
-        locationData = await GeolocationService.getCurrentPosition();
-        setCapturedLocation(locationData);
-      } catch (geoError) {
-        setIsCapturingLocation(false);
-        setLocationError(geoError.message);
-        try {
-          trackEvent("geolocation_error", {
-            survey_id: surveyId,
-            error_type: geoError.message || "UNKNOWN",
-          });
-        } catch {}
-        return; // Detener envío si no hay coordenadas
-      }
-
-      // 2. Preparar datos de la encuesta
+      // Preparar datos de la encuesta
       const user = authService.getUser();
       const token = localStorage.getItem("token");
       const transformedAnswers = {};
@@ -327,7 +312,7 @@ export default function SurveyResponderStable() {
         }
       });
 
-      // 3. Crear payload CON coordenadas
+      // Crear payload con o sin coordenadas
       const payload = {
         surveyId: surveyId,
         _id: `survey_${surveyId}_${user?._id || "anon"}_${Date.now()}`,
@@ -337,11 +322,11 @@ export default function SurveyResponderStable() {
         createdAt: new Date().toISOString(),
         time: sender.timeSpent,
         authToken: token,
-        lat: locationData.lat,
-        lng: locationData.lng,
+        lat: locationData?.lat || null,
+        lng: locationData?.lng || null,
       };
 
-      // 4. Enviar (online/offline)
+      // Enviar (online/offline)
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         const { queueResponseForSync } = await import("@/services/db/outbox");
         await queueResponseForSync(payload);
@@ -353,9 +338,8 @@ export default function SurveyResponderStable() {
             mode: "offline",
             duration_seconds: Math.round(sender.timeSpent || 0),
             num_questions: sender?.getAllQuestions?.().length || 0,
-            location_captured: "true",
-            location_accuracy_m:
-              payload?.accuracy || locationData?.accuracy || undefined,
+            location_captured: locationData ? "true" : "false",
+            location_accuracy_m: locationData?.accuracy || undefined,
           });
         } catch {}
         return;
@@ -379,7 +363,7 @@ export default function SurveyResponderStable() {
           mode: "online",
           duration_seconds: Math.round(sender.timeSpent || 0),
           num_questions: sender?.getAllQuestions?.().length || 0,
-          location_captured: "true",
+          location_captured: locationData ? "true" : "false",
           location_accuracy_m: locationData?.accuracy || undefined,
         });
       } catch {}
@@ -393,7 +377,55 @@ export default function SurveyResponderStable() {
     } catch (e) {
       toast.error(e.message || "Error inesperado");
       setError(e.message);
-    } finally {
+    }
+  };
+
+  const handleComplete = async (sender) => {
+    try {
+      // Si estamos en modo test, no guardar nada, solo mostrar éxito
+      if (isTestMode) {
+        setSuccessMode("test");
+        setSurveyCompletedSuccessfully(true);
+        return;
+      }
+
+      setIsCapturingLocation(true);
+      setLocationError(null);
+
+      // Intentar capturar geolocalización
+      let locationData;
+      try {
+        locationData = await GeolocationService.getCurrentPosition();
+        setCapturedLocation(locationData);
+        // Si se obtuvo correctamente, enviar con coordenadas
+        await submitSurvey(sender, locationData);
+      } catch (geoError) {
+        setIsCapturingLocation(false);
+
+        // Usar la ref que siempre tiene el valor correcto
+        const isGpsRequired = requireGpsRef.current;
+
+        try {
+          trackEvent("geolocation_error", {
+            survey_id: surveyId,
+            error_type: geoError.message || "UNKNOWN",
+            gps_required: isGpsRequired,
+          });
+        } catch {}
+
+        // Si el GPS es obligatorio, detener el envío y mostrar error
+        if (isGpsRequired) {
+          setLocationError(geoError.message);
+          return;
+        }
+
+        // Si el GPS NO es obligatorio, mostrar modal de confirmación
+        setPendingSurveyData(sender);
+        setShowSendWithoutGpsModal(true);
+      }
+    } catch (e) {
+      toast.error(e.message || "Error inesperado");
+      setError(e.message);
       setIsCapturingLocation(false);
     }
   };
@@ -657,8 +689,8 @@ export default function SurveyResponderStable() {
     );
   }
 
-  // Pantalla de error de geolocalización
-  if (locationError) {
+  // Pantalla de error de geolocalización (solo si GPS es obligatorio)
+  if (locationError && requireGpsRef.current) {
     const getErrorConfig = (errorType) => {
       switch (errorType) {
         case "PERMISSION_DENIED":
@@ -971,6 +1003,145 @@ export default function SurveyResponderStable() {
       >
         <p>Si abandonas ahora, perderás el progreso de esta encuesta.</p>
       </ConfirmModal>
+
+      {/* Modal para enviar sin coordenadas GPS */}
+      <AnimatePresence>
+        {showSendWithoutGpsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowSendWithoutGpsModal(false);
+                setPendingSurveyData(null);
+              }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+            />
+
+            {/* Dialog con estilo similar a pantallas de éxito/error */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              className="relative rounded-3xl shadow-xl max-w-lg w-full overflow-hidden bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200"
+            >
+              {/* Ícono decorativo con animación */}
+              <div className="pt-8 pb-4 flex justify-center">
+                <motion.div
+                  initial={{ scale: 0.8, rotate: -10 }}
+                  animate={{
+                    scale: [0.8, 1.1, 1],
+                    rotate: [-10, 5, 0],
+                  }}
+                  transition={{
+                    duration: 0.6,
+                    ease: "easeOut",
+                    times: [0, 0.6, 1],
+                  }}
+                  className="bg-amber-100 p-6 rounded-full shadow-lg"
+                >
+                  <MapPin
+                    size={64}
+                    className="text-amber-600"
+                    strokeWidth={2.5}
+                  />
+                </motion.div>
+              </div>
+
+              {/* Título */}
+              <h1 className="text-2xl sm:text-3xl font-bold mb-3 text-gray-800 text-center px-6">
+                Ubicación GPS no disponible
+              </h1>
+
+              {/* Mensaje principal */}
+              <p className="text-gray-700 mb-3 text-base sm:text-lg text-center font-medium px-6">
+                No se pudo obtener tu ubicación
+              </p>
+
+              {/* Instrucciones detalladas */}
+              <div className="text-gray-700 mb-8 text-sm sm:text-base text-center bg-white/50 p-4 mx-6 rounded-xl border border-amber-200">
+                <p className="leading-relaxed">
+                  ¿Deseas enviar el caso sin coordenadas GPS?
+                </p>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="px-6 pb-8 space-y-3">
+                <motion.button
+                  onClick={async () => {
+                    setShowSendWithoutGpsModal(false);
+                    setIsCapturingLocation(true);
+                    try {
+                      await submitSurvey(pendingSurveyData, null);
+                      try {
+                        trackEvent("survey_submitted_without_gps", {
+                          survey_id: surveyId,
+                        });
+                      } catch {}
+                    } catch (e) {
+                      toast.error(e.message || "Error al enviar la encuesta");
+                      setError(e.message);
+                    } finally {
+                      setIsCapturingLocation(false);
+                      setPendingSurveyData(null);
+                    }
+                  }}
+                  className="w-full px-8 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-base flex items-center justify-center gap-2"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span>Enviar sin GPS</span>
+                </motion.button>
+
+                <motion.button
+                  onClick={async () => {
+                    setShowSendWithoutGpsModal(false);
+                    setIsCapturingLocation(true);
+                    setLocationError(null);
+                    try {
+                      const locationData =
+                        await GeolocationService.getCurrentPosition({
+                          enableHighAccuracy: true,
+                          timeout: 15000,
+                          maximumAge: 0,
+                        });
+                      setCapturedLocation(locationData);
+                      await submitSurvey(pendingSurveyData, locationData);
+                    } catch (geoError) {
+                      setLocationError(geoError.message);
+                      setShowSendWithoutGpsModal(true);
+                    } finally {
+                      setIsCapturingLocation(false);
+                    }
+                  }}
+                  className="w-full px-8 py-4 rounded-xl bg-white border-2 border-amber-300 text-amber-700 hover:bg-amber-50 transition-all duration-200 shadow-md hover:shadow-lg font-semibold text-base flex items-center justify-center gap-2"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  <span>Reintentar</span>
+                </motion.button>
+
+                <motion.button
+                  onClick={() => {
+                    setShowSendWithoutGpsModal(false);
+                    setPendingSurveyData(null);
+                  }}
+                  className="w-full px-8 py-4 rounded-xl bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all duration-200 shadow-md hover:shadow-lg font-semibold text-base"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Cancelar
+                </motion.button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

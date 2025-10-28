@@ -465,6 +465,7 @@ export default function NuevaEncuesta({
         startDate: new Date().toISOString().split("T")[0],
         endDate: new Date().toISOString().split("T")[0],
         target: "",
+        requireGps: false,
       },
       participants: {
         userIds: [],
@@ -1291,6 +1292,7 @@ export default function NuevaEncuesta({
           quotas: surveyData.quotas || [],
           pollsterAssignments:
             surveyData.participants.pollsterAssignments || [], // ✅ AGREGADO: asignaciones de casos por pollster
+          requireGps: surveyData.basicInfo.requireGps ?? false,
         },
         participants: {
           userIds: surveyData.participants.userIds || [],
@@ -1538,6 +1540,41 @@ export default function NuevaEncuesta({
                   <p className="text-xs text-[var(--text-secondary)] mt-1">
                     Este valor es obligatorio y se utilizará para las cuotas.
                   </p>
+                </div>
+              </div>
+
+              {/* GPS Obligatorio */}
+              <div className="bg-[var(--background-secondary)] p-4 rounded-lg border border-[var(--border)]">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="requireGps"
+                    checked={surveyData.basicInfo.requireGps}
+                    onChange={(e) =>
+                      setSurveyData((prev) => ({
+                        ...prev,
+                        basicInfo: {
+                          ...prev.basicInfo,
+                          requireGps: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="mt-1 w-4 h-4 text-primary bg-white border-gray-300 rounded focus:ring-primary"
+                  />
+                  <div className="flex-1">
+                    <label
+                      htmlFor="requireGps"
+                      className="block text-sm font-medium cursor-pointer"
+                    >
+                      Ubicación GPS Obligatoria
+                    </label>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">
+                      Si está activado, los encuestadores no podrán enviar
+                      respuestas sin coordenadas GPS. Si está desactivado
+                      (predeterminado), se intentará obtener la ubicación pero
+                      se permitirá enviar sin coordenadas en caso de error.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
