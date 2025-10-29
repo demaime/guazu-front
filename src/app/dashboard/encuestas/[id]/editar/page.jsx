@@ -509,6 +509,8 @@ export default function EditarEncuesta() {
         survey.pollsterAssignments ||
         survey.surveyInfo?.pollsterAssignments ||
         [], // ✅ CORREGIDO: buscar en raíz primero, luego en surveyInfo
+      quotaAssignments:
+        survey.surveyInfo?.quotaAssignments || [], // ✅ AGREGADO: cargar asignaciones de cuotas
     },
     questions: orderedProcessedQuestions,
     quotas: survey.surveyInfo?.quotas || [],

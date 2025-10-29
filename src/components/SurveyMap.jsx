@@ -196,15 +196,17 @@ const SurveyMap = ({
   selectedUsers = [],
   height = "400px",
   onOpenList,
+  userColors: userColorsProp,
 }) => {
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [userLocation, setUserLocation] = useState(defaultCenter);
-  const [userColors, setUserColors] = useState({});
+  const [userColors, setUserColors] = useState(userColorsProp || {});
   const [mapRef, setMapRef] = useState(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(14);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMapInteractive, setIsMapInteractive] = useState(false);
+  const [showUserLocation, setShowUserLocation] = useState(false);
 
   const { isLoaded } = useLoadScript({
     id: "google-map-script",
@@ -256,15 +258,35 @@ const SurveyMap = ({
     }
   }, []);
 
-  // Asignar colores a los usuarios
+  // Asignar colores a los usuarios (solo si no se pasaron como prop)
   useEffect(() => {
-    const uniqueUsers = [...new Set(answers.map((a) => a.userId))];
-    const colors = {};
-    uniqueUsers.forEach((userId, index) => {
-      colors[userId] = markerColors[index % markerColors.length];
-    });
-    setUserColors(colors);
-  }, [answers]);
+    if (userColorsProp) {
+      setUserColors(userColorsProp);
+    } else {
+      const uniqueUsers = [...new Set(answers.map((a) => a.userId))];
+      const colors = {};
+      uniqueUsers.forEach((userId, index) => {
+        colors[userId] = markerColors[index % markerColors.length];
+      });
+      setUserColors(colors);
+    }
+  }, [answers, userColorsProp]);
+
+  // Escuchar evento para centrar en encuestador
+  useEffect(() => {
+    const handleCenterOnPollster = (event) => {
+      const { pollsterId } = event.detail;
+      console.log("🗺️ Map received center request for:", pollsterId);
+      console.log("🗺️ Map ref exists:", !!mapRef);
+      console.log("🗺️ Google maps loaded:", !!window.google);
+      centerOnUser(pollsterId);
+    };
+
+    window.addEventListener("centerOnPollster", handleCenterOnPollster);
+    return () => {
+      window.removeEventListener("centerOnPollster", handleCenterOnPollster);
+    };
+  }, [answers, mapRef]);
 
   const handleMarkerClick = (marker) => {
     setSelectedMarker(marker);
@@ -280,28 +302,46 @@ const SurveyMap = ({
 
   // Función para centrar el mapa en un usuario específico
   const centerOnUser = (userId) => {
+    console.log("🎯 centerOnUser called with userId:", userId);
+
+    if (!window.google) {
+      console.error("❌ Google Maps not loaded");
+      return;
+    }
+
+    if (!mapRef) {
+      console.error("❌ Map ref not available");
+      return;
+    }
+
     const userAnswers = answers.filter(
       (a) => a.userId === userId && a.lat && a.lng
     );
+
+    console.log("📍 Found user answers:", userAnswers.length, userAnswers);
+
     if (userAnswers.length > 0) {
       // Calculamos el centro de todas las respuestas del usuario
       const bounds = new window.google.maps.LatLngBounds();
       userAnswers.forEach((answer) => {
-        bounds.extend({
-          lat: parseFloat(answer.lat),
-          lng: parseFloat(answer.lng),
-        });
+        const lat = parseFloat(answer.lat);
+        const lng = parseFloat(answer.lng);
+        console.log("➕ Adding to bounds:", lat, lng);
+        bounds.extend({ lat, lng });
       });
 
-      if (mapRef) {
-        mapRef.fitBounds(bounds);
-        // Si solo hay un punto, hacemos zoom
-        if (userAnswers.length === 1) {
-          setTimeout(() => {
-            mapRef.setZoom(16);
-          }, 100);
-        }
+      console.log("✅ Fitting bounds to map");
+      mapRef.fitBounds(bounds);
+
+      // Si solo hay un punto, hacemos zoom
+      if (userAnswers.length === 1) {
+        setTimeout(() => {
+          console.log("🔍 Setting zoom to 16");
+          mapRef.setZoom(16);
+        }, 100);
       }
+    } else {
+      console.warn("⚠️ No answers found for this user");
     }
   };
 
@@ -334,6 +374,16 @@ const SurveyMap = ({
     }))
     .filter((answer) => !isNaN(answer.lat) && !isNaN(answer.lng));
 
+  console.log("🗺️ SurveyMap RENDER");
+  console.log("📍 Total processedAnswers:", processedAnswers.length);
+  console.log("👁️ mostrarTodos:", mostrarTodos);
+  console.log("👥 selectedUsers:", selectedUsers);
+  console.log(
+    "🎨 userColors:",
+    Object.keys(userColors).length,
+    "colors assigned"
+  );
+
   return (
     <div className="relative w-full">
       <GoogleMap
@@ -347,28 +397,34 @@ const SurveyMap = ({
         }}
         onLoad={onMapLoad}
       >
-        {processedAnswers.map((mark) => {
-          if (!mostrarTodos && !selectedUsers.includes(mark.userId))
+        {processedAnswers.map((mark, idx) => {
+          if (!mostrarTodos && !selectedUsers.includes(mark.userId)) {
             return null;
+          }
 
-          const iconUrl = `http://maps.google.com/mapfiles/ms/icons/${
-            userColors[mark.userId]
-          }-dot.png`;
+          // Crear marcador personalizado más grande y visible
+          const customIcon = {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            fillColor: userColors[mark.userId],
+            fillOpacity: 0.9,
+            strokeColor: "#ffffff",
+            strokeWeight: 3,
+            scale: 16,
+          };
 
           return (
             <Marker
               key={mark._id}
               position={{ lat: mark.lat, lng: mark.lng }}
               onClick={() => handleMarkerClick(mark)}
-              icon={{
-                url: iconUrl,
-                scaledSize: new window.google.maps.Size(30, 30),
-              }}
+              icon={customIcon}
               label={{
                 text: mark.index.toString(),
                 color: "white",
                 fontSize: "12px",
+                fontWeight: "bold",
               }}
+              zIndex={1000}
             />
           );
         })}
@@ -378,68 +434,38 @@ const SurveyMap = ({
             position={{ lat: selectedMarker.lat, lng: selectedMarker.lng }}
             onCloseClick={() => setSelectedMarker(null)}
           >
-            <div className="p-2 max-w-sm text-gray-800">
-              <div className="border-b pb-2 mb-2 border-[var(--card-border)]">
-                <p className="font-semibold text-sm">
-                  Encuesta #{selectedMarker.index}
+            <div className="p-3 max-w-sm">
+              <div className="border-b pb-2 mb-2 border-gray-200">
+                <p className="font-bold text-base text-gray-900">
+                  Caso #{selectedMarker.index}
                 </p>
-                <p className="text-sm">Por: {selectedMarker.fullName}</p>
-                <p className="text-xs">
+                <p className="text-sm text-gray-700 font-medium">
+                  {selectedMarker.fullName}
+                </p>
+                <p className="text-xs text-gray-600">
                   {selectedMarker.createdAt &&
                     formatDate(selectedMarker.createdAt)}
                 </p>
                 {selectedMarker.time && (
-                  <p className="text-xs">
-                    Tiempo: {selectedMarker.time} segundos
+                  <p className="text-xs text-gray-600">
+                    Duración: {Math.round(selectedMarker.time / 60)} min
                   </p>
                 )}
               </div>
-              {selectedMarker.answer &&
-                Object.keys(selectedMarker.answer).length > 0 && (
+              {selectedMarker.quotaAnswers &&
+                Object.keys(selectedMarker.quotaAnswers).length > 0 && (
                   <div className="text-sm">
-                    <p className="font-medium mb-1">Respuestas:</p>
-                    <div className="max-h-40 overflow-y-auto space-y-1">
-                      {Object.entries(selectedMarker.answer).map(
-                        ([key, value]) => {
-                          // Removed the logic relying on getReadableAnswer for displaying the value
-                          // const question = survey?.pages?.[0]?.elements?.find(
-                          //   (q) => q.name === key
-                          // );
-                          // const questionTitle = question?.title || key;
-                          // const readableValue = getReadableAnswer(
-                          //   survey,
-                          //   key,
-                          //   value
-                          // );
-
-                          // Direct rendering logic
-                          let displayValue;
-                          if (
-                            typeof value === "object" &&
-                            value !== null &&
-                            !Array.isArray(value)
-                          ) {
-                            // Format object values (e.g., matrix)
-                            displayValue = Object.entries(value)
-                              .map(
-                                ([objKey, objValue]) => `${objKey}: ${objValue}`
-                              )
-                              .join(", ");
-                          } else if (Array.isArray(value)) {
-                            // Format array values (e.g., multiple choice)
-                            displayValue = value.join(", ");
-                          } else {
-                            // Display other values directly
-                            displayValue = String(value);
-                          }
-
-                          return (
-                            <div key={key} className="ml-2">
-                              <span className="font-medium">{key}:</span>{" "}
-                              <span>{displayValue}</span>
-                            </div>
-                          );
-                        }
+                    <p className="font-semibold mb-1 text-gray-900">Cuotas:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {Object.entries(selectedMarker.quotaAnswers).map(
+                        ([key, value]) => (
+                          <span
+                            key={key}
+                            className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full font-medium"
+                          >
+                            {key}: {value}
+                          </span>
+                        )
                       )}
                     </div>
                   </div>
@@ -449,28 +475,59 @@ const SurveyMap = ({
         )}
       </GoogleMap>
       {/* Floating actions (mobile friendly) */}
-      <div className="absolute bottom-3 right-3 flex flex-col gap-2">
+      <div className="absolute bottom-3 left-3 flex flex-col gap-2">
         <button
           type="button"
-          className="px-3 py-2 rounded-full shadow-md bg-white text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+          className="p-2 rounded-lg shadow-md bg-white dark:bg-slate-800 text-[var(--text-primary)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)]"
           title="Centrar en mi ubicación"
           onClick={() => {
             if (mapRef) {
               mapRef.panTo(userLocation);
               mapRef.setZoom(14);
+              setShowUserLocation(true);
             }
           }}
         >
-          📍
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
         </button>
         {typeof onOpenList === "function" && (
           <button
             type="button"
-            className="px-3 py-2 rounded-full shadow-md bg-white text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+            className="p-2 rounded-lg shadow-md bg-white dark:bg-slate-800 text-[var(--text-primary)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)]"
             title="Ver lista"
             onClick={() => onOpenList()}
           >
-            📄
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
           </button>
         )}
       </div>

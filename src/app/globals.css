@@ -153,6 +153,16 @@
   --error-border: #ef4444;
   --error-text: #b91c1c;
   --error-icon: #ef4444;
+
+  /* Success colors */
+  --success: #1b5e20;
+  --success-bg: #e8f5e9;
+  --success-border: #2d6a4f;
+
+  /* Warning colors */
+  --warning: #92400e;
+  --warning-bg: #fff7ed;
+  --warning-border: #d97706;
 }
 
 /* Dark theme */
@@ -175,6 +185,16 @@
   --error-border: #ef4444;
   --error-text: #fca5a5;
   --error-icon: #ef4444;
+
+  /* Success colors */
+  --success: #81c784;
+  --success-bg: #1a4d2e;
+  --success-border: #52b788;
+
+  /* Warning colors */
+  --warning: #fbbf24;
+  --warning-bg: #451a03;
+  --warning-border: #fbbf24;
 }
 
 /* Agregamos estilos específicos para el nav-item en modo oscuro */

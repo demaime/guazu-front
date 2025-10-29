@@ -1,11 +1,25 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import FileSaver from "file-saver";
 import { nestedJSONtoJson } from "../../utils/flatterJSON";
-import { FileSpreadsheet, FileDown } from "lucide-react";
+import { FileSpreadsheet, FileDown, ChevronDown } from "lucide-react";
 
 const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const fileExtension = ".xlsx";
+
+  // Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const processDataForExport = (answers) => {
     let processedAnswers = [];
@@ -73,28 +87,69 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
       const fileName = baseFileName + ".csv";
       FileSaver.saveAs(data, fileName);
     }
+
+    setIsOpen(false);
   };
 
   const hasAnswers = answers && answers.length > 0;
 
+  const exportOptions = [
+    {
+      label: "Excel (XLSX)",
+      type: "xlsx",
+      icon: <FileSpreadsheet className="h-4 w-4" />,
+      description: "Formato compatible con Microsoft Excel",
+    },
+    {
+      label: "CSV",
+      type: "csv",
+      icon: <FileDown className="h-4 w-4" />,
+      description: "Formato universal de texto separado por comas",
+    },
+  ];
+
   return (
-    <div className="flex flex-col sm:flex-row gap-4">
+    <div className="relative" ref={dropdownRef}>
       <button
-        onClick={() => exportToFile("xlsx")}
+        onClick={() => setIsOpen(!isOpen)}
         disabled={!hasAnswers}
-        className="bg-primary hover:bg-primary-dark text-white flex items-center justify-center px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        className="bg-primary hover:bg-primary-dark text-white flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm sm:text-base"
       >
-        <FileDown className="mr-2 h-5 w-5" />
-        <span>Exportar a XLSX</span>
+        <FileDown className="h-4 w-4 sm:h-5 sm:w-5" />
+        <span>Exportar</span>
+        <ChevronDown
+          className={`h-3 w-3 sm:h-4 sm:w-4 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
-      <button
-        onClick={() => exportToFile("csv")}
-        disabled={!hasAnswers}
-        className="bg-primary hover:bg-primary-dark text-white flex items-center justify-center px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-      >
-        <FileDown className="mr-2 h-5 w-5" />
-        <span>Exportar a CSV</span>
-      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && hasAnswers && (
+        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-64 sm:w-72 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg shadow-xl z-50 overflow-hidden">
+          {exportOptions.map((option, index) => (
+            <button
+              key={option.type}
+              onClick={() => exportToFile(option.type)}
+              className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--hover-bg)] transition-colors text-left ${
+                index !== exportOptions.length - 1
+                  ? "border-b border-[var(--card-border)]"
+                  : ""
+              }`}
+            >
+              <div className="mt-0.5 text-[var(--primary)]">{option.icon}</div>
+              <div className="flex-1">
+                <div className="font-medium text-[var(--text-primary)]">
+                  {option.label}
+                </div>
+                <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                  {option.description}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

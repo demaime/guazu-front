@@ -93,6 +93,10 @@ export default function SurveyResponderStable() {
   const [pendingSurveyData, setPendingSurveyData] = useState(null); // Guardar datos del sender para envío posterior
   const requireGpsRef = useRef(false); // Referencia para mantener el valor actualizado
   const [isSavingCase, setIsSavingCase] = useState(false); // Estado para pantalla "Guardando caso..."
+  const startTimeRef = useRef(null); // Timestamp de inicio para calcular duración
+
+  // Estados para cuotas
+  const [quotas, setQuotas] = useState([]);
 
   // Leave-blocking state
   const [isBlocking, setIsBlocking] = useState(false);
@@ -101,6 +105,7 @@ export default function SurveyResponderStable() {
   const suppressNavRef = useRef(false);
   const blockingRef = useRef(false);
   const suppressCountRef = useRef(0);
+
   useEffect(() => {
     blockingRef.current = isBlocking;
   }, [isBlocking]);
@@ -161,12 +166,38 @@ export default function SurveyResponderStable() {
         setRequireGps(gpsRequired);
         requireGpsRef.current = gpsRequired; // Guardar también en ref
 
+        // Extraer cuotas
+        const surveyQuotas = serverEnvelope?.survey?.surveyInfo?.quotas || [];
+        setQuotas(surveyQuotas);
+
         if (
           !surveyData ||
           !Array.isArray(surveyData.pages) ||
           surveyData.pages.length === 0
         ) {
           throw new Error("La encuesta no tiene preguntas configuradas");
+        }
+
+        // Inyectar preguntas de cuotas al inicio del cuestionario
+        if (surveyQuotas && surveyQuotas.length > 0) {
+          const quotaQuestions = surveyQuotas.map((quota, index) => ({
+            type: "radiogroup",
+            name: `__quota_${quota.category}`,
+            title: quota.category,
+            isRequired: true,
+            choices: quota.segments.map((segment) => ({
+              value: segment.name,
+              text: segment.name,
+            })),
+          }));
+
+          // Insertar las preguntas de cuotas al inicio de la primera página
+          if (surveyData.pages && surveyData.pages.length > 0) {
+            surveyData.pages[0].elements = [
+              ...quotaQuestions,
+              ...surveyData.pages[0].elements,
+            ];
+          }
         }
 
         const model = new Model(surveyData);
@@ -213,6 +244,11 @@ export default function SurveyResponderStable() {
         } catch {}
 
         setSurveyModel(model);
+
+        // Capturar timestamp de inicio para medir duración
+        startTimeRef.current = Date.now();
+        console.log("⏱️ Encuesta iniciada:", new Date().toISOString());
+
         try {
           const totalQuestions = model.getAllQuestions()?.length || 0;
           trackEvent("survey_started", {
@@ -297,10 +333,20 @@ export default function SurveyResponderStable() {
       const user = authService.getUser();
       const token = localStorage.getItem("token");
       const transformedAnswers = {};
+      const extractedQuotaAnswers = {};
+      
       sender.getAllQuestions().forEach((q) => {
         const name = q.name;
         const text = q.title || q.name;
         const ans = sender.data[name];
+        
+        // Separar respuestas de cuotas (prefijo __quota_)
+        if (name.startsWith("__quota_")) {
+          const categoryName = name.replace("__quota_", "");
+          extractedQuotaAnswers[categoryName] = ans;
+          return; // No incluir en respuestas normales
+        }
+        
         if (ans !== undefined) {
           if (Array.isArray(ans))
             transformedAnswers[text] = ans.map(
@@ -321,8 +367,11 @@ export default function SurveyResponderStable() {
         fullName: user?.fullName,
         userId: user?._id,
         answer: transformedAnswers,
+        quotaAnswers: extractedQuotaAnswers, // Incluir respuestas de cuotas extraídas del modelo
         createdAt: new Date().toISOString(),
-        time: sender.timeSpent,
+        time: startTimeRef.current
+          ? Math.floor((Date.now() - startTimeRef.current) / 1000)
+          : 0,
         authToken: token,
         lat: locationData?.lat || null,
         lng: locationData?.lng || null,
@@ -399,7 +448,9 @@ export default function SurveyResponderStable() {
         trackEvent("survey_completed", {
           survey_id: surveyId,
           mode: serverSuccess ? "online" : "offline",
-          duration_seconds: Math.round(sender.timeSpent || 0),
+          duration_seconds: startTimeRef.current
+            ? Math.floor((Date.now() - startTimeRef.current) / 1000)
+            : 0,
           num_questions: sender?.getAllQuestions?.().length || 0,
           location_captured: locationData ? "true" : "false",
           location_accuracy_m: locationData?.accuracy || undefined,
@@ -415,6 +466,9 @@ export default function SurveyResponderStable() {
             window.localStorage?.removeItem(key);
           }
         } catch {}
+
+        // Resetear timestamp
+        startTimeRef.current = null;
       }
     } catch (e) {
       console.error("❌ Error crítico en submitSurvey:", e);

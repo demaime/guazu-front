@@ -471,6 +471,7 @@ export default function NuevaEncuesta({
         userIds: [],
         supervisorsIds: [],
         pollsterAssignments: [], // Array de { pollsterId, assignedCases }
+        quotaAssignments: [], // Array de { pollsterId, quotas: [{category, segments: [{name, target}]}] }
       },
       questions: [],
       quotas: [],
@@ -482,6 +483,10 @@ export default function NuevaEncuesta({
   const [showValidationErrorModal, setShowValidationErrorModal] =
     useState(false);
   const [validationErrorMessage, setValidationErrorMessage] = useState("");
+  const [showQuotaAssignmentModal, setShowQuotaAssignmentModal] =
+    useState(false);
+  const [selectedPollsterForQuotas, setSelectedPollsterForQuotas] =
+    useState(null);
 
   // Referencia para el input de la meta
   const targetInputRef = useRef(null);
@@ -1292,6 +1297,7 @@ export default function NuevaEncuesta({
           quotas: surveyData.quotas || [],
           pollsterAssignments:
             surveyData.participants.pollsterAssignments || [], // ✅ AGREGADO: asignaciones de casos por pollster
+          quotaAssignments: surveyData.participants.quotaAssignments || [], // ✅ AGREGADO: asignaciones de cuotas por pollster
           requireGps: surveyData.basicInfo.requireGps ?? false,
         },
         participants: {
@@ -1299,6 +1305,7 @@ export default function NuevaEncuesta({
           supervisorsIds: surveyData.participants.supervisorsIds || [],
           pollsterAssignments:
             surveyData.participants.pollsterAssignments || [], // ✅ TAMBIÉN en participants para el backend
+          quotaAssignments: surveyData.participants.quotaAssignments || [], // ✅ TAMBIÉN en participants para el backend
         },
       };
 
@@ -1417,6 +1424,74 @@ export default function NuevaEncuesta({
       (assignment) => assignment.pollsterId === pollsterId
     );
     return assignment ? assignment.assignedCases || 0 : 0;
+  };
+
+  // Función para obtener asignación de cuotas de un pollster
+  const getPollsterQuotaAssignment = (pollsterId) => {
+    if (!surveyData.participants?.quotaAssignments) {
+      return null;
+    }
+    return surveyData.participants.quotaAssignments.find(
+      (assignment) => assignment.pollsterId === pollsterId
+    );
+  };
+
+  // Función para guardar asignación de cuotas de un pollster
+  const handleSaveQuotaAssignment = (pollsterId, quotas) => {
+    setSurveyData((prev) => {
+      const currentAssignments = prev.participants?.quotaAssignments || [];
+      const updatedAssignments = [...currentAssignments];
+      const existingIndex = updatedAssignments.findIndex(
+        (assignment) => assignment.pollsterId === pollsterId
+      );
+
+      if (existingIndex >= 0) {
+        // Actualizar asignación existente
+        updatedAssignments[existingIndex] = { pollsterId, quotas };
+      } else {
+        // Agregar nueva asignación
+        updatedAssignments.push({ pollsterId, quotas });
+      }
+
+      return {
+        ...prev,
+        participants: {
+          ...prev.participants,
+          quotaAssignments: updatedAssignments,
+        },
+      };
+    });
+  };
+
+  // Función para distribución automática de cuotas entre encuestadores
+  const handleAutoDistributeQuotas = () => {
+    const pollsters = surveyData.participants.userIds;
+    if (
+      !pollsters ||
+      pollsters.length === 0 ||
+      !surveyData.quotas ||
+      surveyData.quotas.length === 0
+    ) {
+      return;
+    }
+
+    pollsters.forEach((pollsterId) => {
+      // Copiar estructura de cuotas y dividir targets equitativamente
+      const pollsterQuotas = surveyData.quotas.map((quota) => ({
+        category: quota.category,
+        segments: quota.segments.map((segment) => {
+          const targetPerPollster = Math.floor(
+            segment.target / pollsters.length
+          );
+          return {
+            name: segment.name,
+            target: targetPerPollster,
+          };
+        }),
+      }));
+
+      handleSaveQuotaAssignment(pollsterId, pollsterQuotas);
+    });
   };
 
   // Renderizar paso actual
@@ -1632,7 +1707,7 @@ export default function NuevaEncuesta({
                   </h4>
 
                   {/* Indicador de progreso de asignación */}
-                  <div className="bg-gray-50 p-3 rounded-lg">
+                  <div className="bg-card-background p-3 rounded-lg">
                     <div className="flex justify-between items-center text-sm">
                       <span>Casos asignados:</span>
                       <span
@@ -1676,13 +1751,13 @@ export default function NuevaEncuesta({
                       .map((user) => (
                         <div
                           key={user._id}
-                          className="flex items-center justify-between bg-white border rounded-lg p-3"
+                          className="flex items-center justify-between bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg p-3"
                         >
                           <div className="flex-1">
-                            <span className="font-medium">
+                            <span className="font-medium text-[var(--text-primary)]">
                               {user.name} {user.lastName}
                             </span>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-[var(--text-secondary)]">
                               {user.email}
                             </p>
                           </div>
@@ -1701,16 +1776,29 @@ export default function NuevaEncuesta({
                                   parseInt(e.target.value) || 0
                                 )
                               }
-                              className="w-20 px-2 py-1 border rounded text-center text-sm"
+                              className="w-20 px-2 py-1 border border-[var(--card-border)] rounded text-center text-sm bg-[var(--input-background)] text-[var(--text-primary)]"
                               placeholder="0"
                             />
+                            {surveyData.quotas &&
+                              surveyData.quotas.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedPollsterForQuotas(user);
+                                    setShowQuotaAssignmentModal(true);
+                                  }}
+                                  className="text-xs px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded border border-[var(--primary)]/30 transition-colors"
+                                >
+                                  Configurar cuotas
+                                </button>
+                              )}
                           </div>
                         </div>
                       ))}
                   </div>
 
-                  {/* Botón de distribución automática */}
-                  <div className="flex justify-end">
+                  {/* Botones de distribución automática */}
+                  <div className="flex justify-end gap-4">
                     <button
                       type="button"
                       onClick={() => {
@@ -1731,10 +1819,19 @@ export default function NuevaEncuesta({
                           );
                         });
                       }}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-sm text-[var(--primary)] hover:text-[var(--primary-dark)] font-medium"
                     >
-                      Distribuir automáticamente
+                      Distribuir casos automáticamente
                     </button>
+                    {surveyData.quotas && surveyData.quotas.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleAutoDistributeQuotas}
+                        className="text-sm text-[var(--primary)] hover:text-[var(--primary-dark)] font-medium"
+                      >
+                        Distribuir cuotas automáticamente
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -2413,6 +2510,133 @@ export default function NuevaEncuesta({
           setShowSupervisorsModal(false);
         }}
       />
+
+      {/* Modal de asignación de cuotas por encuestador */}
+      {showQuotaAssignmentModal && selectedPollsterForQuotas && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[var(--card-background)] rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-[var(--card-background)] border-b border-[var(--card-border)] p-6 z-10">
+              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+                Asignar Cuotas - {selectedPollsterForQuotas.name}{" "}
+                {selectedPollsterForQuotas.lastName}
+              </h2>
+              <div className="mt-3 mb-2 px-4 py-2 bg-[var(--primary)]/10 border-l-4 border-[var(--primary)] rounded">
+                <p className="text-sm font-bold text-[var(--primary-light)]">
+                  Este encuestador tiene{" "}
+                  {getAssignedCases(selectedPollsterForQuotas._id)} casos
+                  asignados
+                </p>
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">
+                Define cuántos casos de cada cuota debe completar este
+                encuestador. Puedes sobreasignar si es necesario.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {surveyData.quotas.map((quota, quotaIndex) => {
+                const currentAssignment = getPollsterQuotaAssignment(
+                  selectedPollsterForQuotas._id
+                );
+                const quotaAssignment = currentAssignment?.quotas?.find(
+                  (q) => q.category === quota.category
+                );
+
+                return (
+                  <div key={quotaIndex} className="space-y-3">
+                    <h3 className="font-medium text-[var(--text-primary)]">
+                      {quota.category}
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {quota.segments.map((segment, segmentIndex) => {
+                        const assignedTarget =
+                          quotaAssignment?.segments?.find(
+                            (s) => s.name === segment.name
+                          )?.target || 0;
+
+                        return (
+                          <div
+                            key={segmentIndex}
+                            className="flex items-center justify-between bg-[var(--input-background)] border border-[var(--card-border)] rounded-lg p-3"
+                          >
+                            <span className="text-sm font-medium text-[var(--text-primary)]">
+                              {segment.name}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[var(--text-secondary)]">
+                                Meta:
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={assignedTarget}
+                                onChange={(e) => {
+                                  const newTarget =
+                                    parseInt(e.target.value) || 0;
+
+                                  // Obtener o crear asignación actual
+                                  let updatedQuotas = currentAssignment?.quotas
+                                    ? [...currentAssignment.quotas]
+                                    : surveyData.quotas.map((q) => ({
+                                        category: q.category,
+                                        segments: q.segments.map((s) => ({
+                                          name: s.name,
+                                          target: 0,
+                                        })),
+                                      }));
+
+                                  // Encontrar y actualizar la categoría y segmento correspondiente
+                                  const categoryIndex = updatedQuotas.findIndex(
+                                    (q) => q.category === quota.category
+                                  );
+                                  if (categoryIndex >= 0) {
+                                    const segIndex = updatedQuotas[
+                                      categoryIndex
+                                    ].segments.findIndex(
+                                      (s) => s.name === segment.name
+                                    );
+                                    if (segIndex >= 0) {
+                                      updatedQuotas[categoryIndex].segments[
+                                        segIndex
+                                      ].target = newTarget;
+                                    }
+                                  }
+
+                                  handleSaveQuotaAssignment(
+                                    selectedPollsterForQuotas._id,
+                                    updatedQuotas
+                                  );
+                                }}
+                                className="w-16 px-2 py-1 border border-[var(--card-border)] rounded text-center text-sm bg-[var(--card-background)] text-[var(--text-primary)]"
+                              />
+                              <span className="text-xs text-[var(--text-secondary)]">
+                                / {segment.target}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="sticky bottom-0 bg-[var(--card-background)] border-t border-[var(--card-border)] p-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuotaAssignmentModal(false);
+                  setSelectedPollsterForQuotas(null);
+                }}
+                className="px-4 py-2 border border-[var(--card-border)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Validation Error Modal - Using modified ConfirmModal */}
       <ConfirmModal
