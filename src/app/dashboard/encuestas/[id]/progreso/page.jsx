@@ -225,13 +225,19 @@ export default function PanelDeSupervision() {
     });
 
     const pollstersArray = [
-      { id: "all", name: "Todos", responses: answers.length, hasCoordinates: true },
+      {
+        id: "all",
+        name: "Todos",
+        responses: answers.length,
+        hasCoordinates: true,
+      },
       ...Object.values(pollsterMap)
         .map((p) => ({
           ...p,
-          hasCoordinates: pollsterAnswers[p.id]?.some(
-            (ans) => ans.lat !== null && ans.lng !== null
-          ) || false,
+          hasCoordinates:
+            pollsterAnswers[p.id]?.some(
+              (ans) => ans.lat !== null && ans.lng !== null
+            ) || false,
         }))
         .sort((a, b) => b.responses - a.responses), // Ordenar de mayor a menor
     ];
@@ -528,7 +534,7 @@ export default function PanelDeSupervision() {
                 {!selectedPollsters.includes("all") &&
                   selectedPollsters.map((id) => {
                     const pollster = pollsters.find((p) => p.id === id);
-  return (
+                    return (
                       <span
                         key={id}
                         className="px-3 py-1.5 bg-white/15 backdrop-blur-sm text-white rounded-full text-sm flex items-center gap-2 border border-white/20 hover:bg-white/25 transition-all shadow-sm"
@@ -538,27 +544,27 @@ export default function PanelDeSupervision() {
                           style={{ backgroundColor: pollsterColors[id] }}
                         />
                         <span className="font-medium">{pollster?.name}</span>
-            <button
+                        <button
                           onClick={() => togglePollster(id)}
                           className="hover:scale-110 transition-transform"
-            >
+                        >
                           <X
                             size={14}
                             className="opacity-80 hover:opacity-100"
                           />
-            </button>
+                        </button>
                       </span>
                     );
                   })}
                 {selectedDate && (
                   <span className="px-3 py-1.5 bg-white/15 backdrop-blur-sm text-white rounded-full text-sm flex items-center gap-2 border border-white/20 hover:bg-white/25 transition-all shadow-sm">
                     <span className="font-medium">📅 {selectedDate}</span>
-            <button
+                    <button
                       onClick={() => setSelectedDate(null)}
                       className="hover:scale-110 transition-transform"
-            >
+                    >
                       <X size={14} className="opacity-80 hover:opacity-100" />
-            </button>
+                    </button>
                   </span>
                 )}
                 <button
@@ -566,11 +572,11 @@ export default function PanelDeSupervision() {
                   className="ml-auto px-4 py-1.5 text-xs bg-white/10 hover:bg-white/20 text-white rounded-full transition-all border border-white/20 font-medium shadow-sm"
                 >
                   Limpiar todos
-            </button>
-                  </div>
-                )}
+                </button>
               </div>
-              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="max-w-7xl mx-auto">
@@ -590,17 +596,17 @@ export default function PanelDeSupervision() {
                 </h1>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
                   Período: {periodo}
-                      </p>
-                  </div>
-                  </div>
+                </p>
+              </div>
+            </div>
             <div className="flex gap-3 w-full sm:w-auto justify-end">
               <ExportControls
                 answers={answers}
                 titleSurvey={survey?.survey?.title}
-                />
-                </div>
-                  </div>
-                </div>
+              />
+            </div>
+          </div>
+        </div>
 
         {/* KPIs Principales */}
         <SupervisionStats stats={stats} />
@@ -615,7 +621,7 @@ export default function PanelDeSupervision() {
                   className="sm:w-6 sm:h-6 text-[var(--primary)]"
                 />
                 Casos Mapeados
-                    </h3>
+              </h3>
               {surveyInfo?.requireGps ? (
                 <span className="px-2 py-1 bg-[var(--success-bg)] text-[var(--success)] text-xs rounded-full border border-[var(--success-border)]">
                   GPS Obligatorio
@@ -630,12 +636,12 @@ export default function PanelDeSupervision() {
             <div className="bg-[var(--input-background)] rounded-lg px-3 sm:px-4 py-2">
               <div className="text-xl sm:text-2xl font-bold text-[var(--success)]">
                 {filteredAnswers.length}
-                </div>
+              </div>
               <div className="text-xs text-[var(--text-secondary)]">
                 casos visibles
-                </div>
               </div>
-                </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Filtros de Encuestadores */}
@@ -647,7 +653,7 @@ export default function PanelDeSupervision() {
                 onCenterMap={centerMapOnPollster}
                 colors={pollsterColors}
               />
-                    </div>
+            </div>
 
             {/* Mapa */}
             <div className="lg:col-span-2">
@@ -663,9 +669,9 @@ export default function PanelDeSupervision() {
                   userColors={pollsterColors}
                 />
               </div>
-                </div>
-              </div>
-              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Control de Cuotas */}
         {Object.keys(quotas).length > 0 && (
@@ -703,8 +709,8 @@ export default function PanelDeSupervision() {
                       <div className="text-xs sm:text-sm text-[var(--text-secondary)]">
                         {categoryTotal}/{categoryTarget} (
                         {Math.round(categoryPercentage)}%)
-                  </div>
-                  </div>
+                      </div>
+                    </div>
 
                     {/* Segmentos de esta categoría */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -725,7 +731,7 @@ export default function PanelDeSupervision() {
                             }`}
                           >
                             <div className="flex items-center gap-2 mb-2">
-                          <span
+                              <span
                                 className={`text-xs sm:text-sm font-medium ${
                                   isComplete
                                     ? "text-[var(--success)]"
@@ -733,8 +739,8 @@ export default function PanelDeSupervision() {
                                 }`}
                               >
                                 {segment.name}
-                                    </span>
-                                </div>
+                              </span>
+                            </div>
                             <div
                               className={`text-3xl sm:text-4xl font-extrabold mb-1 ${
                                 isComplete
@@ -743,7 +749,7 @@ export default function PanelDeSupervision() {
                               }`}
                             >
                               {segment.current}
-                                      <span
+                              <span
                                 className={`text-base sm:text-lg ${
                                   isComplete
                                     ? "text-[var(--success)]"
@@ -751,8 +757,8 @@ export default function PanelDeSupervision() {
                                 }`}
                               >
                                 /{segment.target}
-                                      </span>
-                                </div>
+                              </span>
+                            </div>
                             <div className="h-2 bg-[var(--input-background)] rounded-full overflow-hidden">
                               <div
                                 className={`h-full transition-all ${
@@ -764,7 +770,7 @@ export default function PanelDeSupervision() {
                                   width: `${Math.min(percentage, 100)}%`,
                                 }}
                               ></div>
-                          </div>
+                            </div>
                             <div
                               className={`text-xs mt-1 text-center ${
                                 isComplete
@@ -773,22 +779,22 @@ export default function PanelDeSupervision() {
                               }`}
                             >
                               {Math.round(percentage)}%
-                                                </div>
-                                                </div>
+                            </div>
+                          </div>
                         );
                       })}
-                                              </div>
-                                                </div>
+                    </div>
+                  </div>
                 );
               })}
-                                                </div>
+            </div>
 
             {/* Barra de progreso total */}
             <div className="bg-[var(--input-background)] rounded-xl p-4 border border-[var(--card-border)]">
               <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-[var(--text-secondary)]">
+                <span className="text-sm text-[var(--text-secondary)]">
                   Progreso Total de Cuotas
-                  </span>
+                </span>
                 <span className="text-sm font-semibold text-[var(--text-primary)]">
                   {Object.values(quotas)
                     .flat()
@@ -798,7 +804,7 @@ export default function PanelDeSupervision() {
                     {Object.values(quotas)
                       .flat()
                       .reduce((sum, s) => sum + s.target, 0)}
-                    </span>
+                  </span>
                 </span>
               </div>
               <div className="relative h-6 bg-[var(--card-background)] rounded-full overflow-hidden">
@@ -835,11 +841,11 @@ export default function PanelDeSupervision() {
                     )}
                     %
                   </span>
-                  </div>
                 </div>
               </div>
-              </div>
-            )}
+            </div>
+          </div>
+        )}
 
         {/* Gráfico de Encuestas por Día */}
         <DailyResponsesChart
@@ -884,16 +890,16 @@ export default function PanelDeSupervision() {
                 </span>{" "}
                 al cierre
               </p>
-              </div>
+            </div>
 
             <div className="text-left sm:text-right">
               <span className="px-4 py-2 bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-full text-sm font-medium inline-flex items-center gap-2">
                 <TrendingUp size={16} />
                 En camino a la meta
               </span>
-              </div>
-              </div>
             </div>
+          </div>
+        </div>
       </div>
     </div>
   );
