@@ -94,6 +94,10 @@ export default function SurveyResponderStable() {
   const requireGpsRef = useRef(false); // Referencia para mantener el valor actualizado
   const [isSavingCase, setIsSavingCase] = useState(false); // Estado para pantalla "Guardando caso..."
   const startTimeRef = useRef(null); // Timestamp de inicio para calcular duración
+  
+  // ✅ PREVENCIÓN DE DUPLICADOS: Flag para prevenir múltiples envíos simultáneos
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Estados para cuotas
   const [quotas, setQuotas] = useState([]);
@@ -363,7 +367,9 @@ export default function SurveyResponderStable() {
       // Crear payload con o sin coordenadas
       const payload = {
         surveyId: surveyId,
-        _id: `survey_${surveyId}_${user?._id || "anon"}_${Date.now()}`,
+        // ✅ PREVENCIÓN DE DUPLICADOS: Agregar random string para garantizar unicidad
+        // incluso si Date.now() fuera igual (múltiples clicks en milisegundos)
+        _id: `survey_${surveyId}_${user?._id || "anon"}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         fullName: user?.fullName,
         userId: user?._id,
         answer: transformedAnswers,
@@ -478,7 +484,17 @@ export default function SurveyResponderStable() {
   };
 
   const handleComplete = async (sender) => {
+    // ✅ PREVENCIÓN DE DUPLICADOS: Bloquear ejecuciones múltiples
+    if (isSubmittingRef.current) {
+      console.log("⚠️ Envío ya en proceso, ignorando...");
+      return;
+    }
+
     try {
+      // Marcar como en proceso
+      isSubmittingRef.current = true;
+      setIsSubmitting(true);
+
       // Si estamos en modo test, no guardar nada, solo mostrar éxito
       if (isTestMode) {
         setSuccessMode("test");
@@ -523,12 +539,20 @@ export default function SurveyResponderStable() {
         // Si el GPS NO es obligatorio, mostrar modal de confirmación
         setPendingSurveyData(sender);
         setShowSendWithoutGpsModal(true);
+        // NO resetear isSubmittingRef aquí porque el modal sigue activo
       }
     } catch (e) {
       toast.error(e.message || "Error inesperado");
       setError(e.message);
       setIsCapturingLocation(false);
       setIsSavingCase(false);
+    } finally {
+      // Solo resetear si NO se mostró el modal de GPS
+      // (el modal de GPS aún requiere que el usuario tome acción)
+      if (!showSendWithoutGpsModal) {
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -1132,6 +1156,9 @@ export default function SurveyResponderStable() {
               onClick={() => {
                 setShowSendWithoutGpsModal(false);
                 setPendingSurveyData(null);
+                // Resetear flag de envío al cerrar el modal
+                isSubmittingRef.current = false;
+                setIsSubmitting(false);
               }}
               className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
             />
@@ -1203,6 +1230,9 @@ export default function SurveyResponderStable() {
                     } finally {
                       setIsSavingCase(false);
                       setPendingSurveyData(null);
+                      // Resetear flag de envío al completar
+                      isSubmittingRef.current = false;
+                      setIsSubmitting(false);
                     }
                   }}
                   className="w-full px-8 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white transition-all duration-200 shadow-lg hover:shadow-xl font-semibold text-base flex items-center justify-center gap-2"
@@ -1238,6 +1268,9 @@ export default function SurveyResponderStable() {
                     } finally {
                       setIsCapturingLocation(false);
                       setIsSavingCase(false);
+                      // Resetear flag de envío al completar
+                      isSubmittingRef.current = false;
+                      setIsSubmitting(false);
                     }
                   }}
                   className="w-full px-8 py-4 rounded-xl bg-white border-2 border-amber-300 text-amber-700 hover:bg-amber-50 transition-all duration-200 shadow-md hover:shadow-lg font-semibold text-base flex items-center justify-center gap-2"
@@ -1252,6 +1285,9 @@ export default function SurveyResponderStable() {
                   onClick={() => {
                     setShowSendWithoutGpsModal(false);
                     setPendingSurveyData(null);
+                    // Resetear flag de envío al cancelar
+                    isSubmittingRef.current = false;
+                    setIsSubmitting(false);
                   }}
                   className="w-full px-8 py-4 rounded-xl bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all duration-200 shadow-md hover:shadow-lg font-semibold text-base"
                   whileHover={{ scale: 1.02 }}

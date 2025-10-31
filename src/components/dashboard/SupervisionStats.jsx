@@ -3,11 +3,23 @@
 import { Users, Target, Clock } from "lucide-react";
 
 const SupervisionStats = ({ stats }) => {
-  const { encuestadoresAsignados, respuestasCompletadas, diasRestantes, meta } =
-    stats;
+  const {
+    encuestadoresAsignados,
+    respuestasCompletadas,
+    diasRestantes,
+    meta,
+    isFiltered,
+  } = stats;
 
   const porcentaje =
     meta > 0 ? Math.round((respuestasCompletadas / meta) * 100) : 0;
+
+  // Cambiar texto según si hay filtro activo
+  const encuestadoresLabel = isFiltered
+    ? encuestadoresAsignados === 1
+      ? "Encuestador Seleccionado"
+      : "Encuestadores Seleccionados"
+    : "Encuestadores Asignados";
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -22,7 +34,7 @@ const SupervisionStats = ({ stats }) => {
               {encuestadoresAsignados}
             </div>
             <div className="text-xs sm:text-sm text-[var(--text-secondary)]">
-              Encuestadores Asignados
+              {encuestadoresLabel}
             </div>
           </div>
         </div>

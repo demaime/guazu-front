@@ -809,8 +809,7 @@ export default function NuevaEncuesta({
                 element.rows =
                   question.matrixRows && Array.isArray(question.matrixRows)
                     ? question.matrixRows.map((row) => ({
-                        // Averiguar si esto rompe algo por no usar row.id
-                        value: row?.text || "",
+                        value: row?.id || "",
                         text: { es: row?.text || "" },
                       }))
                     : [];
@@ -818,11 +817,14 @@ export default function NuevaEncuesta({
                   question.matrixColumns &&
                   Array.isArray(question.matrixColumns)
                     ? question.matrixColumns.map((col) => ({
-                        // Averiguar si esto rompe algo por no usar col.id
-                        value: col?.text || "",
+                        value: col?.id || "",
                         text: { es: col?.text || "" },
                       }))
                     : [];
+                // Validar que TODAS las filas sean respondidas si es required
+                if (question.required) {
+                  element.isAllRowRequired = true;
+                }
                 break;
               case "rating":
                 element.rateMin =
@@ -972,6 +974,10 @@ export default function NuevaEncuesta({
                         text: { es: col?.text || "" },
                       }))
                     : [];
+                // Validar que TODAS las filas sean respondidas si es required
+                if (question.required) {
+                  element.isAllRowRequired = true;
+                }
                 break;
               case "rating":
                 element.rateMin =

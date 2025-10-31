@@ -288,6 +288,41 @@ const SurveyMap = ({
     };
   }, [answers, mapRef]);
 
+  // Auto-centrar mapa en todos los casos visibles
+  useEffect(() => {
+    if (!mapRef || !window.google || answers.length === 0) {
+      return;
+    }
+
+    const validAnswers = answers.filter((a) => a.lat && a.lng);
+
+    if (validAnswers.length === 0) {
+      // Si no hay coordenadas, usar ubicación por defecto
+      mapRef.setCenter(defaultCenter);
+      mapRef.setZoom(14);
+      return;
+    }
+
+    // Calcular bounds de todas las respuestas
+    const bounds = new window.google.maps.LatLngBounds();
+    validAnswers.forEach((answer) => {
+      bounds.extend({
+        lat: parseFloat(answer.lat),
+        lng: parseFloat(answer.lng),
+      });
+    });
+
+    // Ajustar mapa a los bounds
+    mapRef.fitBounds(bounds);
+
+    // Si solo hay un punto, hacer zoom apropiado
+    if (validAnswers.length === 1) {
+      setTimeout(() => {
+        mapRef.setZoom(16);
+      }, 100);
+    }
+  }, [answers, mapRef]); // Ejecutar cuando cambien answers o mapRef
+
   const handleMarkerClick = (marker) => {
     setSelectedMarker(marker);
     // Centrar el mapa en el marcador seleccionado

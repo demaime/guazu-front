@@ -12,6 +12,7 @@ const PollsterFilter = ({
       <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-3">
         Seleccionar encuestadores
       </h4>
+      <div className="max-h-[500px] overflow-y-auto pr-2">
       {pollsters.map((pollster) => {
         const isSelected =
           selectedPollsters.includes("all") ||
@@ -58,12 +59,23 @@ const PollsterFilter = ({
             </button>
             {pollster.id !== "all" && pollster.responses > 0 && (
               <button
-                onClick={() => onCenterMap(pollster.id)}
-                className="p-2 bg-[var(--primary)]/20 hover:bg-[var(--primary)]/30 rounded-lg transition"
-                title="Centrar en mapa"
+                onClick={() => pollster.hasCoordinates && onCenterMap(pollster.id)}
+                disabled={!pollster.hasCoordinates}
+                className={`p-2 rounded-lg transition ${
+                  pollster.hasCoordinates 
+                    ? "bg-[var(--primary)]/20 hover:bg-[var(--primary)]/30 cursor-pointer"
+                    : "bg-gray-500/20 cursor-not-allowed opacity-50"
+                }`}
+                title={pollster.hasCoordinates 
+                  ? "Centrar en mapa" 
+                  : "Este encuestador no ha registrado su ubicación"}
               >
                 <svg
-                  className="w-4 h-4 text-[var(--primary)]"
+                  className={`w-4 h-4 ${
+                    pollster.hasCoordinates 
+                      ? "text-[var(--primary)]" 
+                      : "text-gray-500"
+                  }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -86,6 +98,7 @@ const PollsterFilter = ({
           </div>
         );
       })}
+      </div>
     </div>
   );
 };

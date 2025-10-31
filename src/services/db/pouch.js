@@ -258,14 +258,14 @@ export async function getSurveyByIdLocal(id) {
   }
 }
 
-export async function saveSurveyDetail(id, detail) {
+export async function saveSurveyDetail(id, detail, surveyInfo = {}) {
   const db = getSurveysDB();
   const key = `survey:${String(id)}`;
   try {
     const existing = await db.get(key).catch(() => null);
     const merged = existing
-      ? { ...existing, survey: detail }
-      : { _id: key, survey: detail };
+      ? { ...existing, survey: detail, surveyInfo }
+      : { _id: key, survey: detail, surveyInfo };
     const res = await db.put(merged);
     return res;
   } catch (e) {

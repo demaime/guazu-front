@@ -93,8 +93,9 @@ class SurveyService {
           const { saveSurveyDetail } = await import("@/services/db/pouch");
           const detail =
             surveyData?.survey?.survey || surveyData?.survey || null;
+          const info = surveyData?.survey?.surveyInfo || {};
           if (detail) {
-            await saveSurveyDetail(surveyId, detail);
+            await saveSurveyDetail(surveyId, detail, info);
           }
         }
       } catch (persistErr) {
