@@ -627,6 +627,12 @@ export default function Encuestas() {
             try {
               const { synced } = await syncPendingResponses();
               if (synced > 0) {
+                // Notificar al usuario que los casos se registraron exitosamente
+                toast.success(
+                  synced === 1
+                    ? "Se registró 1 caso correctamente en el servidor."
+                    : `Se registraron ${synced} casos correctamente en el servidor.`
+                );
                 // Refrescar encuestas activas para reflejar progreso
                 await fetchDataForTab("active", 1);
               }

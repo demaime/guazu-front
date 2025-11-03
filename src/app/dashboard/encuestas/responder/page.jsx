@@ -392,13 +392,15 @@ export default function SurveyResponderStable() {
       const minDelay = new Promise((resolve) => setTimeout(resolve, 2000));
       const startTime = Date.now();
 
-      // 4. Intentar envío al servidor (con timeout de 5 segundos)
+      // 4. Intentar envío al servidor (con timeout de 10 segundos)
       let serverSuccess = false;
+      let isReallyOffline = false; // Flag para distinguir offline real de problemas del servidor
+      
       if (typeof navigator !== "undefined" && navigator.onLine) {
         try {
           console.log("🌐 Intentando enviar al servidor...");
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
 
           const res = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/insert-answer`,
@@ -437,6 +439,7 @@ export default function SurveyResponderStable() {
         }
       } else {
         console.log("📵 Sin conexión, mantener en cola para sync");
+        isReallyOffline = true;
       }
 
       // 5. Asegurar mínimo 2 segundos de duración total
@@ -446,7 +449,14 @@ export default function SurveyResponderStable() {
       }
 
       // 6. Mostrar resultado según éxito del envío
-      setSuccessMode(serverSuccess ? "online" : "offline");
+      // Distinguir entre: éxito online, offline real, o problemas del servidor
+      if (serverSuccess) {
+        setSuccessMode("online");
+      } else if (isReallyOffline) {
+        setSuccessMode("offline");
+      } else {
+        setSuccessMode("saved"); // Problemas del servidor pero con conexión
+      }
       setSurveyCompletedSuccessfully(true);
 
       // 7. Track analytics
@@ -619,6 +629,7 @@ export default function SurveyResponderStable() {
     // Configuración de colores según el modo
     const isOffline = successMode === "offline";
     const isTest = successMode === "test";
+    const isSaved = successMode === "saved";
     const colorConfig = isTest
       ? {
           // Colores azul para modo test usando la paleta oficial
@@ -658,7 +669,7 @@ export default function SurveyResponderStable() {
           ],
         }
       : {
-          // Colores verde para online
+          // Colores verde para online y saved (enviado inmediatamente o guardado con éxito)
           bgColor: "bg-green-600",
           ringColor: "ring-green-700/30",
           textColor: "text-white",
@@ -775,7 +786,9 @@ export default function SurveyResponderStable() {
                     {successMode === "test"
                       ? "Esta fue una prueba local. No se guardó ningún caso real en la base de datos."
                       : successMode === "offline"
-                      ? "Tu respuesta se guardó correctamente y se sincronizará automáticamente cuando haya conexión."
+                      ? "Tu respuesta se guardará automáticamente cuando recuperes conexión."
+                      : successMode === "saved"
+                      ? "Tu caso fue guardado exitosamente."
                       : "Tu respuesta fue enviada correctamente."}
                   </p>
                 </div>
