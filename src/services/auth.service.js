@@ -270,6 +270,29 @@ class AuthService {
     }
   }
 
+  async resendActivation(email) {
+    try {
+      const response = await fetch(`${AUTH_ROUTES.RESEND_ACTIVATION}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al reenviar el correo de activación");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error in resendActivation:", error);
+      throw error;
+    }
+  }
+
   logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");

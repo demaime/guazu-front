@@ -23,6 +23,7 @@ import {
   FileText,
   Copy,
   Loader2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWindowSize } from "@/hooks/useWindowSize";
@@ -115,7 +116,9 @@ export function SurveyList({
       case "map":
         return "Ver Mapa";
       case "progress":
-        return "Análisis";
+        return "Supervisión";
+      case "dataEdit":
+        return "Editar Base";
       case "pollsters":
         return "Asignar Encuestadores";
       case "clone":
@@ -159,6 +162,8 @@ export function SurveyList({
           ? "bg-[var(--secondary)] hover:bg-[var(--primary)]"
           : action === "progress"
           ? "bg-[var(--primary-dark)] hover:bg-[var(--primary)]"
+          : action === "dataEdit"
+          ? "bg-emerald-600 hover:bg-emerald-700"
           : action === "map"
           ? "bg-[var(--secondary)] hover:bg-[var(--primary)]"
           : action === "pollsters"
@@ -193,6 +198,8 @@ export function SurveyList({
         return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
       } else if (action === "progress") {
         return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
+      } else if (action === "dataEdit") {
+        return `${baseStyles} bg-emerald-600 text-white hover:bg-emerald-700`;
       } else if (action === "pollsters") {
         return `${baseStyles} bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)]`;
       } else if (action === "clone") {
@@ -370,7 +377,11 @@ export function SurveyList({
           break;
 
         case "progress":
-          router.push(`/dashboard/encuestas/${surveyId}/progreso`);
+          router.push(`/dashboard/encuestas/${surveyId}/supervision`);
+          break;
+
+        case "dataEdit":
+          router.push(`/dashboard/encuestas/${surveyId}/editar-base`);
           break;
 
         case "pollsters":
@@ -379,7 +390,7 @@ export function SurveyList({
           break;
 
         case "map":
-          router.push(`/dashboard/encuestas/${surveyId}/progreso`);
+          router.push(`/dashboard/encuestas/${surveyId}/supervision`);
           break;
 
         case "clone":
@@ -679,14 +690,24 @@ export function SurveyList({
                   )}
 
                   {(role === "ROLE_ADMIN" || role === "SUPERVISOR") && (
-                    <ActionButton
-                      action="progress"
-                      surveyData={surveyData}
-                      icon={BarChart3}
-                      text="Progreso"
-                      variant="mobile"
-                      className="flex-1 min-w-[90px]"
-                    />
+                    <>
+                      <ActionButton
+                        action="progress"
+                        surveyData={surveyData}
+                        icon={BarChart3}
+                        text="Supervisión"
+                        variant="mobile"
+                        className="flex-1 min-w-[90px]"
+                      />
+                      <ActionButton
+                        action="dataEdit"
+                        surveyData={surveyData}
+                        icon={FileSpreadsheet}
+                        text="Editar Base"
+                        variant="mobile"
+                        className="flex-1 min-w-[100px]"
+                      />
+                    </>
                   )}
 
                   {role === "ROLE_ADMIN" && (
@@ -965,12 +986,20 @@ export function SurveyList({
 
                             {(role === "ROLE_ADMIN" ||
                               role === "SUPERVISOR") && (
-                              <ActionButton
-                                action="progress"
-                                surveyData={surveyData}
-                                icon={BarChart3}
-                                variant="desktop"
-                              />
+                              <>
+                                <ActionButton
+                                  action="progress"
+                                  surveyData={surveyData}
+                                  icon={BarChart3}
+                                  variant="desktop"
+                                />
+                                <ActionButton
+                                  action="dataEdit"
+                                  surveyData={surveyData}
+                                  icon={FileSpreadsheet}
+                                  variant="desktop"
+                                />
+                              </>
                             )}
 
                             {role === "ROLE_ADMIN" && (

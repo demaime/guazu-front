@@ -11,6 +11,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  FileSpreadsheet,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { authService } from "@/services/auth.service";
@@ -600,9 +601,17 @@ export default function PanelDeSupervision() {
               </div>
             </div>
             <div className="flex gap-3 w-full sm:w-auto justify-end">
+              <button
+                onClick={() => router.push(`/dashboard/encuestas/${params.id}/editar-base`)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Editar Base
+              </button>
               <ExportControls
                 answers={answers}
                 titleSurvey={survey?.survey?.title}
+                surveyId={params.id}
               />
             </div>
           </div>

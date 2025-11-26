@@ -86,11 +86,19 @@ export function middleware(request) {
         allowedRoles = ["ROLE_ADMIN"];
       }
 
-      // Progreso/análisis: admin y supervisor
-      const isProgressPage = /^\/dashboard\/encuestas\/[^/]+\/progreso$/.test(
+      // Supervisión: admin y supervisor
+      const isProgressPage = /^\/dashboard\/encuestas\/[^/]+\/supervision$/.test(
         path
       );
       if (isProgressPage) {
+        allowedRoles = ["ROLE_ADMIN", "SUPERVISOR"];
+      }
+
+      // Editar Base: admin y supervisor
+      const isEditarBasePage = /^\/dashboard\/encuestas\/[^/]+\/editar-base$/.test(
+        path
+      );
+      if (isEditarBasePage) {
         allowedRoles = ["ROLE_ADMIN", "SUPERVISOR"];
       }
     }

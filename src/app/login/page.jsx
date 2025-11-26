@@ -23,6 +23,7 @@ export default function LoginPage() {
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [showHelpMenu, setShowHelpMenu] = useState(false);
 
   // (Scroll se administra vía CSS en .login-page para no afectar otras pantallas)
 
@@ -61,6 +62,18 @@ export default function LoginPage() {
 
     checkAuth();
   }, [router]);
+
+  // Cerrar menú de ayuda al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showHelpMenu && !event.target.closest(".help-menu-container")) {
+        setShowHelpMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showHelpMenu]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -260,22 +273,6 @@ export default function LoginPage() {
             </motion.div>
           </div>
 
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.3 }}
-            className="flex items-center justify-end"
-          >
-            <div className="text-sm">
-              <Link
-                href="/forgot-password"
-                className="font-medium text-white/80 hover:text-white"
-              >
-                ¿Olvidó su contraseña?
-              </Link>
-            </div>
-          </motion.div>
-
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -307,12 +304,56 @@ export default function LoginPage() {
               )}
             </button>
           </motion.div>
+
+          {/* Botón de ayuda */}
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 1, duration: 0.3 }}
+            className="text-center relative help-menu-container"
+          >
+            <button
+              type="button"
+              onClick={() => setShowHelpMenu(!showHelpMenu)}
+              className="text-xs text-white/70 hover:text-white transition-colors cursor-pointer"
+            >
+              ¿Problemas para iniciar sesión?
+            </button>
+
+            <AnimatePresence>
+              {showHelpMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 bg-white rounded-lg shadow-2xl border border-gray-100 overflow-hidden z-10"
+                >
+                  <div className="py-1">
+                    <Link
+                      href="/forgot-password"
+                      className="block px-4 py-2 text-xs font-medium text-center text-gray-700 hover:bg-[#3f51b5] hover:text-white transition-all duration-200 cursor-pointer"
+                    >
+                      No recuerdo mi contraseña
+                    </Link>
+                    <div className="mx-4 border-t border-gray-100"></div>
+                    <Link
+                      href="/resend-activation"
+                      className="block px-4 py-2 text-xs font-medium text-center text-gray-700 hover:bg-[#3f51b5] hover:text-white transition-all duration-200 cursor-pointer"
+                    >
+                      No recibí el email de activación
+                    </Link>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </motion.form>
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 0.3 }}
+          transition={{ delay: 1.1, duration: 0.3 }}
           className="text-center"
         >
           <Link

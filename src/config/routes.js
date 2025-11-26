@@ -7,6 +7,7 @@ export const AUTH_ROUTES = {
   FORGOT_PASSWORD: `${API_URL}/api/forgot`,
   RESET_PASSWORD: `${API_URL}/api/reset`,
   ACTIVATE_ACCOUNT: `${API_URL}/api/activate`,
+  RESEND_ACTIVATION: `${API_URL}/api/resend-activation`,
 };
 
 // Rutas de encuestas

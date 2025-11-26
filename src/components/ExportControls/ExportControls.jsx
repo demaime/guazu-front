@@ -1,13 +1,47 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 import FileSaver from "file-saver";
 import { nestedJSONtoJson } from "../../utils/flatterJSON";
 import { FileSpreadsheet, FileDown, ChevronDown } from "lucide-react";
 
-const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
+const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFiltered = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [excludedCases, setExcludedCases] = useState([]);
   const dropdownRef = useRef(null);
   const fileExtension = ".xlsx";
+
+  // Cargar casos excluidos desde localStorage (solo si no viene preFiltered)
+  useEffect(() => {
+    if (!surveyId || preFiltered) return;
+    
+    try {
+      const key = `survey:${surveyId}:excluded-cases`;
+      const stored = localStorage.getItem(key);
+      setExcludedCases(stored ? JSON.parse(stored) : []);
+    } catch (e) {
+      console.error("Error reading excluded cases for export:", e);
+      setExcludedCases([]);
+    }
+  }, [surveyId, preFiltered]);
+
+  // Sincronizar con cambios en otras pestañas (solo si no viene preFiltered)
+  useEffect(() => {
+    if (!surveyId || preFiltered) return;
+
+    const handleStorageChange = (e) => {
+      const key = `survey:${surveyId}:excluded-cases`;
+      if (e.key === key && e.newValue) {
+        try {
+          setExcludedCases(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error("Error syncing excluded cases:", err);
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [surveyId, preFiltered]);
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
@@ -20,6 +54,14 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Filtrar answers excluidos (solo si no viene preFiltered)
+  const filteredAnswers = useMemo(() => {
+    if (!answers) return [];
+    if (preFiltered) return answers; // Si ya viene filtrado, usar directamente
+    if (excludedCases.length === 0) return answers;
+    return answers.filter((item) => !excludedCases.includes(item._id));
+  }, [answers, excludedCases, preFiltered]);
 
   const processDataForExport = (answers) => {
     let processedAnswers = [];
@@ -51,7 +93,8 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
   };
 
   const exportToFile = (fileType) => {
-    if (!answers || answers.length === 0) {
+    // Usar filteredAnswers en lugar de answers
+    if (!filteredAnswers || filteredAnswers.length === 0) {
       return;
     }
 
@@ -68,7 +111,8 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
       titleSurvey || "guazu-datos"
     } - ${formattedDate} - ${formattedTime}`;
 
-    const dataToExport = processDataForExport(answers);
+    // Usar filteredAnswers en lugar de answers
+    const dataToExport = processDataForExport(filteredAnswers);
     const ws = XLSX.utils.json_to_sheet(dataToExport);
 
     if (fileType === "xlsx") {
@@ -92,6 +136,9 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
   };
 
   const hasAnswers = answers && answers.length > 0;
+  const totalCases = answers ? answers.length : 0;
+  const includedCases = filteredAnswers.length;
+  const excludedCount = excludedCases.length;
 
   const exportOptions = [
     {
@@ -127,6 +174,24 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos" }) => {
       {/* Dropdown Menu */}
       {isOpen && hasAnswers && (
         <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-64 sm:w-72 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg shadow-xl z-50 overflow-hidden">
+          {/* Contador de casos */}
+          {(preFiltered || excludedCount > 0) && (
+            <div className="px-4 py-2 bg-blue-50 border-b border-[var(--card-border)] text-xs">
+              <p className="text-blue-900 font-medium">
+                Se exportarán {includedCases} caso{includedCases !== 1 ? "s" : ""}
+              </p>
+              {!preFiltered && excludedCount > 0 && (
+                <p className="text-blue-700 mt-0.5">
+                  {excludedCount} caso{excludedCount !== 1 ? "s" : ""} excluido{excludedCount !== 1 ? "s" : ""} en Editar Base
+                </p>
+              )}
+              {preFiltered && (
+                <p className="text-blue-700 mt-0.5">
+                  Según filtros aplicados
+                </p>
+              )}
+            </div>
+          )}
           {exportOptions.map((option, index) => (
             <button
               key={option.type}
