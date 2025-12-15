@@ -77,6 +77,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState("AR"); // País seleccionado
   const [location, setLocation] = useState({
     province: null,
     municipality: null,
@@ -106,9 +107,15 @@ export default function RegisterPage() {
   };
 
   const computeCityFromLocation = (loc) => {
+    if (selectedCountry === "PY") {
+      // Para Paraguay, siempre es el distrito
+      return loc?.locality?.name || "";
+    }
+
+    // Para Argentina
     const provName = loc?.province?.name?.toLowerCase() || "";
     const isCaba =
-      loc?.province?.id === "02" ||
+      loc?.province?.id === "ciudad_de_buenos_aires" ||
       provName.includes("autónoma de buenos aires") ||
       provName === "caba";
     if (isCaba) return loc?.commune?.name || "";
@@ -134,6 +141,24 @@ export default function RegisterPage() {
     }));
   };
 
+  const handleCountryChange = (e) => {
+    const newCountry = e.target.value;
+    setSelectedCountry(newCountry);
+    // Reset location cuando cambia el país
+    setLocation({
+      province: null,
+      municipality: null,
+      department: null,
+      locality: null,
+      commune: null,
+    });
+    setFormData((prev) => ({
+      ...prev,
+      province: "",
+      city: "",
+    }));
+  };
+
   const validateForm = () => {
     const { name, lastName, email, password, confirmPassword, dni, city } =
       formData;
@@ -150,23 +175,34 @@ export default function RegisterPage() {
 
     if (!dni || isNaN(Number(dni)) || Number(dni) <= 0) {
       newErrors.dni =
-        "El DNI debe ser un número positivo, sin puntos ni letras.";
+        "El número de documento debe ser un número positivo, sin puntos ni letras.";
     }
-    if (!location?.province?.id) newErrors.city = "Seleccione una provincia.";
-    const provName = location?.province?.name?.toLowerCase() || "";
-    const isCaba =
-      location?.province?.id === "02" ||
-      provName.includes("autónoma de buenos aires") ||
-      provName === "caba";
-    if (isCaba) {
-      if (!location?.commune?.id) newErrors.city = "Seleccione una comuna.";
-    } else {
-      if (
-        !location?.locality?.id &&
-        !location?.municipality?.id &&
-        !location?.department?.id
-      ) {
-        newErrors.city = "Seleccione municipio/departamento y localidad.";
+
+    const locationLabel =
+      selectedCountry === "PY" ? "departamento" : "provincia";
+
+    if (!location?.province?.id) {
+      newErrors.city = `Seleccione un ${locationLabel}.`;
+    } else if (selectedCountry === "AR") {
+      const provName = location?.province?.name?.toLowerCase() || "";
+      const isCaba =
+        location?.province?.id === "ciudad_de_buenos_aires" ||
+        provName.includes("autónoma de buenos aires") ||
+        provName === "caba";
+      if (isCaba) {
+        if (!location?.commune?.id) newErrors.city = "Seleccione una comuna.";
+      } else {
+        if (
+          !location?.locality?.id &&
+          !location?.municipality?.id &&
+          !location?.department?.id
+        ) {
+          newErrors.city = "Seleccione municipio/departamento y localidad.";
+        }
+      }
+    } else if (selectedCountry === "PY") {
+      if (!location?.locality?.id) {
+        newErrors.city = "Seleccione un distrito.";
       }
     }
 
@@ -235,7 +271,9 @@ export default function RegisterPage() {
         lastName: normalizedLastName,
         email: formData.email,
         password: formData.password,
-        dni: Number(formData.dni),
+        documentNumber: String(formData.dni), // Nuevo campo genérico
+        dni: Number(formData.dni), // Mantener por retrocompatibilidad
+        country: selectedCountry, // País seleccionado
         city: computeCityFromLocation(location) || formData.city,
         province: location?.province?.name || formData.province,
         cellular: formData.cellular,
@@ -422,6 +460,27 @@ export default function RegisterPage() {
                 </p>
               )}
             </div>
+
+            {/* Selector de País */}
+            <div>
+              <label
+                htmlFor="country"
+                className="block text-sm font-medium text-white uppercase"
+              >
+                País
+              </label>
+              <select
+                id="country"
+                name="country"
+                value={selectedCountry}
+                onChange={handleCountryChange}
+                className="mt-1 block w-full px-3 py-2 bg-white/60 border border-transparent rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-white/80 focus:border-transparent text-gray-900 sm:text-sm"
+              >
+                <option value="AR">Argentina</option>
+                <option value="PY">Paraguay</option>
+              </select>
+            </div>
+
             <div>
               <label
                 htmlFor="email"
@@ -448,14 +507,14 @@ export default function RegisterPage() {
                 </p>
               )}
 
-              {/* Fila DNI y Celular */}
+              {/* Fila Documento y Celular */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                 <div>
                   <label
                     htmlFor="dni"
                     className="block text-sm font-medium text-white uppercase"
                   >
-                    DNI
+                    N° de Documento / Cédula
                   </label>
                   <input
                     id="dni"
@@ -463,7 +522,11 @@ export default function RegisterPage() {
                     type="number"
                     required
                     className={getInputClass("dni")}
-                    placeholder="Ingrese su DNI"
+                    placeholder={
+                      selectedCountry === "PY"
+                        ? "Ingrese su cédula"
+                        : "Ingrese su DNI"
+                    }
                     value={formData.dni}
                     onChange={handleChange}
                   />
@@ -491,11 +554,12 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Fila Provincia y Localidad */}
+              {/* Fila Provincia/Departamento y Localidad/Distrito */}
               <div className="pt-4">
                 <LocationSelector
                   value={location}
                   onChange={handleLocationChange}
+                  country={selectedCountry}
                 />
                 {fieldErrors.city && (
                   <p
@@ -628,7 +692,9 @@ export default function RegisterPage() {
         <motion.div variants={itemVariants} className="text-center">
           <Link href="/login" className="text-sm hover:text-white">
             ¿Ya tiene una cuenta?{" "}
-            <span clasName="text-[var(--primary-dark)]">Iniciar sesión</span>
+            <span className="font-semibold text-[var(--primary-dark)]">
+              Iniciar sesión
+            </span>
           </Link>
         </motion.div>
       </motion.div>

@@ -128,51 +128,53 @@
   --primary: #3f51b5;
   --primary-dark: #2b3675;
   --primary-light: #8091f5;
-  --secondary: #3c27b0;
+  --secondary: #44378e;
   --secondary-dark: #192270;
   --secondary-light: #a797fd;
 }
 
 /* Light theme (default) */
 :root {
-  --background: #f8fafc;
-  --card-background: #f4f3f3;
-  --input-background: #e4dfdf;
-  --card-border: #e2e8f0;
-  --text-primary: #1e293b;
-  --text-secondary: #828282;
-  --text-muted: #64748b;
+  --background: #f5f7fb;
+  --card-background: #eef0ff;
+  --input-background: #ffffff;
+  --card-border: #adb8eb;
+  --text-primary: #1f2345;
+  --text-secondary: #5c6680;
+  --text-brand-secondary: #32407a;
+  --text-muted: #7a829b;
   --sidebar-bg: #ffffff;
-  --header-bg: var(--primary);
-  --hover-bg: rgba(63, 81, 181, 0.1);
-  --disabled-bg: #f1f5f9;
-  --disabled-text: #94a3b8;
+  --header-bg: #f0f2ff;
+  --hover-bg: rgba(63, 81, 181, 0.12);
+  --disabled-bg: #e9edf7;
+  --disabled-text: #9da7c0;
 
   /* Error colors */
-  --error-bg: #fef2f2;
-  --error-border: #ef4444;
+  --error-bg: #fdecec;
+  --error-border: #f87171;
   --error-text: #b91c1c;
   --error-icon: #ef4444;
 
   /* Success colors */
-  --success: #1b5e20;
-  --success-bg: #e8f5e9;
-  --success-border: #2d6a4f;
+  --success: #2f8530;
+  --success-bg: #cefbcb;
+  --success-border: #38a13f;
 
   /* Warning colors */
-  --warning: #92400e;
-  --warning-bg: #fff7ed;
-  --warning-border: #d97706;
+  --warning: #b7791f;
+  --warning-bg: #fff4de;
+  --warning-border: #f6ad55;
 }
 
 /* Dark theme */
 .dark {
   --background: #0f172a;
-  --card-background: #151d29;
+  --card-background: #05172f;
   --input-background: #28354e;
   --card-border: #334155;
   --text-primary: #ffffff;
   --text-secondary: #97b3db;
+  --text-brand-secondary: var(--secondary-light);
   --text-muted: #64748b;
   --sidebar-bg: #0f172a;
   --header-bg: #0f172a;
@@ -568,17 +570,10 @@ body {
 .main-content {
   height: 100%;
   flex: 1;
-  padding: 0.5rem;
   transition: background-color 0.3s ease-in-out;
   background-color: var(--background);
   overflow-y: auto;
   overscroll-behavior-y: contain; /* evita pull-to-refresh en Android */
-}
-
-@media (max-width: 640px) {
-  .main-content {
-    padding: 0.25rem;
-  }
 }
 
 .main-wrapper {

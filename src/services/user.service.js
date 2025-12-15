@@ -369,6 +369,113 @@ class UserService {
       throw error;
     }
   }
+
+  async getFavorites(type) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Usuario no autenticado");
+
+      const response = await fetch(USER_ROUTES.FAVORITES_BY_TYPE(type), {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.message || "Error al obtener favoritos");
+      }
+
+      // Back devuelve objetos poblados en `favorites`
+      const favorites = Array.isArray(data.favorites) ? data.favorites : [];
+      return favorites.map((u) => this.processUserData(u));
+    } catch (error) {
+      console.error("Error in getFavorites:", error);
+      throw error;
+    }
+  }
+
+  async addFavorite(targetUserId, type) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Usuario no autenticado");
+
+      const response = await fetch(USER_ROUTES.FAVORITES_ADD, {
+        method: "POST",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+        body: JSON.stringify({ targetUserId, type }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.message || "Error al agregar a favoritos");
+      }
+
+      // Back devuelve `favorites` como array de IDs
+      return data;
+    } catch (error) {
+      console.error("Error in addFavorite:", error);
+      throw error;
+    }
+  }
+
+  async removeFavorite(targetUserId, type) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Usuario no autenticado");
+
+      const response = await fetch(USER_ROUTES.FAVORITES_REMOVE, {
+        method: "POST",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+        body: JSON.stringify({ targetUserId, type }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.message || "Error al eliminar de favoritos");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error in removeFavorite:", error);
+      throw error;
+    }
+  }
 }
 
 export const userService = new UserService();

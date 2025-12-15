@@ -21,13 +21,26 @@ const defaultCenter = {
 };
 
 const markerColors = [
-  "red",
-  "blue",
-  "green",
-  "yellow",
-  "purple",
-  "orange",
-  "pink",
+  "#FF0000", // Rojo brillante
+  "#0066FF", // Azul royal
+  "#00CC00", // Verde brillante
+  "#FF6600", // Naranja
+  "#9900FF", // Púrpura
+  "#FF0099", // Rosa fucsia
+  "#00CCCC", // Cian
+  "#FFCC00", // Amarillo oro
+  "#FF3366", // Rosa rojizo
+  "#0099FF", // Azul cielo
+  "#66FF00", // Verde lima
+  "#FF9900", // Naranja dorado
+  "#CC00FF", // Magenta
+  "#00FF99", // Verde agua
+  "#FF0066", // Rosa intenso
+  "#3366FF", // Azul medio
+  "#CCFF00", // Amarillo lima
+  "#FF6699", // Rosa claro
+  "#0033CC", // Azul oscuro
+  "#CC6600", // Naranja oscuro
 ];
 
 const formatDate = (dateString) => {
@@ -453,12 +466,6 @@ const SurveyMap = ({
               position={{ lat: mark.lat, lng: mark.lng }}
               onClick={() => handleMarkerClick(mark)}
               icon={customIcon}
-              label={{
-                text: mark.index.toString(),
-                color: "white",
-                fontSize: "12px",
-                fontWeight: "bold",
-              }}
               zIndex={1000}
             />
           );
@@ -469,41 +476,89 @@ const SurveyMap = ({
             position={{ lat: selectedMarker.lat, lng: selectedMarker.lng }}
             onCloseClick={() => setSelectedMarker(null)}
           >
-            <div className="p-3 max-w-sm">
-              <div className="border-b pb-2 mb-2 border-gray-200">
-                <p className="font-bold text-base text-gray-900">
+            <div style={{ 
+              padding: '12px', 
+              maxWidth: '280px',
+              backgroundColor: '#ffffff',
+              color: '#1f2937'
+            }}>
+              <div style={{ 
+                borderBottom: '1px solid #e5e7eb', 
+                paddingBottom: '8px', 
+                marginBottom: '8px' 
+              }}>
+                <p style={{ 
+                  fontWeight: 'bold', 
+                  fontSize: '16px', 
+                  color: '#111827',
+                  margin: '0 0 4px 0'
+                }}>
                   Caso #{selectedMarker.index}
                 </p>
-                <p className="text-sm text-gray-700 font-medium">
-                  {selectedMarker.fullName}
+                <p style={{ 
+                  fontSize: '14px', 
+                  color: '#374151',
+                  fontWeight: '500',
+                  margin: '0 0 4px 0'
+                }}>
+                  {selectedMarker.fullName || 'Sin nombre'}
                 </p>
-                <p className="text-xs text-gray-600">
-                  {selectedMarker.createdAt &&
-                    formatDate(selectedMarker.createdAt)}
-                </p>
-                {selectedMarker.time && (
-                  <p className="text-xs text-gray-600">
-                    Duración: {Math.round(selectedMarker.time / 60)} min
+                {selectedMarker.createdAt && (
+                  <p style={{ 
+                    fontSize: '12px', 
+                    color: '#6b7280',
+                    margin: '0 0 2px 0'
+                  }}>
+                    📅 {formatDate(selectedMarker.createdAt)}
+                  </p>
+                )}
+                {selectedMarker.time && selectedMarker.time > 0 && (
+                  <p style={{ 
+                    fontSize: '12px', 
+                    color: '#6b7280',
+                    margin: '0'
+                  }}>
+                    ⏱️ Duración: {Math.round(selectedMarker.time / 60)} min
                   </p>
                 )}
               </div>
               {selectedMarker.quotaAnswers &&
                 Object.keys(selectedMarker.quotaAnswers).length > 0 && (
-                  <div className="text-sm">
-                    <p className="font-semibold mb-1 text-gray-900">Cuotas:</p>
-                    <div className="flex flex-wrap gap-1">
+                  <>
+                    <p style={{ 
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      color: '#111827',
+                      margin: '0 0 6px 0'
+                    }}>
+                      Cuotas:
+                    </p>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '4px',
+                      margin: '0'
+                    }}>
                       {Object.entries(selectedMarker.quotaAnswers).map(
                         ([key, value]) => (
                           <span
                             key={key}
-                            className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full font-medium"
+                            style={{
+                              fontSize: '11px',
+                              padding: '4px 8px',
+                              backgroundColor: '#e0e7ff',
+                              color: '#4338ca',
+                              borderRadius: '12px',
+                              fontWeight: '500',
+                              display: 'inline-block'
+                            }}
                           >
                             {key}: {value}
                           </span>
                         )
                       )}
                     </div>
-                  </div>
+                  </>
                 )}
             </div>
           </InfoWindow>

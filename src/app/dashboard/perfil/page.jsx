@@ -763,7 +763,7 @@ export default function PerfilPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-[var(--text-secondary)]">
-                      DNI
+                      N° de Documento / Cédula
                     </label>
                     {isEditing ? (
                       <div className="relative">
@@ -774,7 +774,7 @@ export default function PerfilPage() {
                             setFormData({ ...formData, dni: e.target.value })
                           }
                           className="w-full px-4 py-3 pl-12 rounded-xl bg-[var(--input-background)] border border-[var(--card-border)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all duration-200"
-                          placeholder="12345678"
+                          placeholder="Número de documento"
                         />
                         <svg
                           className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]"
@@ -806,7 +806,7 @@ export default function PerfilPage() {
                           />
                         </svg>
                         <span className="text-[var(--text-primary)] font-medium">
-                          {user?.dni || "Sin DNI"}
+                          {user?.dni || user?.documentNumber || "Sin especificar"}
                         </span>
                       </div>
                     )}

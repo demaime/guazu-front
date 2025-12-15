@@ -17,6 +17,7 @@ import {
   LogOut,
   LayoutGrid,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import { themeService } from "@/services/theme.service";
 import { motion, AnimatePresence } from "framer-motion";
@@ -205,7 +206,8 @@ function DashboardLayoutContent({ children }) {
 
       if (userRole === "ROLE_ADMIN") {
         items.push(
-          { path: "usuarios", label: "Usuarios", icon: Users }
+          { path: "usuarios", label: "Usuarios", icon: Users },
+          { path: "temporal", label: "Nuevo Creador", icon: Sparkles }
           // { path: "encuestadores", label: "Encuestadores", icon: UserRoundPen }
         );
       } else if (userRole === "SUPERVISOR") {

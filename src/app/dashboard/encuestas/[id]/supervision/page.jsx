@@ -23,16 +23,28 @@ import DailyResponsesChart from "@/components/dashboard/DailyResponsesChart";
 import PollsterAverageTime from "@/components/dashboard/PollsterAverageTime";
 import ExportControls from "@/components/ExportControls/ExportControls";
 
-// Colores para los encuestadores
+// Colores para los encuestadores - Paleta ampliada con colores bien distinguibles
 const markerColors = [
-  "#6366f1", // indigo
-  "#8b5cf6", // purple
-  "#ec4899", // pink
-  "#f59e0b", // amber
-  "#10b981", // emerald
-  "#06b6d4", // cyan
-  "#ef4444", // red
-  "#3b82f6", // blue
+  "#FF0000", // Rojo brillante
+  "#0066FF", // Azul royal
+  "#00CC00", // Verde brillante
+  "#FF6600", // Naranja
+  "#9900FF", // Púrpura
+  "#FF0099", // Rosa fucsia
+  "#00CCCC", // Cian
+  "#FFCC00", // Amarillo oro
+  "#FF3366", // Rosa rojizo
+  "#0099FF", // Azul cielo
+  "#66FF00", // Verde lima
+  "#FF9900", // Naranja dorado
+  "#CC00FF", // Magenta
+  "#00FF99", // Verde agua
+  "#FF0066", // Rosa intenso
+  "#3366FF", // Azul medio
+  "#CCFF00", // Amarillo lima
+  "#FF6699", // Rosa claro
+  "#0033CC", // Azul oscuro
+  "#CC6600", // Naranja oscuro
 ];
 
 // Función auxiliar para formatear fechas

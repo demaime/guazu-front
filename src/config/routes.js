@@ -49,4 +49,7 @@ export const USER_ROUTES = {
   UPDATE: `${API_URL}/api/update`,
   UPDATE_PASSWORD: `${API_URL}/api/changepassword`,
   UPDATE_IMAGE: `${API_URL}/api/upload-image-user`,
+  FAVORITES_ADD: `${API_URL}/api/favorites/add`,
+  FAVORITES_REMOVE: `${API_URL}/api/favorites/remove`,
+  FAVORITES_BY_TYPE: (type) => `${API_URL}/api/favorites/${type}`,
 };

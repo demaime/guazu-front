@@ -16,6 +16,7 @@ export default function LocationSelector({
   value,
   onChange,
   disabled = false,
+  country = "AR", // País por defecto Argentina
 }) {
   const [provinces, setProvinces] = useState([]);
   const [localities, setLocalities] = useState([]); // Almacena todas las de la prov
@@ -27,23 +28,33 @@ export default function LocationSelector({
   const [localidadQuery, setLocalidadQuery] = useState("");
   const [isLocalidadInputFocused, setIsLocalidadInputFocused] = useState(false);
 
+  // Determinar labels según el país
+  const locationLabel = useMemo(() => {
+    return country === "PY" ? "Departamento" : "Provincia";
+  }, [country]);
+
+  const localityLabel = useMemo(() => {
+    return country === "PY" ? "Distrito" : "Localidad";
+  }, [country]);
+
   const isCABA = useMemo(
     () =>
-      value?.province?.id === "02" ||
-      value?.province?.name
-        ?.toLowerCase()
-        .includes("autónoma de buenos aires") ||
-      value?.province?.name?.toLowerCase() === "caba",
-    [value?.province]
+      country === "AR" &&
+      (value?.province?.id === "ciudad_de_buenos_aires" ||
+        value?.province?.name
+          ?.toLowerCase()
+          .includes("autónoma de buenos aires") ||
+        value?.province?.name?.toLowerCase() === "caba"),
+    [value?.province, country]
   );
 
-  // Carga inicial de provincias
+  // Carga inicial de provincias/departamentos según país
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading((s) => ({ ...s, prov: true }));
-        const provs = await georefClient.getProvincias();
+        const provs = await georefClient.getProvincias(country);
         if (mounted) setProvinces(provs);
       } finally {
         if (mounted) setLoading((s) => ({ ...s, prov: false }));
@@ -52,9 +63,9 @@ export default function LocationSelector({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [country]); // Recargar cuando cambia el país
 
-  // Carga de localidades/comunas cuando cambia la provincia
+  // Carga de localidades/comunas/distritos cuando cambia la provincia/departamento
   useEffect(() => {
     if (!value?.province?.id) {
       setLocalities([]);
@@ -65,10 +76,10 @@ export default function LocationSelector({
     (async () => {
       setLoading((s) => ({ ...s, loc: true }));
       try {
-        const items = await georefClient.getLocalidades(value.province.id);
+        const items = await georefClient.getLocalidades(value.province.id, country);
         if (mounted) setLocalities(items);
       } catch (err) {
-        console.error("Error cargando localidades/comunas", err);
+        console.error("Error cargando localidades/comunas/distritos", err);
         if (mounted) setLocalities([]);
       } finally {
         if (mounted) setLoading((s) => ({ ...s, loc: false }));
@@ -78,7 +89,7 @@ export default function LocationSelector({
     return () => {
       mounted = false;
     };
-  }, [value?.province?.id]);
+  }, [value?.province?.id, country]);
 
   // Filtrado de localidades en el cliente (instantáneo)
   useEffect(() => {
@@ -137,7 +148,7 @@ export default function LocationSelector({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <label className="block text-sm font-medium text-white uppercase">
-          Provincia
+          {locationLabel}
         </label>
         <select
           disabled={disabled || loading.prov}
@@ -158,7 +169,7 @@ export default function LocationSelector({
 
       <div className="relative">
         <label className="block text-sm font-medium text-white uppercase">
-          {isCABA ? "Comuna" : "Localidad"}
+          {isCABA ? "Comuna" : localityLabel}
         </label>
         <input
           type="text"
@@ -168,8 +179,8 @@ export default function LocationSelector({
             loading.loc
               ? "Cargando..."
               : !value?.province?.id
-              ? "Seleccione una provincia"
-              : `Buscar ${isCABA ? "comuna" : "localidad"}`
+              ? `Seleccione ${locationLabel.toLowerCase()}`
+              : `Buscar ${isCABA ? "comuna" : localityLabel.toLowerCase()}`
           }
           value={localidadQuery || currentSelectionName || ""}
           onFocus={() => {

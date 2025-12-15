@@ -29,14 +29,16 @@ const PollsterFilter = ({
               }`}
             >
               <div className="flex items-center gap-2">
-                <div
-                  className={`w-3 h-3 rounded-full ${
-                    isSelected ? "ring-2 ring-white" : ""
-                  }`}
-                  style={{
-                    backgroundColor: colors[pollster.id] || "var(--primary)",
-                  }}
-                />
+                {pollster.id !== "all" && (
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      isSelected ? "ring-2 ring-white" : ""
+                    }`}
+                    style={{
+                      backgroundColor: colors[pollster.id] || "var(--primary)",
+                    }}
+                  />
+                )}
                 <span
                   className={`text-sm ${
                     isSelected
