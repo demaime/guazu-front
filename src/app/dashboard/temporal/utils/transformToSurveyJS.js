@@ -32,7 +32,7 @@ function mapQuestionType(tipoTemporal) {
 /**
  * Transforma una pregunta temporal individual a formato SurveyJS
  */
-function transformPregunta(pregunta, _moduloNombre) {
+function transformPregunta(pregunta) {
   const element = {
     type: mapQuestionType(pregunta.tipo),
     name: pregunta.value || `pregunta_${pregunta.id}`,
@@ -202,7 +202,7 @@ export function transformModulosToSurveyJS(modulos) {
     
     if (modulo.preguntas && Array.isArray(modulo.preguntas)) {
       modulo.preguntas.forEach(pregunta => {
-        const element = transformPregunta(pregunta, modulo.nombre);
+        const element = transformPregunta(pregunta);
         elements.push(element);
       });
     }
