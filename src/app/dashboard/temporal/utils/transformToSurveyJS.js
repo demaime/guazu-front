@@ -32,7 +32,7 @@ function mapQuestionType(tipoTemporal) {
 /**
  * Transforma una pregunta temporal individual a formato SurveyJS
  */
-function transformPregunta(pregunta, moduloNombre) {
+function transformPregunta(pregunta, _moduloNombre) {
   const element = {
     type: mapQuestionType(pregunta.tipo),
     name: pregunta.value || `pregunta_${pregunta.id}`,
@@ -81,7 +81,7 @@ function transformPregunta(pregunta, moduloNombre) {
       }
       break;
 
-    case 'escala':
+    case 'escala': {
       // Escala puede ser rating o radiogroup según configuración
       const config = pregunta.configuracionEscala || {};
       
@@ -100,6 +100,7 @@ function transformPregunta(pregunta, moduloNombre) {
         }));
       }
       break;
+    }
 
     case 'matriz':
     case 'matriz-multiple':
