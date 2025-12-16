@@ -86,6 +86,7 @@ export default function FormBuilder() {
   
   const [modalEditarPregunta, setModalEditarPregunta] = useState(null); // { moduloId, preguntaId }
   const [modalConfirmEliminar, setModalConfirmEliminar] = useState(null); // { tipo: 'modulo'|'pregunta', data: {...} }
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [externalUpdateForQuestion, setExternalUpdateForQuestion] = useState(null);
   
   const [historial, setHistorial] = useState([]);
@@ -268,7 +269,7 @@ export default function FormBuilder() {
     { value: 'matriz-multiple', label: 'Matriz con opción múltiple', icon: Grid3x3 },
     { value: 'matriz-dinamica', label: 'Matriz con fila dinámica', icon: Grid3x3 },
     { value: 'desplegable', label: 'Desplegable con buscador', icon: ChevronDown },
-    { value: 'escala', label: 'Escala Muy buena - Muy mala', icon: BarChart3 },
+    { value: 'escala', label: 'Escala', icon: BarChart3 },
     { value: 'ordenar', label: 'Ordenar opciones', icon: GripVertical },
     { value: 'fecha', label: 'Fecha', icon: Calendar },
     { value: 'foto', label: 'Foto', icon: Camera },
@@ -1167,13 +1168,26 @@ export default function FormBuilder() {
           cancelText="Cancelar"
         />
 
+        <ConfirmModal
+          isOpen={showCancelConfirm}
+          onClose={() => setShowCancelConfirm(false)}
+          onConfirm={() => {
+            setShowCancelConfirm(false);
+            router.push('/dashboard/temporal');
+          }}
+          title="¿Descartar cambios?"
+          message="Se perderá el trabajo realizado si sales sin guardar. ¿Estás seguro de que deseas salir?"
+          confirmText="Salir sin guardar"
+          cancelText="Seguir editando"
+        />
+
         {/* Botones de acción */}
         <div className="flex gap-3 mt-6">
           <button 
             onClick={() => {
               if (modulos.some(m => m.preguntas && m.preguntas.length > 0)) {
-                const confirmar = window.confirm("¿Estás seguro? Se perderá el trabajo realizado si sales sin guardar.");
-                if (!confirmar) return;
+                setShowCancelConfirm(true);
+                return;
               }
               router.push('/dashboard/temporal');
             }}

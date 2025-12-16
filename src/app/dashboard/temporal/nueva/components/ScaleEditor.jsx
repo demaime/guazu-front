@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
 
 export default function ScaleEditor({ 
   configuracion = {},
@@ -80,14 +81,22 @@ export default function ScaleEditor({
 
   const escalaSeleccionada = escalasPredifinidas.find(e => e.id === configuracion.escalaPredefinida) || escalasPredifinidas[0];
   const puntosPersonalizado = configuracion.puntos || 5;
-  const extremoIzq = configuracion.extremoIzquierdo || 'Mínimo';
-  const extremoDer = configuracion.extremoDerecho || 'Máximo';
+  const extremoIzq = configuracion.extremoIzquierdo || '';
+  const extremoDer = configuracion.extremoDerecho || '';
+
+  // Initialize checks
+  useEffect(() => {
+    if (!configuracion.modo) {
+        handleModoChange('predefinida');
+    }
+  }, []);
 
   const handleModoChange = (nuevoModo) => {
     setModo(nuevoModo);
     if (nuevoModo === 'predefinida') {
       const escala = escalasPredifinidas[0];
       onUpdate({
+        ...configuracion,
         modo: 'predefinida',
         escalaPredefinida: escala.id,
         opciones: escala.opciones,
@@ -96,17 +105,20 @@ export default function ScaleEditor({
         extremoDerecho: escala.extremoDerecho
       });
     } else {
-      // Generar opciones personalizadas
-      const opciones = Array.from({ length: puntosPersonalizado }, (_, i) => ({
+      // Initialize module with current config or defaults, but ensure options exist
+      const currentPuntos = configuracion.puntos || 5;
+      const opciones = Array.from({ length: currentPuntos }, (_, i) => ({
         value: String(i + 1),
         text: String(i + 1)
       }));
+      
       onUpdate({
+        ...configuracion,
         modo: 'personalizada',
         opciones,
-        puntos: puntosPersonalizado,
-        extremoIzquierdo: extremoIzq,
-        extremoDerecho: extremoDer
+        puntos: currentPuntos,
+        extremoIzquierdo: configuracion.extremoIzquierdo || 'Mínimo',
+        extremoDerecho: configuracion.extremoDerecho || 'Máximo'
       });
     }
   };
@@ -115,6 +127,7 @@ export default function ScaleEditor({
     const escala = escalasPredifinidas.find(e => e.id === escalaId);
     if (escala) {
       onUpdate({
+        ...configuracion,
         modo: 'predefinida',
         escalaPredefinida: escala.id,
         opciones: escala.opciones,
@@ -125,27 +138,54 @@ export default function ScaleEditor({
     }
   };
 
-  const handlePersonalizadaChange = (campo, valor) => {
-    const nuevosPuntos = campo === 'puntos' ? parseInt(valor) || 3 : puntosPersonalizado;
-    const nuevoExtremoIzq = campo === 'extremoIzquierdo' ? valor : extremoIzq;
-    const nuevoExtremoDer = campo === 'extremoDerecho' ? valor : extremoDer;
+  const handlePuntosChange = (valor) => {
+    const nuevosPuntos = Math.max(2, Math.min(100, parseInt(valor) || 2));
     
-    const opciones = Array.from({ length: nuevosPuntos }, (_, i) => ({
-      value: String(i + 1),
-      text: String(i + 1)
-    }));
-    
+    // Regenerate options keeping existing texts if possible
+    const oldOptions = configuracion.opciones || [];
+    const nuevasOpciones = Array.from({ length: nuevosPuntos }, (_, i) => {
+      // Try to keep existing options if they exist
+      if (i < oldOptions.length) {
+        return oldOptions[i];
+      }
+      return {
+        value: String(i + 1),
+        text: String(i + 1)
+      };
+    });
+
     onUpdate({
+      ...configuracion,
       modo: 'personalizada',
-      opciones,
       puntos: nuevosPuntos,
-      extremoIzquierdo: nuevoExtremoIzq,
-      extremoDerecho: nuevoExtremoDer
+      opciones: nuevasOpciones
     });
   };
 
+  const handleExtremoChange = (campo, valor) => {
+    onUpdate({
+      ...configuracion,
+      [campo]: valor
+    });
+  };
+
+  const handleOpcionTextChange = (index, nuevoTexto) => {
+    const nuevasOpciones = [...(configuracion.opciones || [])];
+    if (nuevasOpciones[index]) {
+      nuevasOpciones[index] = { ...nuevasOpciones[index], text: nuevoTexto };
+      onUpdate({
+        ...configuracion,
+        opciones: nuevasOpciones
+      });
+    }
+  };
+
+  const opcionesDisplay = modo === 'predefinida' ? escalaSeleccionada.opciones : (configuracion.opciones || []);
+  const izquierdoDisplay = modo === 'predefinida' ? escalaSeleccionada.extremoIzquierdo : extremoIzq;
+  const derechoDisplay = modo === 'predefinida' ? escalaSeleccionada.extremoDerecho : extremoDer;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Selector de modo */}
       <div>
         <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
@@ -196,87 +236,115 @@ export default function ScaleEditor({
           </select>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-              Número de puntos
+              Cantidad de opciones (2-100)
             </label>
-            <select
+            <input 
+              type="number"
+              min="2"
+              max="100"
               value={puntosPersonalizado}
-              onChange={(e) => handlePersonalizadaChange('puntos', e.target.value)}
+              onChange={(e) => handlePuntosChange(e.target.value)}
               className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
-            >
-              {[3, 4, 5, 7, 10].map(n => (
-                <option key={n} value={n}>{n} puntos</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-              Extremo izquierdo (valor mínimo)
-            </label>
-            <input
-              type="text"
-              value={extremoIzq}
-              onChange={(e) => handlePersonalizadaChange('extremoIzquierdo', e.target.value)}
-              placeholder="Ej: Muy mala, Nunca, Totalmente en desacuerdo"
-              className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
+                Extremo Izquierdo
+              </label>
+              <input
+                type="text"
+                value={extremoIzq}
+                onChange={(e) => handleExtremoChange('extremoIzquierdo', e.target.value)}
+                placeholder="Ej: Mínimo"
+                className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
+                Extremo Derecho
+              </label>
+              <input
+                type="text"
+                value={extremoDer}
+                onChange={(e) => handleExtremoChange('extremoDerecho', e.target.value)}
+                placeholder="Ej: Máximo"
+                className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
+              />
+            </div>
+          </div>
+
           <div>
-            <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-              Extremo derecho (valor máximo)
+             <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
+              Etiquetas de las opciones
             </label>
-            <input
-              type="text"
-              value={extremoDer}
-              onChange={(e) => handlePersonalizadaChange('extremoDerecho', e.target.value)}
-              placeholder="Ej: Muy buena, Siempre, Totalmente de acuerdo"
-              className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
-            />
+            <div className="flex items-center gap-2 px-3 pb-1 text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
+              <div className="w-6 text-right">#</div>
+              <div className="flex-1">Etiqueta</div>
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-2 border border-[color:var(--card-border)] rounded-lg p-3 bg-[color:var(--bg-secondary)]">
+                {configuracion.opciones?.map((opcion, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-[color:var(--text-tertiary)] w-6 text-right">{index + 1}</span>
+                        <input
+                            type="text"
+                            value={opcion.text}
+                            onChange={(e) => handleOpcionTextChange(index, e.target.value)}
+                            className="flex-1 px-2 py-1.5 rounded bg-[color:var(--input-background)] border border-[color:var(--card-border)] text-sm focus:border-[color:var(--primary)] focus:outline-none"
+                        />
+                    </div>
+                ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* Vista previa */}
-      <div className="p-4 bg-[color:var(--hover-bg)] rounded-lg border border-[color:var(--card-border)]">
+      <div className="mt-6">
         <p className="text-xs font-semibold text-[color:var(--text-secondary)] mb-3 uppercase tracking-wide">
           Vista previa
         </p>
-        <div className="space-y-3">
-          {/* Extremos */}
-          <div className="flex justify-between text-xs text-[color:var(--text-secondary)]">
-            <span>{modo === 'predefinida' ? escalaSeleccionada.extremoIzquierdo : extremoIzq}</span>
-            <span>{modo === 'predefinida' ? escalaSeleccionada.extremoDerecho : extremoDer}</span>
-          </div>
+        <div className="p-6 bg-[color:var(--hover-bg)] rounded-xl border border-[color:var(--card-border)]">
           
-          {/* Escala visual */}
-          <div className="flex gap-1">
-            {(modo === 'predefinida' ? escalaSeleccionada.opciones : configuracion.opciones || []).map((opcion, index) => (
-              <div
-                key={opcion.value}
-                className="flex-1 aspect-square flex items-center justify-center rounded-lg border-2 border-[color:var(--card-border)] bg-[color:var(--card-background)] text-[color:var(--text-primary)] text-xs font-medium hover:border-[color:var(--primary)] transition-colors"
-                title={opcion.text}
-              >
-                {opcion.value}
-              </div>
-            ))}
-          </div>
+          <div className="space-y-4">
+             {/* Textos extremos */}
+            <div className="flex justify-between text-sm font-medium text-[color:var(--text-secondary)] px-1">
+                <span>{izquierdoDisplay}</span>
+                <span>{derechoDisplay}</span>
+            </div>
 
-          {/* Lista de opciones */}
-          <div className="max-h-40 overflow-y-auto space-y-1">
-            {(modo === 'predefinida' ? escalaSeleccionada.opciones : configuracion.opciones || []).map((opcion) => (
-              <div key={opcion.value} className="flex items-center gap-2 text-xs">
-                <span className="font-mono bg-[color:var(--primary)] text-white px-2 py-0.5 rounded">
-                  {opcion.value}
-                </span>
-                <span className="text-[color:var(--text-primary)]">
-                  {opcion.text}
-                </span>
-              </div>
-            ))}
+            {/* Visual Scale */}
+            <div className="flex flex-wrap gap-2 justify-center">
+                {opcionesDisplay.map((opcion, index) => (
+                    <div 
+                        key={index}
+                        className={`
+                            min-w-[40px] px-3 py-2 
+                            flex items-center justify-center 
+                            rounded-md border border-[color:var(--card-border)] 
+                            bg-[color:var(--card-background)] text-[color:var(--text-primary)] 
+                            text-sm font-medium shadow-sm
+                            transition-all
+                        `}
+                        title={opcion.text}
+                    >
+                        {opcion.text}
+                    </div>
+                ))}
+            </div>
+            
+             {/* Explanation hint */}
+             {modo === 'personalizada' && opcionesDisplay.length > 10 && (
+                <p className="text-xs text-center text-[color:var(--text-tertiary)]">
+                    * La visualización puede variar según el tamaño de pantalla del dispositivo.
+                </p>
+             )}
+
           </div>
         </div>
       </div>

@@ -85,24 +85,14 @@ export default function BulkAddModal({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Panel de entrada */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
                 <label className="block text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
                   Texto (una opción por línea)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="text-xs text-[color:var(--primary)] hover:underline flex items-center gap-1"
-                >
-                  <Eye size={12} />
-                  {showPreview ? 'Ocultar' : 'Mostrar'} preview
-                </button>
-              </div>
+
               <textarea
                 value={texto}
                 onChange={(e) => {
                   setTexto(e.target.value);
-                  if (e.target.value.length > 0) setShowPreview(true);
                 }}
                 onPaste={handlePaste}
                 placeholder={placeholder}
@@ -122,7 +112,7 @@ export default function BulkAddModal({
               </label>
               <div className="border border-[color:var(--card-border)] rounded-lg bg-[color:var(--hover-bg)] p-3 h-[calc(12*1.5rem+2rem)] overflow-y-auto">
                 <AnimatePresence mode="popLayout">
-                  {showPreview && opcionesPreview.length > 0 ? (
+                  {opcionesPreview.length > 0 ? (
                     <div className="space-y-2">
                       {opcionesPreview.map((opcion, index) => (
                         <motion.div
@@ -181,4 +171,6 @@ export default function BulkAddModal({
     </div>
   );
 }
+
+
 

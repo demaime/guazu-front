@@ -104,99 +104,106 @@ export default function OptionsEditor({
               Carga rápida
             </button>
           )}
-          <button
-            type="button"
-            onClick={agregarOpcion}
-            className="px-2 py-1 text-xs rounded-lg bg-[color:var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1"
-          >
-            <Plus size={12} />
-            Agregar
-          </button>
         </div>
       </div>
 
-      {/* Lista de opciones */}
-      <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-        <AnimatePresence mode="popLayout">
-          {opciones.map((opcion, index) => (
-            <motion.div
-              key={`${index}-${opcion.value}`}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              draggable={allowReorder}
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragEnd={handleDragEnd}
-              className={`flex items-center gap-2 p-2 rounded-lg border border-[color:var(--card-border)] bg-[color:var(--card-background)] transition-all ${
-                draggingIndex === index ? 'opacity-50' : ''
-              } ${allowReorder ? 'cursor-move' : ''}`}
-            >
-              {/* Drag handle */}
-              {allowReorder && (
-                <div className="text-[color:var(--text-muted)] cursor-grab active:cursor-grabbing">
-                  <GripVertical size={16} />
-                </div>
-              )}
-
-              {/* Variable (value) */}
-              <div className="relative">
-                {editingValueIndex === index ? (
-                  <input
-                    type="text"
-                    value={opcion.value}
-                    onChange={(e) => actualizarOpcion(index, 'value', e.target.value)}
-                    onBlur={() => setEditingValueIndex(null)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') setEditingValueIndex(null);
-                    }}
-                    className="w-12 px-2 py-1 text-xs text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
-                    autoFocus
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEditingValueIndex(index)}
-                    className="w-12 px-2 py-1 text-xs text-center rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors"
-                    title="Clic para editar variable"
-                  >
-                    {opcion.value}
-                  </button>
-                )}
-              </div>
-
-              {/* Texto de la opción */}
-              <input
-                ref={index === opciones.length - 1 ? lastInputRef : null}
-                type="text"
-                value={opcion.text}
-                onChange={(e) => actualizarOpcion(index, 'text', e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, index)}
-                placeholder={`Opción ${index + 1}`}
-                className="flex-1 px-3 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
-              />
-
-              {/* Botón eliminar */}
-              <button
-                type="button"
-                onClick={() => eliminarOpcion(index)}
-                className="p-1.5 text-[color:var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
-                title="Eliminar opción"
-              >
-                <Trash2 size={16} />
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Mensaje si no hay opciones */}
-      {opciones.length === 0 && (
-        <div className="text-center py-8 text-[color:var(--text-muted)] text-sm border-2 border-dashed border-[color:var(--card-border)] rounded-lg">
-          No hay opciones. Haz clic en "Agregar" para crear una.
+      {/* Encabezados de columnas */}
+      {opciones.length > 0 && (
+        <div className="flex items-center gap-2 px-2 text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
+          {allowReorder && <div className="w-4 text-center" title="Orden">#</div>}
+          <div className="w-20 text-center">Variable</div>
+          <div className="flex-1">Texto</div>
+          <div className="w-7"></div> {/* Espacio para eliminar */}
         </div>
       )}
+
+      {/* Lista de opciones */}
+      <div className="space-y-2">
+        <div className="max-h-80 overflow-y-auto pr-1 space-y-2">
+          <AnimatePresence mode="popLayout">
+            {opciones.map((opcion, index) => (
+              <motion.div
+                key={`${index}-${opcion.value}`}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                draggable={allowReorder}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-center gap-2 p-2 rounded-lg border border-[color:var(--card-border)] bg-[color:var(--card-background)] transition-all ${
+                  draggingIndex === index ? 'opacity-50' : ''
+                } ${allowReorder ? 'cursor-move' : ''}`}
+              >
+                {/* Drag handle */}
+                {allowReorder && (
+                  <div className="text-[color:var(--text-muted)] cursor-grab active:cursor-grabbing w-4 flex justify-center">
+                    <GripVertical size={16} />
+                  </div>
+                )}
+
+                {/* Variable (value) */}
+                <div className="relative w-20 flex justify-center">
+                  {editingValueIndex === index ? (
+                    <input
+                      type="text"
+                      value={opcion.value}
+                      onChange={(e) => actualizarOpcion(index, 'value', e.target.value)}
+                      onBlur={() => setEditingValueIndex(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') setEditingValueIndex(null);
+                      }}
+                      className="w-16 px-2 py-1 text-xs text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditingValueIndex(index)}
+                      className="w-16 px-2 py-1 text-xs text-center rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors truncate"
+                      title="Clic para editar variable"
+                    >
+                      {opcion.value}
+                    </button>
+                  )}
+                </div>
+
+                {/* Texto de la opción */}
+                <input
+                  ref={index === opciones.length - 1 ? lastInputRef : null}
+                  type="text"
+                  value={opcion.text}
+                  onChange={(e) => actualizarOpcion(index, 'text', e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  placeholder={`Opción ${index + 1}`}
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
+                />
+
+                {/* Botón eliminar */}
+                <button
+                  type="button"
+                  onClick={() => eliminarOpcion(index)}
+                  className="p-1.5 text-[color:var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0 w-7 flex justify-center"
+                  title="Eliminar opción"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+        
+        {/* Botón agregar al final */}
+        <button
+          type="button"
+          onClick={agregarOpcion}
+          className="w-full py-2 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] hover:text-[color:var(--primary)] hover:bg-[color:var(--primary)]/5 transition-all group"
+        >
+          <Plus size={16} className="text-[color:var(--text-muted)] group-hover:text-[color:var(--primary)] transition-colors" />
+          <span className="text-sm font-medium">Agregar opción</span>
+        </button>
+      </div>
 
       {/* Info sobre mínimo de opciones */}
       {opciones.length > 0 && opciones.length < 2 && (
@@ -207,4 +214,6 @@ export default function OptionsEditor({
     </div>
   );
 }
+
+
 

@@ -238,15 +238,24 @@ function mapSurveyJSTypeToTemporalType(element) {
   return "texto";
 }
 
+function extractText(val) {
+  if (!val) return "";
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    return val.default || val.es || Object.values(val)[0] || "";
+  }
+  return String(val);
+}
+
 function elementToPregunta(element, idx) {
   const tipo = mapSurveyJSTypeToTemporalType(element);
   const preguntaId = element?.name || `pregunta_${idx + 1}`;
   const base = {
     id: preguntaId,
     value: element?.name || preguntaId,
-    text: element?.title || "",
+    text: extractText(element?.title),
     tipo,
-    indicaciones: element?.description || "",
+    indicaciones: extractText(element?.description),
     requerida: !!element?.isRequired,
   };
 
@@ -255,7 +264,7 @@ function elementToPregunta(element, idx) {
     base.opciones = choices.map((c, i) => ({
       id: `${preguntaId}_opt_${i}`,
       value: c?.value ?? c,
-      text: c?.text ?? String(c?.value ?? c ?? ""),
+      text: extractText(c?.text) || String(c?.value ?? c ?? ""),
     }));
   }
 
@@ -265,7 +274,7 @@ function elementToPregunta(element, idx) {
       base.filas = element.rows.map((r, i) => ({
         id: `${preguntaId}_fila_${i}`,
         value: r?.value ?? r,
-        text: r?.text ?? String(r?.value ?? r ?? ""),
+        text: extractText(r?.text) || String(r?.value ?? r ?? ""),
       }));
     }
     if (Array.isArray(element?.columns)) {
@@ -273,7 +282,7 @@ function elementToPregunta(element, idx) {
       base.columnas = element.columns.map((c, i) => ({
         id: `${preguntaId}_col_${i}`,
         value: c?.value ?? c?.name ?? c,
-        text: c?.text ?? c?.title ?? String(c?.value ?? c?.name ?? c ?? ""),
+        text: extractText(c?.text ?? c?.title) || String(c?.value ?? c?.name ?? c ?? ""),
       }));
     }
   }

@@ -90,125 +90,120 @@ export default function MultiTextFieldsEditor({
         <span className="text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
           Campos del formulario
         </span>
-        <button
-          type="button"
-          onClick={agregarCampo}
-          className="px-2 py-1 text-xs rounded-lg bg-[color:var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1"
-        >
-          <Plus size={12} />
-          Agregar campo
-        </button>
       </div>
 
-      {/* Descripción */}
-      <p className="text-xs text-[color:var(--text-muted)]">
-        Define los campos que el usuario deberá completar. Cada campo puede tener un tipo diferente (texto, número, email, etc.)
-      </p>
+      {/* Encabezados */}
+      {campos.length > 0 && (
+        <div className="flex items-center gap-2 px-2 pb-1 text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
+          {allowReorder && <div className="w-4 text-center" title="Orden">#</div>}
+          <div className="w-20 text-center">Variable</div>
+          <div className="flex-1">Etiqueta</div>
+          <div className="w-24">Tipo</div>
+          <div className="w-7"></div>
+        </div>
+      )}
 
       {/* Lista de campos */}
-      <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-        <AnimatePresence mode="popLayout">
-          {campos.map((campo, index) => (
-            <motion.div
-              key={`${index}-${campo.value}`}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              draggable={allowReorder}
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragEnd={handleDragEnd}
-              className={`p-3 rounded-lg border border-[color:var(--card-border)] bg-[color:var(--card-background)] transition-all ${
-                draggingIndex === index ? 'opacity-50' : ''
-              } ${allowReorder ? 'cursor-move' : ''}`}
-            >
-              <div className="flex items-start gap-2">
+      <div className="space-y-2">
+        <div className="max-h-96 overflow-y-auto pr-1 space-y-2">
+          <AnimatePresence mode="popLayout">
+            {campos.map((campo, index) => (
+              <motion.div
+                key={`${index}-${campo.value}`}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                draggable={allowReorder}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`flex items-center gap-2 p-2 rounded-lg border border-[color:var(--card-border)] bg-[color:var(--card-background)] transition-all ${
+                  draggingIndex === index ? 'opacity-50' : ''
+                } ${allowReorder ? 'cursor-move' : ''}`}
+              >
                 {/* Drag handle */}
                 {allowReorder && (
-                  <div className="text-[color:var(--text-muted)] cursor-grab active:cursor-grabbing mt-2">
+                  <div className="text-[color:var(--text-muted)] cursor-grab active:cursor-grabbing w-4 flex justify-center">
                     <GripVertical size={16} />
                   </div>
                 )}
 
-                <div className="flex-1 space-y-2">
-                  {/* Variable (value) */}
-                  <div>
-                    <label className="block text-xs text-[color:var(--text-muted)] mb-1">
-                      Variable (identificador)
-                    </label>
-                    {editingValueIndex === index ? (
-                      <input
-                        type="text"
-                        value={campo.value}
-                        onChange={(e) => actualizarCampo(index, 'value', e.target.value)}
-                        onBlur={() => setEditingValueIndex(null)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') setEditingValueIndex(null);
-                        }}
-                        className="w-full px-2 py-1 text-xs rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
-                        autoFocus
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setEditingValueIndex(index)}
-                        className="w-full text-left px-2 py-1 text-xs rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors"
-                        title="Clic para editar variable"
-                      >
-                        {campo.value}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Label del campo */}
-                  <div>
-                    <label className="block text-xs text-[color:var(--text-muted)] mb-1">
-                      Etiqueta (lo que verá el usuario)
-                    </label>
+                {/* Variable (value) */}
+                <div className="relative w-20">
+                  {editingValueIndex === index ? (
                     <input
-                      ref={index === campos.length - 1 ? lastInputRef : null}
                       type="text"
-                      value={campo.label}
-                      onChange={(e) => actualizarCampo(index, 'label', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, index)}
-                      placeholder={`Ej: Nombre completo, Edad, Dirección...`}
-                      className="w-full px-3 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
+                      value={campo.value}
+                      onChange={(e) => actualizarCampo(index, 'value', e.target.value)}
+                      onBlur={() => setEditingValueIndex(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') setEditingValueIndex(null);
+                      }}
+                      className="w-full px-2 py-1 text-xs text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
+                      autoFocus
                     />
-                  </div>
-
-                  {/* Tipo de campo */}
-                  <div>
-                    <label className="block text-xs text-[color:var(--text-muted)] mb-1">
-                      Tipo de campo
-                    </label>
-                    <select
-                      value={campo.tipo || 'text'}
-                      onChange={(e) => actualizarCampo(index, 'tipo', e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all"
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditingValueIndex(index)}
+                      className="w-full px-2 py-1 text-xs text-center rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors truncate"
+                      title={campo.value}
                     >
-                      {tiposCampo.map(tipo => (
-                        <option key={tipo.value} value={tipo.value}>
-                          {tipo.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      {campo.value}
+                    </button>
+                  )}
+                </div>
+
+                {/* Label del campo */}
+                <input
+                  ref={index === campos.length - 1 ? lastInputRef : null}
+                  type="text"
+                  value={campo.label}
+                  onChange={(e) => actualizarCampo(index, 'label', e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  placeholder="Etiqueta"
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all min-w-0"
+                />
+
+                {/* Tipo de campo */}
+                <div className="w-24">
+                  <select
+                    value={campo.tipo || 'text'}
+                    onChange={(e) => actualizarCampo(index, 'tipo', e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-xs transition-all"
+                  >
+                    {tiposCampo.map(tipo => (
+                      <option key={tipo.value} value={tipo.value}>
+                        {tipo.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Botón eliminar */}
                 <button
                   type="button"
                   onClick={() => eliminarCampo(index)}
-                  className="p-1.5 text-[color:var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0 mt-1"
+                  className="p-1.5 text-[color:var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0 w-7 flex justify-center"
                   title="Eliminar campo"
                 >
                   <Trash2 size={16} />
                 </button>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Botón agregar campo */}
+        <button
+          type="button"
+          onClick={agregarCampo}
+          className="w-full py-2 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] hover:text-[color:var(--primary)] hover:bg-[color:var(--primary)]/5 transition-all group"
+        >
+          <Plus size={16} className="text-[color:var(--text-muted)] group-hover:text-[color:var(--primary)] transition-colors" />
+          <span className="text-sm font-medium">Agregar campo</span>
+        </button>
       </div>
 
       {/* Mensaje si no hay campos */}
@@ -248,4 +243,6 @@ export default function MultiTextFieldsEditor({
     </div>
   );
 }
+
+
 

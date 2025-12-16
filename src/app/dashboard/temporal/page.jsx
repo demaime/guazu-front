@@ -287,24 +287,24 @@ export default function TemporalPage() {
     const activeCount = surveys.filter((s) => s.status === "activa").length;
     const finishedCount = surveys.filter((s) => s.status === "finalizada").length;
     
-    return [
-      {
-        label: "Pendientes de completar",
-        value: pendingCount,
-        icon: Clock,
-        color: "bg-yellow-500",
-      },
-      {
+    return [ {
         label: "Encuestas activas",
         value: activeCount,
         icon: BarChart3,
         color: "bg-blue-500",
       },
       {
+        label: "Pendientes de completar",
+        value: pendingCount,
+        icon: Clock,
+        color: "bg-yellow-500",
+      },
+           {
         label: "Finalizadas",
         value: finishedCount,
         icon: CheckCircle,
         color: "bg-green-500",
+        hideOnMobile: true,
       },
     ];
   }, [surveys]);
@@ -472,9 +472,11 @@ export default function TemporalPage() {
               return (
                 <div
                   key={stat.label}
-                  className="bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl p-3 flex items-center gap-3 shadow-lg"
+                  className={`bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl p-3 items-center gap-3 shadow-lg ${
+                    stat.hideOnMobile ? "hidden sm:flex" : "flex"
+                  }`}
                 >
-                  <div className="w-10 h-10 bg-[color:var(--primary)] rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-[color:var(--primary)] rounded-lg flex items-center justify-center flex-shrink-0">
                     <Icon size={18} className="text-white" />
                   </div>
                   <div>

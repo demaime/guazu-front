@@ -175,12 +175,12 @@ export default function MatrixEditor({
       } ${allowReorder ? 'cursor-move' : ''}`}
     >
       {allowReorder && (
-        <div className="text-[color:var(--text-muted)] cursor-grab active:cursor-grabbing">
+        <div className="text-[color:var(--text-muted)] cursor-grab active:cursor-grabbing w-4 flex justify-center">
           <GripVertical size={16} />
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative w-20 flex justify-center">
         {editingFilaValueIndex === index ? (
           <input
             type="text"
@@ -190,14 +190,14 @@ export default function MatrixEditor({
             onKeyDown={(e) => {
               if (e.key === 'Enter') setEditingFilaValueIndex(null);
             }}
-            className="w-12 px-2 py-1 text-xs text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
+            className="w-16 px-2 py-1 text-xs text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
             autoFocus
           />
         ) : (
           <button
             type="button"
             onClick={() => setEditingFilaValueIndex(index)}
-            className="w-12 px-2 py-1 text-xs text-center rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors"
+            className="w-16 px-2 py-1 text-xs text-center rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors truncate"
             title="Clic para editar variable"
           >
             {fila.value}
@@ -218,7 +218,7 @@ export default function MatrixEditor({
       <button
         type="button"
         onClick={() => eliminarFila(index)}
-        className="p-1.5 text-[color:var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+        className="p-1.5 text-[color:var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0 w-7 flex justify-center"
         title="Eliminar fila"
       >
         <Trash2 size={16} />
@@ -242,12 +242,12 @@ export default function MatrixEditor({
       } ${allowReorder ? 'cursor-move' : ''}`}
     >
       {allowReorder && (
-        <div className="text-[color:var(--text-muted)] cursor-grab active:cursor-grabbing">
+        <div className="text-[color:var(--text-muted)] cursor-grab active:cursor-grabbing w-4 flex justify-center">
           <GripVertical size={16} />
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative w-20 flex justify-center">
         {editingColumnaValueIndex === index ? (
           <input
             type="text"
@@ -257,14 +257,14 @@ export default function MatrixEditor({
             onKeyDown={(e) => {
               if (e.key === 'Enter') setEditingColumnaValueIndex(null);
             }}
-            className="w-12 px-2 py-1 text-xs text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
+            className="w-16 px-2 py-1 text-xs text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
             autoFocus
           />
         ) : (
           <button
             type="button"
             onClick={() => setEditingColumnaValueIndex(index)}
-            className="w-12 px-2 py-1 text-xs text-center rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors"
+            className="w-16 px-2 py-1 text-xs text-center rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors truncate"
             title="Clic para editar variable"
           >
             {columna.value}
@@ -283,21 +283,23 @@ export default function MatrixEditor({
       />
 
       {tipoMatriz === 'matriz-dinamica' && (
-        <select
-          value={columna.cellType || 'text'}
-          onChange={(e) => actualizarColumna(index, 'cellType', e.target.value)}
-          className="px-2 py-1.5 text-xs rounded bg-[color:var(--input-background)] border border-[color:var(--card-border)] text-[color:var(--text-primary)] focus:border-[color:var(--primary)] focus:outline-none"
-        >
-          <option value="text">Texto</option>
-          <option value="dropdown">Desplegable</option>
-          <option value="checkbox">Checkbox</option>
-        </select>
+        <div className="w-24">
+          <select
+            value={columna.cellType || 'text'}
+            onChange={(e) => actualizarColumna(index, 'cellType', e.target.value)}
+            className="w-full px-2 py-1.5 text-xs rounded bg-[color:var(--input-background)] border border-[color:var(--card-border)] text-[color:var(--text-primary)] focus:border-[color:var(--primary)] focus:outline-none"
+          >
+            <option value="text">Texto</option>
+            <option value="dropdown">Desplegable</option>
+            <option value="checkbox">Checkbox</option>
+          </select>
+        </div>
       )}
 
       <button
         type="button"
         onClick={() => eliminarColumna(index)}
-        className="p-1.5 text-[color:var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+        className="p-1.5 text-[color:var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0 w-7 flex justify-center"
         title="Eliminar columna"
       >
         <Trash2 size={16} />
@@ -324,28 +326,35 @@ export default function MatrixEditor({
                 Carga rápida
               </button>
             )}
-            <button
-              type="button"
-              onClick={agregarFila}
-              className="px-2 py-1 text-xs rounded-lg bg-[color:var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1"
-            >
-              <Plus size={12} />
-              Agregar
-            </button>
           </div>
         </div>
 
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          <AnimatePresence mode="popLayout">
-            {filas.map((fila, index) => renderFilaItem(fila, index))}
-          </AnimatePresence>
-        </div>
-
-        {filas.length === 0 && (
-          <div className="text-center py-6 text-[color:var(--text-muted)] text-sm border-2 border-dashed border-[color:var(--card-border)] rounded-lg">
-            No hay filas. Haz clic en "Agregar" para crear una.
+        <div className="space-y-2">
+          {filas.length > 0 && (
+            <div className="flex items-center gap-2 px-2 pb-1 text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
+              {allowReorder && <div className="w-4 text-center" title="Orden">#</div>}
+              <div className="w-20 text-center">Variable</div>
+              <div className="flex-1">Texto</div>
+              <div className="w-7"></div>
+            </div>
+          )}
+          
+          <div className="max-h-60 overflow-y-auto pr-1 space-y-2">
+             <AnimatePresence mode="popLayout">
+              {filas.map((fila, index) => renderFilaItem(fila, index))}
+            </AnimatePresence>
           </div>
-        )}
+
+          {/* Botón agregar fila */}
+          <button
+            type="button"
+            onClick={agregarFila}
+            className="w-full py-2 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] hover:text-[color:var(--primary)] hover:bg-[color:var(--primary)]/5 transition-all group"
+          >
+            <Plus size={16} className="text-[color:var(--text-muted)] group-hover:text-[color:var(--primary)] transition-colors" />
+            <span className="text-sm font-medium">Agregar fila</span>
+          </button>
+        </div>
       </div>
 
       {/* Sección COLUMNAS */}
@@ -365,28 +374,36 @@ export default function MatrixEditor({
                 Carga rápida
               </button>
             )}
-            <button
-              type="button"
-              onClick={agregarColumna}
-              className="px-2 py-1 text-xs rounded-lg bg-[color:var(--primary)] text-white hover:opacity-90 transition-opacity flex items-center gap-1"
-            >
-              <Plus size={12} />
-              Agregar
-            </button>
           </div>
         </div>
 
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          <AnimatePresence mode="popLayout">
-            {columnas.map((columna, index) => renderColumnaItem(columna, index))}
-          </AnimatePresence>
-        </div>
-
-        {columnas.length === 0 && (
-          <div className="text-center py-6 text-[color:var(--text-muted)] text-sm border-2 border-dashed border-[color:var(--card-border)] rounded-lg">
-            No hay columnas. Haz clic en "Agregar" para crear una.
+        <div className="space-y-2">
+          {columnas.length > 0 && (
+            <div className="flex items-center gap-2 px-2 pb-1 text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
+              {allowReorder && <div className="w-4 text-center" title="Orden">#</div>}
+              <div className="w-20 text-center">Variable</div>
+              <div className="flex-1">Texto</div>
+              {tipoMatriz === 'matriz-dinamica' && <div className="w-24 pl-1">Tipo</div>}
+              <div className="w-7"></div>
+            </div>
+          )}
+          
+          <div className="max-h-60 overflow-y-auto pr-1 space-y-2">
+            <AnimatePresence mode="popLayout">
+              {columnas.map((columna, index) => renderColumnaItem(columna, index))}
+            </AnimatePresence>
           </div>
-        )}
+
+          {/* Botón agregar columna */}
+          <button
+            type="button"
+            onClick={agregarColumna}
+            className="w-full py-2 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] hover:text-[color:var(--primary)] hover:bg-[color:var(--primary)]/5 transition-all group"
+          >
+            <Plus size={16} className="text-[color:var(--text-muted)] group-hover:text-[color:var(--primary)] transition-colors" />
+            <span className="text-sm font-medium">Agregar columna</span>
+          </button>
+        </div>
       </div>
 
       {/* Validación */}
@@ -398,4 +415,6 @@ export default function MatrixEditor({
     </div>
   );
 }
+
+
 
