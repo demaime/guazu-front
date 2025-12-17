@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -18,6 +18,7 @@ import {
   Users,
   ClipboardList,
   Clock,
+  ChevronDown,
   MapPin,
   X,
   AlertCircle,
@@ -60,21 +61,22 @@ const classifyStatus = ({
   }
 
   // Preparada: lista pero aún no empezó (startDate futura)
-  if (isReady && isBeforeStart) {
-    return { lifecycle: "preparada", isPending: false, isPrepared: true, isInDateRange: false };
+  // O es un DRAFT que está listo (y quizás incluso en fecha), pero no está publicado.
+  if ((isReady && isBeforeStart) || (rawStatus === "draft" && isReady)) {
+    return { lifecycle: "preparada", isPending: false, isPrepared: true, isInDateRange: isInDateRange };
   }
 
-  // Activa: está en fecha (y lista, o publicada)
+  // Activa: está en fecha Y (lista o publicada)
+  // NOTA: Si llegamos acá, NO es draft (porque el if anterior capturó draft).
   if (isInDateRange) {
     return { lifecycle: "activa", isPending: false, isPrepared: false, isInDateRange: true };
   }
 
-  // Fallback: si es draft y no es pending (ready pero fechas raras) → preparada/activa no aplica, tratamos como preparada
-  if (rawStatus === "draft" && isReady) {
+  // Fallback: Default a preparada si está lista, o activa genérica (casos raros)
+  if (isReady) {
     return { lifecycle: "preparada", isPending: false, isPrepared: true, isInDateRange: false };
   }
-
-  // Publicada sin poder clasificar por fecha: mantener como activa “genérica”
+  
   return { lifecycle: "activa", isPending: false, isPrepared: false, isInDateRange: false };
 };
 
@@ -98,6 +100,7 @@ const ActionButton = ({
   className = "",
   iconSize = 16,
   hasAlert = false,
+  isLoading = false,
 }) => {
   const variants = {
     default:
@@ -117,15 +120,20 @@ const ActionButton = ({
   return (
     <button
       onClick={onClick}
+      disabled={isLoading}
       className={`${
         iconOnly ? "px-2 py-1.5" : "px-3 py-1.5 md:px-4 md:py-2"
       } rounded-lg transition-all group relative flex items-center gap-2 text-xs sm:text-sm font-medium cursor-pointer ${
         variants[finalVariant]
-      } ${className}`}
+      } ${className} ${isLoading ? "opacity-70 cursor-wait" : ""}`}
     >
-      <Icon size={iconSize} />
+      {isLoading ? (
+        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+      ) : (
+        <Icon size={iconSize} />
+      )}
       {!iconOnly && <span>{label}</span>}
-      {hasAlert && (
+      {hasAlert && !isLoading && (
         <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full w-4 h-4 flex items-center justify-center shadow-sm">
           <AlertCircle size={10} className="text-white" strokeWidth={3} />
         </div>
@@ -143,8 +151,31 @@ export default function TemporalPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [isToggling, setIsToggling] = useState(null);
   
-  // Estados de filtros
+  // Estados de filtros avanzados
+  const [searchType, setSearchType] = useState("name"); // name | date | location
+  const [searchDateStart, setSearchDateStart] = useState("");
+  const [searchDateEnd, setSearchDateEnd] = useState("");
+  const [searchLocation, setSearchLocation] = useState("");
+  
+  // Custom Select State
+  const [isSearchTypeOpen, setIsSearchTypeOpen] = useState(false);
+  const searchTypeRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchTypeRef.current && !searchTypeRef.current.contains(event.target)) {
+        setIsSearchTypeOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+  
+  // Estados de filtros (checkboxes)
   const [showPending, setShowPending] = useState(true); // Activado por defecto
   const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [finalizadasSort, setFinalizadasSort] = useState("fecha_desc"); // nombre | fecha_desc | fecha_asc
@@ -153,161 +184,137 @@ export default function TemporalPage() {
   const pageSize = 10;
   const [page, setPage] = useState(0);
 
+  // Obtener localidades únicas
+  const uniqueLocations = useMemo(() => {
+    const locs = surveys
+      .map((s) => s.location)
+      .filter((l) => l && l !== "—" && l.trim() !== "");
+    return [...new Set(locs)].sort();
+  }, [surveys]);
+
   useEffect(() => {
-    // Al cambiar pestaña o filtros, cerrar panel y volver a la primer página
+    // Al cambiar pestaña, cerrar panel y volver a la primer página
+    // Resetear búsquedas al cambiar de tab
     setShowFilters(false);
     setPage(0);
-  }, [activeTab, searchQuery, showPending, showOnlyActive, finalizadasSort]);
+    setSearchQuery("");
+    setSearchDateStart("");
+    setSearchDateEnd("");
+    setSearchLocation("");
+  }, [activeTab]);
 
   useEffect(() => {
-    const fetchSurveys = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // 1. Traer encuestas publicadas (activas y finalizadas)
-        const resp = await surveyService.getAllSurveys(1, 100, null);
-        
-        // 2. Traer DRAFTS (separado, como lo hace el creador viejo)
-        let draftsResp = { drafts: [] };
-        try {
-          draftsResp = await surveyService.getDrafts();
-          console.log("📦 Drafts recibidos:", draftsResp);
-        } catch (e) {
-          console.error("Error al cargar drafts:", e);
-        }
-        
-        // 3. Combinar ambos
-        const allSurveys = [...(resp?.surveys || []), ...(draftsResp?.drafts || [])];
-        
-        console.log("📥 Total encuestas (publicadas + drafts):", allSurveys.length);
-        console.log("📊 Publicadas:", resp?.surveys?.length);
-        console.log("📊 Drafts:", draftsResp?.drafts?.length);
-        
-        const normalized =
-          allSurveys?.map((s) => {
-            const title =
-              s?.survey?.title ||
-              s?.survey?.survey?.title ||
-              s?.title ||
-              "Sin título";
-            const description =
-              s?.survey?.description ||
-              s?.survey?.survey?.description ||
-              s?.description ||
-              "";
-            const startDate = s?.surveyInfo?.startDate;
-            const endDate = s?.surveyInfo?.endDate;
-            const totalCases = s?.surveyInfo?.target ?? 0;
-            const cases = s?.totalAnswers ?? 0;
-            const surveyors = Array.isArray(s?.userIds) ? s.userIds.length : 0;
-            // contamos preguntas: si hay pages con elements
-            let questions = 0;
-            const pages = s?.survey?.pages || s?.survey?.survey?.pages;
-            if (Array.isArray(pages)) {
-              pages.forEach((p) => {
-                if (Array.isArray(p?.elements)) {
-                  questions += p.elements.length;
-                }
-              });
-            }
-            // Detectar si falta configuración/participantes/formulario
-            const hasConfig = !!(
-              startDate &&
-              endDate &&
-              startDate.trim() !== "" &&
-              endDate.trim() !== ""
-            );
-            const hasParticipants = surveyors > 0;
-            const hasForm = questions > 0;
-            const isReady = hasConfig && hasParticipants && hasForm;
-            
-            // Debug para cada encuesta
-            if (s?.status === 'draft') {
-              console.log(`🔍 Draft: "${title}"`, {
-                startDate,
-                endDate,
-                hasConfig,
-                hasParticipants,
-                surveyors
-              });
-            }
-            
-            // Clasificar estado considerando "ready" + fechas
-            const { lifecycle, isPending, isPrepared, isInDateRange } = classifyStatus({
-              rawStatus: s?.status,
-              startDate,
-              endDate,
-              isReady,
-            });
+    // Solo resetear página al cambiar filtros
+    setPage(0);
+  }, [searchQuery, showPending, showOnlyActive, finalizadasSort, searchDateStart, searchDateEnd, searchLocation, searchType]);
 
-            return {
-              id: s?._id || s?.id,
-              title,
-              description,
-              status: lifecycle,
-              isPending,
-              isPrepared,
-              isInDateRange,
-              questions,
-              surveyors,
-              cases,
-              totalCases,
-              startDate,
-              endDate,
-              location: s?.surveyInfo?.location || "—",
-              hasConfig,
-              hasParticipants,
-              hasForm,
-              isReady,
-              rawStatus: s?.status,
-            };
-          }) || [];
-        
-        console.log("✅ Encuestas normalizadas:", normalized);
-        console.log("📋 Por clasificación:", {
-          pendientes: normalized.filter(s => s.isPending).length,
-          activas: normalized.filter(s => s.status === "activa" && !s.isPending).length,
-          finalizadas: normalized.filter(s => s.status === "finalizada").length
-        });
-        
-        setSurveys(normalized);
-      } catch (err) {
-        console.error(err);
-        setError("No pudimos cargar las encuestas");
-      } finally {
-        setIsLoading(false);
+  const loadSurveysData = async () => {
+    try {
+      setError(null);
+      // No seteamos isLoading(true) global para evitar parpadeo completo si solo refrescamos
+      
+      // 1. Traer encuestas publicadas (activas y finalizadas)
+      const resp = await surveyService.getAllSurveys(1, 100, null);
+      
+      // 2. Traer DRAFTS (separado, como lo hace el creador viejo)
+      let draftsResp = { drafts: [] };
+      try {
+        draftsResp = await surveyService.getDrafts();
+        console.log("📦 Drafts recibidos:", draftsResp);
+      } catch (e) {
+        console.error("Error al cargar drafts:", e);
       }
-    };
-    fetchSurveys();
+      
+      // 3. Combinar ambos
+      const allSurveys = [...(resp?.surveys || []), ...(draftsResp?.drafts || [])];
+      
+      console.log("📥 Total encuestas (publicadas + drafts):", allSurveys.length);
+      
+      const normalized =
+        allSurveys?.map((s) => {
+          const title =
+            s?.survey?.title ||
+            s?.survey?.survey?.title ||
+            s?.title ||
+            "Sin título";
+          const description =
+            s?.survey?.description ||
+            s?.survey?.survey?.description ||
+            s?.description ||
+            "";
+          const startDate = s?.surveyInfo?.startDate;
+          const endDate = s?.surveyInfo?.endDate;
+          const totalCases = s?.surveyInfo?.target ?? 0;
+          const cases = s?.totalAnswers ?? 0;
+          const surveyors = Array.isArray(s?.userIds) ? s.userIds.length : 0;
+          // contamos preguntas: si hay pages con elements
+          let questions = 0;
+          const pages = s?.survey?.pages || s?.survey?.survey?.pages;
+          if (Array.isArray(pages)) {
+            pages.forEach((p) => {
+              if (Array.isArray(p?.elements)) {
+                questions += p.elements.length;
+              }
+            });
+          }
+          // Detectar si falta configuración/participantes/formulario
+          const hasConfig = !!(
+            startDate &&
+            endDate &&
+            startDate.trim() !== "" &&
+            endDate.trim() !== ""
+          );
+          const hasParticipants = surveyors > 0;
+          const hasForm = questions > 0;
+          const isReady = hasConfig && hasParticipants && hasForm;
+          
+          // Clasificar estado considerando "ready" + fechas
+          const { lifecycle, isPending, isPrepared, isInDateRange } = classifyStatus({
+            rawStatus: s?.status,
+            startDate,
+            endDate,
+            isReady,
+          });
+
+          return {
+            id: s?._id || s?.id,
+            title,
+            description,
+            status: lifecycle,
+            isPending,
+            isPrepared,
+            isInDateRange,
+            questions,
+            surveyors,
+            cases,
+            totalCases,
+            startDate,
+            endDate,
+            location: s?.surveyInfo?.location || "—",
+            hasConfig,
+            hasParticipants,
+            hasForm,
+            isReady,
+            rawStatus: s?.status,
+            // Flag auxiliar para UI de botón (si es activa real o simulada por fechas)
+            isActive: lifecycle === 'activa'
+          };
+        }) || [];
+      
+      setSurveys(normalized);
+    } catch (err) {
+      console.error(err);
+      setError("No pudimos cargar las encuestas");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    loadSurveysData();
   }, []);
 
-  const stats = useMemo(() => {
-    const pendingCount = surveys.filter((s) => s.isPending).length;
-    const activeCount = surveys.filter((s) => s.status === "activa").length;
-    const finishedCount = surveys.filter((s) => s.status === "finalizada").length;
-    
-    return [ {
-        label: "Encuestas activas",
-        value: activeCount,
-        icon: BarChart3,
-        color: "bg-blue-500",
-      },
-      {
-        label: "Pendientes de completar",
-        value: pendingCount,
-        icon: Clock,
-        color: "bg-yellow-500",
-      },
-           {
-        label: "Finalizadas",
-        value: finishedCount,
-        icon: CheckCircle,
-        color: "bg-green-500",
-        hideOnMobile: true,
-      },
-    ];
-  }, [surveys]);
 
   const filteredSurveys = useMemo(() => {
     let filtered = surveys.filter((s) => {
@@ -333,14 +340,33 @@ export default function TemporalPage() {
       filtered = filtered.filter((s) => s.isPending || s.status === "activa");
     }
 
-    // Filtro: Búsqueda
-    if (searchQuery) {
+    // Filtro: Búsqueda dinámica
+    if (searchType === "name" && searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (s) =>
           s.title.toLowerCase().includes(q) ||
           (s.description || "").toLowerCase().includes(q)
       );
+    } else if (searchType === "location" && searchLocation) {
+       filtered = filtered.filter((s) => s.location === searchLocation);
+    } else if (searchType === "date" && (searchDateStart || searchDateEnd)) {
+      const qStart = searchDateStart ? new Date(searchDateStart) : null;
+      const qEnd = searchDateEnd ? new Date(searchDateEnd) : null;
+
+      filtered = filtered.filter((s) => {
+        const sStart = safeDate(s.startDate);
+        const sEnd = safeDate(s.endDate);
+        if (!sStart || !sEnd) return false;
+
+        // Lógica de superposición (overlap)
+        // [qStart, qEnd] solapa con [sStart, sEnd] si: qStart <= sEnd && sStart <= qEnd
+        // Si falta un extremo del query, asumimos infinito
+        const afterQueryStart = qStart ? sEnd >= qStart : true;
+        const beforeQueryEnd = qEnd ? sStart <= qEnd : true;
+        
+        return afterQueryStart && beforeQueryEnd;
+      });
     }
 
     if (activeTab === "finalizadas") {
@@ -375,7 +401,18 @@ export default function TemporalPage() {
     }
 
     return filtered;
-  }, [surveys, activeTab, searchQuery, showPending, showOnlyActive, finalizadasSort]);
+  }, [
+    surveys,
+    activeTab,
+    searchQuery,
+    showPending,
+    showOnlyActive,
+    finalizadasSort,
+    searchType,
+    searchDateStart,
+    searchDateEnd,
+    searchLocation,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSurveys.length / pageSize));
   const pageSafe = Math.min(page, totalPages - 1);
@@ -384,15 +421,45 @@ export default function TemporalPage() {
     return filteredSurveys.slice(start, start + pageSize);
   }, [filteredSurveys, pageSafe]);
 
-  const handleToggleSurvey = (id) => {
-    const updated = surveys.map((s) =>
-      s.id === id ? { ...s, isActive: !s.isActive } : s
-    );
-    setSurveys(updated);
-    const survey = updated.find((s) => s.id === id);
-    toast.success(
-      survey?.isActive ? "✓ Encuesta activada (simulado)" : "✓ Encuesta pausada"
-    );
+  const handleToggleSurvey = async (id) => {
+    const survey = surveys.find((s) => s.id === id);
+    if (!survey) return;
+
+    if (isToggling === id) return;
+    setIsToggling(id);
+
+    try {
+      if (survey.isActive) {
+        // PAUSAR -> Volver a draft
+        // Necesitamos obtener la encuesta completa primero porque update requiere el objeto
+        const fullData = await surveyService.getSurvey(id);
+        const dataToSave = fullData.survey?.survey || fullData.survey; 
+        const definition = fullData.survey?.surveyDefinition;
+        const info = fullData.survey?.surveyInfo;
+        
+        // Estructura para update
+        const payload = {
+            survey: dataToSave,
+            surveyDefinition: definition,
+            surveyInfo: info
+        };
+        
+        await surveyService.createOrUpdateSurvey(payload, id, true); // true = draft
+        toast.info("Encuesta pausada (vuelta a borrador)");
+      } else {
+        // ACTIVAR -> Publicar draft
+        await surveyService.publishDraft(id);
+        toast.success("¡Encuesta activada y publicada para encuestadores!");
+      }
+
+      // Recargar lista para ver cambios
+      await loadSurveysData();
+    } catch (e) {
+      console.error("Error toggling survey:", e);
+      toast.error(`Error: ${e.message}`);
+    } finally {
+      setIsToggling(null);
+    }
   };
 
   const handleDelete = (id) => {
@@ -405,9 +472,12 @@ export default function TemporalPage() {
     console.log("Clonar encuesta", id);
   };
 
+  const activasCount = surveys.filter((s) => s.status !== "finalizada").length;
+  const finalizadasCount = surveys.filter((s) => s.status === "finalizada").length;
+
   const tabs = [
-    { id: "activas", label: "Activas" },
-    { id: "finalizadas", label: "Finalizadas" },
+    { id: "activas", label: `Activas (${activasCount})` },
+    { id: "finalizadas", label: `Finalizadas (${finalizadasCount})` },
   ];
 
   const StatusBadge = ({ survey }) => {
@@ -466,128 +536,228 @@ export default function TemporalPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {stats.map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <div
-                  key={stat.label}
-                  className={`bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl p-3 items-center gap-3 shadow-lg ${
-                    stat.hideOnMobile ? "hidden sm:flex" : "flex"
-                  }`}
-                >
-                  <div className="w-10 h-10 bg-[color:var(--primary)] rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon size={18} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[color:var(--text-secondary)] text-xs">
-                      {stat.label}
-                    </p>
-                    <p className="text-[color:var(--text-primary)] text-lg font-semibold">
-                      {stat.value ?? 0}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
-          <div className="flex gap-2 items-center">
-            <div className="relative flex-1">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-secondary)]"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="Buscar..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:border-[color:var(--primary)] transition-colors text-sm text-[color:var(--text-primary)]"
-              />
-            </div>
-            {activeTab === "activas" ? (
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="bg-[color:var(--card-background)] hover:bg-[color:var(--hover-bg)] px-3 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors flex-shrink-0 text-sm border border-[color:var(--card-border)] text-[color:var(--text-primary)]"
-              >
-                <Filter size={16} />
-                <span className="hidden sm:inline">Filtros</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs text-[color:var(--text-secondary)] hidden md:inline">
-                  Ordenar por
-                </span>
-                <div className="w-9 h-9 rounded-lg border border-[color:var(--card-border)] bg-[color:var(--card-background)] flex items-center justify-center text-[color:var(--text-secondary)]">
-                  {finalizadasSort === "nombre" ? (
-                    <ArrowDownAZ size={18} />
-                  ) : finalizadasSort === "fecha_asc" ? (
-                    <ArrowUpWideNarrow size={18} />
-                  ) : (
-                    <ArrowDownWideNarrow size={18} />
+
+          <div className="flex flex-col gap-2">
+            
+            {/* Barra de búsqueda dinámica */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl flex items-center shadow-sm hover:border-[color:var(--primary)]/50 focus-within:border-[color:var(--primary)] transition-all relative z-20 h-12">
+                
+                {/* Custom Search Type Selector */}
+                <div className="relative h-full" ref={searchTypeRef}>
+                   <button 
+                     onClick={() => setIsSearchTypeOpen(!isSearchTypeOpen)}
+                     className="h-full pl-4 pr-3 flex items-center gap-3 hover:bg-[color:var(--hover-bg)] transition-colors border-r border-[color:var(--card-border)] outline-none min-w-[140px] rounded-l-xl group"
+                   >
+                      <div className="text-[color:var(--primary)] group-hover:scale-110 transition-transform">
+                         {searchType === 'name' && <Search size={18} />}
+                         {searchType === 'date' && <Calendar size={18} />}
+                         {searchType === 'location' && <MapPin size={18} />}
+                      </div>
+                      <span className="text-sm font-medium text-[color:var(--text-primary)]">
+                         {searchType === 'name' && "Nombre"}
+                         {searchType === 'date' && "Fecha"}
+                         {searchType === 'location' && "Localidad"}
+                      </span>
+                      <ChevronDown size={14} className={`text-[color:var(--text-secondary)] ml-auto transition-transform duration-200 ${isSearchTypeOpen ? 'rotate-180' : ''}`} />
+                   </button>
+
+                   {/* Custom Dropdown Menu */}
+                   {isSearchTypeOpen && (
+                     <div className="absolute top-[calc(100%+0.5rem)] left-0 w-[180px] bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 p-1">
+                         {[
+                           { value: 'name', label: 'Nombre', icon: Search },
+                           { value: 'location', label: 'Localidad', icon: MapPin },
+                           { value: 'date', label: 'Fecha', icon: Calendar },
+                         ].map(opt => (
+                           <button
+                             key={opt.value}
+                             onClick={() => {
+                               setSearchType(opt.value);
+                               setIsSearchTypeOpen(false);
+                             }}
+                             className={`w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center gap-3 transition-colors ${
+                                searchType === opt.value 
+                                  ? 'bg-[color:var(--primary)] text-white' 
+                                  : 'text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)]'
+                             }`}
+                           >
+                             <opt.icon size={16} className={searchType === opt.value ? 'text-white' : 'text-[color:var(--primary)]'} />
+                             {opt.label}
+                           </button>
+                         ))}
+                     </div>
+                   )}
+                </div>
+
+                {/* Input dinámico */}
+                <div className="flex-1 relative h-full flex items-center min-w-0">
+                  {searchType === "name" && (
+                      <input
+                        type="text"
+                        placeholder="Buscar encuesta por título..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full h-full bg-transparent border-none outline-none text-sm text-[color:var(--text-primary)] px-4 placeholder:text-[color:var(--text-secondary)]"
+                      />
+                  )}
+
+                  {searchType === "location" && (
+                    <div className="relative w-full h-full">
+                      <select
+                        value={searchLocation}
+                        onChange={(e) => setSearchLocation(e.target.value)}
+                        className="w-full h-full bg-transparent border-none outline-none text-sm text-[color:var(--text-primary)] px-4 cursor-pointer appearance-none"
+                      >
+                         <option value="" className="bg-[color:var(--card-background)]">Todas las localidades</option>
+                        {uniqueLocations.map((loc) => (
+                          <option key={loc} value={loc} className="bg-[color:var(--card-background)]">
+                            {loc}
+                          </option>
+                        ))}
+                      </select>
+                      
+                    </div>
+                  )}
+
+                  {searchType === "date" && (
+                    <div className="flex items-center h-full w-full">
+                       <div className="relative flex-1 flex items-center h-full group/date">
+                         <span className="absolute left-4 text-[color:var(--text-secondary)] text-xs font-medium whitespace-nowrap pointer-events-none group-focus-within/date:text-[color:var(--primary)] transition-colors">Desde:</span>
+                         <input
+                            type="date"
+                            value={searchDateStart}
+                            onChange={(e) => setSearchDateStart(e.target.value)}
+                            className="w-full h-full bg-transparent border-none text-sm text-[color:var(--text-primary)] focus:outline-none pl-14 pr-2 color-scheme-dark [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                          />
+                       </div>
+                       <div className="w-px h-6 bg-[color:var(--card-border)] mx-1" />
+                       <div className="relative flex-1 flex items-center h-full group/date">
+                          <span className="absolute left-2 text-[color:var(--text-secondary)] text-xs font-medium whitespace-nowrap pointer-events-none group-focus-within/date:text-[color:var(--primary)] transition-colors">Hasta:</span>
+                          <input
+                            type="date"
+                            value={searchDateEnd}
+                            onChange={(e) => setSearchDateEnd(e.target.value)}
+                            className="w-full h-full bg-transparent border-none text-sm text-[color:var(--text-primary)] focus:outline-none pl-12 pr-10 color-scheme-dark [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                          />
+                       </div>
+                    </div>
+                  )}
+                  
+                  {/* Botón limpiar */}
+                  {(searchQuery || searchLocation || searchDateStart || searchDateEnd) && (
+                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center bg-[color:var(--card-background)] pl-2">
+                         <button 
+                            onClick={() => {
+                                setSearchQuery("");
+                                setSearchLocation("");
+                                setSearchDateStart("");
+                                setSearchDateEnd("");
+                            }}
+                            className="p-1.5 rounded-full hover:bg-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:text-[color:var(--error-text)] transition-colors"
+                            title="Limpiar búsqueda"
+                         >
+                            <X size={14} />
+                         </button>
+                     </div>
                   )}
                 </div>
-                <select
-                  value={finalizadasSort}
-                  onChange={(e) => setFinalizadasSort(e.target.value)}
-                  className="bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-lg px-3 py-2 text-sm text-[color:var(--text-primary)] focus:outline-none focus:border-[color:var(--primary)]"
+              </div>
+
+               {/* Botones de filtro de la derecha */}
+              {activeTab === "activas" ? (
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`h-12 px-4 rounded-xl flex items-center justify-center gap-2 transition-all flex-shrink-0 text-sm border font-medium ${
+                     showFilters 
+                        ? 'bg-[color:var(--primary)] border-[color:var(--primary)] text-white shadow-lg shadow-blue-500/20' 
+                        : 'bg-[color:var(--card-background)] border-[color:var(--card-border)] text-[color:var(--text-primary)] hover:border-[color:var(--primary)]'
+                  }`}
                 >
-                  <option value="nombre">Nombre</option>
-                  <option value="fecha_desc">Fecha (más reciente)</option>
-                  <option value="fecha_asc">Fecha (más antigua)</option>
-                </select>
+                  <Filter size={18} />
+                  <span className="hidden sm:inline">Filtros</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 flex-shrink-0 h-12">
+                  <div className="w-12 h-12 rounded-xl border border-[color:var(--card-border)] bg-[color:var(--card-background)] flex items-center justify-center text-[color:var(--text-secondary)]">
+                    {finalizadasSort === "nombre" ? (
+                      <ArrowDownAZ size={20} />
+                    ) : (
+                      <ArrowDownWideNarrow size={20} />
+                    )}
+                  </div>
+                  <div className="relative h-full">
+                     <select
+                        value={finalizadasSort}
+                        onChange={(e) => setFinalizadasSort(e.target.value)}
+                        className="h-full appearance-none bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl pl-4 pr-10 text-sm font-medium text-[color:var(--text-primary)] focus:outline-none focus:border-[color:var(--primary)] cursor-pointer min-w-[160px]"
+                     >
+                        <option value="nombre" className="bg-[color:var(--card-background)]">Nombre</option>
+                        <option value="fecha_desc" className="bg-[color:var(--card-background)]">Más recientes</option>
+                        <option value="fecha_asc" className="bg-[color:var(--card-background)]">Más antiguas</option>
+                     </select>
+                     <ArrowDownWideNarrow size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--text-secondary)] pointer-events-none" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Panel de Filtros expandible */}
+            {activeTab === "activas" && showFilters && (
+              <div className="bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl p-4 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
+                  <label className="flex items-center gap-3 cursor-pointer group select-none p-2 rounded-lg hover:bg-[color:var(--hover-bg)] transition-colors -ml-2">
+                     <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${showPending ? 'bg-[color:var(--primary)] border-[color:var(--primary)]' : 'border-[color:var(--text-secondary)]'}`}>
+                        {showPending && <CheckCircle size={12} className="text-white" />}
+                     </div>
+                     <input
+                        type="checkbox"
+                        checked={showPending}
+                        onChange={(e) => setShowPending(e.target.checked)}
+                        className="hidden"
+                     />
+                     <span className="text-sm font-medium text-[color:var(--text-primary)] flex items-center gap-2">
+                        <Clock size={16} className="text-yellow-500" />
+                        Mostrar pendientes 
+                        <span className="bg-[color:var(--card-border)] text-[color:var(--text-secondary)] px-2 py-0.5 rounded-full text-xs">
+                           {surveys.filter(s => s.isPending).length}
+                        </span>
+                     </span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer group select-none p-2 rounded-lg hover:bg-[color:var(--hover-bg)] transition-colors">
+                     <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${showOnlyActive ? 'bg-[color:var(--primary)] border-[color:var(--primary)]' : 'border-[color:var(--text-secondary)]'}`}>
+                        {showOnlyActive && <CheckCircle size={12} className="text-white" />}
+                     </div>
+                     <input
+                        type="checkbox"
+                        checked={showOnlyActive}
+                        onChange={(e) => setShowOnlyActive(e.target.checked)}
+                        className="hidden"
+                     />
+                     <span className="text-sm font-medium text-[color:var(--text-primary)] flex items-center gap-2">
+                        <Calendar size={16} className="text-green-500" />
+                        Solo con fecha activa
+                     </span>
+                  </label>
+
+                  {(showPending || showOnlyActive) && (
+                    <button
+                      onClick={() => {
+                        setShowPending(false);
+                        setShowOnlyActive(false);
+                      }}
+                      className="text-xs font-semibold text-[color:var(--text-secondary)] hover:text-[color:var(--error-text)] transition-colors flex items-center gap-1 sm:ml-auto px-3 py-1.5 rounded-lg hover:bg-[color:var(--error-bg)]/10"
+                    >
+                      <Trash2 size={14} />
+                      Limpiar filtros
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
-
-          {activeTab === "activas" && showFilters && (
-            <div className="bg-[color:var(--card-background)] backdrop-blur-sm border border-[color:var(--card-border)] rounded-xl p-3 sm:p-4">
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 items-start sm:items-center">
-                {/* Filtro: Mostrar pendientes */}
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={showPending}
-                    onChange={(e) => setShowPending(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)] cursor-pointer transition-all"
-                  />
-                  <span className="text-sm font-medium text-[color:var(--text-primary)] group-hover:text-[color:var(--primary)] transition-colors flex items-center gap-1.5">
-                    <Clock size={15} className="text-yellow-500" />
-                    Mostrar pendientes
-                  </span>
-                </label>
-
-                {/* Filtro: Mostrar solo activas (fecha activa) */}
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={showOnlyActive}
-                    onChange={(e) => setShowOnlyActive(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)] cursor-pointer transition-all"
-                  />
-                  <span className="text-sm font-medium text-[color:var(--text-primary)] group-hover:text-[color:var(--primary)] transition-colors flex items-center gap-1.5">
-                    <Calendar size={15} className="text-green-500" />
-                    Solo con fecha activa
-                  </span>
-                </label>
-
-                {/* Botón para limpiar filtros */}
-                {(showPending || showOnlyActive) && (
-                  <button
-                    onClick={() => {
-                      setShowPending(false);
-                      setShowOnlyActive(false);
-                    }}
-                    className="text-xs sm:text-sm text-[color:var(--text-secondary)] hover:text-[color:var(--primary)] transition-colors flex items-center gap-1 sm:ml-auto"
-                  >
-                    <X size={14} />
-                    Limpiar
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
@@ -615,24 +785,50 @@ export default function TemporalPage() {
             {error}
           </div>
         ) : filteredSurveys.length === 0 ? (
-          <div className="bg-[color:var(--card-background)] backdrop-blur-sm border-2 border-dashed border-[color:var(--card-border)] rounded-xl p-12 text-center">
-            <div className="w-20 h-20 bg-[color:var(--primary)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <BarChart3 size={40} className="text-[color:var(--primary)]" />
+          searchQuery || searchLocation || searchDateStart || searchDateEnd ? (
+            <div className="bg-[color:var(--card-background)] backdrop-blur-sm border border-[color:var(--card-border)] rounded-xl p-12 text-center">
+              <div className="w-16 h-16 bg-[color:var(--primary)]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search size={32} className="text-[color:var(--primary)]" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">
+                No hay coincidencias
+              </h3>
+              <p className="text-[color:var(--text-secondary)] mb-6 max-w-sm mx-auto">
+                No encontramos encuestas que coincidan con tus criterios. Intenta con otra búsqueda.
+              </p>
+              <button
+                onClick={() => {
+                    setSearchQuery("");
+                    setSearchLocation("");
+                    setSearchDateStart("");
+                    setSearchDateEnd("");
+                    setSearchType("name");
+                }}
+                className="text-[color:var(--primary)] font-semibold hover:underline"
+              >
+                Limpiar búsqueda
+              </button>
             </div>
-            <h3 className="text-xl font-semibold mb-2">
-              No hay encuestas {activeTab}
-            </h3>
-            <p className="text-[color:var(--text-secondary)] mb-6">
-              Comienza creando tu primera encuesta para recolectar datos
-            </p>
-            <button
-              onClick={() => router.push("/dashboard/encuestas/nueva")}
-              className="bg-[color:var(--primary)] hover:opacity-90 px-6 py-3 rounded-xl inline-flex items-center gap-2 font-semibold transition-all text-white"
-            >
-              <Plus size={20} />
-              Crear encuesta
-            </button>
-          </div>
+          ) : (
+            <div className="bg-[color:var(--card-background)] backdrop-blur-sm border-2 border-dashed border-[color:var(--card-border)] rounded-xl p-12 text-center">
+              <div className="w-20 h-20 bg-[color:var(--primary)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BarChart3 size={40} className="text-[color:var(--primary)]" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                No hay encuestas {activeTab}
+              </h3>
+              <p className="text-[color:var(--text-secondary)] mb-6">
+                Comienza creando tu primera encuesta para recolectar datos
+              </p>
+              <button
+                onClick={() => router.push("/dashboard/encuestas/nueva")}
+                className="bg-[color:var(--primary)] hover:opacity-90 px-6 py-3 rounded-xl inline-flex items-center gap-2 font-semibold transition-all text-white"
+              >
+                <Plus size={20} />
+                Crear encuesta
+              </button>
+            </div>
+          )
         ) : (
           <div className="space-y-4">
             {paginatedSurveys.map((survey) => (
@@ -744,6 +940,7 @@ export default function TemporalPage() {
                           variant={survey.isActive ? "warning" : "success"}
                           iconOnly
                           onClick={() => handleToggleSurvey(survey.id)}
+                          isLoading={isToggling === survey.id}
                         />
                       )}
                       <ActionButton

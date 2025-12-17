@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { toast } from "react-toastify";
 
 // Función para generar IDs únicos
 const generateUniqueId = () => {
@@ -623,8 +624,7 @@ export default function QuestionModal({
       if (onValidationError) {
         onValidationError("No es posible crear una pregunta sin título.");
       } else {
-        console.error("QuestionModal: onValidationError prop is missing!");
-        alert("No es posible crear una pregunta sin título.");
+        toast.error("No es posible crear una pregunta sin título.");
       }
       return; // Prevent saving
     }
@@ -659,8 +659,7 @@ export default function QuestionModal({
           "Este tipo de pregunta requiere al menos 2 opciones."
         );
       } else {
-        console.error("QuestionModal: onValidationError prop is missing!");
-        alert("Este tipo de pregunta requiere al menos 2 opciones.");
+        toast.error("Este tipo de pregunta requiere al menos 2 opciones.");
       }
       return; // Prevent saving
     }
@@ -671,7 +670,7 @@ export default function QuestionModal({
       if (!sc || !Array.isArray(sc.rules) || sc.rules.length === 0) {
         const msg = "Las preguntas condicionales requieren al menos una regla.";
         if (onValidationError) onValidationError(msg);
-        else alert(msg);
+        else toast.error(msg);
         return;
       }
 
@@ -682,7 +681,7 @@ export default function QuestionModal({
         if (!r.parentQuestionId) {
           const msg = `La regla #${i + 1} requiere seleccionar una pregunta.`;
           if (onValidationError) onValidationError(msg);
-          else alert(msg);
+          else toast.error(msg);
           return;
         }
         if (op === "contains") {
@@ -691,7 +690,7 @@ export default function QuestionModal({
               i + 1
             } requiere seleccionar al menos un valor.`;
             if (onValidationError) onValidationError(msg);
-            else alert(msg);
+            else toast.error(msg);
             return;
           }
         } else if (op === "equals") {
@@ -699,7 +698,7 @@ export default function QuestionModal({
           if (v === undefined || v === null || v === "") {
             const msg = `La regla #${i + 1} requiere un valor.`;
             if (onValidationError) onValidationError(msg);
-            else alert(msg);
+            else toast.error(msg);
             return;
           }
         } else if (op === "gt" || op === "gte" || op === "lt" || op === "lte") {
@@ -707,7 +706,7 @@ export default function QuestionModal({
           if (v === undefined || v === null || v === "" || isNaN(Number(v))) {
             const msg = `La regla #${i + 1} requiere un umbral numérico.`;
             if (onValidationError) onValidationError(msg);
-            else alert(msg);
+            else toast.error(msg);
             return;
           }
         }

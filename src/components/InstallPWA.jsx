@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 
 let deferredPrompt;
 
@@ -136,10 +137,7 @@ export default function InstallPWA() {
 
     // Si ya está instalada, informamos y no hacemos nada más
     if (isInstalled) {
-      try {
-        // Evitar depender de Toast: usar alerta simple para universalidad
-        alert("La aplicación ya está instalada en este dispositivo.");
-      } catch {}
+      toast.info("La aplicación ya está instalada en este dispositivo");
       return;
     }
 

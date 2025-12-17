@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "react-toastify";
 import {
   MapPin,
   Check,
@@ -84,9 +85,15 @@ export default function ConfigurarEncuesta() {
       const response = await surveyService.getSurvey(id);
       const surveyInfo = response?.survey?.surveyInfo || {};
       
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : '';
+      };
+
       setConfig({
-        fechaInicio: surveyInfo.startDate || '',
-        fechaFin: surveyInfo.endDate || '',
+        fechaInicio: formatDateForInput(surveyInfo.startDate),
+        fechaFin: formatDateForInput(surveyInfo.endDate),
         metaTotal: surveyInfo.target || 0,
         gpsObligatorio: surveyInfo.requireGps || false,
         tieneObjetivo: (surveyInfo.target || 0) > 0,
@@ -105,7 +112,7 @@ export default function ConfigurarEncuesta() {
       });
     } catch (error) {
       console.error('Error al cargar configuración:', error);
-      alert('Error al cargar la configuración: ' + error.message);
+      toast.error('Error al cargar la configuración: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -127,13 +134,11 @@ export default function ConfigurarEncuesta() {
     if (!config.fechaInicio || !config.fechaFin) return 0;
     const inicio = new Date(config.fechaInicio);
     const fin = new Date(config.fechaFin);
+    // Validar fechas invalidas
+    if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) return 0;
+    
     const diff = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24));
     return diff > 0 ? diff : 0;
-  };
-
-  const calcularPorDia = () => {
-    const dias = calcularDuracion();
-    return dias > 0 ? (config.metaTotal / dias).toFixed(1) : 0;
   };
 
   const calcularTotalAsignado = (categoria) => {
@@ -305,7 +310,6 @@ export default function ConfigurarEncuesta() {
   };
 
   const duracion = calcularDuracion();
-  const porDia = calcularPorDia();
 
   if (isLoading) {
     return (
@@ -467,13 +471,7 @@ export default function ConfigurarEncuesta() {
                     placeholder="Ingrese la meta"
                     min="1"
                   />
-                  {config.metaTotal > 0 && duracion > 0 && (
-                    <div className="mt-3 bg-[var(--secondary)]/10 border border-[var(--secondary)]/30 rounded-lg px-3 py-2 text-sm">
-                      <span className="text-[var(--secondary)]">
-                        Promedio: <strong>{porDia} encuestas/día</strong>
-                      </span>
-                    </div>
-                  )}
+
                 </div>
               )}
             </div>
@@ -563,9 +561,9 @@ export default function ConfigurarEncuesta() {
                             onClick={() =>
                               distribuirEquitativamente(categoria.id)
                             }
-                            className="text-xs bg-[var(--secondary)]/20 hover:bg-[var(--secondary)]/30 text-[var(--secondary)] px-3 py-1 rounded transition-colors whitespace-nowrap"
+                            className="text-xs bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] px-3 py-1 rounded transition-colors whitespace-nowrap"
                           >
-                            Distribuir ⚖️
+                            Distribuir
                           </button>
                           <button
                             onClick={() => eliminarCategoria(categoria.id)}
@@ -579,11 +577,11 @@ export default function ConfigurarEncuesta() {
                       <div className="space-y-3">
                         {categoria.segmentos.map((segmento, idx) => (
                           <div key={idx} className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-[var(--secondary)]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 bg-[var(--primary)]/10 rounded-lg flex items-center justify-center flex-shrink-0">
                               <IconRenderer
                                 iconName={segmento.icon}
                                 size={18}
-                                className="text-[var(--secondary)]"
+                                className="text-[var(--primary)]"
                               />
                             </div>
                             <div className="flex-1 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg px-3 py-2 text-[var(--text-primary)] font-medium">
@@ -795,7 +793,7 @@ export default function ConfigurarEncuesta() {
                 // Actualizar en el backend
                 await surveyService.createOrUpdateSurvey(dataToSave, surveyId, true);
 
-                alert("✅ Configuración guardada exitosamente");
+                toast.success("Configuración guardada exitosamente");
                 router.push('/dashboard/temporal');
               } catch (error) {
                 console.error('Error al guardar configuración:', error);
