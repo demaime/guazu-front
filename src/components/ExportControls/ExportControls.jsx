@@ -7,6 +7,7 @@ import { FileSpreadsheet, FileDown, ChevronDown } from "lucide-react";
 const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFiltered = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [excludedCases, setExcludedCases] = useState([]);
+  const [exportFormat, setExportFormat] = useState("text"); // 'text' | 'numeric'
   const dropdownRef = useRef(null);
   const fileExtension = ".xlsx";
 
@@ -63,7 +64,42 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
     return answers.filter((item) => !excludedCases.includes(item._id));
   }, [answers, excludedCases, preFiltered]);
 
-  const processDataForExport = (answers) => {
+  // Función para convertir valores a numéricos
+  const convertToNumeric = (value) => {
+    // Manejar strings: extraer número de formato "1. Texto"
+    if (typeof value === "string") {
+      const match = value.match(/^(\d+)\./);
+      return match ? parseInt(match[1]) : value;
+    }
+    
+    // Manejar arrays (multiple choice): convertir cada elemento
+    if (Array.isArray(value)) {
+      const numbers = value.map(v => {
+        const match = v.match(/^(\d+)\./);
+        return match ? match[1] : v;
+      });
+      return numbers.join(", ");
+    }
+    
+    // Manejar objetos (matrix): convertir cada valor del objeto
+    if (typeof value === "object" && value !== null) {
+      const converted = {};
+      Object.keys(value).forEach(key => {
+        const cellValue = value[key];
+        if (typeof cellValue === "string") {
+          const match = cellValue.match(/^(\d+)\./);
+          converted[key] = match ? parseInt(match[1]) : cellValue;
+        } else {
+          converted[key] = cellValue;
+        }
+      });
+      return converted;
+    }
+    
+    return value;
+  };
+
+  const processDataForExport = (answers, format = "text") => {
     let processedAnswers = [];
     if (answers) {
       answers.forEach((item) => {
@@ -75,6 +111,14 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
             ? new Date(item.createdAt).toLocaleTimeString()
             : "";
 
+          // Convertir respuestas si se seleccionó formato numérico
+          const answerData = format === "numeric" 
+            ? Object.keys(item.answer).reduce((acc, key) => {
+                acc[key] = convertToNumeric(item.answer[key]);
+                return acc;
+              }, {})
+            : item.answer;
+
           processedAnswers.push(
             nestedJSONtoJson({
               creado: `${fecha}-${hora}`,
@@ -83,7 +127,7 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
               longitud: item.lng,
               caso: item._id,
               time: item.time,
-              ...item.answer,
+              ...answerData,
             })
           );
         }
@@ -107,12 +151,13 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
 
     const formattedDate = `${day}_${month}_${year}`;
     const formattedTime = `${hours}:${minutes}hs`;
+    const formatSuffix = exportFormat === "numeric" ? " (valores)" : " (texto)";
     const baseFileName = `${
       titleSurvey || "guazu-datos"
-    } - ${formattedDate} - ${formattedTime}`;
+    }${formatSuffix} - ${formattedDate} - ${formattedTime}`;
 
-    // Usar filteredAnswers en lugar de answers
-    const dataToExport = processDataForExport(filteredAnswers);
+    // Usar filteredAnswers con el formato seleccionado
+    const dataToExport = processDataForExport(filteredAnswers, exportFormat);
     const ws = XLSX.utils.json_to_sheet(dataToExport);
 
     if (fileType === "xlsx") {
@@ -173,7 +218,7 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
 
       {/* Dropdown Menu */}
       {isOpen && hasAnswers && (
-        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-64 sm:w-72 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-64 sm:w-80 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg shadow-xl z-50 overflow-hidden">
           {/* Contador de casos */}
           {(preFiltered || excludedCount > 0) && (
             <div className="px-4 py-2 bg-blue-50 border-b border-[var(--card-border)] text-xs">
@@ -192,6 +237,42 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
               )}
             </div>
           )}
+
+          {/* Selector de formato */}
+          <div className="px-4 py-3 border-b border-[var(--card-border)] bg-[var(--background)]">
+            <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">
+              Formato de datos:
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setExportFormat("text")}
+                className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                  exportFormat === "text"
+                    ? "bg-[var(--primary)] text-white"
+                    : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:bg-[var(--hover-bg)]"
+                }`}
+              >
+                Texto
+              </button>
+              <button
+                onClick={() => setExportFormat("numeric")}
+                className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${
+                  exportFormat === "numeric"
+                    ? "bg-[var(--primary)] text-white"
+                    : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:bg-[var(--hover-bg)]"
+                }`}
+              >
+                Valores
+              </button>
+            </div>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-2">
+              {exportFormat === "text" 
+                ? "Etiquetas legibles (ej: \"1. Muy buena\")"
+                : "Números consecutivos (ej: 1, 2, 3...)"}
+            </p>
+          </div>
+
+          {/* Opciones de exportación */}
           {exportOptions.map((option, index) => (
             <button
               key={option.type}
