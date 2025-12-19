@@ -352,15 +352,40 @@ export default function SurveyResponderStable() {
         }
         
         if (ans !== undefined) {
-          if (Array.isArray(ans))
+          if (Array.isArray(ans)) {
+            // Múltiple choice: convertir cada valor a texto
             transformedAnswers[text] = ans.map(
               (v) => q.choices?.find((c) => c.value === v)?.text || v
             );
-          else if (typeof ans === "object" && ans !== null)
-            transformedAnswers[text] = ans;
-          else
+          } else if (typeof ans === "object" && ans !== null) {
+            // Matriz: convertir row IDs y column IDs a texto
+            if (q.getType() === "matrix") {
+              const matrixAnswer = {};
+              
+              // Iterar sobre cada fila respondida
+              Object.keys(ans).forEach((rowValue) => {
+                const columnValue = ans[rowValue];
+                
+                // Buscar el texto de la fila
+                const rowText = q.rows?.find((r) => r.value === rowValue)?.text || rowValue;
+                
+                // Buscar el texto de la columna
+                const columnText = q.columns?.find((c) => c.value === columnValue)?.text || columnValue;
+                
+                // Guardar con textos en lugar de IDs
+                matrixAnswer[rowText] = columnText;
+              });
+              
+              transformedAnswers[text] = matrixAnswer;
+            } else {
+              // Otros tipos de objetos (mantener comportamiento original)
+              transformedAnswers[text] = ans;
+            }
+          } else {
+            // Single choice o texto: convertir valor a texto si hay choices
             transformedAnswers[text] =
               q.choices?.find((c) => c.value === ans)?.text || ans;
+          }
         }
       });
 
