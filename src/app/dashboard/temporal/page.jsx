@@ -445,7 +445,7 @@ export default function TemporalPage() {
         };
         
         await surveyService.createOrUpdateSurvey(payload, id, true); // true = draft
-        toast.info("Encuesta pausada (vuelta a borrador)");
+        toast.warning("Encuesta pausada (vuelta a borrador)");
       } else {
         // ACTIVAR -> Publicar draft
         await surveyService.publishDraft(id);
