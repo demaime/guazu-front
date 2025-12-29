@@ -246,6 +246,10 @@ export default function ParticipantesPage() {
       );
     }
 
+    // IMPORTANT: Filter out already selected participants from the available list
+    const selectedSet = new Set(selectedParticipants);
+    result = result.filter((p) => !selectedSet.has(String(p._id)));
+
     return result;
   }, [
     participants,
@@ -254,6 +258,7 @@ export default function ParticipantesPage() {
     selectedProvince,
     selectedCity,
     searchQuery,
+    selectedParticipants,
   ]);
 
   const participantsTotalPages = Math.max(
@@ -459,133 +464,201 @@ export default function ParticipantesPage() {
 
   // Render Step 2: Participant Selection
   return (
-    <div className="bg-[var(--background)] flex flex-col">
-      {/* Fixed Header - Card background like configurar */}
-      <div className="sticky top-0 z-20 bg-[var(--card-background)] border-b border-[var(--card-border)] px-4 py-2 sm:px-8 sm:py-3 shadow-xl">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleBack}
-                className="p-1.5 hover:bg-[var(--hover-bg)] rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-[var(--text-primary)]" />
-              </button>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
-                  Seleccionar{" "}
-                  {selectedType === "pollsters" ? "Encuestadores" : "Supervisores"}
-                </h1>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {selectedParticipants.length} seleccionado
-                  {selectedParticipants.length !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSelectedModal(true)}
-              className="px-3 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white text-xs sm:text-sm font-semibold transition-colors shadow-sm"
-            >
-              Mostrar seleccionados ({selectedParticipants.length})
-            </button>
-          </div>
-
-          {/* General Search Bar */}
-          <div className="relative mb-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nombre o email..."
-              className="w-full bg-[var(--input-background)] border border-[var(--card-border)] rounded-lg pl-9 pr-4 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-all"
-            />
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            <button
-              onClick={() => {
-                setActiveTab("todos");
-                setSelectedProvince("");
-                setSelectedCity("");
-              }}
-              className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors ${
-                activeTab === "todos"
-                  ? "bg-[var(--primary-light)] text-white"
-                  : "bg-[var(--primary)] text-white hover:opacity-90"
-              }`}
-            >
-              Todos ({participants.length})
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("ubicacion");
-              }}
-              className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                activeTab === "ubicacion"
-                  ? "bg-[var(--primary-light)] text-white"
-                  : "bg-[var(--primary)] text-white hover:opacity-90"
-              }`}
-            >
-              <MapPin className="w-3.5 h-3.5" />
-              Por Ubicación
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab("favoritos");
-                setSelectedProvince("");
-                setSelectedCity("");
-              }}
-              className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                activeTab === "favoritos"
-                  ? "bg-[var(--primary-light)] text-white"
-                  : "bg-[var(--secondary)] text-white hover:opacity-90"
-              }`}
-            >
-              <Star className="w-3.5 h-3.5" />
-              Favoritos ({favorites.length})
-            </button>
+    <div className="h-full flex flex-col bg-[var(--background)] overflow-hidden">{/* Changed from h-screen to h-full - fits within .main-content */}
+      {/* Simplified Header */}
+      <div className="flex-shrink-0 bg-[var(--card-background)] border-b border-[var(--card-border)] px-4 py-3 sm:px-6">
+        <div className="max-w-7xl mx-auto flex items-center gap-3">
+          <button
+            onClick={handleBack}
+            className="p-1.5 hover:bg-[var(--hover-bg)] rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-[var(--text-primary)]" />
+          </button>
+          <div className="flex-1">
+            <h1 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+              Seleccionar{" "}
+              {selectedType === "pollsters" ? "Encuestadores" : "Supervisores"}
+            </h1>
           </div>
         </div>
       </div>
 
-      {/* Main Content - Background color for content area */}
-      <div className="px-4 py-6 sm:px-8 pb-24 bg-[var(--background)]">
-        <div className="max-w-7xl mx-auto">
-          <div ref={contentTopRef} />
-          {/* Location Filter (only visible in "ubicacion" tab) */}
-          {activeTab === "ubicacion" && (
-            <LocationSearchFilter
-              provinces={provinces}
-              cities={cities}
-              selectedProvince={selectedProvince}
-              selectedCity={selectedCity}
-              onProvinceChange={(province) => {
-                setSelectedProvince(province);
-                setSelectedCity(""); // Reset city when province changes
-              }}
-              onCityChange={setSelectedCity}
-              onClearFilters={() => {
-                setSelectedProvince("");
-                setSelectedCity("");
-              }}
-            />
-          )}
+      {/* Split Screen Layout - Takes remaining space with padding for fixed footer */}
+      <div className="flex-1 flex overflow-hidden min-h-0 pb-20">{/* pb-20 = ~80px for footer */}
+        {/* Left Column: Selected Participants (1/3) */}
+        <div className="w-full md:w-1/3 bg-[var(--card-background)] border-r border-[var(--card-border)] flex flex-col min-h-0">
+          <div className="flex-shrink-0 p-4 border-b border-[var(--card-border)]">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+              Seleccionados
+            </h2>
+            <p className="text-xs text-[var(--text-secondary)]">
+              {selectedParticipants.length} {selectedType === "pollsters" ? "encuestador" : "supervisor"}{selectedParticipants.length !== 1 ? "es" : ""}
+            </p>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            {selectedRows.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-12 h-12 bg-[var(--background)] rounded-full flex items-center justify-center mx-auto mb-3 border border-[var(--card-border)]">
+                  <Users className="w-6 h-6 text-[var(--text-secondary)]" />
+                </div>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Ningún participante seleccionado
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {selectedRows.map((participant) => {
+                  const isFavorite = favoriteIds.has(participant.id);
+                  return (
+                    <div
+                      key={participant.id}
+                      className="bg-[var(--background)] border border-[var(--card-border)] rounded-lg p-3 group hover:border-[var(--primary)]/50 transition-colors relative"
+                    >
+                      {/* Favorite Star */}
+                      {isFavorite && (
+                        <div className="absolute top-2 right-2">
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        </div>
+                      )}
+                      <div className="flex items-start gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                          {participant.fullName
+                            .split(" ")
+                            .map((n) => n[0])
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0 pr-6">
+                          <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                            {participant.fullName}
+                          </p>
+                          <p className="text-xs text-[var(--text-secondary)] truncate">
+                            {participant.email}
+                          </p>
+                          {(participant.city || participant.province) && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
+                              <p className="text-xs text-[var(--text-secondary)] truncate">
+                                {[participant.city, participant.province].filter(Boolean).join(", ")}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleParticipantToggle(participant.id)}
+                          className="p-1 hover:bg-[var(--hover-bg)] rounded transition-colors opacity-0 group-hover:opacity-100 absolute right-2 top-1/2 -translate-y-1/2"
+                          title="Quitar"
+                        >
+                          <X className="w-4 h-4 text-[var(--text-secondary)]" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
 
-          {/* Loading State */}
-          {loading && (
-            <div className="text-center py-12">
-              <div className="inline-block w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-             <p className="mt-4 text-[var(--text-secondary)]">Cargando...</p>
+        {/* Right Column: Available Participants (2/3) */}
+        <div className="flex-1 flex flex-col bg-[var(--background)] min-h-0">
+          {/* Integrated Search and Filters - Fixed at top */}
+          <div className="flex-shrink-0 p-4 space-y-3 border-b border-[var(--card-border)]">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por nombre o email..."
+                className="w-full bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg pl-9 pr-4 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-all"
+              />
             </div>
-          )}
 
-          {/* Empty State - Centered */}
-          {!loading && filteredParticipants.length === 0 && (
-            <div className="flex-1 flex items-center justify-center py-12">
-              <div className="text-center">
+            {/* Tabs */}
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => {
+                  setActiveTab("todos");
+                  setSelectedProvince("");
+                  setSelectedCity("");
+                }}
+                className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors ${
+                  activeTab === "todos"
+                    ? "bg-[var(--primary-light)] text-white"
+                    : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--primary)]"
+                }`}
+              >
+                Todos ({participants.length})
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("ubicacion");
+                }}
+                className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                  activeTab === "ubicacion"
+                    ? "bg-[var(--primary-light)] text-white"
+                    : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--primary)]"
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                Por Ubicación
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("favoritos");
+                  setSelectedProvince("");
+                  setSelectedCity("");
+                }}
+                className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                  activeTab === "favoritos"
+                    ? "bg-[var(--secondary)] text-white"
+                    : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--secondary)]"
+                }`}
+              >
+                <Star className="w-3.5 h-3.5" />
+                Favoritos ({favorites.length})
+              </button>
+            </div>
+
+            {/* Location Filter (only visible in "ubicacion" tab) */}
+            {activeTab === "ubicacion" && (
+              <LocationSearchFilter
+                provinces={provinces}
+                cities={cities}
+                selectedProvince={selectedProvince}
+                selectedCity={selectedCity}
+                onProvinceChange={(province) => {
+                  setSelectedProvince(province);
+                  setSelectedCity("");
+                }}
+                onCityChange={setSelectedCity}
+                onClearFilters={() => {
+                  setSelectedProvince("");
+                  setSelectedCity("");
+                }}
+              />
+            )}
+          </div>
+
+          {/* Scrollable Content - Takes remaining space */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
+            <div ref={contentTopRef} />
+            
+            {/* Loading State */}
+            {loading && (
+              <div className="text-center py-12">
+                <div className="inline-block w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+                <p className="mt-4 text-[var(--text-secondary)]">Cargando...</p>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!loading && filteredParticipants.length === 0 && (
+              <div className="text-center py-12">
                 <div className="w-16 h-16 bg-[var(--card-background)] rounded-full flex items-center justify-center mx-auto mb-4 border border-[var(--card-border)]">
                   {activeTab === "favoritos" ? (
                     <Star className="w-8 h-8 text-[var(--text-secondary)]" />
@@ -598,7 +671,7 @@ export default function ParticipantesPage() {
                     ? "No tienes favoritos aún"
                     : "No se encontraron participantes"}
                 </p>
-                <p className="text-[var(--text-secondary)] text-sm max-w-md">
+                <p className="text-[var(--text-secondary)] text-sm max-w-md mx-auto">
                   {activeTab === "favoritos"
                     ? "Marca participantes como favoritos para acceder rápidamente a ellos"
                     : searchQuery || selectedProvince || selectedCity
@@ -606,157 +679,81 @@ export default function ParticipantesPage() {
                     : ""}
                 </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Participant Grid */}
-          {!loading && filteredParticipants.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {paginatedParticipants.map((participant) => (
-                <ParticipantCard
-                  key={participant._id}
-                  participant={participant}
-                  isSelected={selectedParticipants.includes(String(participant._id))}
-                  isFavorite={favorites.some((fav) => fav._id === participant._id)}
-                  onToggleSelect={() => handleParticipantToggle(participant._id)}
-                  onToggleFavorite={() => handleFavoriteToggle(participant._id)}
-                />
-              ))}
-            </div>
-          )}
+            {/* Participant Grid */}
+            {!loading && filteredParticipants.length > 0 && (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {paginatedParticipants.map((participant) => (
+                    <ParticipantCard
+                      key={participant._id}
+                      participant={participant}
+                      isSelected={selectedParticipants.includes(String(participant._id))}
+                      isFavorite={favorites.some((fav) => fav._id === participant._id)}
+                      onToggleSelect={() => handleParticipantToggle(participant._id)}
+                      onToggleFavorite={() => handleFavoriteToggle(participant._id)}
+                    />
+                  ))}
+                </div>
 
-          {/* Paginación */}
-          {!loading && filteredParticipants.length > participantsPageSize && (
-            <div className="mt-6 flex items-center justify-between gap-3">
-              <div className="text-xs text-[var(--text-secondary)]">
-                Página {participantsPageSafe + 1} de {participantsTotalPages} ·{" "}
-                {filteredParticipants.length} usuarios
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setParticipantsPage((p) => {
-                      const next = Math.max(0, p - 1);
-                      // scroll arriba para ver el contenido nuevo
-                      setTimeout(scrollContentTop, 0);
-                      return next;
-                    })
-                  }
-                  disabled={participantsPageSafe <= 0}
-                  className="px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] text-[var(--text-primary)] text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--hover-bg)]"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setParticipantsPage((p) => {
-                      const next = Math.min(participantsTotalPages - 1, p + 1);
-                      setTimeout(scrollContentTop, 0);
-                      return next;
-                    })
-                  }
-                  disabled={participantsPageSafe >= participantsTotalPages - 1}
-                  className="px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] text-[var(--text-primary)] text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--hover-bg)]"
-                >
-                  Siguiente
-                </button>
-              </div>
-            </div>
-          )}
+                {/* Pagination */}
+                {filteredParticipants.length > participantsPageSize && (
+                  <div className="mt-6 flex items-center justify-between gap-3">
+                    <div className="text-xs text-[var(--text-secondary)]">
+                      Página {participantsPageSafe + 1} de {participantsTotalPages} · {filteredParticipants.length} usuarios
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setParticipantsPage((p) => {
+                            const next = Math.max(0, p - 1);
+                            setTimeout(scrollContentTop, 0);
+                            return next;
+                          })
+                        }
+                        disabled={participantsPageSafe <= 0}
+                        className="px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] text-[var(--text-primary)] text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--hover-bg)]"
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setParticipantsPage((p) => {
+                            const next = Math.min(participantsTotalPages - 1, p + 1);
+                            setTimeout(scrollContentTop, 0);
+                            return next;
+                          })
+                        }
+                        disabled={participantsPageSafe >= participantsTotalPages - 1}
+                        className="px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] text-[var(--text-primary)] text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--hover-bg)]"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Modal: Mostrar seleccionados */}
-      {showSelectedModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
-          onClick={() => setShowSelectedModal(false)}
-        >
-          <div
-            className="w-full sm:max-w-3xl bg-[var(--card-background)] border border-[var(--card-border)] rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 border-b border-[var(--card-border)] flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-[var(--text-primary)]">
-                  Seleccionados ({selectedParticipants.length})
-                </h3>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {selectedType === "pollsters" ? "Encuestadores" : "Supervisores"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowSelectedModal(false)}
-                className="p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                title="Cerrar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-4 overflow-auto">
-              {selectedRows.length === 0 ? (
-                <div className="text-center py-10 text-[var(--text-secondary)]">
-                  No hay seleccionados.
-                </div>
-              ) : (
-                <div className="border border-[var(--card-border)] rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-[var(--input-background)]">
-                      <tr>
-                        <th className="text-left px-3 py-2 font-semibold text-[var(--text-secondary)]">
-                          Nombre
-                        </th>
-                        <th className="text-left px-3 py-2 font-semibold text-[var(--text-secondary)]">
-                          Email
-                        </th>
-                        <th className="text-left px-3 py-2 font-semibold text-[var(--text-secondary)]">
-                          Ciudad
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedRows.map((r) => (
-                        <tr
-                          key={r.id}
-                          className="border-t border-[var(--card-border)]"
-                        >
-                          <td className="px-3 py-2 text-[var(--text-primary)]">
-                            {r.fullName}
-                          </td>
-                          <td className="px-3 py-2 text-[var(--text-primary)]">
-                            {r.email}
-                          </td>
-                          <td className="px-3 py-2 text-[var(--text-primary)]">
-                            {[r.city, r.province].filter(Boolean).join(", ") || "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Fixed Footer - Card background like header */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[var(--card-background)] border-t border-[var(--card-border)] p-2 sm:p-3 z-40 shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.15)]">
-        <div className="max-w-7xl mx-auto flex gap-2 sm:gap-3">
+      {/* Fixed Footer - Always visible at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[var(--card-background)] border-t border-[var(--card-border)] p-3 sm:p-4 z-50">
+        <div className="max-w-7xl mx-auto flex gap-3">
           <button
             onClick={() => router.push('/dashboard/temporal')}
-            className="flex-1 px-4 py-2 sm:px-6 sm:py-2.5 text-sm sm:text-base text-[var(--error-text)] hover:text-[var(--text-primary)] border border-[var(--error-border)] rounded-lg transition-colors bg-[var(--error-bg)]"
+            className="flex-1 px-4 py-2.5 text-sm sm:text-base text-[var(--error-text)] hover:text-[var(--text-primary)] border border-[var(--error-border)] rounded-lg transition-colors bg-[var(--error-bg)] font-medium"
           >
             Cancelar
           </button>
           <button
             onClick={handleSaveSelection}
             disabled={selectedParticipants.length === 0 || isSaving}
-            className="flex-1 px-4 py-2 sm:px-6 sm:py-2.5 text-sm sm:text-base rounded-lg font-bold transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] hover:opacity-90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2.5 text-sm sm:text-base rounded-lg font-bold transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] hover:opacity-90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check size={18} className="text-white" />
             <span className="text-white">

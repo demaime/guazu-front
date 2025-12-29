@@ -568,19 +568,18 @@ body {
 
 /* Main Content */
 .main-content {
-  height: 100%;
   flex: 1;
+  min-height: 0; /* Important for flex children with overflow */
   transition: background-color 0.3s ease-in-out;
   background-color: var(--background);
-  overflow-y: auto;
+  overflow-y: auto; /* Restored auto - pages need scroll when content is long */
   overscroll-behavior-y: contain; /* evita pull-to-refresh en Android */
 }
 
 .main-wrapper {
   display: flex;
-  height: 100%;
   flex: 1;
-  padding-bottom: 5rem;
+  min-height: 0; /* Important for flex children with overflow */
 }
 
 /* Animaciones */
