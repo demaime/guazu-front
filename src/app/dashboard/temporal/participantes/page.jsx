@@ -12,7 +12,7 @@ import {
   MapPin,
   X,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { userService } from "@/services/user.service";
 import { surveyService } from "@/services/survey.service";
 import ParticipantCard from "@/components/temporal/ParticipantCard";
@@ -45,6 +45,7 @@ export default function ParticipantesPage() {
 
   // Selection state
   const [selectedParticipants, setSelectedParticipants] = useState([]);
+  const [showSelectedOnMobile, setShowSelectedOnMobile] = useState(false); // For mobile expandable section
 
   // Pagination (aplica a la grilla luego de filtros/búsqueda)
   const participantsPageSize = 24;
@@ -376,26 +377,26 @@ export default function ParticipantesPage() {
   // Render Step 1: Type Selection
   if (step === 1) {
     return (
-      <div className=" bg-gradient-to-br from-background via-background to-card-background p-4 md:p-8">
+      <div className="bg-gradient-to-br from-background via-background to-card-background p-4 sm:p-6 md:p-8 min-h-full flex flex-col">
         {/* Header */}
-        <div className="max-w-5xl mx-auto mb-8">
+        <div className="max-w-5xl mx-auto mb-6 sm:mb-8 w-full">
           <button
             onClick={handleBack}
-            className="mb-4 p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors flex items-center gap-2 text-[var(--text-secondary)]"
+            className="mb-3 sm:mb-4 p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors flex items-center gap-2 text-[var(--text-secondary)]"
           >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Volver</span>
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-sm sm:text-base">Volver</span>
           </button>
-          <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-2">
             Seleccionar Participantes
           </h1>
-          <p className="text-[var(--text-secondary)]">
+          <p className="text-sm sm:text-base text-[var(--text-secondary)]">
             Elige el tipo de participantes que deseas asignar a tu encuesta
           </p>
         </div>
 
         {/* Type Selection Cards */}
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full flex-1">
           {/* Pollsters Card */}
           <motion.div
             whileHover={{ scale: 1.02, y: -5 }}
@@ -403,25 +404,25 @@ export default function ParticipantesPage() {
             onClick={() => handleTypeSelect("pollsters")}
             className="group cursor-pointer"
           >
-            <div className="relative h-full bg-gradient-to-br from-card-background to-card-background/80 backdrop-blur-sm border border-[var(--card-border)] rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+            <div className="relative h-full bg-gradient-to-br from-card-background to-card-background/80 backdrop-blur-sm border border-[var(--card-border)] rounded-xl sm:rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
 
               <div className="relative z-10">
-                <div className="w-20 h-20 mb-6 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300">
-                  <Users className="w-10 h-10 text-white" />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 mb-4 sm:mb-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300">
+                  <Users className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                 </div>
 
-                <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-3 group-hover:text-[var(--primary)] transition-colors duration-300">
+                <h3 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] mb-2 sm:mb-3 group-hover:text-[var(--primary)] transition-colors duration-300">
                   Encuestadores
                 </h3>
 
-                <p className="text-[var(--text-secondary)] leading-relaxed mb-6">
+                <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed mb-4 sm:mb-6">
                   Asigna encuestadores para recolectar datos en campo
                 </p>
 
                 <div className="flex items-center text-[var(--primary)] font-medium opacity-0 group-hover:opacity-100 transform translate-x-0 group-hover:translate-x-2 transition-all duration-300">
-                  <span className="mr-2">Seleccionar</span>
-                  <ArrowLeft className="w-5 h-5 rotate-180" />
+                  <span className="mr-2 text-sm sm:text-base">Seleccionar</span>
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 rotate-180" />
                 </div>
               </div>
             </div>
@@ -434,25 +435,25 @@ export default function ParticipantesPage() {
             onClick={() => handleTypeSelect("supervisors")}
             className="group cursor-pointer"
           >
-            <div className="relative h-full bg-gradient-to-br from-card-background to-card-background/80 backdrop-blur-sm border border-[var(--card-border)] rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+            <div className="relative h-full bg-gradient-to-br from-card-background to-card-background/80 backdrop-blur-sm border border-[var(--card-border)] rounded-xl sm:rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
 
               <div className="relative z-10">
-                <div className="w-20 h-20 mb-6 rounded-2xl bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300">
-                  <UserCheck className="w-10 h-10 text-white" />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 mb-4 sm:mb-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300">
+                  <UserCheck className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                 </div>
 
-                <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-3 group-hover:text-[var(--secondary)] transition-colors duration-300">
+                <h3 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] mb-2 sm:mb-3 group-hover:text-[var(--secondary)] transition-colors duration-300">
                   Supervisores
                 </h3>
 
-                <p className="text-[var(--text-secondary)] leading-relaxed mb-6">
+                <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed mb-4 sm:mb-6">
                   Asigna supervisores para monitorear y validar el trabajo
                 </p>
 
                 <div className="flex items-center text-[var(--secondary)] font-medium opacity-0 group-hover:opacity-100 transform translate-x-0 group-hover:translate-x-2 transition-all duration-300">
-                  <span className="mr-2">Seleccionar</span>
-                  <ArrowLeft className="w-5 h-5 rotate-180" />
+                  <span className="mr-2 text-sm sm:text-base">Seleccionar</span>
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 rotate-180" />
                 </div>
               </div>
             </div>
@@ -483,10 +484,109 @@ export default function ParticipantesPage() {
         </div>
       </div>
 
-      {/* Split Screen Layout - Takes remaining space with padding for fixed footer */}
-      <div className="flex-1 flex overflow-hidden min-h-0 pb-20">{/* pb-20 = ~80px for footer */}
-        {/* Left Column: Selected Participants (1/3) */}
-        <div className="w-full md:w-1/3 bg-[var(--card-background)] border-r border-[var(--card-border)] flex flex-col min-h-0">
+      {/* Mobile: Expandable Selected Participants Section */}
+      <div className="md:hidden flex-shrink-0">
+        {selectedParticipants.length > 0 && (
+          <div className="bg-[var(--card-background)] border-b border-[var(--card-border)]">
+            {/* Summary Bar - Always visible when there are selections */}
+            <button
+              onClick={() => setShowSelectedOnMobile(!showSelectedOnMobile)}
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--hover-bg)] transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center">
+                  <Users className="w-5 h-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">
+                    Seleccionados
+                  </p>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    {selectedParticipants.length} {selectedType === "pollsters" ? "encuestador" : "supervisor"}{selectedParticipants.length !== 1 ? "es" : ""}
+                  </p>
+                </div>
+              </div>
+              <motion.div
+                animate={{ rotate: showSelectedOnMobile ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <svg className="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </motion.div>
+            </button>
+
+            {/* Expandable List */}
+            <AnimatePresence>
+              {showSelectedOnMobile && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 space-y-2 max-h-64 overflow-y-auto">
+                    {selectedRows.map((participant) => {
+                      const isFavorite = favoriteIds.has(participant.id);
+                      return (
+                        <div
+                          key={participant.id}
+                          className="bg-[var(--background)] border border-[var(--card-border)] rounded-lg p-3 relative"
+                        >
+                          {isFavorite && (
+                            <div className="absolute top-2 right-2">
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                            </div>
+                          )}
+                          <div className="flex items-start gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                              {participant.fullName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .slice(0, 2)
+                                .join("")
+                                .toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0 pr-8">
+                              <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                                {participant.fullName}
+                              </p>
+                              <p className="text-xs text-[var(--text-secondary)] truncate">
+                                {participant.email}
+                              </p>
+                              {(participant.city || participant.province) && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
+                                  <p className="text-xs text-[var(--text-secondary)] truncate">
+                                    {[participant.city, participant.province].filter(Boolean).join(", ")}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleParticipantToggle(participant.id)}
+                              className="p-1.5 hover:bg-[var(--hover-bg)] rounded transition-colors absolute right-2 top-1/2 -translate-y-1/2"
+                              title="Quitar"
+                            >
+                              <X className="w-4 h-4 text-[var(--text-secondary)]" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+
+      {/* Split Screen Layout - Desktop only, single column on mobile */}
+      <div className="flex-1 flex overflow-hidden min-h-0 pb-20">
+        {/* Left Column: Selected Participants - Hidden on mobile */}
+        <div className="hidden md:flex md:w-1/3 bg-[var(--card-background)] border-r border-[var(--card-border)] flex-col min-h-0">
           <div className="flex-shrink-0 p-4 border-b border-[var(--card-border)]">
             <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
               Seleccionados
@@ -562,7 +662,7 @@ export default function ParticipantesPage() {
           </div>
         </div>
 
-        {/* Right Column: Available Participants (2/3) */}
+        {/* Right Column: Available Participants - Full width on mobile */}
         <div className="flex-1 flex flex-col bg-[var(--background)] min-h-0">
           {/* Integrated Search and Filters - Fixed at top */}
           <div className="flex-shrink-0 p-4 space-y-3 border-b border-[var(--card-border)]">

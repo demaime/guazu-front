@@ -18,8 +18,6 @@ import {
   Users,
   ClipboardList,
   Clock,
-  ChevronDown,
-  MapPin,
   X,
   AlertCircle,
   ArrowDownAZ,
@@ -153,20 +151,23 @@ export default function TemporalPage() {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isToggling, setIsToggling] = useState(null);
   
-  // Estados de filtros avanzados
-  const [searchType, setSearchType] = useState("name"); // name | date | location
-  const [searchDateStart, setSearchDateStart] = useState("");
-  const [searchDateEnd, setSearchDateEnd] = useState("");
-  const [searchLocation, setSearchLocation] = useState("");
+  // Estados de filtros (checkboxes)
+  const [showPending, setShowPending] = useState(true); // Activado por defecto
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  const [finalizadasSort, setFinalizadasSort] = useState("fecha_desc"); // nombre | fecha_desc | fecha_asc
   
-  // Custom Select State
-  const [isSearchTypeOpen, setIsSearchTypeOpen] = useState(false);
-  const searchTypeRef = useRef(null);
+  // Custom Sort Dropdown State
+  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef(null);
+
+  // Paginación
+  const pageSize = 10;
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (searchTypeRef.current && !searchTypeRef.current.contains(event.target)) {
-        setIsSearchTypeOpen(false);
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setIsSortDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -174,39 +175,18 @@ export default function TemporalPage() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-  
-  // Estados de filtros (checkboxes)
-  const [showPending, setShowPending] = useState(true); // Activado por defecto
-  const [showOnlyActive, setShowOnlyActive] = useState(false);
-  const [finalizadasSort, setFinalizadasSort] = useState("fecha_desc"); // nombre | fecha_desc | fecha_asc
-
-  // Paginación
-  const pageSize = 10;
-  const [page, setPage] = useState(0);
-
-  // Obtener localidades únicas
-  const uniqueLocations = useMemo(() => {
-    const locs = surveys
-      .map((s) => s.location)
-      .filter((l) => l && l !== "—" && l.trim() !== "");
-    return [...new Set(locs)].sort();
-  }, [surveys]);
 
   useEffect(() => {
     // Al cambiar pestaña, cerrar panel y volver a la primer página
-    // Resetear búsquedas al cambiar de tab
     setShowFilters(false);
     setPage(0);
     setSearchQuery("");
-    setSearchDateStart("");
-    setSearchDateEnd("");
-    setSearchLocation("");
   }, [activeTab]);
 
   useEffect(() => {
     // Solo resetear página al cambiar filtros
     setPage(0);
-  }, [searchQuery, showPending, showOnlyActive, finalizadasSort, searchDateStart, searchDateEnd, searchLocation, searchType]);
+  }, [searchQuery, showPending, showOnlyActive, finalizadasSort]);
 
   const loadSurveysData = async () => {
     try {
@@ -290,7 +270,6 @@ export default function TemporalPage() {
             totalCases,
             startDate,
             endDate,
-            location: s?.surveyInfo?.location || "—",
             hasConfig,
             hasParticipants,
             hasForm,
@@ -328,7 +307,7 @@ export default function TemporalPage() {
       return true;
     });
 
-    // Mostrar pendientes = incluir pendientes (no “solo pendientes”)
+    // Mostrar pendientes = incluir pendientes (no "solo pendientes")
     if (!showPending) {
       filtered = filtered.filter((s) => !s.isPending);
     }
@@ -340,32 +319,23 @@ export default function TemporalPage() {
       filtered = filtered.filter((s) => s.isPending || s.status === "activa");
     }
 
-    // Filtro: Búsqueda dinámica
-    if (searchType === "name" && searchQuery) {
+    // Búsqueda universal: busca en título, descripción y fechas
+    if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (s) =>
-          s.title.toLowerCase().includes(q) ||
-          (s.description || "").toLowerCase().includes(q)
-      );
-    } else if (searchType === "location" && searchLocation) {
-       filtered = filtered.filter((s) => s.location === searchLocation);
-    } else if (searchType === "date" && (searchDateStart || searchDateEnd)) {
-      const qStart = searchDateStart ? new Date(searchDateStart) : null;
-      const qEnd = searchDateEnd ? new Date(searchDateEnd) : null;
-
       filtered = filtered.filter((s) => {
-        const sStart = safeDate(s.startDate);
-        const sEnd = safeDate(s.endDate);
-        if (!sStart || !sEnd) return false;
-
-        // Lógica de superposición (overlap)
-        // [qStart, qEnd] solapa con [sStart, sEnd] si: qStart <= sEnd && sStart <= qEnd
-        // Si falta un extremo del query, asumimos infinito
-        const afterQueryStart = qStart ? sEnd >= qStart : true;
-        const beforeQueryEnd = qEnd ? sStart <= qEnd : true;
+        // Buscar en título y descripción
+        const matchesText = 
+          s.title.toLowerCase().includes(q) ||
+          (s.description || "").toLowerCase().includes(q);
         
-        return afterQueryStart && beforeQueryEnd;
+        // Buscar en fechas formateadas (ej: "22/08" o "28/01")
+        const startDateFormatted = formatDate(s.startDate).toLowerCase();
+        const endDateFormatted = formatDate(s.endDate).toLowerCase();
+        const matchesDate = 
+          startDateFormatted.includes(q) || 
+          endDateFormatted.includes(q);
+        
+        return matchesText || matchesDate;
       });
     }
 
@@ -408,10 +378,6 @@ export default function TemporalPage() {
     showPending,
     showOnlyActive,
     finalizadasSort,
-    searchType,
-    searchDateStart,
-    searchDateEnd,
-    searchLocation,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSurveys.length / pageSize));
@@ -540,168 +506,94 @@ export default function TemporalPage() {
 
           <div className="flex flex-col gap-2">
             
-            {/* Barra de búsqueda dinámica */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl flex items-center shadow-sm hover:border-[color:var(--primary)]/50 focus-within:border-[color:var(--primary)] transition-all relative z-20 h-12">
+            {/* Barra de búsqueda universal + Filtros */}
+            <div className="flex flex-row gap-2 sm:gap-3">
+              {/* Barra de búsqueda universal */}
+              <div className="flex-1 bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl flex items-center shadow-sm hover:border-[color:var(--primary)]/50 transition-all relative h-12">
+                <Search size={18} className="text-[color:var(--text-secondary)] ml-4 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Buscar por título o fecha..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 h-full bg-transparent border-none outline-none text-sm text-[color:var(--text-primary)] px-3 placeholder:text-[color:var(--text-secondary)] rounded-xl focus:outline-none focus:ring-0"
+                />
                 
-                {/* Custom Search Type Selector */}
-                <div className="relative h-full" ref={searchTypeRef}>
-                   <button 
-                     onClick={() => setIsSearchTypeOpen(!isSearchTypeOpen)}
-                     className="h-full pl-4 pr-3 flex items-center gap-3 hover:bg-[color:var(--hover-bg)] transition-colors border-r border-[color:var(--card-border)] outline-none min-w-[140px] rounded-l-xl group"
-                   >
-                      <div className="text-[color:var(--primary)] group-hover:scale-110 transition-transform">
-                         {searchType === 'name' && <Search size={18} />}
-                         {searchType === 'date' && <Calendar size={18} />}
-                         {searchType === 'location' && <MapPin size={18} />}
-                      </div>
-                      <span className="text-sm font-medium text-[color:var(--text-primary)]">
-                         {searchType === 'name' && "Nombre"}
-                         {searchType === 'date' && "Fecha"}
-                         {searchType === 'location' && "Localidad"}
-                      </span>
-                      <ChevronDown size={14} className={`text-[color:var(--text-secondary)] ml-auto transition-transform duration-200 ${isSearchTypeOpen ? 'rotate-180' : ''}`} />
-                   </button>
-
-                   {/* Custom Dropdown Menu */}
-                   {isSearchTypeOpen && (
-                     <div className="absolute top-[calc(100%+0.5rem)] left-0 w-[180px] bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 p-1">
-                         {[
-                           { value: 'name', label: 'Nombre', icon: Search },
-                           { value: 'location', label: 'Localidad', icon: MapPin },
-                           { value: 'date', label: 'Fecha', icon: Calendar },
-                         ].map(opt => (
-                           <button
-                             key={opt.value}
-                             onClick={() => {
-                               setSearchType(opt.value);
-                               setIsSearchTypeOpen(false);
-                             }}
-                             className={`w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center gap-3 transition-colors ${
-                                searchType === opt.value 
-                                  ? 'bg-[color:var(--primary)] text-white' 
-                                  : 'text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)]'
-                             }`}
-                           >
-                             <opt.icon size={16} className={searchType === opt.value ? 'text-white' : 'text-[color:var(--primary)]'} />
-                             {opt.label}
-                           </button>
-                         ))}
-                     </div>
-                   )}
-                </div>
-
-                {/* Input dinámico */}
-                <div className="flex-1 relative h-full flex items-center min-w-0">
-                  {searchType === "name" && (
-                      <input
-                        type="text"
-                        placeholder="Buscar encuesta por título..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full h-full bg-transparent border-none outline-none text-sm text-[color:var(--text-primary)] px-4 placeholder:text-[color:var(--text-secondary)]"
-                      />
-                  )}
-
-                  {searchType === "location" && (
-                    <div className="relative w-full h-full">
-                      <select
-                        value={searchLocation}
-                        onChange={(e) => setSearchLocation(e.target.value)}
-                        className="w-full h-full bg-transparent border-none outline-none text-sm text-[color:var(--text-primary)] px-4 cursor-pointer appearance-none"
-                      >
-                         <option value="" className="bg-[color:var(--card-background)]">Todas las localidades</option>
-                        {uniqueLocations.map((loc) => (
-                          <option key={loc} value={loc} className="bg-[color:var(--card-background)]">
-                            {loc}
-                          </option>
-                        ))}
-                      </select>
-                      
-                    </div>
-                  )}
-
-                  {searchType === "date" && (
-                    <div className="flex items-center h-full w-full">
-                       <div className="relative flex-1 flex items-center h-full group/date">
-                         <span className="absolute left-4 text-[color:var(--text-secondary)] text-xs font-medium whitespace-nowrap pointer-events-none group-focus-within/date:text-[color:var(--primary)] transition-colors">Desde:</span>
-                         <input
-                            type="date"
-                            value={searchDateStart}
-                            onChange={(e) => setSearchDateStart(e.target.value)}
-                            className="w-full h-full bg-transparent border-none text-sm text-[color:var(--text-primary)] focus:outline-none pl-14 pr-2 color-scheme-dark [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                          />
-                       </div>
-                       <div className="w-px h-6 bg-[color:var(--card-border)] mx-1" />
-                       <div className="relative flex-1 flex items-center h-full group/date">
-                          <span className="absolute left-2 text-[color:var(--text-secondary)] text-xs font-medium whitespace-nowrap pointer-events-none group-focus-within/date:text-[color:var(--primary)] transition-colors">Hasta:</span>
-                          <input
-                            type="date"
-                            value={searchDateEnd}
-                            onChange={(e) => setSearchDateEnd(e.target.value)}
-                            className="w-full h-full bg-transparent border-none text-sm text-[color:var(--text-primary)] focus:outline-none pl-12 pr-10 color-scheme-dark [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                          />
-                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Botón limpiar */}
-                  {(searchQuery || searchLocation || searchDateStart || searchDateEnd) && (
-                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center bg-[color:var(--card-background)] pl-2">
-                         <button 
-                            onClick={() => {
-                                setSearchQuery("");
-                                setSearchLocation("");
-                                setSearchDateStart("");
-                                setSearchDateEnd("");
-                            }}
-                            className="p-1.5 rounded-full hover:bg-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:text-[color:var(--error-text)] transition-colors"
-                            title="Limpiar búsqueda"
-                         >
-                            <X size={14} />
-                         </button>
-                     </div>
-                  )}
-                </div>
+                {/* Botón limpiar */}
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery("")}
+                    className="p-1.5 mr-2 rounded-full hover:bg-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:text-[color:var(--error-text)] transition-colors flex-shrink-0"
+                    title="Limpiar búsqueda"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
 
-               {/* Botones de filtro de la derecha */}
+              {/* Botón de filtros/ordenamiento */}
               {activeTab === "activas" ? (
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`h-12 px-4 rounded-xl flex items-center justify-center gap-2 transition-all flex-shrink-0 text-sm border font-medium ${
-                     showFilters 
-                        ? 'bg-[color:var(--primary)] border-[color:var(--primary)] text-white shadow-lg shadow-blue-500/20' 
-                        : 'bg-[color:var(--card-background)] border-[color:var(--card-border)] text-[color:var(--text-primary)] hover:border-[color:var(--primary)]'
+                  className={`h-12 w-12 sm:w-auto sm:px-4 rounded-xl flex items-center justify-center gap-2 transition-all flex-shrink-0 text-sm border font-medium ${
+                    showFilters 
+                      ? 'bg-[color:var(--primary)] border-[color:var(--primary)] text-white shadow-lg shadow-blue-500/20' 
+                      : 'bg-[color:var(--card-background)] border-[color:var(--card-border)] text-[color:var(--text-primary)] hover:border-[color:var(--primary)]'
                   }`}
                 >
                   <Filter size={18} />
                   <span className="hidden sm:inline">Filtros</span>
                 </button>
               ) : (
-                <div className="flex items-center gap-2 flex-shrink-0 h-12">
-                  <div className="w-12 h-12 rounded-xl border border-[color:var(--card-border)] bg-[color:var(--card-background)] flex items-center justify-center text-[color:var(--text-secondary)]">
-                    {finalizadasSort === "nombre" ? (
-                      <ArrowDownAZ size={20} />
-                    ) : (
-                      <ArrowDownWideNarrow size={20} />
-                    )}
-                  </div>
-                  <div className="relative h-full">
-                     <select
-                        value={finalizadasSort}
-                        onChange={(e) => setFinalizadasSort(e.target.value)}
-                        className="h-full appearance-none bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl pl-4 pr-10 text-sm font-medium text-[color:var(--text-primary)] focus:outline-none focus:border-[color:var(--primary)] cursor-pointer min-w-[160px]"
-                     >
-                        <option value="nombre" className="bg-[color:var(--card-background)]">Nombre</option>
-                        <option value="fecha_desc" className="bg-[color:var(--card-background)]">Más recientes</option>
-                        <option value="fecha_asc" className="bg-[color:var(--card-background)]">Más antiguas</option>
-                     </select>
-                     <ArrowDownWideNarrow size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-[color:var(--text-secondary)] pointer-events-none" />
-                  </div>
+                <div className="relative h-12 flex-shrink-0" ref={sortDropdownRef}>
+                  <button 
+                    onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                    className="h-full pl-3 sm:pl-4 pr-8 sm:pr-10 flex items-center gap-2 hover:bg-[color:var(--hover-bg)] transition-colors border border-[color:var(--card-border)] outline-none rounded-xl group bg-[color:var(--card-background)] text-xs sm:text-sm font-medium text-[color:var(--text-primary)]"
+                  >
+                    <span>
+                      {finalizadasSort === 'nombre' && 'Nombre'}
+                      {finalizadasSort === 'fecha_desc' && 'Recientes'}
+                      {finalizadasSort === 'fecha_asc' && 'Antiguas'}
+                    </span>
+                    <ArrowDownWideNarrow size={14} className={`text-[color:var(--text-secondary)] ml-auto transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Custom Dropdown Menu */}
+                  {isSortDropdownOpen && (
+                    <div className="absolute top-[calc(100%+0.5rem)] right-0 w-[140px] bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 p-1">
+                      {[
+                        { value: 'nombre', label: 'Nombre', icon: ArrowDownAZ },
+                        { value: 'fecha_desc', label: 'Recientes', icon: ArrowDownWideNarrow },
+                        { value: 'fecha_asc', label: 'Antiguas', icon: ArrowUpWideNarrow },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            setFinalizadasSort(opt.value);
+                            setIsSortDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2.5 text-xs sm:text-sm rounded-lg flex items-center gap-3 transition-colors ${
+                            finalizadasSort === opt.value 
+                              ? 'bg-[color:var(--primary)] text-white' 
+                              : 'text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)]'
+                          }`}
+                        >
+                          <opt.icon size={16} className={finalizadasSort === opt.value ? 'text-white' : 'text-[color:var(--primary)]'} />
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
+            {/* Contador de resultados de búsqueda */}
+            {searchQuery && (
+              <div className="text-xs text-[color:var(--text-secondary)] px-1">
+                Mostrando {filteredSurveys.length} resultado{filteredSurveys.length !== 1 ? 's' : ''} de {surveys.filter((s) => activeTab === "activas" ? s.status !== "finalizada" : s.status === "finalizada").length}
+              </div>
+            )}
 
             {/* Panel de Filtros expandible */}
             {activeTab === "activas" && showFilters && (
@@ -785,7 +677,7 @@ export default function TemporalPage() {
             {error}
           </div>
         ) : filteredSurveys.length === 0 ? (
-          searchQuery || searchLocation || searchDateStart || searchDateEnd ? (
+          searchQuery ? (
             <div className="bg-[color:var(--card-background)] backdrop-blur-sm border border-[color:var(--card-border)] rounded-xl p-12 text-center">
               <div className="w-16 h-16 bg-[color:var(--primary)]/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search size={32} className="text-[color:var(--primary)]" />
@@ -863,13 +755,6 @@ export default function TemporalPage() {
                       />
                       {formatDate(survey.startDate)} -{" "}
                       {formatDate(survey.endDate)}
-                    </span>
-                    <span className="flex items-center gap-1.5 whitespace-nowrap">
-                      <MapPin
-                        size={13}
-                        className="text-[color:var(--text-secondary)]"
-                      />
-                      {survey.location}
                     </span>
                   </div>
 
