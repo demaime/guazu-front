@@ -449,38 +449,40 @@ export default function TemporalPage() {
   const StatusBadge = ({ survey }) => {
     if (survey.isPending) {
       return (
-        <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded-full text-xs font-medium flex items-center gap-1">
-          <Clock size={14} />
-          Pendiente de completar
+        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+          <Clock size={12} className="md:w-3.5 md:h-3.5" />
+          <span className="hidden sm:inline">Pendiente de completar</span>
+          <span className="sm:hidden">Pendiente</span>
         </span>
       );
     }
     if (survey.status === "preparada") {
       return (
-        <span className="px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full text-xs font-medium flex items-center gap-1">
-          <Calendar size={14} />
+        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-blue-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+          <Calendar size={12} className="md:w-3.5 md:h-3.5" />
           Preparada
         </span>
       );
     }
     if (survey.status === "finalizada") {
       return (
-        <span className="px-3 py-1 bg-[color:var(--card-border)] text-[color:var(--text-primary)] rounded-full text-xs font-medium">
+        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-[color:var(--card-border)] text-[color:var(--text-primary)] rounded-full text-xs font-medium">
           Finalizada
         </span>
       );
     }
     if (survey.status === "activa") {
       return (
-        <span className="px-3 py-1 bg-[color:var(--success-bg)] text-[color:var(--success)] rounded-full text-xs font-medium flex items-center gap-1">
-          <div className="w-2 h-2 bg-[color:var(--success)] rounded-full animate-pulse" />
-          Recibiendo casos
+        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-green-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+          <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse" />
+          <span className="hidden sm:inline">Recibiendo casos</span>
+          <span className="sm:hidden">Activa</span>
         </span>
       );
     }
     return (
-      <span className="px-3 py-1 bg-[color:var(--warning-bg)] text-[color:var(--warning)] rounded-full text-xs font-medium flex items-center gap-1">
-        <div className="w-2 h-2 bg-[color:var(--warning)] rounded-full" />
+      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-orange-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+        <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full" />
         Pausada
       </span>
     );
@@ -733,19 +735,20 @@ export default function TemporalPage() {
                 }`}
               >
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="text-[color:var(--text-secondary)] text-xs mb-1">
-                        Creada: {formatDate(survey.startDate)}
-                      </p>
-                      <h3 className="text-base md:text-lg font-semibold break-words text-[color:var(--text-primary)]">
-                        {survey.title}
-                      </h3>
-                    </div>
+                  {/* Primera línea: Creada + Tag */}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[color:var(--text-secondary)] text-xs">
+                      Creada: {formatDate(survey.startDate)}
+                    </p>
                     <div className="flex-shrink-0">
                       <StatusBadge survey={survey} />
                     </div>
                   </div>
+                  
+                  {/* Título en su propia línea */}
+                  <h3 className="text-base md:text-lg font-semibold break-words text-[color:var(--text-primary)]">
+                    {survey.title}
+                  </h3>
 
                   <div className="flex flex-wrap gap-4 text-xs text-[color:var(--text-secondary)] pb-2 border-b border-[color:var(--card-border)]">
                     <span className="flex items-center gap-1.5 whitespace-nowrap">
