@@ -149,6 +149,9 @@
   --disabled-bg: #e9edf7;
   --disabled-text: #9da7c0;
 
+  /* Primary color with good contrast for light mode */
+  --primary-contrast: var(--primary);
+
   /* Error colors */
   --error-bg: #fdecec;
   --error-border: #f87171;
@@ -181,6 +184,9 @@
   --hover-bg: rgba(99, 102, 241, 0.2);
   --disabled-bg: #1e293b;
   --disabled-text: #475569;
+
+  /* Primary color with good contrast for dark mode */
+  --primary-contrast: var(--primary-light);
 
   /* Error colors */
   --error-bg: rgba(127, 29, 29, 0.2);

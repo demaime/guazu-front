@@ -29,10 +29,13 @@ const UserAvatar = ({
 
   const FallbackIcon = fallbackIcon;
 
+  /* Determine rounded class - defaults to rounded-full unless overridden in className */
+  const roundedClass = className.includes("rounded-") ? "" : "rounded-full";
+
   if (!src || imageError) {
     return (
       <div
-        className={`${sizeClasses[size]} ${className} rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border border-gray-300`}
+        className={`${sizeClasses[size]} ${className} ${roundedClass} overflow-hidden bg-gray-200 flex items-center justify-center border border-gray-300`}
       >
         <FallbackIcon className={`${iconSizes[size]} text-gray-400`} />
       </div>
@@ -41,11 +44,11 @@ const UserAvatar = ({
 
   return (
     <div
-      className={`${sizeClasses[size]} ${className} relative rounded-full overflow-hidden`}
+      className={`${sizeClasses[size]} ${className} ${roundedClass} relative overflow-hidden`}
     >
       {!imageLoaded && (
         <div
-          className={`${sizeClasses[size]} rounded-full bg-gray-200 flex items-center justify-center border border-gray-300 absolute inset-0`}
+          className={`${sizeClasses[size]} ${roundedClass} bg-gray-200 flex items-center justify-center border border-gray-300 absolute inset-0`}
         >
           <FallbackIcon className={`${iconSizes[size]} text-gray-400`} />
         </div>
@@ -53,7 +56,7 @@ const UserAvatar = ({
       <img
         src={src}
         alt={alt}
-        className={`${sizeClasses[size]} rounded-full object-cover ${
+        className={`${sizeClasses[size]} ${roundedClass} object-cover ${
           imageLoaded ? "opacity-100" : "opacity-0"
         } transition-opacity duration-200`}
         onLoad={() => setImageLoaded(true)}

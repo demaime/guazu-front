@@ -18,6 +18,7 @@ import { userService } from "@/services/user.service";
 import { surveyService } from "@/services/survey.service";
 import ParticipantCard from "@/components/temporal/ParticipantCard";
 import LocationSearchFilter from "@/components/temporal/LocationSearchFilter";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { useSurveyCreation } from '../context/SurveyCreationContext';
 import { toast } from "react-toastify";
 
@@ -55,6 +56,9 @@ export default function ParticipantesPage() {
 
   // UI
   const [showSelectedModal, setShowSelectedModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false); // For mobile location selection modal
+  const [isSelectedPanelExpanded, setIsSelectedPanelExpanded] = useState(true); // For desktop selected panel
+  const [showAddedFlash, setShowAddedFlash] = useState(false); // For flash effect when adding participant
   const contentTopRef = useRef(null);
 
   // Load data when type is selected
@@ -186,11 +190,19 @@ export default function ParticipantesPage() {
 
   // Handle participant selection
   const handleParticipantToggle = (participantId) => {
-    setSelectedParticipants((prev) =>
-      prev.includes(String(participantId))
-        ? prev.filter((id) => id !== String(participantId))
-        : [...prev, String(participantId)]
-    );
+    setSelectedParticipants((prev) => {
+      const isAdding = !prev.includes(String(participantId));
+      
+      // If adding a participant and panel is collapsed, show flash effect
+      if (isAdding && !isSelectedPanelExpanded) {
+        setShowAddedFlash(true);
+        setTimeout(() => setShowAddedFlash(false), 600); // Flash duration
+      }
+      
+      return isAdding
+        ? [...prev, String(participantId)]
+        : prev.filter((id) => id !== String(participantId));
+    });
   };
 
   // Get unique provinces with counts
@@ -365,6 +377,7 @@ export default function ParticipantesPage() {
         email: p?.email || "—",
         city: p?.city || "",
         province: p?.province || "",
+        image: p?.image || null,
       };
     });
   }, [selectedParticipants, participants, favorites]);
@@ -405,7 +418,7 @@ export default function ParticipantesPage() {
         </div>
 
         {/* Type Selection Cards */}
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 w-full flex-1">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6 w-full">
           {/* Pollsters Card */}
           <motion.div
             whileHover={{ scale: 1.02, y: -5 }}
@@ -413,25 +426,18 @@ export default function ParticipantesPage() {
             onClick={() => handleTypeSelect("pollsters")}
             className="group cursor-pointer"
           >
-            <div className="relative h-full bg-gradient-to-br from-card-background to-card-background/80 backdrop-blur-sm border border-[var(--card-border)] rounded-xl sm:rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
-
-              <div className="relative z-10">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 mb-4 sm:mb-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300">
-                  <Users className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+            <div className="relative bg-[var(--card-background)] border-2 border-[var(--primary-light)] hover:border-[var(--primary)] rounded-xl p-5 md:p-6 shadow-md hover:shadow-xl transition-all duration-300">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-[var(--primary-light)] flex items-center justify-center shadow-md flex-shrink-0">
+                  <Users className="w-7 h-7 md:w-8 md:h-8 text-white" />
                 </div>
-
-                <h3 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] mb-2 sm:mb-3 group-hover:text-[var(--primary)] transition-colors duration-300">
-                  Encuestadores
-                </h3>
-
-                <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed mb-4 sm:mb-6">
-                  Asigna encuestadores para recolectar datos en campo
-                </p>
-
-                <div className="flex items-center text-[var(--primary)] font-medium opacity-0 group-hover:opacity-100 transform translate-x-0 group-hover:translate-x-2 transition-all duration-300">
-                  <span className="mr-2 text-sm sm:text-base">Seleccionar</span>
-                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 rotate-180" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg md:text-xl font-bold text-[var(--text-primary)] mb-1.5">
+                    Encuestadores
+                  </h3>
+                  <p className="text-sm md:text-base text-[var(--text-secondary)] leading-relaxed">
+                    Asigna encuestadores para recolectar datos en campo
+                  </p>
                 </div>
               </div>
             </div>
@@ -444,25 +450,18 @@ export default function ParticipantesPage() {
             onClick={() => handleTypeSelect("supervisors")}
             className="group cursor-pointer"
           >
-            <div className="relative h-full bg-gradient-to-br from-card-background to-card-background/80 backdrop-blur-sm border border-[var(--card-border)] rounded-xl sm:rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
-
-              <div className="relative z-10">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 mb-4 sm:mb-6 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300">
-                  <UserCheck className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+            <div className="relative bg-[var(--card-background)] border-2 border-[var(--secondary-dark)] hover:border-[var(--secondary)] rounded-xl p-5 md:p-6 shadow-md hover:shadow-xl transition-all duration-300">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-[var(--secondary-dark)] flex items-center justify-center shadow-md flex-shrink-0">
+                  <UserCheck className="w-7 h-7 md:w-8 md:h-8 text-white" />
                 </div>
-
-                <h3 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] mb-2 sm:mb-3 group-hover:text-[var(--secondary)] transition-colors duration-300">
-                  Supervisores
-                </h3>
-
-                <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed mb-4 sm:mb-6">
-                  Asigna supervisores para monitorear y validar el trabajo
-                </p>
-
-                <div className="flex items-center text-[var(--secondary)] font-medium opacity-0 group-hover:opacity-100 transform translate-x-0 group-hover:translate-x-2 transition-all duration-300">
-                  <span className="mr-2 text-sm sm:text-base">Seleccionar</span>
-                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 rotate-180" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg md:text-xl font-bold text-[var(--text-primary)] mb-1.5">
+                    Supervisores
+                  </h3>
+                  <p className="text-sm md:text-base text-[var(--text-secondary)] leading-relaxed">
+                    Asigna supervisores para monitorear y validar el trabajo
+                  </p>
                 </div>
               </div>
             </div>
@@ -495,12 +494,11 @@ export default function ParticipantesPage() {
 
       {/* Mobile: Expandable Selected Participants Section */}
       <div className="md:hidden flex-shrink-0">
-        {selectedParticipants.length > 0 && (
-          <div className="bg-[var(--card-background)] border-b border-[var(--card-border)]">
-            {/* Summary Bar - Always visible when there are selections */}
+          {/* Mobile: Selected Participants Button - Opens modal */}
+          <div className="md:hidden bg-[var(--card-background)] border-b border-[var(--card-border)] p-4">
             <button
-              onClick={() => setShowSelectedOnMobile(!showSelectedOnMobile)}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--hover-bg)] transition-colors"
+              onClick={() => setShowSelectedModal(true)}
+              className="w-full flex items-center justify-between p-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg hover:border-[var(--primary)]/50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center">
@@ -510,165 +508,165 @@ export default function ParticipantesPage() {
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
                     Seleccionados
                   </p>
-                  <p className="text-xs text-[var(--text-secondary)]">
+                  <p className="text-xs text-[var(--secondary-dark)]">
                     {selectedParticipants.length} {selectedType === "pollsters" ? "encuestador" : "supervisor"}{selectedParticipants.length !== 1 ? "es" : ""}
                   </p>
                 </div>
               </div>
-              <motion.div
-                animate={{ rotate: showSelectedOnMobile ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <svg className="w-5 h-5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </motion.div>
+              <ChevronDown className="w-5 h-5 text-[var(--text-secondary)] -rotate-90" />
             </button>
-
-            {/* Expandable List */}
-            <AnimatePresence>
-              {showSelectedOnMobile && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-4 pb-4 space-y-2 max-h-64 overflow-y-auto">
-                    {selectedRows.map((participant) => {
-                      const isFavorite = favoriteIds.has(participant.id);
-                      return (
-                        <div
-                          key={participant.id}
-                          className="bg-[var(--background)] border border-[var(--card-border)] rounded-lg p-3 relative"
-                        >
-                          {isFavorite && (
-                            <div className="absolute top-2 right-2">
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            </div>
-                          )}
-                          <div className="flex items-start gap-2">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                              {participant.fullName
-                                .split(" ")
-                                .map((n) => n[0])
-                                .slice(0, 2)
-                                .join("")
-                                .toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0 pr-8">
-                              <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                                {participant.fullName}
-                              </p>
-                              <p className="text-xs text-[var(--text-secondary)] truncate">
-                                {participant.email}
-                              </p>
-                              {(participant.city || participant.province) && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
-                                  <p className="text-xs text-[var(--text-secondary)] truncate">
-                                    {[participant.city, participant.province].filter(Boolean).join(", ")}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => handleParticipantToggle(participant.id)}
-                              className="p-1.5 hover:bg-[var(--hover-bg)] rounded transition-colors absolute right-2 top-1/2 -translate-y-1/2"
-                              title="Quitar"
-                            >
-                              <X className="w-4 h-4 text-[var(--text-secondary)]" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
-        )}
       </div>
 
       {/* Split Screen Layout - Desktop only, single column on mobile */}
       <div className="flex-1 flex overflow-hidden min-h-0 pb-20">
-        {/* Left Column: Selected Participants - Hidden on mobile */}
-        <div className="hidden md:flex md:w-1/3 bg-[var(--card-background)] border-r border-[var(--card-border)] flex-col min-h-0">
-          <div className="flex-shrink-0 p-4 border-b border-[var(--card-border)]">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
-              Seleccionados
-            </h2>
-            <p className="text-xs text-[var(--text-secondary)]">
-              {selectedParticipants.length} {selectedType === "pollsters" ? "encuestador" : "supervisor"}{selectedParticipants.length !== 1 ? "es" : ""}
-            </p>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-4 min-h-0">
-            {selectedRows.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-12 h-12 bg-[var(--background)] rounded-full flex items-center justify-center mx-auto mb-3 border border-[var(--card-border)]">
-                  <Users className="w-6 h-6 text-[var(--text-secondary)]" />
+        {/* Left Column: Selected Participants - Hidden on mobile, collapsible sidebar on desktop */}
+        {/* Left Column: Selected Participants - Hidden on mobile, collapsible sidebar on desktop */}
+        <div className={`hidden md:flex bg-[var(--primary)]/20 border-r-4 border-[var(--card-border)] flex-col min-h-0 relative transition-all duration-300 ${
+          isSelectedPanelExpanded ? 'md:w-1/3' : 'md:w-16'
+        }`}>
+          {/* +1 Flash effect - appears above the Users icon */}
+          <AnimatePresence>
+            {showAddedFlash && !isSelectedPanelExpanded && (
+              <motion.div
+                initial={{ y: 25, opacity: 0, scale: 0.5 }}
+                animate={{ y: -15, opacity: 1, scale: 1.2 }}
+                exit={{ y: -40, opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="absolute top-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+              >
+                <div className="relative flex items-center">
+                  <span className="text-2xl font-black text-yellow-400 drop-shadow-lg" style={{ 
+                    textShadow: '0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.6)' 
+                  }}>
+                    +
+                  </span>
+                  <span className="text-2xl font-black text-[var(--primary)] drop-shadow-lg" style={{ 
+                    textShadow: '0 0 10px rgba(128, 145, 245, 0.8), 0 0 20px rgba(128, 145, 245, 0.6)' 
+                  }}>
+                    1
+                  </span>
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: [0, 1.5, 0] }}
+                    transition={{ duration: 0.6 }}
+                    className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-[var(--primary)] rounded-full blur-xl opacity-50"
+                  />
                 </div>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Ningún participante seleccionado
-                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          {/* Header - Always visible */}
+          <div className={`flex-shrink-0 p-4 bg-[var(--primary)]/30 ${!isSelectedPanelExpanded ? 'cursor-pointer' : ''}`} onClick={!isSelectedPanelExpanded ? () => setIsSelectedPanelExpanded(true) : undefined}>
+            {isSelectedPanelExpanded ? (
+              <div className="relative">
+                <div className="pr-10">
+                  <h2 className="text-sm font-bold text-[var(--text-primary)]">
+                    Seleccionados
+                  </h2>
+                  <p className="text-xs text-[var(--text-primary)] mt-1">
+                    {selectedParticipants.length} {selectedType === "pollsters" ? "encuestador" : "supervisor"}{selectedParticipants.length !== 1 ? "es" : ""}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsSelectedPanelExpanded(false)}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[var(--primary)] hover:bg-[var(--primary-dark)] flex items-center justify-center transition-all hover:scale-110 cursor-pointer"
+                  title="Contraer panel"
+                >
+                  <ChevronDown className="w-4 h-4 text-white rotate-90" />
+                </button>
               </div>
             ) : (
-              <div className="space-y-2">
-                {selectedRows.map((participant) => {
-                  const isFavorite = favoriteIds.has(participant.id);
-                  return (
-                    <div
-                      key={participant.id}
-                      className="bg-[var(--background)] border border-[var(--card-border)] rounded-lg p-3 group hover:border-[var(--primary)]/50 transition-colors relative"
-                    >
-                      {/* Favorite Star */}
-                      {isFavorite && (
-                        <div className="absolute top-2 right-2">
-                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        </div>
-                      )}
-                      <div className="flex items-start gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                          {participant.fullName
-                            .split(" ")
-                            .map((n) => n[0])
-                            .slice(0, 2)
-                            .join("")
-                            .toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0 pr-6">
-                          <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                            {participant.fullName}
-                          </p>
-                          <p className="text-xs text-[var(--text-secondary)] truncate">
-                            {participant.email}
-                          </p>
-                          {(participant.city || participant.province) && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
-                              <p className="text-xs text-[var(--text-secondary)] truncate">
-                                {[participant.city, participant.province].filter(Boolean).join(", ")}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleParticipantToggle(participant.id)}
-                          className="p-1 hover:bg-[var(--hover-bg)] rounded transition-colors opacity-0 group-hover:opacity-100 absolute right-2 top-1/2 -translate-y-1/2"
-                          title="Quitar"
-                        >
-                          <X className="w-4 h-4 text-[var(--text-secondary)]" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-[var(--primary)] hover:bg-[var(--primary-dark)] flex items-center justify-center transition-all hover:scale-110">
+                  <ChevronDown className="w-5 h-5 text-white -rotate-90" />
+                </div>
               </div>
             )}
           </div>
+          
+          {/* Vertical Text "SELECCIONADOS" - Only when collapsed */}
+          {!isSelectedPanelExpanded && (
+            <div className="flex-1 flex items-center justify-center cursor-pointer" onClick={() => setIsSelectedPanelExpanded(true)}>
+              <p className="text-xs font-bold text-[var(--text-secondary)] tracking-wider" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+                SELECCIONADOS
+              </p>
+            </div>
+          )}
+          
+          {/* Content - Only visible when expanded */}
+          {isSelectedPanelExpanded && (
+            <div className="flex-1 overflow-y-auto p-4 min-h-0 bg-[var(--primary)]/10">
+              {selectedRows.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-12 h-12 bg-[var(--card-background)] rounded-full flex items-center justify-center mx-auto mb-3 border border-[var(--card-border)]">
+                    <Users className="w-6 h-6 text-[var(--text-secondary)]" />
+                  </div>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Ningún participante seleccionado
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedRows.map((participant) => {
+                    const isFavorite = favoriteIds.has(participant.id);
+                    return (
+                      <div
+                        key={participant.id}
+                        className="bg-[var(--card-background)]/80 backdrop-blur-sm border border-[var(--card-border)] rounded-xl p-3 group hover:border-[var(--primary)]/50 transition-all hover:shadow-md relative overflow-hidden"
+                      >
+                        {/* Favorite Star */}
+                        {isFavorite && (
+                          <div className="absolute top-2 right-2 z-10">
+                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3">
+                          {/* Photo as protagonist - larger and rounded square */}
+                          <div className="relative flex-shrink-0">
+                            <UserAvatar
+                              src={participant.image}
+                              alt={`Foto de ${participant.fullName || 'usuario'}`}
+                              size="lg"
+                              className="rounded-xl"
+                            />
+                          </div>
+                          
+                          {/* Info section */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                              {participant.fullName}
+                            </p>
+                            <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
+                              {participant.email}
+                            </p>
+                            {(participant.city || participant.province) && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
+                                <p className="text-xs text-[var(--text-secondary)] truncate">
+                                  {[participant.city, participant.province].filter(Boolean).join(", ")}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Remove button */}
+                          <button
+                            onClick={() => handleParticipantToggle(participant.id)}
+                            className="p-1.5 hover:bg-[var(--error-bg)] hover:text-[var(--error-text)] rounded-lg transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                            title="Quitar"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Column: Available Participants - Full width on mobile */}
@@ -687,54 +685,114 @@ export default function ParticipantesPage() {
               />
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 flex-wrap items-center">
-              <button
-                onClick={() => {
-                  setActiveTab("todos");
-                  setSelectedProvince("");
-                  setSelectedCity("");
-                }}
-                className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors ${
-                  activeTab === "todos"
-                    ? "bg-[var(--primary-light)] text-white"
-                    : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--primary)]"
-                }`}
-              >
-                Todos ({participants.length})
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("ubicacion");
-                }}
-                className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                  activeTab === "ubicacion"
-                    ? "bg-[var(--primary-light)] text-white"
-                    : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--primary)]"
-                }`}
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                Por Ubicación
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("favoritos");
-                  setSelectedProvince("");
-                  setSelectedCity("");
-                }}
-                className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                  activeTab === "favoritos"
-                    ? "bg-[var(--secondary)] text-white"
-                    : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--secondary)]"
-                }`}
-              >
-                <Star className="w-3.5 h-3.5" />
-                Favoritos ({favorites.length})
-              </button>
+            {/* Tabs and Controls */}
+            <div className="space-y-2">
+              {/* Tab buttons row */}
+              <div className="flex gap-2 items-center flex-wrap justify-center md:justify-start">
+                <button
+                  onClick={() => {
+                    setActiveTab("todos");
+                    setSelectedProvince("");
+                    setSelectedCity("");
+                  }}
+                  className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors ${
+                    activeTab === "todos"
+                      ? "bg-[var(--primary-light)] text-white"
+                      : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--primary)]"
+                  }`}
+                >
+                  Todos ({participants.length - selectedParticipants.length})
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("ubicacion");
+                  }}
+                  className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                    activeTab === "ubicacion"
+                      ? "bg-[var(--primary-light)] text-white"
+                      : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--primary)]"
+                  }`}
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  Por Ubicación
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("favoritos");
+                    setSelectedProvince("");
+                    setSelectedCity("");
+                  }}
+                  className={`px-3 py-1.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                    activeTab === "favoritos"
+                      ? "bg-[var(--secondary)] text-white"
+                      : "bg-[var(--card-background)] text-[var(--text-primary)] border border-[var(--card-border)] hover:border-[var(--secondary)]"
+                  }`}
+                >
+                  <Star className="w-3.5 h-3.5" />
+                  Favoritos ({favorites.length - selectedParticipants.filter(id => favorites.some(fav => String(fav._id) === id)).length})
+                </button>
 
-              {/* Chevron button and Clear button - only visible when "ubicacion" tab is active */}
+                {/* Desktop: Control buttons at the right */}
+                {activeTab === "ubicacion" && (
+                  <div className="hidden md:flex items-center gap-2 ml-auto">
+                    {/* Filter indicator text - only when filters are active and collapsed */}
+                    {(selectedProvince || selectedCity) && !isLocationFilterExpanded && (
+                      <span className="text-xs text-[var(--text-secondary)] px-2 py-1 bg-[var(--primary)]/10 rounded-lg border border-[var(--primary)]/30">
+                        <span className="font-medium text-[var(--primary-contrast)]">
+                          {[selectedProvince, selectedCity].filter(Boolean).join(" → ")}
+                        </span>
+                      </span>
+                    )}
+
+                    {/* Clear filters button - only when filters are active */}
+                    {(selectedProvince || selectedCity) && (
+                      <button
+                        onClick={() => {
+                          setSelectedProvince("");
+                          setSelectedCity("");
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs text-[var(--error-text)] hover:text-white bg-[var(--error-bg)] hover:bg-[var(--error-border)] transition-all flex items-center gap-1.5 font-medium"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Limpiar filtros
+                      </button>
+                    )}
+                    
+                    {/* Chevron toggle button */}
+                    <button
+                      onClick={() => setIsLocationFilterExpanded(!isLocationFilterExpanded)}
+                      className="p-2 rounded-lg bg-[var(--primary-light)] text-white hover:opacity-90 transition-all"
+                      title={isLocationFilterExpanded ? "Ocultar filtros" : "Mostrar filtros"}
+                    >
+                      <motion.div
+                        animate={{ rotate: isLocationFilterExpanded ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </motion.div>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile: Location button row - full width */}
               {activeTab === "ubicacion" && (
-                <div className="ml-auto flex items-center gap-2">
+                <div className="md:hidden flex items-center gap-2">
+                  {/* Button to open location modal */}
+                  <button
+                    onClick={() => setShowLocationModal(true)}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs bg-[var(--background)] border-2 border-[var(--primary)] text-[var(--primary-contrast)] hover:bg-[var(--primary)]/10 transition-all flex items-center justify-center gap-2 font-semibold"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    {selectedProvince || selectedCity ? (
+                      <span className="truncate">
+                        {[selectedProvince, selectedCity].filter(Boolean).join(", ")}
+                      </span>
+                    ) : (
+                      "Elegir localidad"
+                    )}
+                  </button>
+
                   {/* Clear filters button - only when filters are active */}
                   {(selectedProvince || selectedCity) && (
                     <button
@@ -742,31 +800,17 @@ export default function ParticipantesPage() {
                         setSelectedProvince("");
                         setSelectedCity("");
                       }}
-                      className="px-3 py-1.5 rounded-lg text-xs text-[var(--error-text)] hover:text-white bg-[var(--error-bg)] hover:bg-[var(--error-border)] transition-all flex items-center gap-1.5 font-medium"
+                      className="p-2 rounded-lg text-[var(--error-text)] hover:text-white bg-[var(--error-bg)] hover:bg-[var(--error-border)] transition-all flex-shrink-0"
+                      title="Limpiar filtros"
                     >
-                      <X className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Limpiar</span>
+                      <X className="w-4 h-4" />
                     </button>
                   )}
-                  
-                  {/* Chevron toggle button */}
-                  <button
-                    onClick={() => setIsLocationFilterExpanded(!isLocationFilterExpanded)}
-                    className="p-2 rounded-lg bg-[var(--primary-light)] text-white hover:opacity-90 transition-all"
-                    title={isLocationFilterExpanded ? "Ocultar filtros" : "Mostrar filtros"}
-                  >
-                    <motion.div
-                      animate={{ rotate: isLocationFilterExpanded ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </motion.div>
-                  </button>
                 </div>
               )}
             </div>
 
-            {/* Location Filter (only visible in "ubicacion" tab AND when expanded) */}
+            {/* Desktop: Location Filter (expandible) - only visible in desktop */}
             <AnimatePresence initial={false}>
               {activeTab === "ubicacion" && isLocationFilterExpanded && (
                 <motion.div
@@ -774,7 +818,7 @@ export default function ParticipantesPage() {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                  className="overflow-hidden"
+                  className="overflow-hidden hidden md:block"
                 >
                   <LocationSearchFilter
                     provinces={provinces}
@@ -888,6 +932,245 @@ export default function ParticipantesPage() {
           </div>
         </div>
       </div>
+
+
+      {/* Mobile Selected Participants Modal */}
+      <AnimatePresence>
+        {showSelectedModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4"
+            onClick={() => setShowSelectedModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[var(--card-background)] rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col shadow-2xl"
+            >
+              {/* Modal Header */}
+              <div className="flex-shrink-0 p-4 border-b border-[var(--card-border)] flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-[var(--text-primary)]">
+                    Seleccionados
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    {selectedParticipants.length} {selectedType === "pollsters" ? "encuestador" : "supervisor"}{selectedParticipants.length !== 1 ? "es" : ""}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSelectedModal(false)}
+                  className="p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-[var(--text-secondary)]" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {selectedRows.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-[var(--background)] rounded-full flex items-center justify-center mx-auto mb-4 border border-[var(--card-border)]">
+                      <Users className="w-8 h-8 text-[var(--text-secondary)]" />
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Ningún participante seleccionado
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedRows.map((participant) => {
+                      const isFavorite = favoriteIds.has(participant.id);
+                      return (
+                        <div
+                          key={participant.id}
+                          className="bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-3 relative overflow-hidden hover:border-[var(--primary)]/50 transition-all"
+                        >
+                          {/* Favorite Star */}
+                          {isFavorite && (
+                            <div className="absolute top-2 right-2 z-10">
+                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                            </div>
+                          )}
+                          <div className="flex items-center gap-3">
+                            {/* Photo as protagonist */}
+                            <div className="relative flex-shrink-0">
+                              <UserAvatar
+                                src={participant.image}
+                                alt={`Foto de ${participant.fullName || 'usuario'}`}
+                                size="lg"
+                                className="rounded-xl"
+                              />
+                            </div>
+                            
+                            {/* Info section */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                                {participant.fullName}
+                              </p>
+                              <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
+                                {participant.email}
+                              </p>
+                              {(participant.city || participant.province) && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
+                                  <p className="text-xs text-[var(--text-secondary)] truncate">
+                                    {[participant.city, participant.province].filter(Boolean).join(", ")}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Remove button */}
+                            <button
+                              onClick={() => handleParticipantToggle(participant.id)}
+                              className="p-1.5 hover:bg-[var(--error-bg)] hover:text-[var(--error-text)] rounded-lg transition-colors flex-shrink-0"
+                              title="Quitar"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex-shrink-0 p-4 border-t border-[var(--card-border)]">
+                <button
+                  onClick={() => setShowSelectedModal(false)}
+                  className="w-full px-4 py-3 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-all font-bold"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+
+      {/* Mobile Location Selection Modal */}
+      <AnimatePresence>
+        {showLocationModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4"
+            onClick={() => setShowLocationModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[var(--card-background)] rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col shadow-2xl"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-[var(--card-border)]">
+                <h3 className="text-lg font-bold text-[var(--text-primary)]">
+                  Elegir Localidad
+                </h3>
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-[var(--text-secondary)]" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Province Selector */}
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Provincia
+                  </label>
+                  <select
+                    value={selectedProvince}
+                    onChange={(e) => {
+                      setSelectedProvince(e.target.value);
+                      setSelectedCity("");
+                    }}
+                    className="w-full bg-[var(--input-background)] border border-[var(--card-border)] rounded-lg px-3 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all"
+                  >
+                    <option value="">Todas las provincias</option>
+                    {provinces.map(({ name, count }) => (
+                      <option key={name} value={name}>
+                        {name} ({count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* City Selector (only visible when province is selected) */}
+                {selectedProvince && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                      Ciudad
+                    </label>
+                    <select
+                      value={selectedCity}
+                      onChange={(e) => setSelectedCity(e.target.value)}
+                      className="w-full bg-[var(--input-background)] border border-[var(--card-border)] rounded-lg px-3 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all"
+                    >
+                      <option value="">Todas las ciudades</option>
+                      {cities.map(({ name, count }) => (
+                        <option key={name} value={name}>
+                          {name} ({count})
+                        </option>
+                      ))}
+                    </select>
+                  </motion.div>
+                )}
+
+                {/* Current Selection Display */}
+                {(selectedProvince || selectedCity) && (
+                  <div className="p-3 bg-[var(--primary)]/10 border border-[var(--primary)]/30 rounded-lg">
+                    <p className="text-sm text-[var(--text-secondary)]">Filtrando por:</p>
+                    <p className="font-medium text-[var(--primary)] mt-1">
+                      {[selectedProvince, selectedCity].filter(Boolean).join(" → ")}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-[var(--card-border)] flex gap-3">
+                {(selectedProvince || selectedCity) && (
+                  <button
+                    onClick={() => {
+                      setSelectedProvince("");
+                      setSelectedCity("");
+                    }}
+                    className="flex-1 px-4 py-3 rounded-lg border border-[var(--error-border)] text-[var(--error-text)] hover:bg-[var(--error-bg)] transition-all font-medium"
+                  >
+                    Limpiar
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="flex-1 px-4 py-3 rounded-lg bg-[var(--primary)] text-white hover:opacity-90 transition-all font-bold"
+                >
+                  Aplicar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Fixed Footer - Always visible at bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-[var(--card-background)] border-t border-[var(--card-border)] p-3 sm:p-4 z-50">
