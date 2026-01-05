@@ -415,8 +415,9 @@ body {
   .sidebar {
     position: static;
     transform: translateX(0);
-    height: auto;
+    height: 100%;
     margin-top: 0;
+    box-shadow: 4px 0 12px 0 rgba(63, 81, 181, 0.3);
   }
 }
 
@@ -480,6 +481,8 @@ body {
   justify-content: space-between;
   padding: 1rem;
   border-bottom: 1px solid var(--card-border);
+  min-height: 60px;
+  height: 60px;
 }
 
 .sidebar-collapse-btn {

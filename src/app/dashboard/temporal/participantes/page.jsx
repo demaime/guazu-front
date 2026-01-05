@@ -616,49 +616,54 @@ export default function ParticipantesPage() {
                         key={participant.id}
                         className="bg-[var(--card-background)]/80 backdrop-blur-sm border border-[var(--card-border)] rounded-xl p-3 group hover:border-[var(--primary)]/50 transition-all hover:shadow-md relative overflow-hidden"
                       >
-                        {/* Favorite Star */}
-                        {isFavorite && (
-                          <div className="absolute top-2 right-2 z-10">
-                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3">
-                          {/* Photo as protagonist - larger and rounded square */}
-                          <div className="relative flex-shrink-0">
-                            <UserAvatar
-                              src={participant.image}
-                              alt={`Foto de ${participant.fullName || 'usuario'}`}
-                              size="lg"
-                              className="rounded-xl"
-                            />
-                          </div>
-                          
-                          {/* Info section */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                              {participant.fullName}
-                            </p>
-                            <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
-                              {participant.email}
-                            </p>
-                            {(participant.city || participant.province) && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
-                                <p className="text-xs text-[var(--text-secondary)] truncate">
-                                  {[participant.city, participant.province].filter(Boolean).join(", ")}
-                                </p>
+                         {/* Remove Overlay */}
+                         <div 
+                           onClick={() => handleParticipantToggle(participant.id)}
+                           className="absolute inset-0 z-20 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[var(--card-background)]/80 backdrop-blur-[1px] cursor-pointer"
+                         >
+                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mb-1 shadow-sm transform group-hover:scale-110 transition-transform">
+                                <X className="w-5 h-5 text-red-600" />
+                            </div>
+                            <span className="text-[10px] font-bold text-red-600 uppercase tracking-wide">Quitar participante</span>
+                         </div>
+
+                        {/* Content that blurs */}
+                        <div className="relative transition-all duration-200 group-hover:blur-[1.5px] group-hover:opacity-50">
+                            {/* Favorite Star */}
+                            {isFavorite && (
+                              <div className="absolute top-0 right-0 z-10">
+                                <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
                               </div>
                             )}
-                          </div>
-                          
-                          {/* Remove button */}
-                          <button
-                            onClick={() => handleParticipantToggle(participant.id)}
-                            className="p-1.5 hover:bg-[var(--error-bg)] hover:text-[var(--error-text)] rounded-lg transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
-                            title="Quitar"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                            <div className="flex items-center gap-3">
+                              {/* Photo as protagonist - larger and rounded square */}
+                              <div className="relative flex-shrink-0">
+                                <UserAvatar
+                                  src={participant.image}
+                                  alt={`Foto de ${participant.fullName || 'usuario'}`}
+                                  size="lg"
+                                  className="rounded-xl"
+                                />
+                              </div>
+                              
+                              {/* Info section */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                                  {participant.fullName}
+                                </p>
+                                <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
+                                  {participant.email}
+                                </p>
+                                {(participant.city || participant.province) && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
+                                    <p className="text-xs text-[var(--text-secondary)] truncate">
+                                      {[participant.city, participant.province].filter(Boolean).join(", ")}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                         </div>
                       </div>
                     );
@@ -1026,12 +1031,13 @@ export default function ParticipantesPage() {
                             </div>
                             
                             {/* Remove button */}
+                            {/* Remove button - Red cross centered on the right */}
                             <button
                               onClick={() => handleParticipantToggle(participant.id)}
-                              className="p-1.5 hover:bg-[var(--error-bg)] hover:text-[var(--error-text)] rounded-lg transition-colors flex-shrink-0"
+                              className="p-2 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 self-center"
                               title="Quitar"
                             >
-                              <X className="w-4 h-4" />
+                              <X className="w-5 h-5" />
                             </button>
                           </div>
                         </div>
