@@ -11,6 +11,7 @@ import {
   Check,
   MapPin,
   X,
+  ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { userService } from "@/services/user.service";
@@ -42,6 +43,7 @@ export default function ParticipantesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProvince, setSelectedProvince] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
+  const [isLocationFilterExpanded, setIsLocationFilterExpanded] = useState(true); // For collapsible location filter
 
   // Selection state
   const [selectedParticipants, setSelectedParticipants] = useState([]);
@@ -66,6 +68,13 @@ export default function ParticipantesPage() {
     // Reset pagination al cambiar filtros o pestañas
     setParticipantsPage(0);
   }, [activeTab, searchQuery, selectedProvince, selectedCity, selectedType, step]);
+
+  // Auto-expand location filter when switching to "ubicacion" tab
+  useEffect(() => {
+    if (activeTab === "ubicacion") {
+      setIsLocationFilterExpanded(true);
+    }
+  }, [activeTab]);
 
   const loadData = async () => {
     setLoading(true);
@@ -679,7 +688,7 @@ export default function ParticipantesPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               <button
                 onClick={() => {
                   setActiveTab("todos");
@@ -722,26 +731,65 @@ export default function ParticipantesPage() {
                 <Star className="w-3.5 h-3.5" />
                 Favoritos ({favorites.length})
               </button>
+
+              {/* Chevron button and Clear button - only visible when "ubicacion" tab is active */}
+              {activeTab === "ubicacion" && (
+                <div className="ml-auto flex items-center gap-2">
+                  {/* Clear filters button - only when filters are active */}
+                  {(selectedProvince || selectedCity) && (
+                    <button
+                      onClick={() => {
+                        setSelectedProvince("");
+                        setSelectedCity("");
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs text-[var(--error-text)] hover:text-white bg-[var(--error-bg)] hover:bg-[var(--error-border)] transition-all flex items-center gap-1.5 font-medium"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Limpiar</span>
+                    </button>
+                  )}
+                  
+                  {/* Chevron toggle button */}
+                  <button
+                    onClick={() => setIsLocationFilterExpanded(!isLocationFilterExpanded)}
+                    className="p-2 rounded-lg bg-[var(--primary-light)] text-white hover:opacity-90 transition-all"
+                    title={isLocationFilterExpanded ? "Ocultar filtros" : "Mostrar filtros"}
+                  >
+                    <motion.div
+                      animate={{ rotate: isLocationFilterExpanded ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </motion.div>
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Location Filter (only visible in "ubicacion" tab) */}
-            {activeTab === "ubicacion" && (
-              <LocationSearchFilter
-                provinces={provinces}
-                cities={cities}
-                selectedProvince={selectedProvince}
-                selectedCity={selectedCity}
-                onProvinceChange={(province) => {
-                  setSelectedProvince(province);
-                  setSelectedCity("");
-                }}
-                onCityChange={setSelectedCity}
-                onClearFilters={() => {
-                  setSelectedProvince("");
-                  setSelectedCity("");
-                }}
-              />
-            )}
+            {/* Location Filter (only visible in "ubicacion" tab AND when expanded) */}
+            <AnimatePresence initial={false}>
+              {activeTab === "ubicacion" && isLocationFilterExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <LocationSearchFilter
+                    provinces={provinces}
+                    cities={cities}
+                    selectedProvince={selectedProvince}
+                    selectedCity={selectedCity}
+                    onProvinceChange={(province) => {
+                      setSelectedProvince(province);
+                      setSelectedCity("");
+                    }}
+                    onCityChange={setSelectedCity}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Scrollable Content - Takes remaining space */}
