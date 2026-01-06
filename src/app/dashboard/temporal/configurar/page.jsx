@@ -781,17 +781,20 @@ export default function ConfigurarEncuesta() {
                     target: config.tieneObjetivo ? config.metaTotal : 0,
                     requireGps: config.gpsObligatorio,
                     quotas: config.cuotasActivas ? quotas : [],
+                    // CRÍTICO: Preservar participantes existentes
+                    userIds: existing?.survey?.surveyInfo?.userIds || existing?.survey?.userIds || [],
+                    supervisorsIds: existing?.survey?.surveyInfo?.supervisorsIds || existing?.survey?.supervisorsIds || [],
                   },
-                  participants: existing?.survey?.participants || {
-                    userIds: surveyInfo.userIds || [],
-                    supervisorsIds: surveyInfo.supervisorsIds || [],
-                    pollsterAssignments: [],
-                    quotaAssignments: []
+                  participants: {
+                    userIds: existing?.survey?.surveyInfo?.userIds || existing?.survey?.userIds || [],
+                    supervisorsIds: existing?.survey?.surveyInfo?.supervisorsIds || existing?.survey?.supervisorsIds || [],
+                    pollsterAssignments: existing?.survey?.participants?.pollsterAssignments || existing?.survey?.pollsterAssignments || [],
+                    quotaAssignments: existing?.survey?.participants?.quotaAssignments || existing?.survey?.quotaAssignments || []
                   }
                 };
 
-                // Actualizar en el backend
-                await surveyService.createOrUpdateSurvey(dataToSave, surveyId, true);
+                // Actualizar en el backend - PUBLISHED, no draft
+                await surveyService.createOrUpdateSurvey(dataToSave, surveyId, false);
 
                 toast.success("Configuración guardada exitosamente");
                 router.push('/dashboard/temporal');

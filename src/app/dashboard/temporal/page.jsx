@@ -14,6 +14,7 @@ import {
   FileText,
   Settings,
   BarChart3,
+  Check,
   CheckCircle,
   Users,
   ClipboardList,
@@ -23,10 +24,12 @@ import {
   ArrowDownAZ,
   ArrowDownWideNarrow,
   ArrowUpWideNarrow,
+  Eraser,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { toast } from "react-toastify";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
 const safeDate = (value) => {
   if (!value) return null;
@@ -51,35 +54,54 @@ const classifyStatus = (survey) => {
   }
   
   // 2. ACTIVA: todavía en fecha
-  const isConfigurationComplete = survey.isConfigurationComplete ?? false;
+  // Detectar si está pausada (campo nuevo o status draft como fallback)
   const isPaused = survey.isPaused ?? false;
   
-  // 2a. Pausada manualmente
+  // Detectar si está completa
+  // Calcular basado en datos reales
+  const hasQuestions = survey.survey?.pages?.some(page => 
+    page.elements && page.elements.length > 0
+  ) || false;
+  const hasDates = !!(survey.surveyInfo?.startDate && survey.surveyInfo?.endDate);
+  const hasPollsters = Array.isArray(survey.userIds) && survey.userIds.length > 0;
+  const calculatedComplete = hasQuestions && hasDates && hasPollsters;
+  
+  // Solo usar el campo del backend si es TRUE, sino usar el cálculo
+  // Esto asegura backward compatibility con encuestas viejas
+  const isConfigurationComplete = survey.isConfigurationComplete === true 
+    ? true 
+    : calculatedComplete;
+  
+  // 2a. Pausada manualmente - AZUL
   if (isPaused) {
     return {
       lifecycle: 'pausada',
       label: 'Pausada',
-      color: 'yellow',
+      color: 'blue',
       isPaused: true,
     };
   }
   
-  // 2b. Pendiente de configurar
+  // 2b. Pendiente de configurar - AMARILLO
   if (!isConfigurationComplete) {
     return {
       lifecycle: 'pendiente',
       label: 'Pendiente de configurar',
-      color: 'red',
+      color: 'yellow',
       isPending: true,
     };
   }
   
   // 2c. Recibiendo casos (activa y completa)
+  // Detectar si es programada (fecha futura)
+  const isScheduled = startDate && now < startDate;
+  
   return {
     lifecycle: 'recibiendo',
     label: 'Recibiendo casos',
     color: 'green',
     isActive: true,
+    isScheduled: isScheduled, // Para mostrar relojito
   };
 };
 
@@ -104,6 +126,7 @@ const ActionButton = ({
   iconSize = 16,
   hasAlert = false,
   isLoading = false,
+  tooltip = "", // Nuevo parámetro
 }) => {
   const variants = {
     default:
@@ -121,27 +144,36 @@ const ActionButton = ({
   const finalVariant = hasAlert ? "alert" : variant;
 
   return (
-    <button
-      onClick={onClick}
-      disabled={isLoading}
-      className={`${
-        iconOnly ? "px-2 py-1.5" : "px-3 py-1.5 md:px-4 md:py-2"
-      } rounded-lg transition-all group relative flex items-center gap-2 text-xs sm:text-sm font-medium cursor-pointer ${
-        variants[finalVariant]
-      } ${className} ${isLoading ? "opacity-70 cursor-wait" : ""}`}
-    >
-      {isLoading ? (
-        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-      ) : (
-        <Icon size={iconSize} />
-      )}
-      {!iconOnly && <span>{label}</span>}
-      {hasAlert && !isLoading && (
-        <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full w-4 h-4 flex items-center justify-center shadow-sm">
-          <AlertCircle size={10} className="text-white" strokeWidth={3} />
+    <div className="relative group/tooltip">
+      <button
+        onClick={onClick}
+        disabled={isLoading}
+        className={`${
+          iconOnly ? "px-2 py-1.5" : "px-3 py-1.5 md:px-4 md:py-2"
+        } rounded-lg transition-all group relative flex items-center gap-2 text-xs sm:text-sm font-medium cursor-pointer ${
+          variants[finalVariant]
+        } ${className} ${isLoading ? "opacity-70 cursor-wait" : ""}`}
+      >
+        {isLoading ? (
+          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Icon size={iconSize} />
+        )}
+        {!iconOnly && <span>{label}</span>}
+        {hasAlert && !isLoading && (
+          <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full w-4 h-4 flex items-center justify-center shadow-sm">
+            <AlertCircle size={10} className="text-white" strokeWidth={3} />
+          </div>
+        )}
+      </button>
+      {/* Tooltip */}
+      {tooltip && iconOnly && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-20">
+          {tooltip}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
         </div>
       )}
-    </button>
+    </div>
   );
 };
 
@@ -156,9 +188,11 @@ export default function TemporalPage() {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isToggling, setIsToggling] = useState(null);
   
-  // Estados de filtros (checkboxes)
-  const [showPending, setShowPending] = useState(true); // Activado por defecto
-  const [showOnlyActive, setShowOnlyActive] = useState(false);
+  // Estados de filtros por status (checkboxes)
+  const [showRecibiendo, setShowRecibiendo] = useState(true);
+  const [showPausada, setShowPausada] = useState(true);
+  const [showPendiente, setShowPendiente] = useState(true);
+  const [showOnlyActive, setShowOnlyActive] = useState(false); // Filtro independiente para fechas activas
   const [finalizadasSort, setFinalizadasSort] = useState("fecha_desc"); // nombre | fecha_desc | fecha_asc
   
   // Custom Sort Dropdown State
@@ -173,6 +207,20 @@ export default function TemporalPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [surveyToDelete, setSurveyToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Estados para confirmación de pausa/activación
+  const [pauseModalOpen, setPauseModalOpen] = useState(false);
+  const [surveyToPause, setSurveyToPause] = useState(null);
+
+  // Estados para confirmación de clonado
+  const [cloneModalOpen, setCloneModalOpen] = useState(false);
+  const [surveyToClone, setSurveyToClone] = useState(null);
+  const [isCloning, setIsCloning] = useState(false);
+
+  // Estados para borrar respuestas
+  const [deleteAnswersModalOpen, setDeleteAnswersModalOpen] = useState(false);
+  const [surveyToDeleteAnswers, setSurveyToDeleteAnswers] = useState(null);
+  const [isDeletingAnswers, setIsDeletingAnswers] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -196,7 +244,7 @@ export default function TemporalPage() {
   useEffect(() => {
     // Solo resetear página al cambiar filtros
     setPage(0);
-  }, [searchQuery, showPending, showOnlyActive, finalizadasSort]);
+  }, [searchQuery, showRecibiendo, showPausada, showPendiente, showOnlyActive, finalizadasSort]);
 
   const loadSurveysData = async () => {
     try {
@@ -205,6 +253,10 @@ export default function TemporalPage() {
       
       // 1. Traer encuestas publicadas (activas y finalizadas)
       const resp = await surveyService.getAllSurveys(1, 100, null);
+      
+      // 🔍 DEBUG: Ver qué devuelve el backend
+      console.log("🔍 DEBUG - Encuestas recibidas del backend:", resp);
+      console.log("🔍 DEBUG - Total encuestas:", resp?.surveys?.length || 0);
       
       // 2. Traer DRAFTS (separado, como lo hace el creador viejo)
       let draftsResp = { drafts: [] };
@@ -218,6 +270,7 @@ export default function TemporalPage() {
       // 3. Combinar ambos
       const allSurveys = [...(resp?.surveys || []), ...(draftsResp?.drafts || [])];
       
+      console.log("🔍 DEBUG - Total combinado (surveys + drafts):", allSurveys.length);
       console.log("📥 Total encuestas (publicadas + drafts):", allSurveys.length);
       
       const normalized =
@@ -249,10 +302,20 @@ export default function TemporalPage() {
             });
           }
           
+          // Detectar qué falta configurar específicamente
+          const hasConfig = !!(
+            startDate &&
+            endDate &&
+            startDate.trim() !== "" &&
+            endDate.trim() !== ""
+          );
+          const hasParticipants = surveyors > 0;
+          const hasForm = questions > 0;
+          
           // Clasificar estado usando la nueva función
           const statusInfo = classifyStatus(s);
 
-          return {
+          const surveyData = {
             id: s?._id || s?.id,
             title,
             description,
@@ -263,17 +326,37 @@ export default function TemporalPage() {
             isPaused: statusInfo.isPaused || false,
             isFinished: statusInfo.isFinished || false,
             isActive: statusInfo.isActive || false,
+            isScheduled: statusInfo.isScheduled || false,
             questions,
             surveyors,
             cases,
             totalCases,
             startDate,
             endDate,
+            // Guardar qué falta para mostrar alertas
+            hasConfig,
+            hasParticipants,
+            hasForm,
             rawStatus: s?.status,
             // Guardar campos originales del backend para verificación
             isConfigurationComplete: s?.isConfigurationComplete,
             isPausedBackend: s?.isPaused,
           };
+
+          // 🔍 DEBUG: Ver clasificación de cada encuesta
+          console.log(`🔍 DEBUG - Encuesta "${title}":`, {
+            id: surveyData.id,
+            status: surveyData.status,
+            statusLabel: surveyData.statusLabel,
+            isPaused: surveyData.isPaused,
+            isConfigurationComplete: s?.isConfigurationComplete,
+            hasQuestions: questions > 0,
+            hasDates: !!startDate && !!endDate,
+            hasParticipants: surveyors > 0,
+            userIds: s?.userIds,
+          });
+
+          return surveyData;
         }) || [];
       
       setSurveys(normalized);
@@ -303,16 +386,35 @@ export default function TemporalPage() {
       return true;
     });
 
-    // Mostrar pendientes = incluir pendientes (no "solo pendientes")
-    if (!showPending) {
-      filtered = filtered.filter((s) => !s.isPending);
+    // Filtrar por estado usando checkboxes
+    if (!showRecibiendo || !showPausada || !showPendiente) {
+      filtered = filtered.filter((s) => {
+        // Si es recibiendo casos
+        if (s.status === "recibiendo" || s.lifecycle === "recibiendo") {
+          return showRecibiendo;
+        }
+        // Si es pausada
+        if (s.status === "pausada" || s.lifecycle === "pausada" || s.isPaused) {
+          return showPausada;
+        }
+        // Si es pendiente
+        if (s.status === "pendiente" || s.lifecycle === "pendiente" || s.isPending) {
+          return showPendiente;
+        }
+        return false; // Si no matchea ninguno, no mostrar
+      });
     }
 
-    // Solo con fecha activa:
-    // - NO afecta a pendientes (porque están incompletas)
-    // - oculta "preparadas" (listas pero aún no empezaron)
+    // Filtro independiente: solo fechas activas (excluir futuras)
     if (showOnlyActive) {
-      filtered = filtered.filter((s) => s.isPending || s.status === "activa");
+      const now = new Date();
+      filtered = filtered.filter((s) => {
+        // Si no tiene fecha de inicio, no filtrar (puede ser pendiente)
+        if (!s.startDate) return true;
+        const startDate = new Date(s.startDate);
+        // Mostrar solo si ya empezó
+        return startDate <= now;
+      });
     }
 
     // Búsqueda universal: busca en título, descripción y fechas
@@ -371,7 +473,9 @@ export default function TemporalPage() {
     surveys,
     activeTab,
     searchQuery,
-    showPending,
+    showRecibiendo,
+    showPausada,
+    showPendiente,
     showOnlyActive,
     finalizadasSort,
   ]);
@@ -383,41 +487,45 @@ export default function TemporalPage() {
     return filteredSurveys.slice(start, start + pageSize);
   }, [filteredSurveys, pageSafe]);
 
-  const handleToggleSurvey = async (id) => {
-  const survey = surveys.find((s) => s.id === id);
-  if (!survey) return;
+  const handleToggleSurvey = (survey) => {
+    setSurveyToPause(survey);
+    setPauseModalOpen(true);
+  };
 
-  if (isToggling === id) return;
-  setIsToggling(id);
+  const confirmToggleSurvey = async () => {
+    if (!surveyToPause) return;
 
-  try {
-    // Verificar si está pendiente de configurar
-    if (survey.isPending) {
-      toast.error("Complete la configuración antes de activar la encuesta");
-      return;
+    setIsToggling(surveyToPause.id);
+    try {
+      // Verificar si está pendiente de configurar
+      if (surveyToPause.isPending) {
+        toast.error("Complete la configuración antes de activar la encuesta");
+        return;
+      }
+
+      // Toggle pausa usando el nuevo endpoint
+      const result = await surveyService.toggleSurveyPause(surveyToPause.id);
+      
+      // Mostrar toast según el nuevo estado
+      if (result.isPaused) {
+        toast.warning("Encuesta pausada", {
+          style: { background: '#EAB308', color: 'white' }
+        });
+      } else {
+        toast.success("¡Encuesta activada!");
+      }
+
+      // Recargar lista para ver cambios
+      await loadSurveysData();
+    } catch (e) {
+      console.error("Error toggling survey:", e);
+      toast.error(`Error: ${e.message}`);
+    } finally {
+      setIsToggling(null);
+      setPauseModalOpen(false);
+      setSurveyToPause(null);
     }
-
-    // Toggle pausa usando el nuevo endpoint
-    const result = await surveyService.toggleSurveyPause(id);
-    
-    // Mostrar toast según el nuevo estado
-    if (result.isPaused) {
-      toast.warning("Encuesta pausada", {
-        style: { background: '#EAB308', color: 'white' }
-      });
-    } else {
-      toast.success("¡Encuesta activada!");
-    }
-
-    // Recargar lista para ver cambios
-    await loadSurveysData();
-  } catch (e) {
-    console.error("Error toggling survey:", e);
-    toast.error(`Error: ${e.message}`);
-  } finally {
-    setIsToggling(null);
-  }
-};
+  };
   const handleDelete = (id) => {
     const survey = surveys.find((s) => s.id === id);
     if (survey) {
@@ -450,9 +558,65 @@ export default function TemporalPage() {
     }
   };
 
-  const handleClone = (id) => {
-    toast.info("Clonar encuesta: pronto");
-    console.log("Clonar encuesta", id);
+  const handleDeleteAnswers = (survey) => {
+    setSurveyToDeleteAnswers(survey);
+    setDeleteAnswersModalOpen(true);
+  };
+
+  const confirmDeleteAnswers = async () => {
+    if (!surveyToDeleteAnswers) return;
+    
+    setIsDeletingAnswers(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/answer-delete/${surveyToDeleteAnswers.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al borrar las respuestas");
+      }
+
+      toast.success("Respuestas eliminadas correctamente");
+      await loadSurveysData();
+    } catch (error) {
+      console.error("Error deleting answers:", error);
+      toast.error(error.message || "Error al eliminar las respuestas");
+    } finally {
+      setIsDeletingAnswers(false);
+      setDeleteAnswersModalOpen(false);
+      setSurveyToDeleteAnswers(null);
+    }
+  };
+
+  const handleClone = (survey) => {
+    setSurveyToClone(survey);
+    setCloneModalOpen(true);
+  };
+
+  const confirmCloneSurvey = async () => {
+    if (!surveyToClone || isCloning) return;
+    
+    setIsCloning(true);
+    try {
+      await surveyService.cloneSurvey(surveyToClone.id);
+      toast.success("Encuesta clonada correctamente");
+      await loadSurveysData();
+      setCloneModalOpen(false);
+      setSurveyToClone(null);
+    } catch (error) {
+      console.error("Error cloning survey:", error);
+      toast.error(error.message || "Error al clonar la encuesta");
+    } finally {
+      setIsCloning(false);
+    }
   };
 
   const activasCount = surveys.filter((s) => s.status !== "finalizada").length;
@@ -464,20 +628,19 @@ export default function TemporalPage() {
   ];
 
   const StatusBadge = ({ survey }) => {
-  // Pendiente de configurar - ROJO/ROSADO
+  // Pendiente de configurar - AMARILLO
   if (survey.isPending || survey.status === "pendiente") {
     return (
-      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-red-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-500 text-white rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap">
         <Clock size={12} className="md:w-3.5 md:h-3.5" />
-        <span className="hidden sm:inline">Pendiente de configurar</span>
-        <span className="sm:hidden">Pendiente</span>
+        Pendiente de configurar
       </span>
     );
   }
-  // Pausada - AMARILLO
+  // Pausada - AZUL
   if (survey.isPaused || survey.status === "pausada") {
     return (
-      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-blue-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
         <Pause size={12} className="md:w-3.5 md:h-3.5" />
         Pausada
       </span>
@@ -493,12 +656,30 @@ export default function TemporalPage() {
   }
   // Recibiendo casos (activa) - VERDE
   if (survey.isActive || survey.status === "recibiendo") {
+    
+    const bgColor = survey.isScheduled ? "bg-teal-800" : "bg-green-600";
+    
     return (
-      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-green-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
-        <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse" />
-        <span className="hidden sm:inline">Recibiendo casos</span>
-        <span className="sm:hidden">Activa</span>
-      </span>
+      <div className="flex items-center gap-1.5">
+        <span className={`px-2 py-0.5 md:px-3 md:py-1 ${bgColor} text-white rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap`}>
+          {!survey.isScheduled && (
+            <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse" />
+          )}
+          Recibiendo casos
+        </span>
+        {survey.isScheduled && (
+          <div className="relative">
+            <div className="flex items-center justify-center w-7 h-7 bg-teal-800 rounded-full">
+              <Clock size={16} className="text-yellow-300" />
+            </div>
+            {/* Tooltip */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+              La fecha de la encuesta aún no ha llegado
+              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
+            </div>
+          </div>
+        )}
+      </div>
     );
   }
   // Fallback
@@ -510,7 +691,7 @@ export default function TemporalPage() {
 };
 
   return (
-    <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--text-primary)]">
+    <div className="bg-[color:var(--background)] text-[color:var(--text-primary)]">
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex items-center justify-between">
@@ -536,7 +717,7 @@ export default function TemporalPage() {
                 <Search size={18} className="text-[color:var(--text-secondary)] ml-4 flex-shrink-0" />
                 <input
                   type="text"
-                  placeholder="Buscar por título o fecha..."
+                  placeholder="Buscar por título, descripción o fecha..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 h-full bg-transparent border-none outline-none text-sm text-[color:var(--text-primary)] px-3 placeholder:text-[color:var(--text-secondary)] rounded-xl focus:outline-none focus:ring-0"
@@ -620,55 +801,146 @@ export default function TemporalPage() {
 
             {/* Panel de Filtros expandible */}
             {activeTab === "activas" && showFilters && (
-              <div className="bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl p-4 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-                  <label className="flex items-center gap-3 cursor-pointer group select-none p-2 rounded-lg hover:bg-[color:var(--hover-bg)] transition-colors -ml-2">
-                     <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${showPending ? 'bg-[color:var(--primary)] border-[color:var(--primary)]' : 'border-[color:var(--text-secondary)]'}`}>
-                        {showPending && <CheckCircle size={12} className="text-white" />}
-                     </div>
-                     <input
-                        type="checkbox"
-                        checked={showPending}
-                        onChange={(e) => setShowPending(e.target.checked)}
-                        className="hidden"
-                     />
-                     <span className="text-sm font-medium text-[color:var(--text-primary)] flex items-center gap-2">
-                        <Clock size={16} className="text-yellow-500" />
-                        Mostrar pendientes 
-                        <span className="bg-[color:var(--card-border)] text-[color:var(--text-secondary)] px-2 py-0.5 rounded-full text-xs">
-                           {surveys.filter(s => s.isPending).length}
-                        </span>
-                     </span>
+              <div className="bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl p-3 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Recibiendo casos */}
+                  <label className="flex items-center gap-2 cursor-pointer group select-none px-3 py-1.5 rounded-lg transition-colors">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                      showRecibiendo 
+                        ? 'border-green-500 dark:border-green-400 bg-green-500 dark:bg-green-400' 
+                        : 'border-green-300 dark:border-green-700 opacity-40'
+                    }`}>
+                      {showRecibiendo && <Check size={14} className="text-white" strokeWidth={3} />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={showRecibiendo}
+                      onChange={(e) => setShowRecibiendo(e.target.checked)}
+                      className="hidden"
+                    />
+                    <span className={`text-xs font-medium transition-colors ${
+                      showRecibiendo 
+                        ? 'text-[color:var(--text-primary)]' 
+                        : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
+                    }`}>
+                      Recibiendo casos
+                    </span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
+                      showRecibiendo 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-500'
+                    }`}>
+                      {surveys.filter(s => (s.lifecycle === "recibiendo" || s.status === "recibiendo") && s.status !== "finalizada").length}
+                    </span>
                   </label>
 
-                  <label className="flex items-center gap-3 cursor-pointer group select-none p-2 rounded-lg hover:bg-[color:var(--hover-bg)] transition-colors">
-                     <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${showOnlyActive ? 'bg-[color:var(--primary)] border-[color:var(--primary)]' : 'border-[color:var(--text-secondary)]'}`}>
-                        {showOnlyActive && <CheckCircle size={12} className="text-white" />}
-                     </div>
-                     <input
-                        type="checkbox"
-                        checked={showOnlyActive}
-                        onChange={(e) => setShowOnlyActive(e.target.checked)}
-                        className="hidden"
-                     />
-                     <span className="text-sm font-medium text-[color:var(--text-primary)] flex items-center gap-2">
-                        <Calendar size={16} className="text-green-500" />
-                        Solo con fecha activa
-                     </span>
+                  {/* Pausada */}
+                  <label className="flex items-center gap-2 cursor-pointer group select-none px-3 py-1.5 rounded-lg transition-colors">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                      showPausada 
+                        ? 'border-blue-500 dark:border-blue-400 bg-blue-500 dark:bg-blue-400' 
+                        : 'border-blue-300 dark:border-blue-700 opacity-40'
+                    }`}>
+                      {showPausada && <Check size={14} className="text-white" strokeWidth={3} />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={showPausada}
+                      onChange={(e) => setShowPausada(e.target.checked)}
+                      className="hidden"
+                    />
+                    <span className={`text-xs font-medium transition-colors ${
+                      showPausada 
+                        ? 'text-[color:var(--text-primary)]' 
+                        : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
+                    }`}>
+                      Pausada
+                    </span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
+                      showPausada 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-500'
+                    }`}>
+                      {surveys.filter(s => (s.lifecycle === "pausada" || s.status === "pausada" || s.isPaused) && s.status !== "finalizada").length}
+                    </span>
                   </label>
 
-                  {(showPending || showOnlyActive) && (
-                    <button
-                      onClick={() => {
-                        setShowPending(false);
-                        setShowOnlyActive(false);
-                      }}
-                      className="text-xs font-semibold text-[color:var(--text-secondary)] hover:text-[color:var(--error-text)] transition-colors flex items-center gap-1 sm:ml-auto px-3 py-1.5 rounded-lg hover:bg-[color:var(--error-bg)]/10"
-                    >
-                      <Trash2 size={14} />
-                      Limpiar filtros
-                    </button>
-                  )}
+                  {/* Pendiente de configurar */}
+                  <label className="flex items-center gap-2 cursor-pointer group select-none px-3 py-1.5 rounded-lg transition-colors">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                      showPendiente 
+                        ? 'border-yellow-500 dark:border-yellow-400 bg-yellow-500 dark:bg-yellow-400' 
+                        : 'border-yellow-300 dark:border-yellow-700 opacity-40'
+                    }`}>
+                      {showPendiente && <Check size={14} className="text-white" strokeWidth={3} />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={showPendiente}
+                      onChange={(e) => setShowPendiente(e.target.checked)}
+                      className="hidden"
+                    />
+                    <span className={`text-xs font-medium transition-colors ${
+                      showPendiente 
+                        ? 'text-[color:var(--text-primary)]' 
+                        : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
+                    }`}>
+                      Pendiente
+                    </span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
+                      showPendiente 
+                        ? 'bg-yellow-500 text-white' 
+                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-500'
+                    }`}>
+                      {surveys.filter(s => (s.lifecycle === "pendiente" || s.status === "pendiente" || s.isPending) && s.status !== "finalizada").length}
+                    </span>
+                  </label>
+
+                  {/* Ver todas */}
+                  <button
+                    onClick={() => {
+                      const allSelected = showRecibiendo && showPausada && showPendiente;
+                      if (allSelected) {
+                        // Si todas están seleccionadas, deseleccionar todas
+                        setShowRecibiendo(false);
+                        setShowPausada(false);
+                        setShowPendiente(false);
+                      } else {
+                        // Si alguna no está seleccionada, seleccionar todas
+                        setShowRecibiendo(true);
+                        setShowPausada(true);
+                        setShowPendiente(true);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg hover:bg-[color:var(--primary)]/10 transition-colors text-xs font-medium text-[color:var(--primary)] hover:text-[color:var(--primary-dark)] ml-auto"
+                  >
+                    <CheckCircle size={14} />
+                    {showRecibiendo && showPausada && showPendiente ? "Ocultar todas" : "Ver todas"}
+                  </button>
+
+                  {/* Solo fechas activas - filtro independiente */}
+                  <label className="flex items-center gap-2 cursor-pointer group select-none px-3 py-1.5 rounded-lg transition-colors border-l border-[color:var(--card-border)] pl-3 ml-2">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                      showOnlyActive 
+                        ? 'border-purple-500 dark:border-purple-400 bg-purple-500 dark:bg-purple-400' 
+                        : 'border-purple-300 dark:border-purple-700 opacity-40'
+                    }`}>
+                      {showOnlyActive && <Check size={14} className="text-white" strokeWidth={3} />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={showOnlyActive}
+                      onChange={(e) => setShowOnlyActive(e.target.checked)}
+                      className="hidden"
+                    />
+                    <span className={`text-xs font-medium whitespace-nowrap transition-colors ${
+                      showOnlyActive 
+                        ? 'text-[color:var(--text-primary)]' 
+                        : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
+                    }`}>
+                      Solo fechas activas
+                    </span>
+                  </label>
                 </div>
               </div>
             )}
@@ -692,9 +964,7 @@ export default function TemporalPage() {
         </div>
 
         {isLoading ? (
-          <div className="bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl p-6 text-center text-[color:var(--text-secondary)]">
-            Cargando encuestas...
-          </div>
+          <LoaderWrapper text="Cargando encuestas" />
         ) : error ? (
           <div className="bg-red-900/40 border border-red-500/50 rounded-xl p-6 text-center text-red-100">
             {error}
@@ -727,21 +997,14 @@ export default function TemporalPage() {
           ) : (
             <div className="bg-[color:var(--card-background)] backdrop-blur-sm border-2 border-dashed border-[color:var(--card-border)] rounded-xl p-12 text-center">
               <div className="w-20 h-20 bg-[color:var(--primary)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BarChart3 size={40} className="text-[color:var(--primary)]" />
+                <Filter size={40} className="text-[color:var(--primary)]" />
               </div>
               <h3 className="text-xl font-semibold mb-2">
-                No hay encuestas {activeTab}
+                No hay encuestas visibles
               </h3>
-              <p className="text-[color:var(--text-secondary)] mb-6">
-                Comienza creando tu primera encuesta para recolectar datos
+              <p className="text-[color:var(--text-secondary)]">
+                Revisa los filtros activos o la barra de búsqueda
               </p>
-              <button
-                onClick={() => router.push("/dashboard/encuestas/nueva")}
-                className="bg-[color:var(--primary)] hover:opacity-90 px-6 py-3 rounded-xl inline-flex items-center gap-2 font-semibold transition-all text-white"
-              >
-                <Plus size={20} />
-                Crear encuesta
-              </button>
             </div>
           )
         ) : (
@@ -749,49 +1012,72 @@ export default function TemporalPage() {
             {paginatedSurveys.map((survey) => {
               // Determinar color de borde según estado
               let borderColor = 'border-[color:var(--card-border)]';
+              
               if (survey.isPending || survey.status === 'pendiente') {
-                borderColor = 'border-l-4 border-l-red-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
-              } else if (survey.isPaused || survey.status === 'pausada') {
                 borderColor = 'border-l-4 border-l-yellow-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
+              } else if (survey.isPaused || survey.status === 'pausada') {
+                borderColor = 'border-l-4 border-l-blue-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
               } else if (survey.isFinished || survey.status === 'finalizada') {
                 borderColor = 'border-l-4 border-l-gray-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
               } else if (survey.isActive || survey.status === 'recibiendo') {
-                borderColor = 'border-l-4 border-l-green-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
+                // Teal-800 para programadas, green-600 para activas
+                const greenColor = survey.isScheduled ? 'border-l-teal-800' : 'border-l-green-600';
+                borderColor = `border-l-4 ${greenColor} border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]`;
               }
               
               return (
               <div
                 key={survey.id}
-                className={`bg-[color:var(--card-background)] backdrop-blur-sm rounded-xl p-3 md:p-4 hover:bg-[color:var(--hover-bg)] transition-all ${borderColor}`}
+                className={`group bg-[color:var(--card-background)] backdrop-blur-sm rounded-xl p-3 md:p-4 hover:bg-[color:var(--hover-bg)] transition-all relative ${borderColor}`}
               >
-                <div className="flex flex-col gap-3">
-                  {/* Primera línea: Creada + Tag */}
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[color:var(--text-secondary)] text-xs">
-                      Creada: {formatDate(survey.startDate)}
-                    </p>
-                    <div className="flex-shrink-0">
+                <div className="flex flex-col gap-2.5">
+                  {/* Primera línea: Título (grande) + Tag (top-right, superpuesto) */}
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-lg md:text-xl font-bold break-words text-[color:var(--text-primary)] flex-1">
+                      {survey.title}
+                    </h3>
+                    <div className="absolute -top-2 right-3 flex-shrink-0">
                       <StatusBadge survey={survey} />
                     </div>
                   </div>
                   
-                  {/* Título en su propia línea */}
-                  <h3 className="text-base md:text-lg font-semibold break-words text-[color:var(--text-primary)]">
-                    {survey.title}
-                  </h3>
+                  {/* Segunda línea: Descripción (pequeña, muteada) */}
+                  {survey.description && (
+                    <p className="text-xs text-[color:var(--text-secondary)] opacity-70">
+                      {survey.description}
+                    </p>
+                  )}
 
-                  <div className="flex flex-wrap gap-4 text-xs text-[color:var(--text-secondary)] pb-2 border-b border-[color:var(--card-border)]">
-                    <span className="flex items-center gap-1.5 whitespace-nowrap">
-                      <Calendar
-                        size={13}
-                        className="text-[color:var(--text-secondary)]"
-                      />
-                      {formatDate(survey.startDate)} -{" "}
-                      {formatDate(survey.endDate)}
+                  {/* Tercera línea: Fechas + Días restantes */}
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="flex items-center gap-1.5 text-[color:var(--text-primary)]">
+                      <Calendar size={14} />
+                      {survey.isScheduled ? (
+                        <>
+                          <span className="group-hover:text-yellow-500 group-hover:font-semibold transition-all duration-200">
+                            {formatDate(survey.startDate)}
+                          </span>
+                          <span> - {formatDate(survey.endDate)}</span>
+                        </>
+                      ) : (
+                        <>{formatDate(survey.startDate)} - {formatDate(survey.endDate)}</>
+                      )}
                     </span>
+                    {survey.status !== "finalizada" && survey.endDate && (() => {
+                      const now = new Date();
+                      const end = new Date(survey.endDate);
+                      const diffTime = Math.abs(end - now);
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      return (
+                        <span className="text-xs text-[color:var(--text-secondary)] opacity-70">
+                          (quedan {diffDays} días)
+                        </span>
+                      );
+                    })()}
                   </div>
 
-                  <div className="flex flex-wrap gap-4 text-xs text-[color:var(--text-secondary)]">
+                  {/* Cuarta línea: Stats (preguntas | encuestadores | casos) */}
+                  <div className="flex flex-wrap gap-3 text-xs text-[color:var(--text-secondary)]">
                     <span className="flex items-center gap-1.5 whitespace-nowrap">
                       <FileText size={13} />
                       {survey.questions || 0} preguntas
@@ -804,12 +1090,6 @@ export default function TemporalPage() {
                       <CheckCircle size={13} />
                       {survey.cases}/{survey.totalCases || 0} casos
                     </span>
-                    {survey.status !== "finalizada" && survey.endDate && (
-                      <span className="flex items-center gap-1.5 whitespace-nowrap text-[color:var(--text-secondary)]">
-                        <Clock size={13} />
-                        Hasta {formatDate(survey.endDate)}
-                      </span>
-                    )}
                   </div>
 
                   <div className="flex flex-wrap justify-between items-center gap-1.5 pt-2 border-t border-[color:var(--card-border)]">
@@ -846,8 +1126,8 @@ export default function TemporalPage() {
                       />
                       <ActionButton
                         icon={BarChart3}
-                        label="Resultados"
-                        onClick={() => toast.info("Resultados: próximamente")}
+                        label="Supervisión"
+                        onClick={() => router.push(`/dashboard/encuestas/${survey.id}/supervision`)}
                       />
                     </div>
                     <div className="hidden md:flex gap-1.5 ml-auto">
@@ -857,21 +1137,34 @@ export default function TemporalPage() {
                           label={survey.isActive ? "Pausar" : "Activar"}
                           variant={survey.isActive ? "warning" : "success"}
                           iconOnly
-                          onClick={() => handleToggleSurvey(survey.id)}
+                          tooltip={survey.isActive ? "Pausar encuesta" : "Activar encuesta"}
+                          onClick={() => handleToggleSurvey(survey)}
                           isLoading={isToggling === survey.id}
+                        />
+                      )}
+                      {survey.cases > 0 && (
+                        <ActionButton
+                          icon={Eraser}
+                          label="Borrar respuestas"
+                          variant="danger"
+                          iconOnly
+                          tooltip="Borrar todas las respuestas"
+                          onClick={() => handleDeleteAnswers(survey)}
                         />
                       )}
                       <ActionButton
                         icon={Copy}
                         label="Clonar"
                         iconOnly
-                        onClick={() => handleClone(survey.id)}
+                        tooltip="Clonar encuesta"
+                        onClick={() => handleClone(survey)}
                       />
                       <ActionButton
                         icon={Trash2}
                         label="Eliminar"
                         variant="danger"
                         iconOnly
+                        tooltip="Eliminar encuesta"
                         onClick={() => handleDelete(survey.id)}
                       />
                     </div>
@@ -890,7 +1183,7 @@ export default function TemporalPage() {
                           icon={BarChart3}
                           label="Supervisión"
                           onClick={() =>
-                            toast.info("Supervisión: próximamente")
+                            router.push(`/dashboard/encuestas/${survey.id}/supervision`)
                           }
                         />
                       </div>
@@ -1012,6 +1305,65 @@ export default function TemporalPage() {
           </div>
         )}
         {/* Modal de confirmación de eliminación */}
+        {/* Modal de confirmación para pausar/activar */}
+        <ConfirmModal
+          isOpen={pauseModalOpen}
+          onClose={() => setPauseModalOpen(false)}
+          onConfirm={confirmToggleSurvey}
+          title={surveyToPause?.isActive ? "Pausar encuesta" : "Activar encuesta"}
+          confirmText={surveyToPause?.isActive ? "Pausar" : "Activar"}
+          variant={surveyToPause?.isActive ? "warning" : "primary"}
+          isLoading={isToggling === surveyToPause?.id}
+        >
+          <p>
+            ¿Estás seguro de que deseas {surveyToPause?.isActive ? "pausar" : "activar"} la encuesta{" "}
+            <span className="font-semibold text-[color:var(--text-primary)]">
+              {surveyToPause?.title}
+            </span>
+            ?
+          </p>
+        </ConfirmModal>
+
+        {/* Modal de confirmación para clonar */}
+        <ConfirmModal
+          isOpen={cloneModalOpen}
+          onClose={() => !isCloning && setCloneModalOpen(false)}
+          onConfirm={confirmCloneSurvey}
+          title="Clonar encuesta"
+          confirmText="Clonar"
+          variant="primary"
+          isLoading={isCloning}
+        >
+          <p>
+            ¿Deseas crear una copia de la encuesta{" "}
+            <span className="font-semibold text-[color:var(--text-primary)]">
+              {surveyToClone?.title}
+            </span>
+            ?
+          </p>
+        </ConfirmModal>
+
+        {/* Modal de confirmación para borrar respuestas */}
+        <ConfirmModal
+          isOpen={deleteAnswersModalOpen}
+          onClose={() => setDeleteAnswersModalOpen(false)}
+          onConfirm={confirmDeleteAnswers}
+          title="Borrar respuestas"
+          confirmText="Borrar"
+          isLoading={isDeletingAnswers}
+          variant="danger"
+          alertMessage={`Esta acción es irreversible. Se eliminarán permanentemente todas las respuestas (${surveyToDeleteAnswers?.cases || 0} casos).`}
+        >
+          <p>
+              ¿Estás seguro de que deseas borrar todas las respuestas de la encuesta{" "}
+              <span className="font-semibold text-[color:var(--text-primary)]">
+                {surveyToDeleteAnswers?.title}
+              </span>
+              ?
+            </p>
+        </ConfirmModal>
+
+        {/* Modal de confirmación para eliminar encuesta */}
         <ConfirmModal
           isOpen={deleteModalOpen}
           onClose={() => setDeleteModalOpen(false)}
@@ -1019,23 +1371,16 @@ export default function TemporalPage() {
           title="Eliminar encuesta"
           confirmText="Eliminar"
           isLoading={isDeleting}
+          variant="danger"
+          alertMessage="Esta acción es irreversible. Se eliminarán permanentemente el formulario, la configuración y todas las respuestas asociadas."
         >
-          <div className="flex flex-col gap-2">
-            <p>
+          <p>
               ¿Estás seguro de que deseas eliminar la encuesta{" "}
               <span className="font-semibold text-[color:var(--text-primary)]">
                 {surveyToDelete?.title}
               </span>
               ?
             </p>
-            <div className="text-xs text-red-500 bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span className="text-justify">
-                Esta acción es irreversible. Se eliminarán permanentemente el formulario, 
-                la configuración y todas las respuestas asociadas.
-              </span>
-            </div>
-          </div>
         </ConfirmModal>
       </div>
     </div>

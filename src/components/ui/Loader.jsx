@@ -1,19 +1,20 @@
 import { motion } from "framer-motion";
 
 /**
- * CSS-only loader (ring) using border rotation.
- * Sizes map to fixed pixels via CSS var --s.
+ * Circular gradient loader with smooth rotation animation.
+ * Uses gradient between primary, primary-light, and primary-dark colors.
+ * Sizes map to fixed pixels via CSS var --size.
  */
 export function Loader({ size = "default", className = "" }) {
   const sizePx =
     typeof size === "number"
       ? size
       : {
-          sm: 14,
-          default: 20,
-          lg: 26,
-          xl: 32,
-        }[size] || 20;
+          sm: 16,
+          default: 24,
+          lg: 40,
+          xl: 56,
+        }[size] || 24;
 
   const style = { "--size": `${sizePx}px` };
 

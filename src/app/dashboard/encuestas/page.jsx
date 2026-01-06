@@ -129,10 +129,18 @@ export default function Encuestas() {
           while (true) {
             const { surveys = [], totalPages = 1 } =
               await surveyService.getAllSurveys(page, perPage, null);
+            
+            // 🔍 DEBUG
+            console.log(`🔍 DEBUG - Página ${page} recibida:`, surveys.length, "encuestas");
+            console.log(`🔍 DEBUG - Encuestas de esta página:`, surveys);
+            
             all = all.concat(surveys);
             if (page >= totalPages) break;
             page += 1;
           }
+          
+          console.log("🔍 DEBUG - Total encuestas combinadas:", all.length);
+          console.log("🔍 DEBUG - Todas las encuestas:", all);
         }
 
         const now = new Date();

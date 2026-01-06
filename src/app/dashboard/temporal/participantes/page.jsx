@@ -19,6 +19,7 @@ import { surveyService } from "@/services/survey.service";
 import ParticipantCard from "@/components/temporal/ParticipantCard";
 import LocationSearchFilter from "@/components/temporal/LocationSearchFilter";
 import UserAvatar from "@/components/ui/UserAvatar";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { useSurveyCreation } from '../context/SurveyCreationContext';
 import { toast } from "react-toastify";
 
@@ -344,7 +345,7 @@ export default function ParticipantesPage() {
       };
 
       // Actualizar en el backend
-      await surveyService.createOrUpdateSurvey(dataToSave, surveyId, true);
+      await surveyService.createOrUpdateSurvey(dataToSave, surveyId, false);
 
       toast.success(
         `${selectedParticipants.length} ${
@@ -847,10 +848,7 @@ export default function ParticipantesPage() {
             
             {/* Loading State */}
             {loading && (
-              <div className="text-center py-12">
-                <div className="inline-block w-8 h-8 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-[var(--text-secondary)]">Cargando...</p>
-              </div>
+              <LoaderWrapper text="Cargando participantes" />
             )}
 
             {/* Empty State */}

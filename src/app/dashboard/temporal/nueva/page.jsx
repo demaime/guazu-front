@@ -1263,11 +1263,11 @@ export default function FormBuilder() {
                 console.log("📤 Estructura de survey:", dataToSave.survey);
                 console.log("📤 Estructura de surveyInfo:", dataToSave.surveyInfo);
                 
-                // Guardar en backend (crear o actualizar)
+                // Guardar en backend (crear o actualizar) - PUBLISHED, no draft
                 const response = await surveyService.createOrUpdateSurvey(
                   dataToSave, 
                   surveyId || null, 
-                  true // isDraft = true
+                  false // isDraft = false
                 );
                 
                 console.log("✅ Respuesta COMPLETA del backend:", response);
