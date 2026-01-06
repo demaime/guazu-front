@@ -961,6 +961,17 @@ export default function TemporalPage() {
               {tab.label}
             </button>
           ))}
+          {/* Leyenda de filtros activos */}
+          {activeTab === "activas" && (!showRecibiendo || !showPausada || !showPendiente || showOnlyActive) && (
+            <div className="flex items-center ml-auto md:ml-2 text-xs text-[color:var(--text-muted)] italic animate-in fade-in duration-300 whitespace-nowrap">
+              (No se están mostrando: {[
+                !showRecibiendo && "Recibiendo casos",
+                !showPausada && "Pausadas",
+                !showPendiente && "Pendiente de configurar",
+                showOnlyActive && "fechas inactivas"
+              ].filter(Boolean).join(", ")})
+            </div>
+          )}
         </div>
 
         {isLoading ? (
