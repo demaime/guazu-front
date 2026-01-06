@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { toast } from "react-toastify";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 const safeDate = (value) => {
   if (!value) return null;
@@ -33,49 +34,53 @@ const safeDate = (value) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-// lifecycle: pendiente | preparada | activa | finalizada
-const classifyStatus = ({
-  rawStatus,
-  startDate,
-  endDate,
-  isReady, // formulario + config + participantes
-}) => {
-  // Pendiente: no está lista para ser enviada (draft incompleto)
-  if (rawStatus === "draft" && !isReady) {
-    return { lifecycle: "pendiente", isPending: true, isPrepared: false, isInDateRange: false };
-  }
-
+// Nueva clasificación: FINALIZADAS | ACTIVAS (recibiendo | pausada | pendiente)
+const classifyStatus = (survey) => {
   const now = new Date();
-  const start = safeDate(startDate);
-  const end = safeDate(endDate);
-
-  const isBeforeStart = !!(start && now < start);
-  const isAfterEnd = !!(end && now > end);
-  const isInDateRange = !!(start && end && now >= start && now <= end);
-
-  // Finalizada: terminó por fecha (aplica a publicadas y drafts listos)
-  if (isAfterEnd) {
-    return { lifecycle: "finalizada", isPending: false, isPrepared: false, isInDateRange: false };
-  }
-
-  // Preparada: lista pero aún no empezó (startDate futura)
-  // O es un DRAFT que está listo (y quizás incluso en fecha), pero no está publicado.
-  if ((isReady && isBeforeStart) || (rawStatus === "draft" && isReady)) {
-    return { lifecycle: "preparada", isPending: false, isPrepared: true, isInDateRange: isInDateRange };
-  }
-
-  // Activa: está en fecha Y (lista o publicada)
-  // NOTA: Si llegamos acá, NO es draft (porque el if anterior capturó draft).
-  if (isInDateRange) {
-    return { lifecycle: "activa", isPending: false, isPrepared: false, isInDateRange: true };
-  }
-
-  // Fallback: Default a preparada si está lista, o activa genérica (casos raros)
-  if (isReady) {
-    return { lifecycle: "preparada", isPending: false, isPrepared: true, isInDateRange: false };
+  const startDate = survey.surveyInfo?.startDate ? new Date(survey.surveyInfo.startDate) : null;
+  const endDate = survey.surveyInfo?.endDate ? new Date(survey.surveyInfo.endDate) : null;
+  
+  // 1. FINALIZADA: fecha de fin ya pasó
+  if (endDate && now > endDate) {
+    return {
+      lifecycle: 'finalizada',
+      label: 'Finalizada',
+      color: 'gray',
+      isFinished: true,
+    };
   }
   
-  return { lifecycle: "activa", isPending: false, isPrepared: false, isInDateRange: false };
+  // 2. ACTIVA: todavía en fecha
+  const isConfigurationComplete = survey.isConfigurationComplete ?? false;
+  const isPaused = survey.isPaused ?? false;
+  
+  // 2a. Pausada manualmente
+  if (isPaused) {
+    return {
+      lifecycle: 'pausada',
+      label: 'Pausada',
+      color: 'yellow',
+      isPaused: true,
+    };
+  }
+  
+  // 2b. Pendiente de configurar
+  if (!isConfigurationComplete) {
+    return {
+      lifecycle: 'pendiente',
+      label: 'Pendiente de configurar',
+      color: 'red',
+      isPending: true,
+    };
+  }
+  
+  // 2c. Recibiendo casos (activa y completa)
+  return {
+    lifecycle: 'recibiendo',
+    label: 'Recibiendo casos',
+    color: 'green',
+    isActive: true,
+  };
 };
 
 const formatDate = (value) => {
@@ -164,6 +169,11 @@ export default function TemporalPage() {
   const pageSize = 10;
   const [page, setPage] = useState(0);
 
+  // Estados para eliminación
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [surveyToDelete, setSurveyToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
@@ -227,6 +237,7 @@ export default function TemporalPage() {
           const totalCases = s?.surveyInfo?.target ?? 0;
           const cases = s?.totalAnswers ?? 0;
           const surveyors = Array.isArray(s?.userIds) ? s.userIds.length : 0;
+          
           // contamos preguntas: si hay pages con elements
           let questions = 0;
           const pages = s?.survey?.pages || s?.survey?.survey?.pages;
@@ -237,46 +248,31 @@ export default function TemporalPage() {
               }
             });
           }
-          // Detectar si falta configuración/participantes/formulario
-          const hasConfig = !!(
-            startDate &&
-            endDate &&
-            startDate.trim() !== "" &&
-            endDate.trim() !== ""
-          );
-          const hasParticipants = surveyors > 0;
-          const hasForm = questions > 0;
-          const isReady = hasConfig && hasParticipants && hasForm;
           
-          // Clasificar estado considerando "ready" + fechas
-          const { lifecycle, isPending, isPrepared, isInDateRange } = classifyStatus({
-            rawStatus: s?.status,
-            startDate,
-            endDate,
-            isReady,
-          });
+          // Clasificar estado usando la nueva función
+          const statusInfo = classifyStatus(s);
 
           return {
             id: s?._id || s?.id,
             title,
             description,
-            status: lifecycle,
-            isPending,
-            isPrepared,
-            isInDateRange,
+            status: statusInfo.lifecycle,
+            statusLabel: statusInfo.label,
+            statusColor: statusInfo.color,
+            isPending: statusInfo.isPending || false,
+            isPaused: statusInfo.isPaused || false,
+            isFinished: statusInfo.isFinished || false,
+            isActive: statusInfo.isActive || false,
             questions,
             surveyors,
             cases,
             totalCases,
             startDate,
             endDate,
-            hasConfig,
-            hasParticipants,
-            hasForm,
-            isReady,
             rawStatus: s?.status,
-            // Flag auxiliar para UI de botón (si es activa real o simulada por fechas)
-            isActive: lifecycle === 'activa'
+            // Guardar campos originales del backend para verificación
+            isConfigurationComplete: s?.isConfigurationComplete,
+            isPausedBackend: s?.isPaused,
           };
         }) || [];
       
@@ -388,49 +384,70 @@ export default function TemporalPage() {
   }, [filteredSurveys, pageSafe]);
 
   const handleToggleSurvey = async (id) => {
+  const survey = surveys.find((s) => s.id === id);
+  if (!survey) return;
+
+  if (isToggling === id) return;
+  setIsToggling(id);
+
+  try {
+    // Verificar si está pendiente de configurar
+    if (survey.isPending) {
+      toast.error("Complete la configuración antes de activar la encuesta");
+      return;
+    }
+
+    // Toggle pausa usando el nuevo endpoint
+    const result = await surveyService.toggleSurveyPause(id);
+    
+    // Mostrar toast según el nuevo estado
+    if (result.isPaused) {
+      toast.warning("Encuesta pausada", {
+        style: { background: '#EAB308', color: 'white' }
+      });
+    } else {
+      toast.success("¡Encuesta activada!");
+    }
+
+    // Recargar lista para ver cambios
+    await loadSurveysData();
+  } catch (e) {
+    console.error("Error toggling survey:", e);
+    toast.error(`Error: ${e.message}`);
+  } finally {
+    setIsToggling(null);
+  }
+};
+  const handleDelete = (id) => {
     const survey = surveys.find((s) => s.id === id);
-    if (!survey) return;
-
-    if (isToggling === id) return;
-    setIsToggling(id);
-
-    try {
-      if (survey.isActive) {
-        // PAUSAR -> Volver a draft
-        // Necesitamos obtener la encuesta completa primero porque update requiere el objeto
-        const fullData = await surveyService.getSurvey(id);
-        const dataToSave = fullData.survey?.survey || fullData.survey; 
-        const definition = fullData.survey?.surveyDefinition;
-        const info = fullData.survey?.surveyInfo;
-        
-        // Estructura para update
-        const payload = {
-            survey: dataToSave,
-            surveyDefinition: definition,
-            surveyInfo: info
-        };
-        
-        await surveyService.createOrUpdateSurvey(payload, id, true); // true = draft
-        toast.warning("Encuesta pausada (vuelta a borrador)");
-      } else {
-        // ACTIVAR -> Publicar draft
-        await surveyService.publishDraft(id);
-        toast.success("¡Encuesta activada y publicada para encuestadores!");
-      }
-
-      // Recargar lista para ver cambios
-      await loadSurveysData();
-    } catch (e) {
-      console.error("Error toggling survey:", e);
-      toast.error(`Error: ${e.message}`);
-    } finally {
-      setIsToggling(null);
+    if (survey) {
+      setSurveyToDelete(survey);
+      setDeleteModalOpen(true);
     }
   };
 
-  const handleDelete = (id) => {
-    toast.info("Eliminar encuesta: pronto");
-    console.log("Eliminar encuesta", id);
+  const confirmDeleteSurvey = async () => {
+    if (!surveyToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await surveyService.deleteSurvey(surveyToDelete.id);
+      toast.success("Encuesta eliminada correctamente");
+      
+      // Si estamos borrando la última de una página y no es la primera, volver atrás
+      if (paginatedSurveys.length === 1 && page > 0) {
+        setPage(p => p - 1);
+      }
+      
+      await loadSurveysData();
+    } catch (error) {
+      console.error("Error deleting survey:", error);
+      toast.error(error.message || "Error al eliminar la encuesta");
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+      setSurveyToDelete(null);
+    }
   };
 
   const handleClone = (id) => {
@@ -447,46 +464,50 @@ export default function TemporalPage() {
   ];
 
   const StatusBadge = ({ survey }) => {
-    if (survey.isPending) {
-      return (
-        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
-          <Clock size={12} className="md:w-3.5 md:h-3.5" />
-          <span className="hidden sm:inline">Pendiente de completar</span>
-          <span className="sm:hidden">Pendiente</span>
-        </span>
-      );
-    }
-    if (survey.status === "preparada") {
-      return (
-        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-blue-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
-          <Calendar size={12} className="md:w-3.5 md:h-3.5" />
-          Preparada
-        </span>
-      );
-    }
-    if (survey.status === "finalizada") {
-      return (
-        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-[color:var(--card-border)] text-[color:var(--text-primary)] rounded-full text-xs font-medium">
-          Finalizada
-        </span>
-      );
-    }
-    if (survey.status === "activa") {
-      return (
-        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-green-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
-          <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse" />
-          <span className="hidden sm:inline">Recibiendo casos</span>
-          <span className="sm:hidden">Activa</span>
-        </span>
-      );
-    }
+  // Pendiente de configurar - ROJO/ROSADO
+  if (survey.isPending || survey.status === "pendiente") {
     return (
-      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-orange-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
-        <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full" />
+      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-red-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+        <Clock size={12} className="md:w-3.5 md:h-3.5" />
+        <span className="hidden sm:inline">Pendiente de configurar</span>
+        <span className="sm:hidden">Pendiente</span>
+      </span>
+    );
+  }
+  // Pausada - AMARILLO
+  if (survey.isPaused || survey.status === "pausada") {
+    return (
+      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+        <Pause size={12} className="md:w-3.5 md:h-3.5" />
         Pausada
       </span>
     );
-  };
+  }
+  // Finalizada - GRIS
+  if (survey.isFinished || survey.status === "finalizada") {
+    return (
+      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-gray-500 text-white rounded-full text-xs font-medium">
+        Finalizada
+      </span>
+    );
+  }
+  // Recibiendo casos (activa) - VERDE
+  if (survey.isActive || survey.status === "recibiendo") {
+    return (
+      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-green-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+        <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse" />
+        <span className="hidden sm:inline">Recibiendo casos</span>
+        <span className="sm:hidden">Activa</span>
+      </span>
+    );
+  }
+  // Fallback
+  return (
+    <span className="px-2 py-0.5 md:px-3 md:py-1 bg-gray-400 text-white rounded-full text-xs font-medium">
+      Sin estado
+    </span>
+  );
+};
 
   return (
     <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--text-primary)]">
@@ -725,14 +746,23 @@ export default function TemporalPage() {
           )
         ) : (
           <div className="space-y-4">
-            {paginatedSurveys.map((survey) => (
+            {paginatedSurveys.map((survey) => {
+              // Determinar color de borde según estado
+              let borderColor = 'border-[color:var(--card-border)]';
+              if (survey.isPending || survey.status === 'pendiente') {
+                borderColor = 'border-l-4 border-l-red-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
+              } else if (survey.isPaused || survey.status === 'pausada') {
+                borderColor = 'border-l-4 border-l-yellow-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
+              } else if (survey.isFinished || survey.status === 'finalizada') {
+                borderColor = 'border-l-4 border-l-gray-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
+              } else if (survey.isActive || survey.status === 'recibiendo') {
+                borderColor = 'border-l-4 border-l-green-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
+              }
+              
+              return (
               <div
                 key={survey.id}
-                className={`bg-[color:var(--card-background)] backdrop-blur-sm border rounded-xl p-3 md:p-4 hover:bg-[color:var(--hover-bg)] transition-all ${
-                  survey.isPending
-                    ? "border-yellow-500/30 hover:border-yellow-500/60" 
-                    : "border-[color:var(--card-border)] hover:border-[color:var(--primary-dark)]/60"
-                }`}
+                className={`bg-[color:var(--card-background)] backdrop-blur-sm rounded-xl p-3 md:p-4 hover:bg-[color:var(--hover-bg)] transition-all ${borderColor}`}
               >
                 <div className="flex flex-col gap-3">
                   {/* Primera línea: Creada + Tag */}
@@ -949,7 +979,9 @@ export default function TemporalPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
+
 
             {/* Paginación */}
             {filteredSurveys.length > pageSize && (
@@ -979,6 +1011,32 @@ export default function TemporalPage() {
             )}
           </div>
         )}
+        {/* Modal de confirmación de eliminación */}
+        <ConfirmModal
+          isOpen={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          onConfirm={confirmDeleteSurvey}
+          title="Eliminar encuesta"
+          confirmText="Eliminar"
+          isLoading={isDeleting}
+        >
+          <div className="flex flex-col gap-2">
+            <p>
+              ¿Estás seguro de que deseas eliminar la encuesta{" "}
+              <span className="font-semibold text-[color:var(--text-primary)]">
+                {surveyToDelete?.title}
+              </span>
+              ?
+            </p>
+            <div className="text-xs text-red-500 bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span className="text-justify">
+                Esta acción es irreversible. Se eliminarán permanentemente el formulario, 
+                la configuración y todas las respuestas asociadas.
+              </span>
+            </div>
+          </div>
+        </ConfirmModal>
       </div>
     </div>
   );

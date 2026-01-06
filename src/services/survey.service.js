@@ -893,6 +893,38 @@ class SurveyService {
       throw error;
     }
   }
+
+  async toggleSurveyPause(surveyId) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+
+      const response = await fetch(`${SURVEY_ROUTES.BASE}/${surveyId}/toggle-pause`, {
+        method: "PATCH",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `Error al pausar/despausar: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error in toggleSurveyPause:", error);
+      throw error;
+    }
+  }
 }
 
 export const surveyService = new SurveyService();
