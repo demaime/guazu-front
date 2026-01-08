@@ -24,6 +24,10 @@ export default function FormBuilder() {
   const [modulos, setModulos] = useState([]);
   const [isLoading, setIsLoading] = useState(!!surveyId);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Estado para preservar configuración de encuestadores/supervisores
+  const [encuestadoresIds, setEncuestadoresIds] = useState([]);
+  const [supervisoresIds, setSupervisoresIds] = useState([]);
 
   // Cargar encuesta existente si hay ID
   useEffect(() => {
@@ -44,6 +48,10 @@ export default function FormBuilder() {
       if (surveyData) {
         setTitulo(surveyData.title || '');
         setDescripcion(surveyData.description || '');
+        
+        // Cargar IDs de encuestadores y supervisores
+        setEncuestadoresIds(surveyInfo.userIds || []);
+        setSupervisoresIds(surveyInfo.supervisorsIds || []);
         
         // 1) Si viene surveyDefinition (módulos del nuevo editor), usarlo
         const definition = response?.survey?.surveyDefinition;
@@ -1086,6 +1094,8 @@ export default function FormBuilder() {
                   eliminarPregunta={confirmarEliminarPregunta}
                   setArrastrando={setArrastrando}
                   onEditQuestion={abrirModalEditarPregunta}
+                  actualizarModulo={actualizarModulo}
+                  preguntasDisponiblesModulo={getPreguntasConOpciones(null)}
                 />
               ))}
             </div>
@@ -1132,6 +1142,7 @@ export default function FormBuilder() {
           onSave={guardarPreguntaDesdeModal}
           tiposPreguntas={tiposPreguntas}
           externalUpdate={externalUpdateForQuestion}
+          preguntasDisponibles={modalEditarPregunta ? getPreguntasConOpciones(modalEditarPregunta.preguntaId) : []}
           onOpenTypeSelector={() => {
             if (modalEditarPregunta) {
               const preguntaActual = getPreguntaActual();
@@ -1216,47 +1227,88 @@ export default function FormBuilder() {
                 // Importar funciones necesarias
                 const { prepareDataForBackend } = await import('../utils/transformToSurveyJS');
                 
-                // Si estamos editando, cargar configuración existente
-                // Para encuestas NUEVAS, NO poner fechas (deben ir a "Pendientes")
-                let configData = {
-                  fechaInicio: '',  // ← Vacío para encuestas nuevas
-                  fechaFin: '',     // ← Vacío para encuestas nuevas
-                  metaTotal: 0,
-                  gpsObligatorio: false,
-                  tieneObjetivo: false,
-                  cuotasActivas: false,
-                  categorias: [],
-                  encuestadoresIds: [],
-                  supervisoresIds: []
-                };
-
-                // Si es edición, cargar datos existentes
+                // Si estamos editando, cargar configuración existente y preservar participantes
                 if (surveyId) {
                   try {
                     const existing = await surveyService.getSurvey(surveyId);
                     const existingInfo = existing?.survey?.surveyInfo || {};
-                    configData = {
-                      fechaInicio: existingInfo.startDate || configData.fechaInicio,
-                      fechaFin: existingInfo.endDate || configData.fechaFin,
-                      metaTotal: existingInfo.target || 0,
-                      gpsObligatorio: existingInfo.requireGps || false,
-                      tieneObjetivo: (existingInfo.target || 0) > 0,
-                      cuotasActivas: (existingInfo.quotas || []).length > 0,
-                      categorias: existingInfo.quotas || [],
-                      encuestadoresIds: existingInfo.userIds || [],
-                      supervisoresIds: existingInfo.supervisorsIds || []
+                    const existingSurvey = existing?.survey?.survey || existing?.survey;
+                    const existingDefinition = existing?.survey?.surveyDefinition;
+                    
+                    // Preparar datos del formulario (solo preguntas)
+                    const formData = prepareDataForBackend({
+                      titulo,
+                      descripcion,
+                      modulos,
+                      fechaInicio: '',
+                      fechaFin: '',
+                      metaTotal: 0,
+                      gpsObligatorio: false,
+                      encuestadoresIds: [],
+                      supervisoresIds: [],
+                      categorias: []
+                    });
+                    
+                    // Construir datos completos preservando configuración y participantes
+                    const dataToSave = {
+                      survey: formData.survey, // Preguntas actualizadas
+                      surveyDefinition: {
+                        titulo,
+                        descripcion,
+                        modulos
+                      },
+                      surveyInfo: {
+                        ...existingInfo,
+                        // CRÍTICO: Preservar participantes existentes
+                        userIds: existingInfo.userIds || existing?.survey?.userIds || encuestadoresIds || [],
+                        supervisorsIds: existingInfo.supervisorsIds || existing?.survey?.supervisorsIds || supervisoresIds || [],
+                      },
+                      participants: {
+                        userIds: existingInfo.userIds || existing?.survey?.userIds || encuestadoresIds || [],
+                        supervisorsIds: existingInfo.supervisorsIds || existing?.survey?.supervisorsIds || supervisoresIds || [],
+                        pollsterAssignments: existing?.survey?.participants?.pollsterAssignments || existing?.survey?.pollsterAssignments || [],
+                        quotaAssignments: existing?.survey?.participants?.quotaAssignments || existing?.survey?.quotaAssignments || []
+                      }
                     };
-                  } catch (e) {
-                    console.warn('No se pudo cargar configuración existente:', e);
+                    
+                    console.log("📤 Datos a guardar (EDICIÓN):", dataToSave);
+                    console.log("📤 Participantes preservados:", {
+                      userIds: dataToSave.surveyInfo.userIds,
+                      supervisorsIds: dataToSave.surveyInfo.supervisorsIds
+                    });
+                    
+                    // Guardar en backend
+                    const response = await surveyService.createOrUpdateSurvey(
+                      dataToSave, 
+                      surveyId, 
+                      false // isDraft = false
+                    );
+                    
+                    console.log("✅ Respuesta del backend:", response);
+                    
+                    toast.success("Encuesta actualizada correctamente");
+                    router.push('/dashboard/temporal');
+                  } catch (error) {
+                    console.error("❌ Error al guardar:", error);
+                    toast.error(`Error al guardar la encuesta: ${error.message}`);
+                  } finally {
+                    setIsSaving(false);
                   }
+                  return;
                 }
                 
-                // Preparar datos completos
+                // Para encuestas NUEVAS, usar el flujo normal
                 const dataToSave = prepareDataForBackend({
                   titulo,
                   descripcion,
                   modulos,
-                  ...configData
+                  fechaInicio: '',
+                  fechaFin: '',
+                  metaTotal: 0,
+                  gpsObligatorio: false,
+                  encuestadoresIds: [],
+                  supervisoresIds: [],
+                  categorias: []
                 });
                 
                 console.log("📤 Datos a guardar:", dataToSave);

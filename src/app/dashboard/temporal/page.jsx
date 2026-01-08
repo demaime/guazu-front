@@ -63,7 +63,9 @@ const classifyStatus = (survey) => {
     page.elements && page.elements.length > 0
   ) || false;
   const hasDates = !!(survey.surveyInfo?.startDate && survey.surveyInfo?.endDate);
-  const hasPollsters = Array.isArray(survey.userIds) && survey.userIds.length > 0;
+  // Leer userIds desde surveyInfo, que es donde se guardan
+  const pollsterIds = survey.surveyInfo?.userIds || survey.userIds || [];
+  const hasPollsters = Array.isArray(pollsterIds) && pollsterIds.length > 0;
   const calculatedComplete = hasQuestions && hasDates && hasPollsters;
   
   // Solo usar el campo del backend si es TRUE, sino usar el cálculo
@@ -289,18 +291,64 @@ export default function TemporalPage() {
           const endDate = s?.surveyInfo?.endDate;
           const totalCases = s?.surveyInfo?.target ?? 0;
           const cases = s?.totalAnswers ?? 0;
-          const surveyors = Array.isArray(s?.userIds) ? s.userIds.length : 0;
+          // Leer userIds desde surveyInfo, que es donde se guardan
+          const pollsterIds = s?.surveyInfo?.userIds || s?.userIds || [];
+          const surveyors = Array.isArray(pollsterIds) ? pollsterIds.length : 0;
           
-          // contamos preguntas: si hay pages con elements
-          let questions = 0;
+          // Función recursiva para contar preguntas reales (no panels)
+          // Retorna { total, condicionales } para calcular min/max
+          const contarPreguntasReales = (elements, esCondicional = false) => {
+            let total = 0;
+            let condicionales = 0;
+            if (!Array.isArray(elements)) return { total: 0, condicionales: 0 };
+            
+            elements.forEach(el => {
+              if (el.type === 'panel') {
+                // Si es un panel con visibleIf, sus preguntas son condicionales
+                const tieneCondicion = !!el.visibleIf;
+                const resultado = contarPreguntasReales(el.elements, tieneCondicion);
+                total += resultado.total;
+                condicionales += resultado.condicionales;
+              } else {
+                // Es una pregunta real
+                total++;
+                if (esCondicional) {
+                  condicionales++;
+                }
+              }
+            });
+            
+            return { total, condicionales };
+          };
+
+          // Contar preguntas en todas las páginas
+          let totalQuestions = 0;
+          let conditionalQuestions = 0;
           const pages = s?.survey?.pages || s?.survey?.survey?.pages;
           if (Array.isArray(pages)) {
             pages.forEach((p) => {
+              // Verificar si la página completa es condicional (nuevo formato)
+              const paginaEsCondicional = !!p.visibleIf;
+              
               if (Array.isArray(p?.elements)) {
-                questions += p.elements.length;
+                const resultado = contarPreguntasReales(p.elements, paginaEsCondicional);
+                totalQuestions += resultado.total;
+                
+                // Si la página es condicional, todas sus preguntas son condicionales
+                if (paginaEsCondicional) {
+                  conditionalQuestions += resultado.total;
+                } else {
+                  // Si no, solo contar las que están en panels condicionales
+                  conditionalQuestions += resultado.condicionales;
+                }
               }
             });
           }
+
+          const questions = totalQuestions;
+          const minQuestions = totalQuestions - conditionalQuestions;
+          const maxQuestions = totalQuestions;
+          const hasConditionalQuestions = conditionalQuestions > 0;
           
           // Detectar qué falta configurar específicamente
           const hasConfig = !!(
@@ -328,6 +376,9 @@ export default function TemporalPage() {
             isActive: statusInfo.isActive || false,
             isScheduled: statusInfo.isScheduled || false,
             questions,
+            minQuestions,
+            maxQuestions,
+            hasConditionalQuestions,
             surveyors,
             cases,
             totalCases,
@@ -885,7 +936,7 @@ export default function TemporalPage() {
                         ? 'text-[color:var(--text-primary)]' 
                         : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
                     }`}>
-                      Pendiente
+                      Pendiente de configurar
                     </span>
                     <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
                       showPendiente 
@@ -1091,7 +1142,10 @@ export default function TemporalPage() {
                   <div className="flex flex-wrap gap-3 text-xs text-[color:var(--text-secondary)]">
                     <span className="flex items-center gap-1.5 whitespace-nowrap">
                       <FileText size={13} />
-                      {survey.questions || 0} preguntas
+                      {survey.hasConditionalQuestions && survey.minQuestions !== survey.maxQuestions
+                        ? `${survey.minQuestions}-${survey.maxQuestions} preguntas`
+                        : `${survey.questions || 0} preguntas`
+                      }
                     </span>
                     <span className="flex items-center gap-1.5 whitespace-nowrap">
                       <Users size={13} />

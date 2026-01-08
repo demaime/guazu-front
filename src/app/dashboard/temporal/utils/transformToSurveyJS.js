@@ -187,28 +187,108 @@ function transformPregunta(pregunta) {
 }
 
 /**
- * Transforma los módulos a elementos de SurveyJS
+ * Genera expresión visibleIf a partir de condiciones
+ * @param {Object} condicionada - Objeto con condiciones
+ * @param {Object} preguntaIdToValue - Mapa de ID de pregunta a su value (name en SurveyJS)
+ */
+function generarVisibleIf(condicionada, preguntaIdToValue = {}) {
+  if (!condicionada?.activa || !condicionada.condiciones?.length) {
+    return null;
+  }
+
+  const conditions = condicionada.condiciones.map(cond => {
+    if (!cond.preguntaId) return '';
+    
+    // Obtener el value de la pregunta (name en SurveyJS) usando el mapa
+    const preguntaValue = preguntaIdToValue[cond.preguntaId] || cond.preguntaId;
+    const preguntaRef = `{${preguntaValue}}`;
+    
+    // Mapear operadores
+    const operadorMap = {
+      'igual': '=',
+      'diferente': '!=',
+      'contiene': 'contains',
+      'mayor': '>',
+      'menor': '<'
+    };
+    
+    if (cond.operador === 'entre' && cond.valorMin !== '' && cond.valorMax !== '') {
+      return `(${preguntaRef} >= ${cond.valorMin} and ${preguntaRef} <= ${cond.valorMax})`;
+    }
+    
+    if (['mayor', 'menor'].includes(cond.operador) && cond.valorMin !== '') {
+      return `${preguntaRef} ${operadorMap[cond.operador]} ${cond.valorMin}`;
+    }
+    
+    if (Array.isArray(cond.valores) && cond.valores.length > 0) {
+      const operador = operadorMap[cond.operador] || '=';
+      if (operador === 'contains') {
+        // Para contains, cada valor es una condición OR
+        return `(${cond.valores.map(v => `${preguntaRef} contains '${v}'`).join(' or ')})`;
+      } else {
+        // Para = o !=, múltiples valores son OR
+        return `(${cond.valores.map(v => `${preguntaRef} ${operador} '${v}'`).join(' or ')})`;
+      }
+    }
+    
+    return '';
+  }).filter(c => c);
+
+  // Usar la lógica configurada (and/or), por defecto 'and'
+  const logica = condicionada.logica || 'and';
+  return conditions.length > 0 ? conditions.join(` ${logica} `) : null;
+}
+
+/**
+ * Transforma los módulos a páginas de SurveyJS
+ * Cada pregunta obtiene su propia página para paginación correcta
+ * Las condiciones del módulo se aplican a nivel de página
  */
 export function transformModulosToSurveyJS(modulos) {
   if (!Array.isArray(modulos) || modulos.length === 0) {
     return [];
   }
 
-  const elements = [];
-
+  // Crear mapa de ID de pregunta a su value (name en SurveyJS)
+  const preguntaIdToValue = {};
   modulos.forEach(modulo => {
-    // Si el módulo tiene condiciones, podríamos crear un panel
-    // Por ahora, procesamos las preguntas directamente
-    
     if (modulo.preguntas && Array.isArray(modulo.preguntas)) {
       modulo.preguntas.forEach(pregunta => {
-        const element = transformPregunta(pregunta);
-        elements.push(element);
+        preguntaIdToValue[pregunta.id] = pregunta.value || `pregunta_${pregunta.id}`;
       });
     }
   });
 
-  return elements;
+  const pages = [];
+
+  modulos.forEach((modulo, moduloIdx) => {
+    if (!modulo.preguntas || !Array.isArray(modulo.preguntas) || modulo.preguntas.length === 0) {
+      return;
+    }
+
+    // Transformar las preguntas del módulo
+    const preguntasTransformadas = modulo.preguntas.map(pregunta => transformPregunta(pregunta));
+
+    // Verificar si el módulo tiene condiciones activas
+    const visibleIfModulo = generarVisibleIf(modulo.condicionada, preguntaIdToValue);
+
+    // Crear una página por cada pregunta
+    preguntasTransformadas.forEach((pregunta, idx) => {
+      const page = {
+        name: `page_${modulo.id}_${idx}`,
+        elements: [pregunta]
+      };
+
+      // Si el módulo tiene condiciones, aplicarlas a la página
+      if (visibleIfModulo) {
+        page.visibleIf = visibleIfModulo;
+      }
+
+      pages.push(page);
+    });
+  });
+
+  return pages;
 }
 
 /**
@@ -313,16 +393,27 @@ function elementToPregunta(element, idx) {
 
 export function transformSurveyJSToModulos(survey) {
   const pages = Array.isArray(survey?.pages) ? survey.pages : [];
-  const elements = pages.flatMap((p) => (Array.isArray(p?.elements) ? p.elements : []));
+  
+  if (pages.length === 0) return [];
 
-  if (elements.length === 0) return [];
+  // Extraer todas las preguntas de todas las páginas
+  const allQuestions = [];
+  pages.forEach((page) => {
+    if (Array.isArray(page?.elements)) {
+      page.elements.forEach((el) => {
+        allQuestions.push(el);
+      });
+    }
+  });
+
+  if (allQuestions.length === 0) return [];
 
   return [
     {
       id: "modulo_1",
       nombre: "Módulo 1",
       descripcion: "",
-      preguntas: elements.map((el, idx) => elementToPregunta(el, idx)),
+      preguntas: allQuestions.map((el, idx) => elementToPregunta(el, idx)),
     },
   ];
 }
@@ -353,12 +444,7 @@ export function prepareDataForBackend(surveyData) {
     locale: "es",
     title: surveyData.titulo || "Encuesta sin título",
     description: surveyData.descripcion || "",
-    pages: [
-      {
-        name: "page1",
-        elements: transformModulosToSurveyJS(surveyData.modulos || [])
-      }
-    ],
+    pages: transformModulosToSurveyJS(surveyData.modulos || []),
     showProgressBar: "top",
     progressBarType: "questions",
     showPrevButton: true,

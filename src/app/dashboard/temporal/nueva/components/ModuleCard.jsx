@@ -2,6 +2,7 @@
 
 import { GripVertical, Folder, Copy, Trash2, ChevronDown, Plus } from 'lucide-react';
 import QuestionCard from './QuestionCard';
+import ConditionalEditor from './ConditionalEditor';
 
 export default function ModuleCard({
   modulo,
@@ -26,7 +27,10 @@ export default function ModuleCard({
   actualizarPregunta,
   eliminarPregunta,
   setArrastrando,
-  onEditQuestion
+  onEditQuestion,
+  // Props para condicionales de módulo
+  actualizarModulo,
+  preguntasDisponiblesModulo = []
 }) {
   const isExpanded = expandidaModulos[modulo.id];
 
@@ -50,93 +54,167 @@ export default function ModuleCard({
       }`}
     >
       <div
-        onClick={(e) => {
-          // Solo expandir/colapsar si no se clickeó en un botón
-          if (e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
-            const isExpanding = !isExpanded;
-            setExpandidaModulos({ ...expandidaModulos, [modulo.id]: isExpanding });
-            if (isExpanding) {
-              setModuloDinamizandose(null);
-              setModuloCondicionandose(null);
-            }
-          }
-        }}
-        className={`w-full px-4 py-3 bg-[color:var(--hover-bg)] flex items-start gap-3 hover:bg-[color:var(--primary)]/10 transition-colors ${
+        className={`w-full bg-[color:var(--hover-bg)] hover:bg-[color:var(--primary)]/10 transition-colors ${
           !isExpanded ? 'cursor-move' : 'cursor-pointer'
         }`}
       >
-        <GripVertical 
-          size={16} 
-          className={`flex-shrink-0 mt-1 transition-opacity ${
-            !isExpanded 
-              ? 'text-[color:var(--text-muted)] opacity-100' 
-              : 'text-[color:var(--text-muted)] opacity-30'
-          }`} 
-        />
-        <Folder size={16} className="text-[color:var(--primary)] flex-shrink-0 mt-1" />
-        <div className="flex-1 min-w-0">
-          <input
-            type="text"
-            value={modulo.nombre}
-            onChange={(e) => renombrarModulo(modulo.id, e.target.value)}
-            className="w-full bg-transparent text-[color:var(--text-primary)] font-semibold outline-none hover:underline text-sm mb-1"
-            placeholder="Nombre del módulo"
+        {/* Primera fila: nombre, descripción y botones */}
+        <div
+          onClick={(e) => {
+            // Solo expandir/colapsar si no se clickeó en un botón
+            if (e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
+              const isExpanding = !isExpanded;
+              setExpandidaModulos({ ...expandidaModulos, [modulo.id]: isExpanding });
+              if (isExpanding) {
+                setModuloDinamizandose(null);
+                setModuloCondicionandose(null);
+              }
+            }
+          }}
+          className="px-4 py-3 flex flex-wrap items-start gap-3"
+        >
+          <GripVertical 
+            size={16} 
+            className={`flex-shrink-0 mt-1 transition-opacity ${
+              !isExpanded 
+                ? 'text-[color:var(--text-muted)] opacity-100' 
+                : 'text-[color:var(--text-muted)] opacity-30'
+            }`} 
           />
-          <textarea
-            value={modulo.descripcion || ''}
-            onChange={(e) => actualizarDescripcionModulo(modulo.id, e.target.value)}
-            placeholder="Descripción del módulo (opcional)"
-            rows={1}
-            className="w-full bg-transparent text-xs text-[color:var(--text-secondary)] placeholder-[color:var(--text-muted)] outline-none border-none focus:ring-0 resize-none overflow-hidden leading-relaxed"
-            style={{
-              minHeight: '1rem',
-              height: 'auto'
-            }}
-            onInput={(e) => {
-              e.target.style.height = 'auto';
-              e.target.style.height = e.target.scrollHeight + 'px';
-            }}
-          />
+          <Folder size={16} className="text-[color:var(--primary)] flex-shrink-0 mt-1" />
+          <div className="flex-1 min-w-0 md:min-w-[200px]">
+            <input
+              type="text"
+              value={modulo.nombre}
+              onChange={(e) => renombrarModulo(modulo.id, e.target.value)}
+              className="w-full bg-transparent text-[color:var(--text-primary)] font-semibold outline-none hover:underline text-sm mb-1"
+              placeholder="Nombre del módulo"
+            />
+            <textarea
+              value={modulo.descripcion || ''}
+              onChange={(e) => actualizarDescripcionModulo(modulo.id, e.target.value)}
+              placeholder="Descripción del módulo (opcional)"
+              rows={1}
+              className="w-full bg-transparent text-xs text-[color:var(--text-secondary)] placeholder-[color:var(--text-muted)] outline-none border-none focus:ring-0 resize-none overflow-hidden leading-relaxed"
+              style={{
+                minHeight: '1rem',
+                height: 'auto'
+              }}
+              onInput={(e) => {
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+            />
+          </div>
+          <span className="text-xs text-[color:var(--text-secondary)] flex-shrink-0 mt-1">{modulo.preguntas.length}</span>
+          
+          {/* Botones - solo visible en desktop */}
+          <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const copia = {
+                  ...modulo,
+                  id: Date.now(),
+                  descripcion: modulo.descripcion || '',
+                  preguntas: modulo.preguntas.map(p => ({ ...p, id: Date.now() + Math.random() })),
+                  condicionada: modulo.condicionada || { activa: false, condiciones: [] },
+                  dinamico: modulo.dinamico || { activo: false, panelCount: 1, minPanelCount: 0, maxPanelCount: 10, panelAddText: 'Agregar', panelRemoveText: 'Eliminar' }
+                };
+                setModulos([...modulos, copia]);
+                setModuloCondicionandose(null);
+                setModuloDinamizandose(null);
+              }}
+              className="p-1 text-[color:var(--text-secondary)] hover:text-[color:var(--primary)] transition-colors"
+              title="Clonar módulo"
+            >
+              <Copy size={14} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                eliminarModulo(modulo.id);
+              }}
+              className="p-1 text-[color:var(--text-secondary)] hover:text-red-500 transition-colors"
+              title="Eliminar módulo"
+            >
+              <Trash2 size={14} />
+            </button>
+            <ChevronDown
+              size={18}
+              className={`text-[color:var(--text-secondary)] transition-transform flex-shrink-0 ${
+                isExpanded ? 'rotate-180' : ''
+              }`}
+            />
+          </div>
         </div>
-        <span className="text-xs text-[color:var(--text-secondary)] flex-shrink-0 mt-1">{modulo.preguntas.length}</span>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const copia = {
-                ...modulo,
-                id: Date.now(),
-                descripcion: modulo.descripcion || '',
-                preguntas: modulo.preguntas.map(p => ({ ...p, id: Date.now() + Math.random() })),
-                condicionada: modulo.condicionada || { activa: false, condiciones: [] },
-                dinamico: modulo.dinamico || { activo: false, panelCount: 1, minPanelCount: 0, maxPanelCount: 10, panelAddText: 'Agregar', panelRemoveText: 'Eliminar' }
-              };
-              setModulos([...modulos, copia]);
-              setModuloCondicionandose(null);
-              setModuloDinamizandose(null);
-            }}
-            className="p-1 text-[color:var(--text-secondary)] hover:text-[color:var(--primary)] transition-colors"
-            title="Clonar módulo"
-          >
-            <Copy size={14} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              eliminarModulo(modulo.id);
-            }}
-            className="p-1 text-[color:var(--text-secondary)] hover:text-red-500 transition-colors"
-            title="Eliminar módulo"
-          >
-            <Trash2 size={14} />
-          </button>
-          <ChevronDown
-            size={18}
-            className={`text-[color:var(--text-secondary)] transition-transform flex-shrink-0 ${
-              isExpanded ? 'rotate-180' : ''
-            }`}
-          />
+
+        {/* Fila mobile: Condicionales + Botones */}
+        <div className="md:hidden px-4 pb-2 flex items-center justify-between gap-2">
+          {/* ConditionalEditor */}
+          {preguntasDisponiblesModulo.length > 0 && (
+            <div className="flex-shrink-0">
+              <ConditionalEditor
+                condicionada={modulo.condicionada || { activa: false, condiciones: [] }}
+                preguntasDisponibles={preguntasDisponiblesModulo}
+                onUpdate={(nuevaCondicionada) => actualizarModulo && actualizarModulo(modulo.id, { condicionada: nuevaCondicionada })}
+                label="Módulo condicional"
+              />
+            </div>
+          )}
+          
+          {/* Botones */}
+          <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const copia = {
+                  ...modulo,
+                  id: Date.now(),
+                  descripcion: modulo.descripcion || '',
+                  preguntas: modulo.preguntas.map(p => ({ ...p, id: Date.now() + Math.random() })),
+                  condicionada: modulo.condicionada || { activa: false, condiciones: [] },
+                  dinamico: modulo.dinamico || { activo: false, panelCount: 1, minPanelCount: 0, maxPanelCount: 10, panelAddText: 'Agregar', panelRemoveText: 'Eliminar' }
+                };
+                setModulos([...modulos, copia]);
+                setModuloCondicionandose(null);
+                setModuloDinamizandose(null);
+              }}
+              className="p-1 text-[color:var(--text-secondary)] hover:text-[color:var(--primary)] transition-colors"
+              title="Clonar módulo"
+            >
+              <Copy size={14} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                eliminarModulo(modulo.id);
+              }}
+              className="p-1 text-[color:var(--text-secondary)] hover:text-red-500 transition-colors"
+              title="Eliminar módulo"
+            >
+              <Trash2 size={14} />
+            </button>
+            <ChevronDown
+              size={18}
+              className={`text-[color:var(--text-secondary)] transition-transform flex-shrink-0 ${
+                isExpanded ? 'rotate-180' : ''
+              }`}
+            />
+          </div>
         </div>
+
+        {/* ConditionalEditor - solo visible en desktop */}
+        {preguntasDisponiblesModulo.length > 0 && (
+          <div className="hidden md:block px-4 pb-2">
+            <ConditionalEditor
+              condicionada={modulo.condicionada || { activa: false, condiciones: [] }}
+              preguntasDisponibles={preguntasDisponiblesModulo}
+              onUpdate={(nuevaCondicionada) => actualizarModulo && actualizarModulo(modulo.id, { condicionada: nuevaCondicionada })}
+              label="Módulo condicional"
+            />
+          </div>
+        )}
       </div>
 
       {isExpanded && (

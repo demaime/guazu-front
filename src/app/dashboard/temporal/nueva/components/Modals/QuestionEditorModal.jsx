@@ -7,6 +7,7 @@ import MatrixEditor from '../MatrixEditor';
 import MultiTextFieldsEditor from '../MultiTextFieldsEditor';
 import ScaleEditor from '../ScaleEditor';
 import BulkAddModal from './BulkAddModal';
+import ConditionalEditor from '../ConditionalEditor';
 
 export default function QuestionEditorModal({ 
   isOpen, 
@@ -16,7 +17,8 @@ export default function QuestionEditorModal({
   onSave,
   tiposPreguntas,
   onOpenTypeSelector,
-  externalUpdate
+  externalUpdate,
+  preguntasDisponibles = [] // Preguntas con opciones para condiciones
 }) {
   const [isAnimating, setIsAnimating] = useState(false);
   const [editedData, setEditedData] = useState({});
@@ -37,7 +39,8 @@ export default function QuestionEditorModal({
           filas: pregunta.filas || [],
           columnas: pregunta.columnas || [],
           campos: pregunta.campos || [],
-          configuracionEscala: pregunta.configuracionEscala || {}
+          configuracionEscala: pregunta.configuracionEscala || {},
+          condicionada: pregunta.condicionada || { activa: false, condiciones: [] }
         });
       }
     } else {
@@ -239,6 +242,16 @@ export default function QuestionEditorModal({
               placeholder="Ej: Seleccione una opción, Ingrese su respuesta..."
             />
           </div>
+
+          {/* Condiciones de visibilidad */}
+          {preguntasDisponibles.length > 0 && (
+            <ConditionalEditor
+              condicionada={editedData.condicionada}
+              preguntasDisponibles={preguntasDisponibles}
+              onUpdate={(nuevaCondicionada) => updateField('condicionada', nuevaCondicionada)}
+              label="Mostrar solo si..."
+            />
+          )}
 
           {/* Configuración específica según el tipo */}
           {renderConfiguracionEspecifica()}
