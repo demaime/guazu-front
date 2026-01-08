@@ -167,6 +167,12 @@
   --warning: #b7791f;
   --warning-bg: #fff4de;
   --warning-border: #f6ad55;
+
+  /* Tag colors for conditional items */
+  --tag-module-bg: #abbdf7;
+  --tag-module-text: #3e34c8;
+  --tag-question-bg: #bf9de4;
+  --tag-question-text: #6b21a8;
 }
 
 /* Dark theme */
@@ -203,6 +209,12 @@
   --warning: #fbbf24;
   --warning-bg: #451a03;
   --warning-border: #fbbf24;
+
+  /* Tag colors for conditional items */
+  --tag-module-text: #cbd6fa;
+  --tag-module-bg: #4c43cc;
+  --tag-question-text: #bf9de4;
+  --tag-question-bg: #6b21a8;
 }
 
 /* Agregamos estilos específicos para el nav-item en modo oscuro */

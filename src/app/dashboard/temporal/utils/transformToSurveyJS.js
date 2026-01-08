@@ -32,7 +32,7 @@ function mapQuestionType(tipoTemporal) {
 /**
  * Transforma una pregunta temporal individual a formato SurveyJS
  */
-function transformPregunta(pregunta) {
+function transformPregunta(pregunta, preguntaIdToValue = {}) {
   const element = {
     type: mapQuestionType(pregunta.tipo),
     name: pregunta.value || `pregunta_${pregunta.id}`,
@@ -154,13 +154,31 @@ function transformPregunta(pregunta) {
       element.storeDataAsText = false;
       element.maxSize = 10485760; // 10MB
       break;
+
+    case 'numerica':
+      element.inputType = 'number';
+      if (pregunta.validadores?.numerica) {
+        if (pregunta.validadores.numerica.min !== '') {
+          element.min = pregunta.validadores.numerica.min;
+        }
+        if (pregunta.validadores.numerica.max !== '') {
+          element.max = pregunta.validadores.numerica.max;
+        }
+      }
+      break;
+
+    case 'fecha':
+      element.inputType = 'date';
+      break;
   }
 
   // Procesar condiciones si existen
   if (pregunta.condicionada?.activa && pregunta.condicionada.condiciones?.length > 0) {
-    // Generar expresión visibleIf
+    // Generar expresión visibleIf usando el mapa de ID a value
     const conditions = pregunta.condicionada.condiciones.map(cond => {
-      const preguntaRef = `{${cond.preguntaId}}`;
+      // Mapear el ID de la pregunta a su value
+      const preguntaValue = preguntaIdToValue[cond.preguntaId] || cond.preguntaId;
+      const preguntaRef = `{${preguntaValue}}`;
       const operador = cond.operador === 'igual' ? '=' : '!=';
       
       if (Array.isArray(cond.valores) && cond.valores.length > 0) {
@@ -267,7 +285,7 @@ export function transformModulosToSurveyJS(modulos) {
     }
 
     // Transformar las preguntas del módulo
-    const preguntasTransformadas = modulo.preguntas.map(pregunta => transformPregunta(pregunta));
+    const preguntasTransformadas = modulo.preguntas.map(pregunta => transformPregunta(pregunta, preguntaIdToValue));
 
     // Verificar si el módulo tiene condiciones activas
     const visibleIfModulo = generarVisibleIf(modulo.condicionada, preguntaIdToValue);

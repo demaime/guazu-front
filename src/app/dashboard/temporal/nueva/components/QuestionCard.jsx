@@ -1,6 +1,6 @@
 "use client";
 
-import { GripVertical, Trash2, Edit2 } from 'lucide-react';
+import { GripVertical, Trash2, Edit2, Filter } from 'lucide-react';
 
 export default function QuestionCard({
   pregunta,
@@ -84,11 +84,16 @@ export default function QuestionCard({
               {pregunta.text || <span className="text-[color:var(--text-muted)] italic">Sin texto</span>}
             </p>
           </div>
-          <div className="pl-6">
+          <div className="pl-6 flex items-center gap-2">
             <span className="text-xs text-[color:var(--text-secondary)] lowercase">
               {tipoActual?.label || 'sin tipo'}
               {detalles && ` - ${detalles}`}
             </span>
+            {pregunta.condicionada?.activa && pregunta.condicionada.condiciones?.length > 0 && (
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[color:var(--tag-question-bg)] text-[color:var(--tag-question-text)]">
+                pregunta condicional
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">

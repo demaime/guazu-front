@@ -249,7 +249,7 @@ export default function QuestionEditorModal({
               condicionada={editedData.condicionada}
               preguntasDisponibles={preguntasDisponibles}
               onUpdate={(nuevaCondicionada) => updateField('condicionada', nuevaCondicionada)}
-              label="Mostrar solo si..."
+              label="Pregunta condicional"
             />
           )}
 

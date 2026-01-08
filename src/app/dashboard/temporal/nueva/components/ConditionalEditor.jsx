@@ -148,7 +148,20 @@ export default function ConditionalEditor({
   return (
     <>
       <div className="flex items-center gap-2 py-1">
-        {/* Toggle pequeño */}
+        {/* Label como tag */}
+        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full transition-colors ${
+          label.includes('Módulo')
+            ? condicionada.activa
+              ? 'bg-[color:var(--tag-module-bg)] text-[color:var(--tag-module-text)]'
+              : 'bg-transparent text-[color:var(--text-muted)] border border-[color:var(--card-border)]'
+            : condicionada.activa
+              ? 'bg-[color:var(--tag-question-bg)] text-[color:var(--tag-question-text)]'
+              : 'bg-transparent text-[color:var(--text-muted)] border border-[color:var(--card-border)]'
+        }`}>
+          {label}
+        </span>
+        
+        {/* Toggle segundo */}
         <label className="relative inline-flex items-center cursor-pointer">
           <input
             type="checkbox"
@@ -159,30 +172,19 @@ export default function ConditionalEditor({
           <div className="w-8 h-4 bg-[color:var(--card-border)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[color:var(--primary)]"></div>
         </label>
         
-        <span className={`text-xs font-medium ${condicionada.activa ? 'text-[color:var(--primary)]' : 'text-[color:var(--text-secondary)]'}`}>
-          {label}
-        </span>
-        {condicionada.activa && cantidadCondiciones > 0 && (
-          <>
-            {/* Versión mobile: solo número */}
-            <span className="md:hidden text-xs text-[color:var(--text-secondary)]">
-              ({cantidadCondiciones})
-            </span>
-            {/* Versión desktop: número + texto */}
-            <span className="hidden md:inline text-xs text-[color:var(--text-secondary)]">
-              ({cantidadCondiciones} condici{cantidadCondiciones === 1 ? 'ón' : 'ones'})
-            </span>
-          </>
-        )}
-        
-        {/* Botón configurar - aparece cuando está activo */}
+        {/* Botón configurar con contador - aparece cuando está activo */}
         {condicionada.activa && (
           <button
             onClick={() => setModalOpen(true)}
-            className="p-0 text-[color:var(--text-secondary)] hover:text-[color:var(--primary)] transition-colors"
+            className="p-0 text-[color:var(--text-secondary)] hover:text-[color:var(--primary)] transition-colors flex items-center gap-1"
             title="Configurar condiciones"
           >
             <Settings size={16} />
+            {cantidadCondiciones > 0 && (
+              <span className="text-xs text-[color:var(--text-secondary)]">
+                ({cantidadCondiciones} condici{cantidadCondiciones === 1 ? 'ón' : 'ones'})
+              </span>
+            )}
           </button>
         )}
       </div>
