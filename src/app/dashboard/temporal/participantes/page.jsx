@@ -523,7 +523,7 @@ export default function ParticipantesPage() {
       <div className="flex-1 flex overflow-hidden min-h-0 pb-20">
         {/* Left Column: Selected Participants - Hidden on mobile, collapsible sidebar on desktop */}
         {/* Left Column: Selected Participants - Hidden on mobile, collapsible sidebar on desktop */}
-        <div className={`hidden md:flex bg-[var(--primary)]/20 border-r-4 border-[var(--card-border)] flex-col min-h-0 relative transition-all duration-300 ${
+        <div className={`hidden md:flex bg-[var(--card-background)] border-r-4 border-[var(--primary)] flex-col min-h-0 relative transition-all duration-300 ${
           isSelectedPanelExpanded ? 'md:w-1/3' : 'md:w-16'
         }`}>
           {/* +1 Flash effect - appears above the Users icon */}
@@ -559,7 +559,7 @@ export default function ParticipantesPage() {
           </AnimatePresence>
           
           {/* Header - Always visible */}
-          <div className={`flex-shrink-0 p-4 bg-[var(--primary)]/30 ${!isSelectedPanelExpanded ? 'cursor-pointer' : ''}`} onClick={!isSelectedPanelExpanded ? () => setIsSelectedPanelExpanded(true) : undefined}>
+          <div className={`flex-shrink-0 p-3 bg-[var(--primary)]/10 border-b border-[var(--primary)]/30 ${!isSelectedPanelExpanded ? 'cursor-pointer' : ''}`} onClick={!isSelectedPanelExpanded ? () => setIsSelectedPanelExpanded(true) : undefined}>
             {isSelectedPanelExpanded ? (
               <div className="relative">
                 <div className="pr-10">
@@ -598,7 +598,7 @@ export default function ParticipantesPage() {
           
           {/* Content - Only visible when expanded */}
           {isSelectedPanelExpanded && (
-            <div className="flex-1 overflow-y-auto p-4 min-h-0 bg-[var(--primary)]/10">
+            <div className="flex-1 overflow-y-auto p-3 min-h-0">
               {selectedRows.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-12 h-12 bg-[var(--card-background)] rounded-full flex items-center justify-center mx-auto mb-3 border border-[var(--card-border)]">
@@ -609,23 +609,23 @@ export default function ParticipantesPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {selectedRows.map((participant) => {
                     const isFavorite = favoriteIds.has(participant.id);
                     return (
                       <div
                         key={participant.id}
-                        className="bg-[var(--card-background)]/80 backdrop-blur-sm border border-[var(--card-border)] rounded-xl p-3 group hover:border-[var(--primary)]/50 transition-all hover:shadow-md relative overflow-hidden"
+                        className="bg-[var(--background)] border border-[var(--card-border)] rounded-lg px-2.5 py-2 group hover:border-[var(--primary)]/50 transition-all hover:bg-[var(--hover-bg)] relative overflow-hidden"
                       >
-                         {/* Remove Overlay */}
+                         {/* Remove Overlay - Compact */}
                          <div 
                            onClick={() => handleParticipantToggle(participant.id)}
-                           className="absolute inset-0 z-20 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[var(--card-background)]/80 backdrop-blur-[1px] cursor-pointer"
+                           className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-red-50/90 cursor-pointer"
                          >
-                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center mb-1 shadow-sm transform group-hover:scale-110 transition-transform">
-                                <X className="w-5 h-5 text-red-600" />
+                            <div className="flex items-center gap-1.5 text-red-600">
+                                <X className="w-3.5 h-3.5" />
+                                <span className="text-[10px] font-semibold">Quitar</span>
                             </div>
-                            <span className="text-[10px] font-bold text-red-600 uppercase tracking-wide">Quitar participante</span>
                          </div>
 
                         {/* Content that blurs */}
@@ -636,33 +636,25 @@ export default function ParticipantesPage() {
                                 <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
                               </div>
                             )}
-                            <div className="flex items-center gap-3">
-                              {/* Photo as protagonist - larger and rounded square */}
+                            <div className="flex items-center gap-2">
+                              {/* Photo - smaller for compact list */}
                               <div className="relative flex-shrink-0">
                                 <UserAvatar
                                   src={participant.image}
                                   alt={`Foto de ${participant.fullName || 'usuario'}`}
-                                  size="lg"
-                                  className="rounded-xl"
+                                  size="sm"
+                                  className="rounded-lg"
                                 />
                               </div>
                               
-                              {/* Info section */}
+                              {/* Info section - compact */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                                <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
                                   {participant.fullName}
                                 </p>
-                                <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
-                                  {participant.email}
+                                <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                                  {participant.city || participant.province || participant.email}
                                 </p>
-                                {(participant.city || participant.province) && (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
-                                    <p className="text-xs text-[var(--text-secondary)] truncate">
-                                      {[participant.city, participant.province].filter(Boolean).join(", ")}
-                                    </p>
-                                  </div>
-                                )}
                               </div>
                             </div>
                         </div>
@@ -737,6 +729,21 @@ export default function ParticipantesPage() {
                   <Star className="w-3.5 h-3.5" />
                   Favoritos ({favorites.length - selectedParticipants.filter(id => favorites.some(fav => String(fav._id) === id)).length})
                 </button>
+
+                {/* Link Seleccionar Todos - Solo visible en la pestaña de favoritos */}
+                {activeTab === "favoritos" && favorites.length > 0 && (
+                  <button
+                    onClick={() => {
+                      // Obtener IDs de favoritos que aún no están seleccionados
+                      const favIds = favorites.map(f => String(f._id));
+                      const newSelected = [...new Set([...selectedParticipants, ...favIds])];
+                      setSelectedParticipants(newSelected);
+                    }}
+                    className="ml-2 text-[10px] text-[var(--secondary)] hover:text-[var(--secondary-dark)] underline underline-offset-2 whitespace-nowrap transition-colors"
+                  >
+                    Seleccionar todos
+                  </button>
+                )}
 
                 {/* Desktop: Control buttons at the right */}
                 {activeTab === "ubicacion" && (
