@@ -8,6 +8,7 @@ import MultiTextFieldsEditor from '../MultiTextFieldsEditor';
 import ScaleEditor from '../ScaleEditor';
 import BulkAddModal from './BulkAddModal';
 import ConditionalEditor from '../ConditionalEditor';
+import ConfirmModal from './ConfirmModal';
 
 export default function QuestionEditorModal({ 
   isOpen, 
@@ -24,6 +25,7 @@ export default function QuestionEditorModal({
   const [editedData, setEditedData] = useState({});
   const [bulkAddModalOpen, setBulkAddModalOpen] = useState(false);
   const [bulkAddTarget, setBulkAddTarget] = useState(null); // 'opciones' | 'filas' | 'columnas'
+  const [showValidationModal, setShowValidationModal] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -62,6 +64,12 @@ export default function QuestionEditorModal({
   const Icon = tipoActual?.icon;
 
   const handleSave = () => {
+    // Validar que si está marcada como condicional, tenga al menos una condición
+    if (editedData.condicionada?.activa && (!editedData.condicionada.condiciones || editedData.condicionada.condiciones.length === 0)) {
+      setShowValidationModal(true);
+      return;
+    }
+    
     onSave(editedData);
     onClose();
   };
@@ -293,6 +301,17 @@ export default function QuestionEditorModal({
           bulkAddTarget === 'columnas' ? 'Ingresa una columna por línea...\n\nEjemplo:\nCalidad\nPrecio\nServicio' :
           'Ingresa una opción por línea...\n\nEjemplo:\nBuena\nMala\nRegular'
         }
+      />
+
+      {/* Modal de validación */}
+      <ConfirmModal
+        isOpen={showValidationModal}
+        onClose={() => setShowValidationModal(false)}
+        onConfirm={() => setShowValidationModal(false)}
+        title="Pregunta condicional sin condiciones"
+        message="Ha marcado esta pregunta como condicional pero no ha establecido ninguna condición. Por favor, indique al menos una condición o desactive la casilla."
+        confirmText="Entendido"
+        cancelText={null}
       />
     </div>
   );

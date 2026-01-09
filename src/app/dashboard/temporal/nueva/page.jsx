@@ -95,6 +95,7 @@ export default function FormBuilder() {
   const [modalEditarPregunta, setModalEditarPregunta] = useState(null); // { moduloId, preguntaId }
   const [modalConfirmEliminar, setModalConfirmEliminar] = useState(null); // { tipo: 'modulo'|'pregunta', data: {...} }
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [modalValidacion, setModalValidacion] = useState(null); // { title, message }
   const [externalUpdateForQuestion, setExternalUpdateForQuestion] = useState(null);
   
   const [historial, setHistorial] = useState([]);
@@ -1192,6 +1193,16 @@ export default function FormBuilder() {
           cancelText="Seguir editando"
         />
 
+        <ConfirmModal
+          isOpen={modalValidacion !== null}
+          onClose={() => setModalValidacion(null)}
+          onConfirm={() => setModalValidacion(null)}
+          title={modalValidacion?.title || ''}
+          message={modalValidacion?.message || ''}
+          confirmText="Entendido"
+          cancelText={null}
+        />
+
         {/* Botones de acción */}
         <div className="flex gap-3 mt-6">
           <button 
@@ -1218,6 +1229,37 @@ export default function FormBuilder() {
               const tienePreguntas = modulos.some(m => m.preguntas && m.preguntas.length > 0);
               if (!tienePreguntas) {
                 toast.error("Debes crear al menos una pregunta");
+                return;
+              }
+              
+              // Validar módulos condicionales sin condiciones
+              const modulosCondicionales = modulos.filter(m => 
+                m.condicionada?.activa && (!m.condicionada.condiciones || m.condicionada.condiciones.length === 0)
+              );
+              if (modulosCondicionales.length > 0) {
+                const nombres = modulosCondicionales.map(m => `"${m.nombre}"`).join(', ');
+                setModalValidacion({
+                  title: 'Módulos condicionales sin condiciones',
+                  message: `Los siguientes módulos están marcados como condicionales pero no tienen condiciones definidas:\n\n${nombres}\n\nPor favor, indique al menos una condición para cada módulo o desactive la casilla.`
+                });
+                return;
+              }
+              
+              // Validar preguntas condicionales sin condiciones
+              const preguntasCondicionales = [];
+              modulos.forEach(m => {
+                m.preguntas?.forEach(p => {
+                  if (p.condicionada?.activa && (!p.condicionada.condiciones || p.condicionada.condiciones.length === 0)) {
+                    preguntasCondicionales.push({ modulo: m.nombre, pregunta: p.text || 'sin texto' });
+                  }
+                });
+              });
+              if (preguntasCondicionales.length > 0) {
+                const lista = preguntasCondicionales.map(item => `• ${item.modulo}: "${item.pregunta}"`).join('\n');
+                setModalValidacion({
+                  title: 'Preguntas condicionales sin condiciones',
+                  message: `Las siguientes preguntas están marcadas como condicionales pero no tienen condiciones definidas:\n\n${lista}\n\nPor favor, indique al menos una condición para cada pregunta o desactive la casilla.`
+                });
                 return;
               }
               

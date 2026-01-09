@@ -154,22 +154,6 @@ function transformPregunta(pregunta, preguntaIdToValue = {}) {
       element.storeDataAsText = false;
       element.maxSize = 10485760; // 10MB
       break;
-
-    case 'numerica':
-      element.inputType = 'number';
-      if (pregunta.validadores?.numerica) {
-        if (pregunta.validadores.numerica.min !== '') {
-          element.min = pregunta.validadores.numerica.min;
-        }
-        if (pregunta.validadores.numerica.max !== '') {
-          element.max = pregunta.validadores.numerica.max;
-        }
-      }
-      break;
-
-    case 'fecha':
-      element.inputType = 'date';
-      break;
   }
 
   // Procesar condiciones si existen
@@ -279,7 +263,7 @@ export function transformModulosToSurveyJS(modulos) {
 
   const pages = [];
 
-  modulos.forEach((modulo, moduloIdx) => {
+  modulos.forEach((modulo) => {
     if (!modulo.preguntas || !Array.isArray(modulo.preguntas) || modulo.preguntas.length === 0) {
       return;
     }
