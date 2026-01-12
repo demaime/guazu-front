@@ -18,15 +18,15 @@ import {
   LayoutGrid,
   Settings,
   Sparkles,
+  GraduationCap,
+  RefreshCw,
 } from "lucide-react";
 import { themeService } from "@/services/theme.service";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { API_URL } from "@/config/constants";
-import { UserMenu } from "@/components/ui/UserMenu";
 import { TutorialProvider, useTutorial } from "@/contexts/TutorialContext";
 import { StatusIndicators } from "@/components/StatusIndicators";
-import { RefreshButton } from "@/components/RefreshButton";
 
 function DashboardLayoutContent({ children }) {
   const router = useRouter();
@@ -37,6 +37,8 @@ function DashboardLayoutContent({ children }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [user, setUser] = useState(null);
   const [userImageExists, setUserImageExists] = useState(false);
+  const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -180,6 +182,16 @@ function DashboardLayoutContent({ children }) {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
+  const handleLogout = () => {
+    authService.logout();
+    router.replace("/login");
+  };
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    window.location.reload();
+  };
+
   // Definir las opciones de navegación según el rol
   const getNavItems = (userRole) => {
     // Item de configuración que siempre irá al final
@@ -269,22 +281,19 @@ function DashboardLayoutContent({ children }) {
             {pathname === "/dashboard/encuestas/responder" ? (
               <StatusIndicators />
             ) : (
-              <UserMenu
-                showTutorialOption={pathname === "/dashboard/encuestas"}
-                onStartTutorial={() => {
-                  console.log("🔧 [Layout] onStartTutorial llamado");
-                  console.log("   Current pathname:", pathname);
-                  // Navegar a encuestas si no estamos allí
-                  if (pathname !== "/dashboard/encuestas") {
-                    console.log("   → Navegando a /dashboard/encuestas");
-                    router.push("/dashboard/encuestas");
-                  } else {
-                    // Ya estamos en la página correcta, inmediato
-                    console.log("   → Llamando startTutorial() (inmediato)");
-                    startTutorial();
-                  }
-                }}
-              />
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Actualizar página"
+                aria-label="Actualizar página"
+              >
+                <RefreshCw
+                  className={`w-5 h-5 text-white ${
+                    isRefreshing ? "animate-spin" : ""
+                  }`}
+                />
+              </button>
             )}
           </div>
         </div>
@@ -408,40 +417,93 @@ function DashboardLayoutContent({ children }) {
             </motion.div>
           </Link>
 
-          <nav className="sidebar-nav">
-            {navItems.map((item, i) => {
-              const Icon = item.icon;
-              const fullPath = `/dashboard${item.path ? `/${item.path}` : ""}`;
-              const isActive = pathname === fullPath;
+          <nav className="sidebar-nav flex-1 flex flex-col">
+            <div className="flex-1">
+              {navItems.map((item, i) => {
+                const Icon = item.icon;
+                const fullPath = `/dashboard${
+                  item.path ? `/${item.path}` : ""
+                }`;
+                const isActive = pathname === fullPath;
 
-              return (
-                <Link href={fullPath} key={fullPath} className="w-full">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.1 }}
-                    className={`nav-item ${isActive ? "active" : ""}`}
-                  >
-                    <div
-                      className={`flex items-center ${
-                        isSidebarCollapsed ? "justify-center" : "w-full"
-                      }`}
+                return (
+                  <Link href={fullPath} key={fullPath} className="w-full">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * 0.1 }}
+                      className={`nav-item ${isActive ? "active" : ""}`}
                     >
-                      <Icon className="nav-item-icon" />
-                      <span
-                        className={`nav-item-text ${
-                          isSidebarCollapsed
-                            ? "opacity-0 hidden"
-                            : "opacity-100"
+                      <div
+                        className={`flex items-center ${
+                          isSidebarCollapsed ? "justify-center" : "w-full"
                         }`}
                       >
-                        {item.label}
-                      </span>
-                    </div>
-                  </motion.div>
-                </Link>
-              );
-            })}
+                        <Icon className="nav-item-icon" />
+                        <span
+                          className={`nav-item-text ${
+                            isSidebarCollapsed
+                              ? "opacity-0 hidden"
+                              : "opacity-100"
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      </div>
+                    </motion.div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Sección inferior: Tutoriales y Cerrar Sesión */}
+            <div className="mt-auto border-t border-[var(--card-border)] pt-2">
+              {/* Botón Tutoriales */}
+              <motion.div
+                onClick={() => setIsTutorialModalOpen(true)}
+                className="nav-item cursor-pointer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div
+                  className={`flex items-center ${
+                    isSidebarCollapsed ? "justify-center" : "w-full"
+                  }`}
+                >
+                  <GraduationCap className="nav-item-icon" />
+                  <span
+                    className={`nav-item-text ${
+                      isSidebarCollapsed ? "opacity-0 hidden" : "opacity-100"
+                    }`}
+                  >
+                    Tutoriales
+                  </span>
+                </div>
+              </motion.div>
+
+              {/* Botón Cerrar Sesión */}
+              <motion.div
+                onClick={handleLogout}
+                className="nav-item cursor-pointer hover:bg-red-500/10 text-red-600 dark:text-red-400"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div
+                  className={`flex items-center ${
+                    isSidebarCollapsed ? "justify-center" : "w-full"
+                  }`}
+                >
+                  <LogOut className="nav-item-icon" />
+                  <span
+                    className={`nav-item-text ${
+                      isSidebarCollapsed ? "opacity-0 hidden" : "opacity-100"
+                    }`}
+                  >
+                    Cerrar Sesión
+                  </span>
+                </div>
+              </motion.div>
+            </div>
           </nav>
         </aside>
 
@@ -460,8 +522,102 @@ function DashboardLayoutContent({ children }) {
         </motion.main>
       </div>
 
-      {/* Botón flotante de actualizar */}
-      <RefreshButton />
+      {/* Modal de Tutoriales */}
+      <AnimatePresence>
+        {isTutorialModalOpen && (
+          <>
+            {/* Overlay con blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setIsTutorialModalOpen(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+            />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[var(--card-background)] rounded-2xl shadow-2xl z-[70] max-h-[80vh] overflow-hidden"
+            >
+              {/* Header del modal */}
+              <div className="flex items-center justify-between p-4 border-b border-[var(--card-border)]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-bold text-[var(--text-primary)]">
+                    Tutoriales
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsTutorialModalOpen(false)}
+                  className="p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-[var(--text-secondary)]" />
+                </button>
+              </div>
+
+              {/* Contenido del modal */}
+              <div className="p-4 overflow-y-auto max-h-[calc(80vh-80px)]">
+                {/* Tutorial de Responder Encuesta - solo en /dashboard/encuestas */}
+                {pathname === "/dashboard/encuestas" &&
+                user?.role === "POLLSTER" ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        console.log(
+                          "🎯 [Layout] Iniciando tutorial de Responder Encuesta"
+                        );
+                        setIsTutorialModalOpen(false);
+                        // Pequeño delay para que el modal se cierre antes
+                        setTimeout(() => {
+                          startTutorial();
+                        }, 300);
+                      }}
+                      className="w-full text-left p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-bold text-white">
+                            1
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-[var(--text-primary)] text-sm">
+                            Cómo navegar la lista de encuestas
+                          </h3>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            Aprende a navegar y responder encuestas
+                            correctamente
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 rounded-full bg-[var(--hover-bg)] flex items-center justify-center mx-auto mb-4">
+                      <GraduationCap className="w-8 h-8 text-[var(--text-secondary)]" />
+                    </div>
+                    <p className="text-[var(--text-secondary)] mb-4">
+                      No hay tutoriales disponibles para esta pantalla
+                    </p>
+                    <p className="text-sm text-[var(--text-muted)]">
+                      Los tutoriales aparecerán aquí según la sección donde te
+                      encuentres
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

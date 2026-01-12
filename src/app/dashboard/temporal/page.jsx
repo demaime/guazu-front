@@ -1026,7 +1026,9 @@ export default function TemporalPage() {
         </div>
 
         {isLoading ? (
-          <LoaderWrapper text="Cargando encuestas" />
+          <div className="py-32">
+            <LoaderWrapper text="Cargando encuestas" />
+          </div>
         ) : error ? (
           <div className="bg-red-900/40 border border-red-500/50 rounded-xl p-6 text-center text-red-100">
             {error}

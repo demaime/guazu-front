@@ -421,6 +421,8 @@ body {
   background-color: var(--sidebar-bg);
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
   border-right: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
 }
 
 @media (min-width: 1024px) {
@@ -521,6 +523,8 @@ body {
   flex-direction: column;
   padding: 1rem;
   gap: 0.25rem;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .nav-item {

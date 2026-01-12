@@ -119,6 +119,9 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
               }, {})
             : item.answer;
 
+          // NOTA: Las respuestas de cuotas se incluyen automáticamente en answerData
+          // porque QuotaQuestions.jsx las guarda con el nombre de la categoría como key
+          // Ejemplo: answer["Género"] = "Masculino", answer["Edad"] = "18-29"
           processedAnswers.push(
             nestedJSONtoJson({
               creado: `${fecha}-${hora}`,
@@ -127,7 +130,7 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
               longitud: item.lng,
               caso: item._id,
               time: item.time,
-              ...answerData,
+              ...answerData, // Incluye todas las respuestas (preguntas + cuotas)
             })
           );
         }

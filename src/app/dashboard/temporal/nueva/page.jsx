@@ -12,6 +12,7 @@ import ConfirmModal from './components/Modals/ConfirmModal';
 import { useSurveyCreation } from '../context/SurveyCreationContext';
 import { surveyService } from '@/services/survey.service';
 import { toast } from "react-toastify";
+import { LoaderWrapper } from '@/components/ui/LoaderWrapper';
 
 export default function FormBuilder() {
   const router = useRouter();
@@ -1019,10 +1020,7 @@ export default function FormBuilder() {
     return (
       <div className="min-h-full bg-[color:var(--background)] flex flex-col">
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--primary)] mx-auto mb-4"></div>
-            <p className="text-[color:var(--text-secondary)]">Cargando encuesta...</p>
-          </div>
+          <LoaderWrapper text="Cargando encuesta..." size="lg" />
         </div>
       </div>
     );
