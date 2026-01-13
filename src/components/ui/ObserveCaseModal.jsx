@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertTriangle, Loader2, HelpCircle, Check } from "lucide-react";
+import { X, AlertTriangle, Loader2, GraduationCap, Check } from "lucide-react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 
@@ -12,6 +12,7 @@ export function ObserveCaseModal({
   onConfirm,
   surveyTitle,
   isLoading = false,
+  autoStartTutorial = false,
 }) {
   const [observation, setObservation] = useState("");
   const [driverObj, setDriverObj] = useState(null);
@@ -68,6 +69,17 @@ export function ObserveCaseModal({
       };
     }
   }, [isOpen]);
+
+  // Auto-iniciar tutorial si viene desde el menú de tutoriales
+  useEffect(() => {
+    if (isOpen && autoStartTutorial && driverObj) {
+      console.log("🎯 [ObserveCaseModal] Auto-iniciando tutorial desde menú de tutoriales");
+      // Pequeño delay para asegurar que el modal esté completamente renderizado
+      setTimeout(() => {
+        driverObj.drive();
+      }, 300);
+    }
+  }, [isOpen, autoStartTutorial, driverObj]);
 
   const handleStartTutorial = () => {
     if (driverObj) {
@@ -143,7 +155,7 @@ export function ObserveCaseModal({
                 className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
                 title="Ver tutorial"
               >
-                <HelpCircle className="w-5 h-5 text-blue-500 group-hover:text-blue-600 transition-colors" />
+                <GraduationCap className="w-5 h-5 text-yellow-500 group-hover:text-yellow-600 transition-colors" />
               </button>
               {/* Botón de cerrar */}
               <button

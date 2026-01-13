@@ -278,7 +278,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="text-white bg-white/60 p-3 rounded-md text-sm text-center"
+              className="text-[var(--error-text)] bg-[var(--error-bg)] p-3 rounded-md text-sm text-center"
             >
               {error}
             </motion.div>

@@ -21,29 +21,66 @@ export default function QuotaDistributionModal({
   onSave,
 }) {
   const [expandedEncuestadores, setExpandedEncuestadores] = useState({});
-  const [cuotasDetalladasPorEncuestador, setCuotasDetalladasPorEncuestador] =
-    useState({});
   const [cuotasPorEncuestador, setCuotasPorEncuestador] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  // Estado para controlar qué categorías están visibles
+  const [visibleCategories, setVisibleCategories] = useState({});
+
+  // Estructura de datos correcta:
+  // cuotasPorEncuestador[pollsterId] = {
+  //   totalCases: number,
+  //   quotas: [{
+  //     category: string,
+  //     segments: [{ name: string, target: number }]
+  //   }]
+  // }
+
+  // Inicializar visibilidad de categorías (todas visibles por defecto)
+  useEffect(() => {
+    if (open && categorias.length > 0) {
+      const initialVisible = {};
+      categorias.forEach((cat) => {
+        initialVisible[cat.nombre] = true;
+      });
+      setVisibleCategories(initialVisible);
+    }
+  }, [open, categorias]);
 
   // Inicializar distribución
   useEffect(() => {
     if (open && encuestadores.length > 0 && categorias.length > 0) {
       if (initialDistribution?.quotaAssignments) {
-        const detalladas = {};
-        const totales = {};
+        // Cargar distribución existente
+        const cuotasData = {};
 
         initialDistribution.quotaAssignments.forEach((assignment) => {
-          detalladas[assignment.pollsterId] = assignment.matrix;
-          const total = assignment.matrix.data.reduce(
-            (sum, row) => sum + row.reduce((rowSum, val) => rowSum + val, 0),
-            0
-          );
-          totales[assignment.pollsterId] = total;
+          // Calcular total de casos para este pollster
+          let totalCases = 0;
+
+          if (assignment.quotas && Array.isArray(assignment.quotas)) {
+            // Formato correcto - usar directamente
+            assignment.quotas.forEach((quota) => {
+              quota.segments.forEach((segment) => {
+                totalCases += segment.target || 0;
+              });
+            });
+
+            cuotasData[assignment.pollsterId] = {
+              totalCases,
+              quotas: assignment.quotas,
+            };
+          } else if (assignment.matrix) {
+            // Formato viejo (matriz) - necesitamos convertir
+            console.warn(
+              "⚠️ Detectado formato antiguo de matriz, convirtiendo..."
+            );
+            // Por ahora, reinicializar
+            inicializarDistribucion();
+            return;
+          }
         });
 
-        setCuotasDetalladasPorEncuestador(detalladas);
-        setCuotasPorEncuestador(totales);
+        setCuotasPorEncuestador(cuotasData);
 
         // Expandir todos por defecto
         const allExpanded = {};
@@ -58,53 +95,46 @@ export default function QuotaDistributionModal({
   }, [open, encuestadores, categorias, metaTotal, initialDistribution]);
 
   const inicializarDistribucion = () => {
-    const cuotaPorEncuestador = Math.floor(metaTotal / encuestadores.length);
+    // Distribución equitativa de casos totales
+    const casosPorEncuestador = Math.floor(metaTotal / encuestadores.length);
     const resto = metaTotal % encuestadores.length;
 
-    const newCuotasDetalladas = {};
-    const newCuotasTotales = {};
+    const newCuotas = {};
 
-    encuestadores.forEach((enc, idx) => {
-      const cuotaTotal = cuotaPorEncuestador + (idx === 0 ? resto : 0);
-      newCuotasTotales[enc._id] = cuotaTotal;
+    encuestadores.forEach((enc, encIdx) => {
+      const casosParaEsteEncuestador =
+        casosPorEncuestador + (encIdx === 0 ? resto : 0);
 
-      if (categorias.length === 2) {
-        // Distribución EQUITATIVA para 2 categorías
-        const cat1 = categorias[0];
-        const cat2 = categorias[1];
-
-        // Calcular cuánto corresponde a cada celda equitativamente
-        const totalCeldas = cat1.segmentos.length * cat2.segmentos.length;
-        const valorPorCelda = Math.floor(cuotaTotal / totalCeldas);
-        const restoCeldas = cuotaTotal % totalCeldas;
-
-        let celdasAsignadas = 0;
-        const matriz = cat1.segmentos.map(() =>
-          cat2.segmentos.map(() => {
-            const valor =
-              valorPorCelda + (celdasAsignadas < restoCeldas ? 1 : 0);
-            celdasAsignadas++;
-            return valor;
-          })
+      // ✅ CORRECCIÓN: Las categorías son independientes
+      // Cada categoría debe distribuir el TOTAL de casos del encuestador
+      // porque una misma respuesta puede cumplir múltiples cuotas
+      // (ej: una mujer de 30 años cuenta para "Femenino" Y "30-54")
+      
+      const quotas = categorias.map((categoria) => {
+        // Para esta categoría, distribuir equitativamente entre sus segmentos
+        const casosPorSegmento = Math.floor(
+          casosParaEsteEncuestador / categoria.segmentos.length
         );
+        const restoSegmento = casosParaEsteEncuestador % categoria.segmentos.length;
 
-        newCuotasDetalladas[enc._id] = { data: matriz };
-      } else if (categorias.length === 1) {
-        // Distribución EQUITATIVA para 1 categoría
-        const cat = categorias[0];
-        const totalSegmentos = cat.segmentos.length;
-        const valorPorSegmento = Math.floor(cuotaTotal / totalSegmentos);
-        const restoSegmentos = cuotaTotal % totalSegmentos;
+        const segments = categoria.segmentos.map((segmento, segIdx) => ({
+          name: segmento.nombre,
+          target: casosPorSegmento + (segIdx === 0 ? restoSegmento : 0),
+        }));
 
-        const distribucion = cat.segmentos.map(
-          (seg, idx) => valorPorSegmento + (idx < restoSegmentos ? 1 : 0)
-        );
-        newCuotasDetalladas[enc._id] = { data: [distribucion] };
-      }
+        return {
+          category: categoria.nombre,
+          segments,
+        };
+      });
+
+      newCuotas[enc._id] = {
+        totalCases: casosParaEsteEncuestador,
+        quotas,
+      };
     });
 
-    setCuotasDetalladasPorEncuestador(newCuotasDetalladas);
-    setCuotasPorEncuestador(newCuotasTotales);
+    setCuotasPorEncuestador(newCuotas);
 
     // Expandir todos por defecto
     const allExpanded = {};
@@ -121,60 +151,84 @@ export default function QuotaDistributionModal({
     }));
   };
 
-  const updateCuotaMatriz = (encuestadorId, cat1Idx, cat2Idx, valor) => {
-    setCuotasDetalladasPorEncuestador((prev) => {
-      const newDetalladas = { ...prev };
-      if (!newDetalladas[encuestadorId]) {
-        newDetalladas[encuestadorId] = { data: [] };
-      }
-      const newMatriz = newDetalladas[encuestadorId].data.map((row, ri) =>
-        row.map((val, ci) =>
-          ri === cat1Idx && ci === cat2Idx ? Math.max(0, valor) : val
-        )
-      );
-      newDetalladas[encuestadorId] = { data: newMatriz };
-      return newDetalladas;
+  const updateSegmentTarget = (
+    encuestadorId,
+    categoryName,
+    segmentName,
+    newTarget
+  ) => {
+    setCuotasPorEncuestador((prev) => {
+      const encData = prev[encuestadorId];
+      if (!encData) return prev;
+
+      const updatedQuotas = encData.quotas.map((quota) => {
+        if (quota.category === categoryName) {
+          return {
+            ...quota,
+            segments: quota.segments.map((seg) =>
+              seg.name === segmentName
+                ? { ...seg, target: Math.max(0, newTarget) }
+                : seg
+            ),
+          };
+        }
+        return quota;
+      });
+
+      // Recalcular total
+      let newTotal = 0;
+      updatedQuotas.forEach((quota) => {
+        quota.segments.forEach((seg) => {
+          newTotal += seg.target;
+        });
+      });
+
+      return {
+        ...prev,
+        [encuestadorId]: {
+          totalCases: newTotal,
+          quotas: updatedQuotas,
+        },
+      };
     });
-
-    // Recalcular total del encuestador
-    const updatedMatriz =
-      cuotasDetalladasPorEncuestador[encuestadorId]?.data || [];
-    const newMatriz = updatedMatriz.map((row, ri) =>
-      row.map((val, ci) =>
-        ri === cat1Idx && ci === cat2Idx ? Math.max(0, valor) : val
-      )
-    );
-    const newTotal = newMatriz.reduce(
-      (sum, row) => sum + row.reduce((rowSum, val) => rowSum + val, 0),
-      0
-    );
-
-    setCuotasPorEncuestador((prev) => ({
-      ...prev,
-      [encuestadorId]: newTotal,
-    }));
   };
 
-  const incrementCuotaMatriz = (encuestadorId, cat1Idx, cat2Idx, delta) => {
-    const currentValue =
-      cuotasDetalladasPorEncuestador[encuestadorId]?.data[cat1Idx]?.[cat2Idx] ||
-      0;
-    updateCuotaMatriz(encuestadorId, cat1Idx, cat2Idx, currentValue + delta);
+  const incrementSegmentTarget = (
+    encuestadorId,
+    categoryName,
+    segmentName,
+    delta
+  ) => {
+    const encData = cuotasPorEncuestador[encuestadorId];
+    if (!encData) return;
+
+    const quota = encData.quotas.find((q) => q.category === categoryName);
+    if (!quota) return;
+
+    const segment = quota.segments.find((s) => s.name === segmentName);
+    if (!segment) return;
+
+    updateSegmentTarget(
+      encuestadorId,
+      categoryName,
+      segmentName,
+      segment.target + delta
+    );
   };
 
   const handleSave = async () => {
-    if (isSaving) return; // Prevenir múltiples clicks
+    if (isSaving) return;
 
     setIsSaving(true);
     try {
       const pollsterAssignments = encuestadores.map((enc) => ({
         pollsterId: enc._id,
-        quota: cuotasPorEncuestador[enc._id] || 0,
+        assignedCases: cuotasPorEncuestador[enc._id]?.totalCases || 0,
       }));
 
       const quotaAssignments = encuestadores.map((enc) => ({
         pollsterId: enc._id,
-        matrix: cuotasDetalladasPorEncuestador[enc._id] || { data: [] },
+        quotas: cuotasPorEncuestador[enc._id]?.quotas || [],
       }));
 
       await onSave({
@@ -187,7 +241,7 @@ export default function QuotaDistributionModal({
   };
 
   const totalAsignadoEncuestadores = Object.values(cuotasPorEncuestador).reduce(
-    (sum, val) => sum + val,
+    (sum, data) => sum + (data.totalCases || 0),
     0
   );
 
@@ -209,9 +263,27 @@ export default function QuotaDistributionModal({
               Distribución por Encuestador
             </h2>
             {categorias.length > 0 && (
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 truncate">
-                {categorias.map((c) => c.nombre).join(" × ")}
-              </p>
+              <div className="flex flex-wrap items-center gap-3 mt-2">
+                {categorias.map((cat) => (
+                  <label
+                    key={cat.nombre}
+                    className="flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleCategories[cat.nombre] || false}
+                      onChange={(e) =>
+                        setVisibleCategories((prev) => ({
+                          ...prev,
+                          [cat.nombre]: e.target.checked,
+                        }))
+                      }
+                      className="w-4 h-4 rounded border-[var(--card-border)] text-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)] cursor-pointer"
+                    />
+                    <span>{cat.nombre}</span>
+                  </label>
+                ))}
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -240,8 +312,8 @@ export default function QuotaDistributionModal({
         <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4">
           {encuestadores.map((enc) => {
             const isExpanded = expandedEncuestadores[enc._id];
-            const cuotasDetalladas = cuotasDetalladasPorEncuestador[enc._id];
-            const cuotaTotal = cuotasPorEncuestador[enc._id] || 0;
+            const encData = cuotasPorEncuestador[enc._id];
+            const cuotaTotal = encData?.totalCases || 0;
 
             return (
               <div
@@ -262,7 +334,8 @@ export default function QuotaDistributionModal({
                       ?.split(" ")
                       .map((n) => n[0])
                       .join("")
-                      .slice(0, 2)}
+                      .slice(0, 2)
+                      .toUpperCase()}
                   </div>
                   <div className="flex-1 font-semibold text-sm sm:text-base text-[var(--text-primary)] truncate">
                     {enc.fullName}
@@ -278,353 +351,102 @@ export default function QuotaDistributionModal({
                   />
                 </div>
 
-                {/* Matriz expandible */}
-                {isExpanded && cuotasDetalladas && categorias.length === 2 && (
+                {/* Cuotas expandibles - Vista independiente por categoría */}
+                {isExpanded && encData && (
                   <div className="px-2 sm:px-4 pb-4 pt-2 bg-[var(--card-background)] border-t border-[var(--card-border)]">
-                    {/* Vista MÓVIL - Matriz transpuesta */}
-                    <div className="block sm:hidden">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr>
-                            <th className="p-1"></th>
-                            {categorias[0].segmentos.map((seg, idx) => (
-                              <th key={idx} className="p-1">
-                                <div className="flex flex-col items-center gap-1">
-                                  <IconRenderer
-                                    iconName={seg.icon || "User"}
-                                    size={28}
-                                    className="text-[var(--primary)]"
-                                  />
-                                  <span className="text-xs text-[var(--text-primary)] font-medium">
-                                    {seg.nombre}
-                                  </span>
-                                </div>
-                              </th>
-                            ))}
-                            <th className="p-1">
-                              <div className="text-xs text-[var(--text-primary)] font-medium">
-                                Total
-                              </div>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {categorias[1].segmentos.map((seg2, idx2) => {
-                            const totalFila = cuotasDetalladas.data.reduce(
-                              (sum, row) => sum + (row[idx2] || 0),
-                              0
-                            );
-                            return (
-                              <tr key={idx2}>
-                                <td className="p-1">
-                                  <div className="flex flex-col items-center gap-1">
-                                    <IconRenderer
-                                      iconName={seg2.icon || "User"}
-                                      size={20}
-                                      className="text-[var(--primary)]"
-                                    />
-                                    <span className="text-xs font-medium text-[var(--text-primary)] whitespace-nowrap">
-                                      {seg2.nombre}
-                                    </span>
-                                  </div>
-                                </td>
-                                {categorias[0].segmentos.map((seg1, idx1) => {
-                                  const valor =
-                                    cuotasDetalladas.data[idx1]?.[idx2] || 0;
-                                  const isActive = valor > 0;
-                                  return (
-                                    <td key={idx1} className="p-1">
-                                      <div
-                                        className={`rounded-xl border-2 p-2 transition-all ${
-                                          isActive
-                                            ? "bg-[var(--primary)]/10 border-[var(--primary)]/50"
-                                            : "bg-[var(--card-background)] border-[var(--card-border)]"
-                                        }`}
-                                      >
-                                        <div className="flex flex-col items-center gap-1.5">
-                                          <div className="text-3xl font-bold text-[var(--text-primary)]">
-                                            {valor}
-                                          </div>
-                                          <div className="flex gap-1">
-                                            <button
-                                              onClick={() =>
-                                                incrementCuotaMatriz(
-                                                  enc._id,
-                                                  idx1,
-                                                  idx2,
-                                                  -1
-                                                )
-                                              }
-                                              disabled={valor === 0 || isSaving}
-                                              className="w-11 h-11 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] active:bg-[var(--hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed rounded-xl text-xl font-bold flex items-center justify-center transition-colors touch-manipulation border border-[var(--card-border)]"
-                                            >
-                                              −
-                                            </button>
-                                            <button
-                                              onClick={() =>
-                                                incrementCuotaMatriz(
-                                                  enc._id,
-                                                  idx1,
-                                                  idx2,
-                                                  1
-                                                )
-                                              }
-                                              disabled={isSaving}
-                                              className="w-11 h-11 bg-[var(--primary)] hover:bg-[var(--primary-dark)] active:bg-[var(--primary-dark)] text-white rounded-xl text-xl font-bold flex items-center justify-center transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                              +
-                                            </button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                  );
-                                })}
-                                <td className="p-1">
-                                  <div className="text-center font-mono font-bold text-[var(--primary)] text-xl">
-                                    {totalFila}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          <tr className="border-t-2 border-[var(--card-border)]">
-                            <td className="p-1">
-                              <div className="text-xs font-medium text-[var(--text-primary)]">
-                                Total
-                              </div>
-                            </td>
-                            {categorias[0].segmentos.map((seg, idx) => {
-                              const totalCol =
-                                cuotasDetalladas.data[idx]?.reduce(
-                                  (a, b) => a + b,
-                                  0
-                                ) || 0;
-                              return (
-                                <td key={idx} className="p-1 text-center">
-                                  <div className="font-mono font-bold text-[var(--primary)] text-xl">
-                                    {totalCol}
-                                  </div>
-                                </td>
-                              );
-                            })}
-                            <td className="p-1 text-center">
-                              <div className="font-mono font-bold text-[var(--primary)] text-xl">
-                                {cuotaTotal}
-                              </div>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+                    <div className="space-y-4">
+                      {encData.quotas.filter(quota => visibleCategories[quota.category]).map((quota, quotaIdx) => {
+                        const totalCategoria = quota.segments.reduce(
+                          (sum, seg) => sum + seg.target,
+                          0
+                        );
 
-                    {/* Vista DESKTOP - Matriz normal */}
-                    <div className="hidden sm:block overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr>
-                            <th className="p-2"></th>
-                            {categorias[1].segmentos.map((seg, idx) => (
-                              <th key={idx} className="p-2 text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                  <IconRenderer
-                                    iconName={seg.icon || "User"}
-                                    size={24}
-                                    className="text-[var(--primary)]"
-                                  />
-                                  <span className="text-sm font-semibold text-[var(--text-primary)]">
-                                    {seg.nombre}
-                                  </span>
-                                </div>
-                              </th>
-                            ))}
-                            <th className="p-2 text-center">
-                              <span className="text-sm font-semibold text-[var(--text-primary)]">
-                                Total
+                        return (
+                          <div
+                            key={quotaIdx}
+                            className="bg-[var(--input-background)] rounded-lg p-3 border border-[var(--card-border)]"
+                          >
+                            {/* Título de la categoría */}
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-semibold text-[var(--text-primary)] capitalize">
+                                {quota.category}
+                              </h4>
+                              <span className="text-xs font-medium text-[var(--text-secondary)]">
+                                Total: {totalCategoria}
                               </span>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {categorias[0].segmentos.map((seg1, idx1) => {
-                            const totalFila =
-                              cuotasDetalladas.data[idx1]?.reduce(
-                                (a, b) => a + b,
-                                0
-                              ) || 0;
-                            return (
-                              <tr key={idx1}>
-                                <td className="p-2">
-                                  <div className="flex items-center gap-2">
-                                    <IconRenderer
-                                      iconName={seg1.icon || "User"}
-                                      size={24}
-                                      className="text-[var(--primary)]"
-                                    />
-                                    <span className="text-sm font-semibold text-[var(--text-primary)] whitespace-nowrap">
-                                      {seg1.nombre}
-                                    </span>
-                                  </div>
-                                </td>
-                                {categorias[1].segmentos.map((seg2, idx2) => {
-                                  const valor =
-                                    cuotasDetalladas.data[idx1]?.[idx2] || 0;
-                                  const isActive = valor > 0;
-                                  return (
-                                    <td key={idx2} className="p-2">
-                                      <div
-                                        className={`rounded-xl p-3 border-2 transition-all ${
-                                          isActive
-                                            ? "bg-[var(--primary)]/10 border-[var(--primary)]"
-                                            : "bg-[var(--card-background)] border-[var(--card-border)]"
-                                        }`}
-                                      >
-                                        <div className="flex flex-col items-center gap-2">
-                                          <div className="text-3xl font-bold text-[var(--text-primary)]">
-                                            {valor}
-                                          </div>
-                                          <div className="flex gap-2">
-                                            <button
-                                              onClick={() =>
-                                                incrementCuotaMatriz(
-                                                  enc._id,
-                                                  idx1,
-                                                  idx2,
-                                                  -1
-                                                )
-                                              }
-                                              disabled={valor === 0 || isSaving}
-                                              className="w-10 h-10 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed rounded-lg text-xl font-bold flex items-center justify-center transition-colors border border-[var(--card-border)]"
-                                            >
-                                              −
-                                            </button>
-                                            <button
-                                              onClick={() =>
-                                                incrementCuotaMatriz(
-                                                  enc._id,
-                                                  idx1,
-                                                  idx2,
-                                                  1
-                                                )
-                                              }
-                                              disabled={isSaving}
-                                              className="w-10 h-10 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white rounded-lg text-xl font-bold flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                              +
-                                            </button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                  );
-                                })}
-                                <td className="p-2 text-center">
-                                  <div className="text-2xl font-bold text-[var(--primary)]">
-                                    {totalFila}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          <tr className="border-t-2 border-[var(--card-border)]">
-                            <td className="p-2">
-                              <span className="text-sm font-semibold text-[var(--text-primary)]">
-                                Total
-                              </span>
-                            </td>
-                            {categorias[1].segmentos.map((seg, idx) => {
-                              const totalCol = cuotasDetalladas.data.reduce(
-                                (sum, row) => sum + (row[idx] || 0),
-                                0
-                              );
-                              return (
-                                <td key={idx} className="p-2 text-center">
-                                  <div className="text-2xl font-bold text-[var(--primary)]">
-                                    {totalCol}
-                                  </div>
-                                </td>
-                              );
-                            })}
-                            <td className="p-2 text-center">
-                              <div className="text-2xl font-bold text-[var(--primary)]">
-                                {cuotaTotal}
-                              </div>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Lista simple para 1 categoría */}
-                {isExpanded && cuotasDetalladas && categorias.length === 1 && (
-                  <div className="px-2 sm:px-4 pb-3 sm:pb-4 pt-2 space-y-2 bg-[var(--card-background)] border-t border-[var(--card-border)]">
-                    {categorias[0].segmentos.map((seg, idx) => {
-                      const valor = cuotasDetalladas.data[0]?.[idx] || 0;
-                      return (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-2 sm:p-3 rounded-lg border border-[var(--card-border)]"
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <IconRenderer
-                              iconName={seg.icon || "User"}
-                              size={18}
-                              className="text-[var(--primary)] flex-shrink-0 sm:w-5 sm:h-5"
-                            />
-                            <span className="font-medium text-sm sm:text-base text-[var(--text-primary)] truncate">
-                              {seg.nombre}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                            <button
-                              onClick={() => {
-                                const newDist = [
-                                  ...(cuotasDetalladas.data[0] || []),
-                                ];
-                                newDist[idx] = Math.max(0, valor - 1);
-                                setCuotasDetalladasPorEncuestador((prev) => ({
-                                  ...prev,
-                                  [enc._id]: { data: [newDist] },
-                                }));
-                                setCuotasPorEncuestador((prev) => ({
-                                  ...prev,
-                                  [enc._id]: newDist.reduce((a, b) => a + b, 0),
-                                }));
-                              }}
-                              disabled={valor === 0 || isSaving}
-                              className="w-9 h-9 sm:w-10 sm:h-10 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed rounded-lg text-lg sm:text-xl font-bold flex items-center justify-center border border-[var(--card-border)] touch-manipulation"
-                            >
-                              −
-                            </button>
-                            <div className="w-12 sm:w-16 text-center font-mono font-bold text-[var(--text-primary)] text-xl sm:text-2xl">
-                              {valor}
                             </div>
-                            <button
-                              onClick={() => {
-                                const newDist = [
-                                  ...(cuotasDetalladas.data[0] || []),
-                                ];
-                                newDist[idx] = valor + 1;
-                                setCuotasDetalladasPorEncuestador((prev) => ({
-                                  ...prev,
-                                  [enc._id]: { data: [newDist] },
-                                }));
-                                setCuotasPorEncuestador((prev) => ({
-                                  ...prev,
-                                  [enc._id]: newDist.reduce((a, b) => a + b, 0),
-                                }));
-                              }}
-                              disabled={isSaving}
-                              className="w-9 h-9 sm:w-10 sm:h-10 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white rounded-lg text-lg sm:text-xl font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                            >
-                              +
-                            </button>
+
+                            {/* Grid de segmentos */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              {quota.segments.map((segment, segIdx) => {
+                                const isComplete = segment.target > 0;
+
+                                return (
+                                  <div
+                                    key={segIdx}
+                                    className={`rounded-lg p-2 border transition-colors ${
+                                      isComplete
+                                        ? "bg-[var(--card-background)] border-[var(--primary)]/30"
+                                        : "bg-[var(--card-background)] border-[var(--card-border)]"
+                                    }`}
+                                  >
+                                    <div className="text-xs text-[var(--text-secondary)] mb-2 text-center line-clamp-1">
+                                      {segment.name}
+                                    </div>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <button
+                                        onClick={() =>
+                                          incrementSegmentTarget(
+                                            enc._id,
+                                            quota.category,
+                                            segment.name,
+                                            -1
+                                          )
+                                        }
+                                        disabled={
+                                          isSaving || segment.target <= 0
+                                        }
+                                        className="w-7 h-7 flex items-center justify-center bg-[var(--input-background)] hover:bg-red-500/20 text-[var(--text-secondary)] hover:text-red-500 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-lg font-bold"
+                                      >
+                                        −
+                                      </button>
+                                      <input
+                                        type="number"
+                                        value={segment.target}
+                                        onChange={(e) =>
+                                          updateSegmentTarget(
+                                            enc._id,
+                                            quota.category,
+                                            segment.name,
+                                            parseInt(e.target.value) || 0
+                                          )
+                                        }
+                                        disabled={isSaving}
+                                        className="w-12 h-7 text-center bg-[var(--background)] border border-[var(--card-border)] rounded text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      />
+                                      <button
+                                        onClick={() =>
+                                          incrementSegmentTarget(
+                                            enc._id,
+                                            quota.category,
+                                            segment.name,
+                                            1
+                                          )
+                                        }
+                                        disabled={isSaving}
+                                        className="w-7 h-7 flex items-center justify-center bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-lg font-bold"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -632,55 +454,52 @@ export default function QuotaDistributionModal({
           })}
         </div>
 
-        {/* Footer con validación */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-[var(--card-border)] flex-shrink-0 space-y-3">
+        {/* Footer */}
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-[var(--card-border)] bg-[var(--input-background)] flex-shrink-0">
           <div
-            className={`px-3 sm:px-4 py-2 sm:py-3 rounded-lg border text-xs sm:text-sm font-medium ${
+            className={`flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 rounded-lg mb-3 ${
               totalAsignadoEncuestadores === metaTotal
-                ? "bg-[var(--success-bg)] border-[var(--success-border)] text-[var(--success)]"
-                : totalAsignadoEncuestadores > metaTotal
-                ? "bg-[var(--error-bg)] border-[var(--error-border)] text-[var(--error-text)]"
-                : "bg-[var(--warning-bg)] border-[var(--warning-border)] text-[var(--warning)]"
+                ? "bg-green-500/10 border border-green-500/30"
+                : "bg-orange-500/10 border border-orange-500/30"
             }`}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex-1 min-w-0">
-                {totalAsignadoEncuestadores === metaTotal
-                  ? "✓ Total asignado"
-                  : totalAsignadoEncuestadores > metaTotal
-                  ? "⚠️ Exceso de casos"
-                  : "⚠️ Faltan casos"}
-              </span>
-              <span className="font-mono font-bold text-base sm:text-lg flex-shrink-0">
-                {totalAsignadoEncuestadores} / {metaTotal}
-              </span>
-            </div>
+            <span className="text-xs sm:text-sm font-medium text-[var(--text-primary)]">
+              ✓ Total asignado
+            </span>
+            <span
+              className={`text-sm sm:text-lg font-bold ${
+                totalAsignadoEncuestadores === metaTotal
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-orange-600 dark:text-orange-400"
+              }`}
+            >
+              {totalAsignadoEncuestadores} / {metaTotal}
+            </span>
           </div>
 
           <div className="flex gap-2 sm:gap-3">
             <button
               onClick={onClose}
               disabled={isSaving}
-              className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--card-background)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-lg transition-colors font-semibold text-sm sm:text-base text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 sm:py-2.5 bg-[var(--card-background)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] rounded-lg transition-colors font-medium text-sm sm:text-base border border-[var(--card-border)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancelar
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--primary)] hover:bg-[var(--primary-dark)] rounded-lg transition-colors font-semibold text-sm sm:text-base text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-2 sm:py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white rounded-lg transition-colors font-medium text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (
                 <>
-                  <Loader2
-                    size={16}
-                    className="sm:w-[18px] sm:h-[18px] animate-spin"
-                  />
-                  <span className="hidden sm:inline">Guardando...</span>
-                  <span className="sm:hidden">...</span>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Guardando...</span>
                 </>
               ) : (
-                "Guardar"
+                <>
+                  <span>Guardar</span>
+                  <span className="hidden sm:inline">✓</span>
+                </>
               )}
             </button>
           </div>

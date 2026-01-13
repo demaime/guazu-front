@@ -31,7 +31,7 @@ import { StatusIndicators } from "@/components/StatusIndicators";
 function DashboardLayoutContent({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { startTutorial } = useTutorial();
+  const { startTutorial, startObserveCaseTutorial } = useTutorial();
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -470,7 +470,7 @@ function DashboardLayoutContent({ children }) {
                     isSidebarCollapsed ? "justify-center" : "w-full"
                   }`}
                 >
-                  <GraduationCap className="nav-item-icon" />
+                  <GraduationCap className="nav-item-icon text-yellow-500" />
                   <span
                     className={`nav-item-text ${
                       isSidebarCollapsed ? "opacity-0 hidden" : "opacity-100"
@@ -548,7 +548,7 @@ function DashboardLayoutContent({ children }) {
               <div className="flex items-center justify-between p-4 border-b border-[var(--card-border)]">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-primary" />
+                    <GraduationCap className="w-5 h-5 text-yellow-500" />
                   </div>
                   <h2 className="text-xl font-bold text-[var(--text-primary)]">
                     Tutoriales
@@ -599,10 +599,40 @@ function DashboardLayoutContent({ children }) {
                       </div>
                     </button>
                   </div>
+                ) : pathname.includes("/mis-casos") &&
+                  user?.role === "POLLSTER" ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        setIsTutorialModalOpen(false);
+                        setTimeout(() => {
+                          startObserveCaseTutorial();
+                        }, 300);
+                      }}
+                      className="w-full text-left p-3 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-bold text-white">
+                            1
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-[var(--text-primary)] text-sm">
+                            Cómo observar un caso
+                          </h3>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            Aprende a reportar casos que requieren atención del
+                            supervisor
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
                 ) : (
                   <div className="text-center py-8">
                     <div className="w-16 h-16 rounded-full bg-[var(--hover-bg)] flex items-center justify-center mx-auto mb-4">
-                      <GraduationCap className="w-8 h-8 text-[var(--text-secondary)]" />
+                      <GraduationCap className="w-8 h-8 text-yellow-500" />
                     </div>
                     <p className="text-[var(--text-secondary)] mb-4">
                       No hay tutoriales disponibles para esta pantalla

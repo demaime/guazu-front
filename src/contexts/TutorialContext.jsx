@@ -6,6 +6,7 @@ const TutorialContext = createContext();
 
 export function TutorialProvider({ children }) {
   const [shouldStartTutorial, setShouldStartTutorial] = useState(false);
+  const [shouldStartObserveCaseTutorial, setShouldStartObserveCaseTutorial] = useState(false);
 
   const startTutorial = () => {
     console.log("🚀 [TutorialContext] startTutorial - activando");
@@ -14,8 +15,20 @@ export function TutorialProvider({ children }) {
     setTimeout(() => setShouldStartTutorial(false), 100);
   };
 
+  const startObserveCaseTutorial = () => {
+    console.log("🚀 [TutorialContext] startObserveCaseTutorial - activando");
+    setShouldStartObserveCaseTutorial(true);
+    // Resetear inmediatamente para que no se active múltiples veces
+    setTimeout(() => setShouldStartObserveCaseTutorial(false), 100);
+  };
+
   return (
-    <TutorialContext.Provider value={{ shouldStartTutorial, startTutorial }}>
+    <TutorialContext.Provider value={{ 
+      shouldStartTutorial, 
+      startTutorial,
+      shouldStartObserveCaseTutorial,
+      startObserveCaseTutorial
+    }}>
       {children}
     </TutorialContext.Provider>
   );

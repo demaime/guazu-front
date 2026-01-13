@@ -394,6 +394,15 @@ export default function TemporalPage() {
             isPausedBackend: s?.isPaused,
           };
 
+          // 🔍 DEBUG: Ver ID de cada encuesta
+          if (!surveyData.id) {
+            console.error(`⚠️ Encuesta sin ID: "${title}"`, {
+              _id: s?._id,
+              id: s?.id,
+              rawSurvey: s
+            });
+          }
+
           // 🔍 DEBUG: Ver clasificación de cada encuesta
           console.log(`🔍 DEBUG - Encuesta "${title}":`, {
             id: surveyData.id,
@@ -550,7 +559,7 @@ export default function TemporalPage() {
     try {
       // Verificar si está pendiente de configurar
       if (surveyToPause.isPending) {
-        toast.error("Complete la configuración antes de activar la encuesta");
+        toast.error("No es posible activar una encuesta sin configuración o participantes");
         return;
       }
 
@@ -654,6 +663,15 @@ export default function TemporalPage() {
 
   const confirmCloneSurvey = async () => {
     if (!surveyToClone || isCloning) return;
+    
+    // Validar que el ID existe
+    if (!surveyToClone.id) {
+      console.error("Survey ID is undefined:", surveyToClone);
+      toast.error("Error: ID de encuesta inválido");
+      setCloneModalOpen(false);
+      setSurveyToClone(null);
+      return;
+    }
     
     setIsCloning(true);
     try {
@@ -1237,22 +1255,50 @@ export default function TemporalPage() {
                     </div>
                     <div className="flex md:hidden items-center gap-1.5 w-full">
                       <div className="flex flex-1 flex-wrap gap-1.5">
-                        <ActionButton
-                          icon={ClipboardList}
-                          label="Editar"
-                          onClick={() =>
-                            router.push(
-                              `/dashboard/temporal/nueva?id=${survey.id}`
-                            )
-                          }
-                        />
-                        <ActionButton
-                          icon={BarChart3}
-                          label="Supervisión"
-                          onClick={() =>
-                            router.push(`/dashboard/encuestas/${survey.id}/supervision`)
-                          }
-                        />
+                        {/* Si está pendiente de configurar, mostrar botones de configuración */}
+                        {survey.isPending ? (
+                          <>
+                            <ActionButton
+                              icon={Settings}
+                              label="Configurar"
+                              hasAlert={!survey.hasConfig}
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/temporal/configurar?id=${survey.id}`
+                                )
+                              }
+                            />
+                            <ActionButton
+                              icon={Users}
+                              label="Participantes"
+                              hasAlert={!survey.hasParticipants}
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/temporal/participantes?id=${survey.id}`
+                                )
+                              }
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <ActionButton
+                              icon={ClipboardList}
+                              label="Editar"
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/temporal/nueva?id=${survey.id}`
+                                )
+                              }
+                            />
+                            <ActionButton
+                              icon={BarChart3}
+                              label="Supervisión"
+                              onClick={() =>
+                                router.push(`/dashboard/encuestas/${survey.id}/supervision`)
+                              }
+                            />
+                          </>
+                        )}
                       </div>
                       <div className="relative">
                         <button
@@ -1267,18 +1313,6 @@ export default function TemporalPage() {
                         </button>
                         {openMenuId === survey.id && (
                           <div className="absolute bottom-full right-0 mb-2 w-56 bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl shadow-lg p-2 flex flex-col gap-1 z-20">
-                            <ActionButton
-                              icon={ClipboardList}
-                              label="Editar formulario"
-                              hasAlert={!survey.hasForm}
-                              className="w-full justify-start"
-                              onClick={() => {
-                                router.push(
-                                  `/dashboard/temporal/nueva?id=${survey.id}`
-                                );
-                                setOpenMenuId(null);
-                              }}
-                            />
                             <ActionButton
                               icon={Settings}
                               label="Configurar"
@@ -1318,7 +1352,7 @@ export default function TemporalPage() {
                               label="Clonar"
                               className="w-full justify-start"
                               onClick={() => {
-                                handleClone(survey.id);
+                                handleClone(survey);
                                 setOpenMenuId(null);
                               }}
                             />
@@ -1439,7 +1473,7 @@ export default function TemporalPage() {
           confirmText="Eliminar"
           isLoading={isDeleting}
           variant="danger"
-          alertMessage="Esta acción es irreversible. Se eliminarán permanentemente el formulario, la configuración y todas las respuestas asociadas."
+          alertMessage="Esta acción es irreversible. Se eliminarán el formulario, configuración y todas las respuestas."
         >
           <p>
               ¿Estás seguro de que deseas eliminar la encuesta{" "}

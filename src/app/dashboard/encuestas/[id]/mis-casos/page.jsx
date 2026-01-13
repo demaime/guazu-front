@@ -21,10 +21,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import MapModal from "@/components/MapModal";
 import { ObserveCaseModal } from "@/components/ui/ObserveCaseModal";
 import { ToastContainer } from "@/components/ui/Toast";
+import { useTutorial } from "@/contexts/TutorialContext";
 
 export default function MisCasosPage() {
   const params = useParams();
   const router = useRouter();
+  const { shouldStartObserveCaseTutorial } = useTutorial();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [survey, setSurvey] = useState(null);
@@ -53,6 +55,7 @@ export default function MisCasosPage() {
   const [showObserveModal, setShowObserveModal] = useState(false);
   const [selectedCase, setSelectedCase] = useState(null);
   const [isObserving, setIsObserving] = useState(false);
+  const [shouldAutoStartTutorial, setShouldAutoStartTutorial] = useState(false);
 
   useEffect(() => {
     const checkPermissionsAndFetchData = async () => {
@@ -101,6 +104,24 @@ export default function MisCasosPage() {
       checkPermissionsAndFetchData();
     }
   }, [params.id, router]);
+
+  // Escuchar señal para abrir el tutorial de Observar Caso
+  useEffect(() => {
+    if (shouldStartObserveCaseTutorial && myCases.length > 0) {
+      console.log("🎯 [MisCasos] Señal recibida - abriendo primer caso para tutorial");
+      
+      // Encontrar el primer caso que NO esté observado, si existe
+      const firstUnobservedCase = myCases.find(c => !c.observation);
+      const caseToOpen = firstUnobservedCase || myCases[0];
+      
+      // Marcar que debe auto-iniciar el tutorial
+      setShouldAutoStartTutorial(true);
+      
+      // Abrir el modal de observar caso con el primer caso
+      setSelectedCase(caseToOpen);
+      setShowObserveModal(true);
+    }
+  }, [shouldStartObserveCaseTutorial, myCases]);
 
   const openMapModal = (lat, lng, pollsterName, date) => {
     setModalMapData({ lat, lng, pollsterName, date });
@@ -273,10 +294,10 @@ export default function MisCasosPage() {
                     setSelectedCaseDetails(caseItem);
                     setShowDetailsModal(true);
                   }}
-                  className={`rounded-xl shadow-sm border transition-colors duration-200 cursor-pointer hover:shadow-md ${
+                  className={`rounded-xl shadow-sm border transition-all duration-200 cursor-pointer hover:shadow-lg hover:scale-[1.01] ${
                     caseItem.observation
-                      ? "border-[var(--error-border)] bg-[var(--error-bg)]"
-                      : "border-[var(--card-border)] bg-[var(--card-background)]"
+                      ? "border-[var(--error-border)] bg-[var(--error-bg)] hover:bg-red-50/80 dark:hover:bg-red-900/30"
+                      : "border-[var(--card-border)] bg-[var(--card-background)] hover:bg-[var(--hover-bg)]"
                   }`}
                 >
                   <div className="p-4">
@@ -326,9 +347,10 @@ export default function MisCasosPage() {
                                 caseItem.createdAt
                               );
                             }}
-                            className="flex items-center justify-center w-10 h-10 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-dark)] transition-colors"
                           >
                             <MapPin className="w-5 h-5" />
+                            <span className="hidden md:inline text-sm font-medium">Ver ubicación</span>
                           </button>
                         )}
 
@@ -340,9 +362,10 @@ export default function MisCasosPage() {
                               setSelectedCase(caseItem);
                               setShowObserveModal(true);
                             }}
-                            className="flex items-center justify-center w-10 h-10 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                           >
                             <Eye className="w-5 h-5" />
+                            <span className="hidden md:inline text-sm font-medium">Observar caso</span>
                           </button>
                         )}
                       </div>
@@ -403,10 +426,12 @@ export default function MisCasosPage() {
         onClose={() => {
           setShowObserveModal(false);
           setSelectedCase(null);
+          setShouldAutoStartTutorial(false); // Resetear el flag del tutorial
         }}
         onConfirm={handleObserveCase}
         surveyTitle={getSurveyTitle()}
         isLoading={isObserving}
+        autoStartTutorial={shouldAutoStartTutorial}
       />
 
       {/* Modal de detalles del caso */}

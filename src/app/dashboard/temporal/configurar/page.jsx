@@ -376,6 +376,11 @@ export default function ConfigurarEncuesta() {
     }));
 
     cerrarModalCategoria();
+    
+    // Distribuir automáticamente de manera equitativa
+    setTimeout(() => {
+      distribuirEquitativamente(nuevaCat.id);
+    }, 100);
   };
 
   const eliminarCategoria = (categoriaId) => {
@@ -597,17 +602,18 @@ export default function ConfigurarEncuesta() {
 
           <div className="space-y-4">
             {/* 1. Fechas de Ejecución */}
-            <div className="bg-[var(--card-background)] rounded-xl border border-[var(--secondary-light)] shadow-sm overflow-hidden">
-              <div className="bg-[var(--primary-dark)] px-6 py-4 border-b border-[var(--card-border)] flex items-center gap-3">
-                <div className="p-2 bg-white/10 rounded-lg">
-                  <Calendar size={20} className="text-white" />
+            <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-[var(--primary)]/10 rounded-lg">
+                  <Calendar size={20} className="text-[var(--primary)]" />
                 </div>
-                <h3 className="font-semibold text-lg text-white">
+                <h3 className="font-semibold text-base sm:text-lg text-[var(--text-primary)]">
                   Período de Ejecución
                 </h3>
               </div>
-              <div className="p-6">
-                <div className="grid grid-cols-2 gap-4 mb-3">
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
                       Fecha de inicio
@@ -645,10 +651,10 @@ export default function ConfigurarEncuesta() {
             </div>
 
             {/* 2. GPS Obligatorio */}
-            <div className="bg-[var(--card-background)] rounded-xl border border-[var(--secondary-light)] shadow-sm overflow-hidden">
-              <div className="p-6 flex items-center justify-between gap-4">
+            <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-                  <div className="p-2 bg-[var(--primary)]/10 rounded-lg mt-1 flex-shrink-0">
+                  <div className="p-2 bg-[var(--primary)]/10 rounded-lg flex-shrink-0">
                     <MapPin size={20} className="text-[var(--primary)]" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -666,15 +672,15 @@ export default function ConfigurarEncuesta() {
                   onClick={() =>
                     updateConfig("gpsObligatorio", !config.gpsObligatorio)
                   }
-                  className={`relative w-14 h-8 rounded-full transition-all flex-shrink-0 ${
+                  className={`relative w-12 h-7 sm:w-14 sm:h-8 rounded-full transition-all flex-shrink-0 ${
                     config.gpsObligatorio
-                      ? "bg-[var(--primary-light)] hover:opacity-90"
-                      : "bg-gray-300 hover:bg-gray-400"
+                      ? "bg-[var(--primary)] hover:opacity-90"
+                      : "bg-[var(--card-border)] hover:bg-[var(--text-secondary)]/30"
                   }`}
                 >
                   <div
-                    className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                      config.gpsObligatorio ? "transform translate-x-6" : ""
+                    className={`absolute top-1 left-1 w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full shadow-sm transition-transform ${
+                      config.gpsObligatorio ? "transform translate-x-5 sm:translate-x-6" : ""
                     }`}
                   />
                 </button>
@@ -682,73 +688,71 @@ export default function ConfigurarEncuesta() {
             </div>
 
             {/* 3. Objetivo */}
-            <div className="bg-[var(--card-background)] rounded-xl border border-[var(--secondary-light)] shadow-sm overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="p-2 bg-[var(--primary)]/10 rounded-lg flex-shrink-0">
-                      <Target size={20} className="text-[var(--primary)]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <label className="font-semibold text-base sm:text-lg text-[var(--text-primary)] block">
-                        Objetivo de Casos
-                      </label>
-                      <p className="text-sm text-[var(--text-secondary)]">
-                        Define una meta numérica para tu encuesta
-                      </p>
-                    </div>
+            <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="p-2 bg-[var(--primary)]/10 rounded-lg flex-shrink-0">
+                    <Target size={20} className="text-[var(--primary)]" />
                   </div>
-                  <button
-                    onClick={() =>
-                      updateConfig("tieneObjetivo", !config.tieneObjetivo)
-                    }
-                    className={`relative w-14 h-8 rounded-full transition-all flex-shrink-0 ${
-                      config.tieneObjetivo
-                        ? "bg-[var(--primary-light)] hover:opacity-90"
-                        : "bg-gray-300 hover:bg-gray-400"
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                        config.tieneObjetivo ? "transform translate-x-6" : ""
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {config.tieneObjetivo && (
-                  <div className="pl-[52px]">
-                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                      Meta total de encuestas{" "}
-                      <span className="text-red-500">*</span>
+                  <div className="min-w-0 flex-1">
+                    <label className="font-semibold text-base sm:text-lg text-[var(--text-primary)] block">
+                      Objetivo de Casos
                     </label>
-                    <input
-                      type="number"
-                      value={config.metaTotal}
-                      onChange={(e) =>
-                        updateConfig("metaTotal", parseInt(e.target.value) || 0)
-                      }
-                      className="w-full bg-[var(--input-background)] border border-[var(--card-border)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-all"
-                      placeholder="Ingrese la meta"
-                      min="1"
-                    />
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Define una meta numérica para tu encuesta
+                    </p>
                   </div>
-                )}
+                </div>
+                <button
+                  onClick={() =>
+                    updateConfig("tieneObjetivo", !config.tieneObjetivo)
+                  }
+                  className={`relative w-12 h-7 sm:w-14 sm:h-8 rounded-full transition-all flex-shrink-0 ${
+                    config.tieneObjetivo
+                      ? "bg-[var(--primary)] hover:opacity-90"
+                      : "bg-[var(--card-border)] hover:bg-[var(--text-secondary)]/30"
+                  }`}
+                >
+                  <div
+                    className={`absolute top-1 left-1 w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full shadow-sm transition-transform ${
+                      config.tieneObjetivo ? "transform translate-x-5 sm:translate-x-6" : ""
+                    }`}
+                  />
+                </button>
               </div>
+
+              {config.tieneObjetivo && (
+                <div className="pl-11 sm:pl-[52px] pt-2">
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Meta total de encuestas{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={config.metaTotal}
+                    onChange={(e) =>
+                      updateConfig("metaTotal", parseInt(e.target.value) || 0)
+                    }
+                    className="w-full bg-[var(--input-background)] border border-[var(--card-border)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-all"
+                    placeholder="Ingrese la meta"
+                    min="1"
+                  />
+                </div>
+              )}
             </div>
 
             {/* 4. Sistema de Cuotas */}
-            <div className="bg-[var(--card-background)] rounded-xl border border-[var(--secondary-light)] shadow-sm overflow-hidden">
-              <div className="bg-[var(--primary-dark)] px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--card-border)] flex items-center justify-between gap-3">
+            <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                  <div className="p-1.5 sm:p-2 bg-white/10 rounded-lg flex-shrink-0">
-                    <PieChart size={18} className="text-white sm:w-5 sm:h-5" />
+                  <div className="p-2 bg-[var(--primary)]/10 rounded-lg flex-shrink-0">
+                    <PieChart size={20} className="text-[var(--primary)]" />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-base sm:text-lg text-white truncate">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-base sm:text-lg text-[var(--text-primary)] truncate">
                       Sistema de Cuotas
                     </h3>
-                    <p className="text-xs text-white/80 truncate">
+                    <p className="text-sm text-[var(--text-secondary)] truncate">
                       Balancea tu muestra por segmentos
                     </p>
                   </div>
@@ -759,12 +763,12 @@ export default function ConfigurarEncuesta() {
                   }
                   className={`relative w-12 h-7 sm:w-14 sm:h-8 rounded-full transition-all flex-shrink-0 ${
                     config.cuotasActivas
-                      ? "bg-[var(--primary-light)] hover:opacity-90"
-                      : "bg-gray-300 hover:bg-gray-400"
+                      ? "bg-[var(--primary)] hover:opacity-90"
+                      : "bg-[var(--card-border)] hover:bg-[var(--text-secondary)]/30"
                   }`}
                 >
                   <div
-                    className={`absolute top-1 left-1 w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full transition-transform ${
+                    className={`absolute top-1 left-1 w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full shadow-sm transition-transform ${
                       config.cuotasActivas
                         ? "transform translate-x-5 sm:translate-x-6"
                         : ""
@@ -774,7 +778,7 @@ export default function ConfigurarEncuesta() {
               </div>
 
               {config.cuotasActivas && (
-                <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Meta efectiva - solo mostrar si NO hay objetivo */}
                   {!config.tieneObjetivo && (
                     <div className="bg-[var(--input-background)] rounded-lg p-3 sm:p-4 border border-[var(--card-border)]">
@@ -785,9 +789,9 @@ export default function ConfigurarEncuesta() {
                         {obtenerMetaEfectiva()} encuestas
                       </div>
                       {config.categorias.length > 0 && (
-                        <div className="mt-2 text-xs text-[var(--text-secondary)]">
-                          💡 Sin límite superior - Las cuotas definen el mínimo
-                          requerido
+                        <div className="mt-2 text-xs text-[var(--text-secondary)] flex items-center gap-1.5">
+                          <Info size={14} className="flex-shrink-0" />
+                          <span>Sin límite superior - Las cuotas definen el mínimo requerido</span>
                         </div>
                       )}
                     </div>
@@ -859,24 +863,27 @@ export default function ConfigurarEncuesta() {
                               <div className="flex-1 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-[var(--text-primary)] font-medium text-sm sm:text-base truncate min-w-0">
                                 {segmento.nombre}
                               </div>
-                              <input
-                                type="number"
-                                value={segmento.porcentaje}
-                                onChange={(e) =>
-                                  updateSegmento(
-                                    categoria.id,
-                                    idx,
-                                    "porcentaje",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-12 sm:w-16 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg px-1 sm:px-2 py-1.5 sm:py-2 text-[var(--text-primary)] text-center text-sm sm:text-base focus:outline-none focus:border-[var(--secondary)]"
-                                min="0"
-                                max="100"
-                              />
-                              <span className="text-[var(--text-secondary)] text-xs sm:text-sm flex-shrink-0">
-                                %
-                              </span>
+                              {/* Input de porcentaje con % integrado */}
+                              <div className="relative flex-shrink-0">
+                                <input
+                                  type="number"
+                                  value={segmento.porcentaje}
+                                  onChange={(e) =>
+                                    updateSegmento(
+                                      categoria.id,
+                                      idx,
+                                      "porcentaje",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-14 sm:w-16 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg pl-2 pr-6 sm:pr-7 py-1.5 sm:py-2 text-[var(--text-primary)] text-center text-sm sm:text-base focus:outline-none focus:border-[var(--secondary)]"
+                                  min="0"
+                                  max="100"
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-xs sm:text-sm pointer-events-none">
+                                  %
+                                </span>
+                              </div>
                               <input
                                 type="number"
                                 value={segmento.objetivo}
@@ -888,7 +895,7 @@ export default function ConfigurarEncuesta() {
                                     e.target.value
                                   )
                                 }
-                                className="w-14 sm:w-20 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg px-1 sm:px-2 py-1.5 sm:py-2 text-[var(--text-primary)] text-center text-sm sm:text-base focus:outline-none focus:border-[var(--secondary)]"
+                                className="font-bold w-14 sm:w-20 bg-[color:var(--primary-dark)] dark:bg-[color:var(--primary-light)] border border-[color:var(--primary)] rounded-lg px-1 sm:px-2 py-1.5 sm:py-2 text-white dark:text-[color:var(--primary-dark)] text-center text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]"
                                 min="0"
                               />
                             </div>
@@ -994,10 +1001,9 @@ export default function ConfigurarEncuesta() {
                       {/* Resumen de distribución si existe */}
                       {hasDistribution && (
                         <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-[var(--success-bg)] border border-[var(--success-border)] rounded-lg">
-                          <p className="text-xs sm:text-sm text-[var(--success)]">
-                            ✓ Cuotas distribuidas entre{" "}
-                            {distributedPollstersCount} encuestador
-                            {distributedPollstersCount !== 1 ? "es" : ""}
+                          <p className="text-xs sm:text-sm text-[var(--success)] flex items-center gap-1.5">
+                            <Check size={14} className="flex-shrink-0" />
+                            <span>Cuotas distribuidas entre {distributedPollstersCount} encuestador{distributedPollstersCount !== 1 ? "es" : ""}</span>
                           </p>
                         </div>
                       )}

@@ -54,6 +54,16 @@ export function PollsterSurveyList({
     } catch {}
   }, [isUniversalMinimized]);
 
+  // Estado para controlar qué encuestas tienen las cuotas expandidas
+  const [expandedQuotas, setExpandedQuotas] = useState({});
+
+  const toggleQuotas = useCallback((surveyId) => {
+    setExpandedQuotas((prev) => ({
+      ...prev,
+      [surveyId]: !prev[surveyId],
+    }));
+  }, []);
+
   useEffect(() => {
     const updateOnline = () => setIsOnline(navigator.onLine);
     window.addEventListener("online", updateOnline);
@@ -376,6 +386,47 @@ export function PollsterSurveyList({
     return "bg-red-500";
   };
 
+  // Obtener cuotas asignadas al pollster actual (SOLO las suyas)
+  const getPollsterQuotas = (survey) => {
+    if (!currentUser?._id || !survey?.surveyInfo?.quotaAssignments) {
+      return null;
+    }
+
+    const assignment = survey.surveyInfo.quotaAssignments.find(
+      (qa) => qa.pollsterId === currentUser._id
+    );
+
+    if (!assignment || !assignment.quotas || assignment.quotas.length === 0) {
+      return null;
+    }
+
+    return assignment.quotas;
+  };
+
+  // Verificar si la encuesta tiene cuotas
+  const hasQuotas = (survey) => {
+    const quotas = getPollsterQuotas(survey);
+    return quotas && quotas.length > 0;
+  };
+
+  // Obtener el estado de una cuota (completa o incompleta)
+  const getQuotaStatus = (current, target) => {
+    if (current >= target) {
+      return {
+        bgColor: "bg-green-500/20 dark:bg-green-500/20",
+        textColor: "text-green-600 dark:text-green-400",
+        borderColor: "border-green-500/30",
+        status: "complete",
+      };
+    }
+    return {
+      bgColor: "bg-[var(--input-background)]",
+      textColor: "text-[var(--text-primary)]",
+      borderColor: "border-[var(--card-border)]",
+      status: "incomplete",
+    };
+  };
+
   if (!surveys || surveys.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -575,6 +626,99 @@ export function PollsterSurveyList({
                         </div>
                       </div>
                     )}
+
+                    {/* Botón Ver Cuotas (solo si la encuesta tiene cuotas) */}
+                    {!isUniversal && hasQuotas(survey) && (
+                      <button
+                        onClick={() => toggleQuotas(survey._id)}
+                        className="w-full mb-4 py-2 px-3 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[var(--text-primary)]"
+                      >
+                        <Users className="w-4 h-4" />
+                        <span>
+                          {expandedQuotas[survey._id]
+                            ? "Ocultar Cuotas"
+                            : "Ver Cuotas"}
+                        </span>
+                        {expandedQuotas[survey._id] ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Sección expandible de Cuotas */}
+                    <AnimatePresence>
+                      {!isUniversal &&
+                        expandedQuotas[survey._id] &&
+                        hasQuotas(survey) && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="mb-4 overflow-hidden"
+                          >
+                            <div className="bg-[var(--input-background)] rounded-xl p-3 border border-[var(--card-border)]">
+                              <div className="mb-3">
+                                <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase">
+                                  Mis Cuotas Asignadas
+                                </span>
+                              </div>
+                              <div className="space-y-3">
+                                {getPollsterQuotas(survey).map(
+                                  (quota, idx) => {
+                                    // Calcular progreso actual de esta categoría desde las respuestas
+                                    const totalCategoria = quota.segments.reduce(
+                                      (sum, seg) => sum + seg.target,
+                                      0
+                                    );
+
+                                    return (
+                                      <div key={idx}>
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-xs font-medium text-[var(--text-primary)] capitalize">
+                                            {quota.category}
+                                          </span>
+                                          <span className="text-xs text-[var(--text-secondary)]">
+                                            Total: {totalCategoria}
+                                          </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                          {quota.segments.map((segment, segIdx) => {
+                                            // Por ahora usamos current si existe, sino 0
+                                            // TODO: En el futuro, calcular desde las respuestas reales
+                                            const currentCount = segment.current || 0;
+                                            const status = getQuotaStatus(
+                                              currentCount,
+                                              segment.target
+                                            );
+                                            return (
+                                              <div
+                                                key={segIdx}
+                                                className={`${status.bgColor} rounded-lg p-2 text-center border ${status.borderColor}`}
+                                              >
+                                                <div className="text-[10px] text-[var(--text-secondary)] mb-1 line-clamp-1">
+                                                  {segment.name}
+                                                </div>
+                                                <div
+                                                  className={`text-sm font-bold ${status.textColor}`}
+                                                >
+                                                  {currentCount}/{segment.target}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Botones de acción */}
                     <div className="flex gap-3">
