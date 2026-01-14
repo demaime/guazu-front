@@ -9,7 +9,8 @@ import {
   Copy,
   Trash2,
   Calendar,
-  Play,
+  Eye,
+  Play, 
   Pause,
   FileText,
   Settings,
@@ -40,68 +41,74 @@ const safeDate = (value) => {
 // Nueva clasificación: FINALIZADAS | ACTIVAS (recibiendo | pausada | pendiente)
 const classifyStatus = (survey) => {
   const now = new Date();
-  const startDate = survey.surveyInfo?.startDate ? new Date(survey.surveyInfo.startDate) : null;
-  const endDate = survey.surveyInfo?.endDate ? new Date(survey.surveyInfo.endDate) : null;
-  
+  const startDate = survey.surveyInfo?.startDate
+    ? new Date(survey.surveyInfo.startDate)
+    : null;
+  const endDate = survey.surveyInfo?.endDate
+    ? new Date(survey.surveyInfo.endDate)
+    : null;
+
   // 1. FINALIZADA: fecha de fin ya pasó
   if (endDate && now > endDate) {
     return {
-      lifecycle: 'finalizada',
-      label: 'Finalizada',
-      color: 'gray',
+      lifecycle: "finalizada",
+      label: "Finalizada",
+      color: "gray",
       isFinished: true,
     };
   }
-  
+
   // 2. ACTIVA: todavía en fecha
   // Detectar si está pausada (campo nuevo o status draft como fallback)
   const isPaused = survey.isPaused ?? false;
-  
+
   // Detectar si está completa
   // Calcular basado en datos reales
-  const hasQuestions = survey.survey?.pages?.some(page => 
-    page.elements && page.elements.length > 0
-  ) || false;
-  const hasDates = !!(survey.surveyInfo?.startDate && survey.surveyInfo?.endDate);
+  const hasQuestions =
+    survey.survey?.pages?.some(
+      (page) => page.elements && page.elements.length > 0
+    ) || false;
+  const hasDates = !!(
+    survey.surveyInfo?.startDate && survey.surveyInfo?.endDate
+  );
   // Leer userIds desde surveyInfo, que es donde se guardan
   const pollsterIds = survey.surveyInfo?.userIds || survey.userIds || [];
   const hasPollsters = Array.isArray(pollsterIds) && pollsterIds.length > 0;
   const calculatedComplete = hasQuestions && hasDates && hasPollsters;
-  
+
   // Solo usar el campo del backend si es TRUE, sino usar el cálculo
   // Esto asegura backward compatibility con encuestas viejas
-  const isConfigurationComplete = survey.isConfigurationComplete === true 
-    ? true 
-    : calculatedComplete;
-  
+  const isConfigurationComplete =
+    survey.isConfigurationComplete === true ? true : calculatedComplete;
+
   // 2a. Pausada manualmente - AZUL
   if (isPaused) {
     return {
-      lifecycle: 'pausada',
-      label: 'Pausada',
-      color: 'blue',
+      lifecycle: "pausada",
+      label: "Pausada",
+      color: "blue",
       isPaused: true,
     };
   }
-  
+
   // 2b. Pendiente de configurar - AMARILLO
   if (!isConfigurationComplete) {
     return {
-      lifecycle: 'pendiente',
-      label: 'Pendiente de configurar',
-      color: 'yellow',
+      lifecycle: "pendiente",
+      label: "Pendiente de configurar",
+      color: "yellow",
       isPending: true,
     };
   }
-  
+
   // 2c. Recibiendo casos (activa y completa)
   // Detectar si es programada (fecha futura)
   const isScheduled = startDate && now < startDate;
-  
+
   return {
-    lifecycle: 'recibiendo',
-    label: 'Recibiendo casos',
-    color: 'green',
+    lifecycle: "recibiendo",
+    label: "Recibiendo casos",
+    color: "green",
     isActive: true,
     isScheduled: isScheduled, // Para mostrar relojito
   };
@@ -189,14 +196,14 @@ export default function TemporalPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isToggling, setIsToggling] = useState(null);
-  
+
   // Estados de filtros por status (checkboxes)
   const [showRecibiendo, setShowRecibiendo] = useState(true);
   const [showPausada, setShowPausada] = useState(true);
   const [showPendiente, setShowPendiente] = useState(true);
   const [showOnlyActive, setShowOnlyActive] = useState(false); // Filtro independiente para fechas activas
   const [finalizadasSort, setFinalizadasSort] = useState("fecha_desc"); // nombre | fecha_desc | fecha_asc
-  
+
   // Custom Sort Dropdown State
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef(null);
@@ -226,7 +233,10 @@ export default function TemporalPage() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+      if (
+        sortDropdownRef.current &&
+        !sortDropdownRef.current.contains(event.target)
+      ) {
         setIsSortDropdownOpen(false);
       }
     };
@@ -246,20 +256,27 @@ export default function TemporalPage() {
   useEffect(() => {
     // Solo resetear página al cambiar filtros
     setPage(0);
-  }, [searchQuery, showRecibiendo, showPausada, showPendiente, showOnlyActive, finalizadasSort]);
+  }, [
+    searchQuery,
+    showRecibiendo,
+    showPausada,
+    showPendiente,
+    showOnlyActive,
+    finalizadasSort,
+  ]);
 
   const loadSurveysData = async () => {
     try {
       setError(null);
       // No seteamos isLoading(true) global para evitar parpadeo completo si solo refrescamos
-      
+
       // 1. Traer encuestas publicadas (activas y finalizadas)
       const resp = await surveyService.getAllSurveys(1, 100, null);
-      
+
       // 🔍 DEBUG: Ver qué devuelve el backend
       console.log("🔍 DEBUG - Encuestas recibidas del backend:", resp);
       console.log("🔍 DEBUG - Total encuestas:", resp?.surveys?.length || 0);
-      
+
       // 2. Traer DRAFTS (separado, como lo hace el creador viejo)
       let draftsResp = { drafts: [] };
       try {
@@ -268,13 +285,22 @@ export default function TemporalPage() {
       } catch (e) {
         console.error("Error al cargar drafts:", e);
       }
-      
+
       // 3. Combinar ambos
-      const allSurveys = [...(resp?.surveys || []), ...(draftsResp?.drafts || [])];
-      
-      console.log("🔍 DEBUG - Total combinado (surveys + drafts):", allSurveys.length);
-      console.log("📥 Total encuestas (publicadas + drafts):", allSurveys.length);
-      
+      const allSurveys = [
+        ...(resp?.surveys || []),
+        ...(draftsResp?.drafts || []),
+      ];
+
+      console.log(
+        "🔍 DEBUG - Total combinado (surveys + drafts):",
+        allSurveys.length
+      );
+      console.log(
+        "📥 Total encuestas (publicadas + drafts):",
+        allSurveys.length
+      );
+
       const normalized =
         allSurveys?.map((s) => {
           const title =
@@ -294,19 +320,22 @@ export default function TemporalPage() {
           // Leer userIds desde surveyInfo, que es donde se guardan
           const pollsterIds = s?.surveyInfo?.userIds || s?.userIds || [];
           const surveyors = Array.isArray(pollsterIds) ? pollsterIds.length : 0;
-          
+
           // Función recursiva para contar preguntas reales (no panels)
           // Retorna { total, condicionales } para calcular min/max
           const contarPreguntasReales = (elements, esCondicional = false) => {
             let total = 0;
             let condicionales = 0;
             if (!Array.isArray(elements)) return { total: 0, condicionales: 0 };
-            
-            elements.forEach(el => {
-              if (el.type === 'panel') {
+
+            elements.forEach((el) => {
+              if (el.type === "panel") {
                 // Si es un panel con visibleIf, sus preguntas son condicionales
                 const tieneCondicion = !!el.visibleIf;
-                const resultado = contarPreguntasReales(el.elements, tieneCondicion);
+                const resultado = contarPreguntasReales(
+                  el.elements,
+                  tieneCondicion
+                );
                 total += resultado.total;
                 condicionales += resultado.condicionales;
               } else {
@@ -317,7 +346,7 @@ export default function TemporalPage() {
                 }
               }
             });
-            
+
             return { total, condicionales };
           };
 
@@ -329,11 +358,14 @@ export default function TemporalPage() {
             pages.forEach((p) => {
               // Verificar si la página completa es condicional (nuevo formato)
               const paginaEsCondicional = !!p.visibleIf;
-              
+
               if (Array.isArray(p?.elements)) {
-                const resultado = contarPreguntasReales(p.elements, paginaEsCondicional);
+                const resultado = contarPreguntasReales(
+                  p.elements,
+                  paginaEsCondicional
+                );
                 totalQuestions += resultado.total;
-                
+
                 // Si la página es condicional, todas sus preguntas son condicionales
                 if (paginaEsCondicional) {
                   conditionalQuestions += resultado.total;
@@ -349,7 +381,7 @@ export default function TemporalPage() {
           const minQuestions = totalQuestions - conditionalQuestions;
           const maxQuestions = totalQuestions;
           const hasConditionalQuestions = conditionalQuestions > 0;
-          
+
           // Detectar qué falta configurar específicamente
           const hasConfig = !!(
             startDate &&
@@ -359,7 +391,7 @@ export default function TemporalPage() {
           );
           const hasParticipants = surveyors > 0;
           const hasForm = questions > 0;
-          
+
           // Clasificar estado usando la nueva función
           const statusInfo = classifyStatus(s);
 
@@ -399,7 +431,7 @@ export default function TemporalPage() {
             console.error(`⚠️ Encuesta sin ID: "${title}"`, {
               _id: s?._id,
               id: s?.id,
-              rawSurvey: s
+              rawSurvey: s,
             });
           }
 
@@ -418,7 +450,7 @@ export default function TemporalPage() {
 
           return surveyData;
         }) || [];
-      
+
       setSurveys(normalized);
     } catch (err) {
       console.error(err);
@@ -432,7 +464,6 @@ export default function TemporalPage() {
     setIsLoading(true);
     loadSurveysData();
   }, []);
-
 
   const filteredSurveys = useMemo(() => {
     let filtered = surveys.filter((s) => {
@@ -458,7 +489,11 @@ export default function TemporalPage() {
           return showPausada;
         }
         // Si es pendiente
-        if (s.status === "pendiente" || s.lifecycle === "pendiente" || s.isPending) {
+        if (
+          s.status === "pendiente" ||
+          s.lifecycle === "pendiente" ||
+          s.isPending
+        ) {
           return showPendiente;
         }
         return false; // Si no matchea ninguno, no mostrar
@@ -482,17 +517,16 @@ export default function TemporalPage() {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter((s) => {
         // Buscar en título y descripción
-        const matchesText = 
+        const matchesText =
           s.title.toLowerCase().includes(q) ||
           (s.description || "").toLowerCase().includes(q);
-        
+
         // Buscar en fechas formateadas (ej: "22/08" o "28/01")
         const startDateFormatted = formatDate(s.startDate).toLowerCase();
         const endDateFormatted = formatDate(s.endDate).toLowerCase();
-        const matchesDate = 
-          startDateFormatted.includes(q) || 
-          endDateFormatted.includes(q);
-        
+        const matchesDate =
+          startDateFormatted.includes(q) || endDateFormatted.includes(q);
+
         return matchesText || matchesDate;
       });
     }
@@ -559,17 +593,19 @@ export default function TemporalPage() {
     try {
       // Verificar si está pendiente de configurar
       if (surveyToPause.isPending) {
-        toast.error("No es posible activar una encuesta sin configuración o participantes");
+        toast.error(
+          "No es posible activar una encuesta sin configuración o participantes"
+        );
         return;
       }
 
       // Toggle pausa usando el nuevo endpoint
       const result = await surveyService.toggleSurveyPause(surveyToPause.id);
-      
+
       // Mostrar toast según el nuevo estado
       if (result.isPaused) {
         toast.warning("Encuesta pausada", {
-          style: { background: '#EAB308', color: 'white' }
+          style: { background: "#EAB308", color: "white" },
         });
       } else {
         toast.success("¡Encuesta activada!");
@@ -596,17 +632,17 @@ export default function TemporalPage() {
 
   const confirmDeleteSurvey = async () => {
     if (!surveyToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       await surveyService.deleteSurvey(surveyToDelete.id);
       toast.success("Encuesta eliminada correctamente");
-      
+
       // Si estamos borrando la última de una página y no es la primera, volver atrás
       if (paginatedSurveys.length === 1 && page > 0) {
-        setPage(p => p - 1);
+        setPage((p) => p - 1);
       }
-      
+
       await loadSurveysData();
     } catch (error) {
       console.error("Error deleting survey:", error);
@@ -625,7 +661,7 @@ export default function TemporalPage() {
 
   const confirmDeleteAnswers = async () => {
     if (!surveyToDeleteAnswers) return;
-    
+
     setIsDeletingAnswers(true);
     try {
       const token = localStorage.getItem("token");
@@ -663,7 +699,7 @@ export default function TemporalPage() {
 
   const confirmCloneSurvey = async () => {
     if (!surveyToClone || isCloning) return;
-    
+
     // Validar que el ID existe
     if (!surveyToClone.id) {
       console.error("Survey ID is undefined:", surveyToClone);
@@ -672,7 +708,7 @@ export default function TemporalPage() {
       setSurveyToClone(null);
       return;
     }
-    
+
     setIsCloning(true);
     try {
       await surveyService.cloneSurvey(surveyToClone.id);
@@ -689,7 +725,9 @@ export default function TemporalPage() {
   };
 
   const activasCount = surveys.filter((s) => s.status !== "finalizada").length;
-  const finalizadasCount = surveys.filter((s) => s.status === "finalizada").length;
+  const finalizadasCount = surveys.filter(
+    (s) => s.status === "finalizada"
+  ).length;
 
   const tabs = [
     { id: "activas", label: `Activas (${activasCount})` },
@@ -697,67 +735,68 @@ export default function TemporalPage() {
   ];
 
   const StatusBadge = ({ survey }) => {
-  // Pendiente de configurar - AMARILLO
-  if (survey.isPending || survey.status === "pendiente") {
-    return (
-      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-500 text-white rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap">
-        <Clock size={12} className="md:w-3.5 md:h-3.5" />
-        Pendiente de configurar
-      </span>
-    );
-  }
-  // Pausada - AZUL
-  if (survey.isPaused || survey.status === "pausada") {
-    return (
-      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-blue-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
-        <Pause size={12} className="md:w-3.5 md:h-3.5" />
-        Pausada
-      </span>
-    );
-  }
-  // Finalizada - GRIS
-  if (survey.isFinished || survey.status === "finalizada") {
-    return (
-      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-gray-500 text-white rounded-full text-xs font-medium">
-        Finalizada
-      </span>
-    );
-  }
-  // Recibiendo casos (activa) - VERDE
-  if (survey.isActive || survey.status === "recibiendo") {
-    
-    const bgColor = survey.isScheduled ? "bg-teal-800" : "bg-green-600";
-    
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className={`px-2 py-0.5 md:px-3 md:py-1 ${bgColor} text-white rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap`}>
-          {!survey.isScheduled && (
-            <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse" />
-          )}
-          Recibiendo casos
+    // Pendiente de configurar - AMARILLO
+    if (survey.isPending || survey.status === "pendiente") {
+      return (
+        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-500 text-white rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap">
+          <Clock size={12} className="md:w-3.5 md:h-3.5" />
+          Pendiente de configurar
         </span>
-        {survey.isScheduled && (
-          <div className="relative">
-            <div className="flex items-center justify-center w-7 h-7 bg-teal-800 rounded-full">
-              <Clock size={16} className="text-yellow-300" />
+      );
+    }
+    // Pausada - AZUL
+    if (survey.isPaused || survey.status === "pausada") {
+      return (
+        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-blue-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+          <Pause size={12} className="md:w-3.5 md:h-3.5" />
+          Pausada
+        </span>
+      );
+    }
+    // Finalizada - GRIS
+    if (survey.isFinished || survey.status === "finalizada") {
+      return (
+        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-gray-500 text-white rounded-full text-xs font-medium">
+          Finalizada
+        </span>
+      );
+    }
+    // Recibiendo casos (activa) - VERDE
+    if (survey.isActive || survey.status === "recibiendo") {
+      const bgColor = survey.isScheduled ? "bg-teal-800" : "bg-green-600";
+
+      return (
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`px-2 py-0.5 md:px-3 md:py-1 ${bgColor} text-white rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap`}
+          >
+            {!survey.isScheduled && (
+              <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-white rounded-full animate-pulse" />
+            )}
+            Recibiendo casos
+          </span>
+          {survey.isScheduled && (
+            <div className="relative">
+              <div className="flex items-center justify-center w-7 h-7 bg-teal-800 rounded-full">
+                <Clock size={16} className="text-yellow-300" />
+              </div>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                La fecha de la encuesta aún no ha llegado
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
+              </div>
             </div>
-            {/* Tooltip */}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-              La fecha de la encuesta aún no ha llegado
-              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      );
+    }
+    // Fallback
+    return (
+      <span className="px-2 py-0.5 md:px-3 md:py-1 bg-gray-400 text-white rounded-full text-xs font-medium">
+        Sin estado
+      </span>
     );
-  }
-  // Fallback
-  return (
-    <span className="px-2 py-0.5 md:px-3 md:py-1 bg-gray-400 text-white rounded-full text-xs font-medium">
-      Sin estado
-    </span>
-  );
-};
+  };
 
   return (
     <div className="bg-[color:var(--background)] text-[color:var(--text-primary)]">
@@ -775,15 +814,15 @@ export default function TemporalPage() {
             </button>
           </div>
 
-
-
           <div className="flex flex-col gap-2">
-            
             {/* Barra de búsqueda universal + Filtros */}
             <div className="flex flex-row gap-2 sm:gap-3">
               {/* Barra de búsqueda universal */}
               <div className="flex-1 bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl flex items-center shadow-sm hover:border-[color:var(--primary)]/50 transition-all relative h-12">
-                <Search size={18} className="text-[color:var(--text-secondary)] ml-4 flex-shrink-0" />
+                <Search
+                  size={18}
+                  className="text-[color:var(--text-secondary)] ml-4 flex-shrink-0"
+                />
                 <input
                   type="text"
                   placeholder="Buscar por título, descripción o fecha..."
@@ -791,10 +830,10 @@ export default function TemporalPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 h-full bg-transparent border-none outline-none text-sm text-[color:var(--text-primary)] px-3 placeholder:text-[color:var(--text-secondary)] rounded-xl focus:outline-none focus:ring-0"
                 />
-                
+
                 {/* Botón limpiar */}
                 {searchQuery && (
-                  <button 
+                  <button
                     onClick={() => setSearchQuery("")}
                     className="p-1.5 mr-2 rounded-full hover:bg-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:text-[color:var(--error-text)] transition-colors flex-shrink-0"
                     title="Limpiar búsqueda"
@@ -809,36 +848,52 @@ export default function TemporalPage() {
                 <button
                   onClick={() => setShowFilters(!showFilters)}
                   className={`h-12 w-12 sm:w-auto sm:px-4 rounded-xl flex items-center justify-center gap-2 transition-all flex-shrink-0 text-sm border font-medium ${
-                    showFilters 
-                      ? 'bg-[color:var(--primary)] border-[color:var(--primary)] text-white shadow-lg shadow-blue-500/20' 
-                      : 'bg-[color:var(--card-background)] border-[color:var(--card-border)] text-[color:var(--text-primary)] hover:border-[color:var(--primary)]'
+                    showFilters
+                      ? "bg-[color:var(--primary)] border-[color:var(--primary)] text-white shadow-lg shadow-blue-500/20"
+                      : "bg-[color:var(--card-background)] border-[color:var(--card-border)] text-[color:var(--text-primary)] hover:border-[color:var(--primary)]"
                   }`}
                 >
                   <Filter size={18} />
                   <span className="hidden sm:inline">Filtros</span>
                 </button>
               ) : (
-                <div className="relative h-12 flex-shrink-0" ref={sortDropdownRef}>
-                  <button 
+                <div
+                  className="relative h-12 flex-shrink-0"
+                  ref={sortDropdownRef}
+                >
+                  <button
                     onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
                     className="h-full pl-3 sm:pl-4 pr-8 sm:pr-10 flex items-center gap-2 hover:bg-[color:var(--hover-bg)] transition-colors border border-[color:var(--card-border)] outline-none rounded-xl group bg-[color:var(--card-background)] text-xs sm:text-sm font-medium text-[color:var(--text-primary)]"
                   >
                     <span>
-                      {finalizadasSort === 'nombre' && 'Nombre'}
-                      {finalizadasSort === 'fecha_desc' && 'Recientes'}
-                      {finalizadasSort === 'fecha_asc' && 'Antiguas'}
+                      {finalizadasSort === "nombre" && "Nombre"}
+                      {finalizadasSort === "fecha_desc" && "Recientes"}
+                      {finalizadasSort === "fecha_asc" && "Antiguas"}
                     </span>
-                    <ArrowDownWideNarrow size={14} className={`text-[color:var(--text-secondary)] ml-auto transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
+                    <ArrowDownWideNarrow
+                      size={14}
+                      className={`text-[color:var(--text-secondary)] ml-auto transition-transform duration-200 ${
+                        isSortDropdownOpen ? "rotate-180" : ""
+                      }`}
+                    />
                   </button>
 
                   {/* Custom Dropdown Menu */}
                   {isSortDropdownOpen && (
                     <div className="absolute top-[calc(100%+0.5rem)] right-0 w-[140px] bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 p-1">
                       {[
-                        { value: 'nombre', label: 'Nombre', icon: ArrowDownAZ },
-                        { value: 'fecha_desc', label: 'Recientes', icon: ArrowDownWideNarrow },
-                        { value: 'fecha_asc', label: 'Antiguas', icon: ArrowUpWideNarrow },
-                      ].map(opt => (
+                        { value: "nombre", label: "Nombre", icon: ArrowDownAZ },
+                        {
+                          value: "fecha_desc",
+                          label: "Recientes",
+                          icon: ArrowDownWideNarrow,
+                        },
+                        {
+                          value: "fecha_asc",
+                          label: "Antiguas",
+                          icon: ArrowUpWideNarrow,
+                        },
+                      ].map((opt) => (
                         <button
                           key={opt.value}
                           onClick={() => {
@@ -846,12 +901,19 @@ export default function TemporalPage() {
                             setIsSortDropdownOpen(false);
                           }}
                           className={`w-full text-left px-3 py-2.5 text-xs sm:text-sm rounded-lg flex items-center gap-3 transition-colors ${
-                            finalizadasSort === opt.value 
-                              ? 'bg-[color:var(--primary)] text-white' 
-                              : 'text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)]'
+                            finalizadasSort === opt.value
+                              ? "bg-[color:var(--primary)] text-white"
+                              : "text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)]"
                           }`}
                         >
-                          <opt.icon size={16} className={finalizadasSort === opt.value ? 'text-white' : 'text-[color:var(--primary)]'} />
+                          <opt.icon
+                            size={16}
+                            className={
+                              finalizadasSort === opt.value
+                                ? "text-white"
+                                : "text-[color:var(--primary)]"
+                            }
+                          />
                           {opt.label}
                         </button>
                       ))}
@@ -864,7 +926,15 @@ export default function TemporalPage() {
             {/* Contador de resultados de búsqueda */}
             {searchQuery && (
               <div className="text-xs text-[color:var(--text-secondary)] px-1">
-                Mostrando {filteredSurveys.length} resultado{filteredSurveys.length !== 1 ? 's' : ''} de {surveys.filter((s) => activeTab === "activas" ? s.status !== "finalizada" : s.status === "finalizada").length}
+                Mostrando {filteredSurveys.length} resultado
+                {filteredSurveys.length !== 1 ? "s" : ""} de{" "}
+                {
+                  surveys.filter((s) =>
+                    activeTab === "activas"
+                      ? s.status !== "finalizada"
+                      : s.status === "finalizada"
+                  ).length
+                }
               </div>
             )}
 
@@ -874,12 +944,20 @@ export default function TemporalPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Recibiendo casos */}
                   <label className="flex items-center gap-2 cursor-pointer group select-none px-3 py-1.5 rounded-lg transition-colors">
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
-                      showRecibiendo 
-                        ? 'border-green-500 dark:border-green-400 bg-green-500 dark:bg-green-400' 
-                        : 'border-green-300 dark:border-green-700 opacity-40'
-                    }`}>
-                      {showRecibiendo && <Check size={14} className="text-white" strokeWidth={3} />}
+                    <div
+                      className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                        showRecibiendo
+                          ? "border-green-500 dark:border-green-400 bg-green-500 dark:bg-green-400"
+                          : "border-green-300 dark:border-green-700 opacity-40"
+                      }`}
+                    >
+                      {showRecibiendo && (
+                        <Check
+                          size={14}
+                          className="text-white"
+                          strokeWidth={3}
+                        />
+                      )}
                     </div>
                     <input
                       type="checkbox"
@@ -887,30 +965,49 @@ export default function TemporalPage() {
                       onChange={(e) => setShowRecibiendo(e.target.checked)}
                       className="hidden"
                     />
-                    <span className={`text-xs font-medium transition-colors ${
-                      showRecibiendo 
-                        ? 'text-[color:var(--text-primary)]' 
-                        : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
-                    }`}>
+                    <span
+                      className={`text-xs font-medium transition-colors ${
+                        showRecibiendo
+                          ? "text-[color:var(--text-primary)]"
+                          : "text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]"
+                      }`}
+                    >
                       Recibiendo casos
                     </span>
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
-                      showRecibiendo 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-500'
-                    }`}>
-                      {surveys.filter(s => (s.lifecycle === "recibiendo" || s.status === "recibiendo") && s.status !== "finalizada").length}
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
+                        showRecibiendo
+                          ? "bg-green-500 text-white"
+                          : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-500"
+                      }`}
+                    >
+                      {
+                        surveys.filter(
+                          (s) =>
+                            (s.lifecycle === "recibiendo" ||
+                              s.status === "recibiendo") &&
+                            s.status !== "finalizada"
+                        ).length
+                      }
                     </span>
                   </label>
 
                   {/* Pausada */}
                   <label className="flex items-center gap-2 cursor-pointer group select-none px-3 py-1.5 rounded-lg transition-colors">
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
-                      showPausada 
-                        ? 'border-blue-500 dark:border-blue-400 bg-blue-500 dark:bg-blue-400' 
-                        : 'border-blue-300 dark:border-blue-700 opacity-40'
-                    }`}>
-                      {showPausada && <Check size={14} className="text-white" strokeWidth={3} />}
+                    <div
+                      className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                        showPausada
+                          ? "border-blue-500 dark:border-blue-400 bg-blue-500 dark:bg-blue-400"
+                          : "border-blue-300 dark:border-blue-700 opacity-40"
+                      }`}
+                    >
+                      {showPausada && (
+                        <Check
+                          size={14}
+                          className="text-white"
+                          strokeWidth={3}
+                        />
+                      )}
                     </div>
                     <input
                       type="checkbox"
@@ -918,30 +1015,50 @@ export default function TemporalPage() {
                       onChange={(e) => setShowPausada(e.target.checked)}
                       className="hidden"
                     />
-                    <span className={`text-xs font-medium transition-colors ${
-                      showPausada 
-                        ? 'text-[color:var(--text-primary)]' 
-                        : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
-                    }`}>
+                    <span
+                      className={`text-xs font-medium transition-colors ${
+                        showPausada
+                          ? "text-[color:var(--text-primary)]"
+                          : "text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]"
+                      }`}
+                    >
                       Pausada
                     </span>
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
-                      showPausada 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-500'
-                    }`}>
-                      {surveys.filter(s => (s.lifecycle === "pausada" || s.status === "pausada" || s.isPaused) && s.status !== "finalizada").length}
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
+                        showPausada
+                          ? "bg-blue-500 text-white"
+                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-500"
+                      }`}
+                    >
+                      {
+                        surveys.filter(
+                          (s) =>
+                            (s.lifecycle === "pausada" ||
+                              s.status === "pausada" ||
+                              s.isPaused) &&
+                            s.status !== "finalizada"
+                        ).length
+                      }
                     </span>
                   </label>
 
                   {/* Pendiente de configurar */}
                   <label className="flex items-center gap-2 cursor-pointer group select-none px-3 py-1.5 rounded-lg transition-colors">
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
-                      showPendiente 
-                        ? 'border-yellow-500 dark:border-yellow-400 bg-yellow-500 dark:bg-yellow-400' 
-                        : 'border-yellow-300 dark:border-yellow-700 opacity-40'
-                    }`}>
-                      {showPendiente && <Check size={14} className="text-white" strokeWidth={3} />}
+                    <div
+                      className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                        showPendiente
+                          ? "border-yellow-500 dark:border-yellow-400 bg-yellow-500 dark:bg-yellow-400"
+                          : "border-yellow-300 dark:border-yellow-700 opacity-40"
+                      }`}
+                    >
+                      {showPendiente && (
+                        <Check
+                          size={14}
+                          className="text-white"
+                          strokeWidth={3}
+                        />
+                      )}
                     </div>
                     <input
                       type="checkbox"
@@ -949,26 +1066,39 @@ export default function TemporalPage() {
                       onChange={(e) => setShowPendiente(e.target.checked)}
                       className="hidden"
                     />
-                    <span className={`text-xs font-medium transition-colors ${
-                      showPendiente 
-                        ? 'text-[color:var(--text-primary)]' 
-                        : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
-                    }`}>
+                    <span
+                      className={`text-xs font-medium transition-colors ${
+                        showPendiente
+                          ? "text-[color:var(--text-primary)]"
+                          : "text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]"
+                      }`}
+                    >
                       Pendiente de configurar
                     </span>
-                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
-                      showPendiente 
-                        ? 'bg-yellow-500 text-white' 
-                        : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-500'
-                    }`}>
-                      {surveys.filter(s => (s.lifecycle === "pendiente" || s.status === "pendiente" || s.isPending) && s.status !== "finalizada").length}
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
+                        showPendiente
+                          ? "bg-yellow-500 text-white"
+                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-500"
+                      }`}
+                    >
+                      {
+                        surveys.filter(
+                          (s) =>
+                            (s.lifecycle === "pendiente" ||
+                              s.status === "pendiente" ||
+                              s.isPending) &&
+                            s.status !== "finalizada"
+                        ).length
+                      }
                     </span>
                   </label>
 
                   {/* Ver todas */}
                   <button
                     onClick={() => {
-                      const allSelected = showRecibiendo && showPausada && showPendiente;
+                      const allSelected =
+                        showRecibiendo && showPausada && showPendiente;
                       if (allSelected) {
                         // Si todas están seleccionadas, deseleccionar todas
                         setShowRecibiendo(false);
@@ -984,17 +1114,27 @@ export default function TemporalPage() {
                     className="flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg hover:bg-[color:var(--primary)]/10 transition-colors text-xs font-medium text-[color:var(--primary)] hover:text-[color:var(--primary-dark)] ml-auto"
                   >
                     <CheckCircle size={14} />
-                    {showRecibiendo && showPausada && showPendiente ? "Ocultar todas" : "Ver todas"}
+                    {showRecibiendo && showPausada && showPendiente
+                      ? "Ocultar todas"
+                      : "Ver todas"}
                   </button>
 
                   {/* Solo fechas activas - filtro independiente */}
                   <label className="flex items-center gap-2 cursor-pointer group select-none px-3 py-1.5 rounded-lg transition-colors border-l border-[color:var(--card-border)] pl-3 ml-2">
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
-                      showOnlyActive 
-                        ? 'border-purple-500 dark:border-purple-400 bg-purple-500 dark:bg-purple-400' 
-                        : 'border-purple-300 dark:border-purple-700 opacity-40'
-                    }`}>
-                      {showOnlyActive && <Check size={14} className="text-white" strokeWidth={3} />}
+                    <div
+                      className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
+                        showOnlyActive
+                          ? "border-purple-500 dark:border-purple-400 bg-purple-500 dark:bg-purple-400"
+                          : "border-purple-300 dark:border-purple-700 opacity-40"
+                      }`}
+                    >
+                      {showOnlyActive && (
+                        <Check
+                          size={14}
+                          className="text-white"
+                          strokeWidth={3}
+                        />
+                      )}
                     </div>
                     <input
                       type="checkbox"
@@ -1002,11 +1142,13 @@ export default function TemporalPage() {
                       onChange={(e) => setShowOnlyActive(e.target.checked)}
                       className="hidden"
                     />
-                    <span className={`text-xs font-medium whitespace-nowrap transition-colors ${
-                      showOnlyActive 
-                        ? 'text-[color:var(--text-primary)]' 
-                        : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]'
-                    }`}>
+                    <span
+                      className={`text-xs font-medium whitespace-nowrap transition-colors ${
+                        showOnlyActive
+                          ? "text-[color:var(--text-primary)]"
+                          : "text-[color:var(--text-muted)] group-hover:text-[color:var(--text-primary)]"
+                      }`}
+                    >
                       Solo fechas activas
                     </span>
                   </label>
@@ -1031,16 +1173,24 @@ export default function TemporalPage() {
             </button>
           ))}
           {/* Leyenda de filtros activos */}
-          {activeTab === "activas" && (!showRecibiendo || !showPausada || !showPendiente || showOnlyActive) && (
-            <div className="flex items-center ml-auto md:ml-2 text-xs text-[color:var(--text-muted)] italic animate-in fade-in duration-300 whitespace-nowrap">
-              (No se están mostrando: {[
-                !showRecibiendo && "Recibiendo casos",
-                !showPausada && "Pausadas",
-                !showPendiente && "Pendiente de configurar",
-                showOnlyActive && "fechas inactivas"
-              ].filter(Boolean).join(", ")})
-            </div>
-          )}
+          {activeTab === "activas" &&
+            (!showRecibiendo ||
+              !showPausada ||
+              !showPendiente ||
+              showOnlyActive) && (
+              <div className="flex items-center ml-auto md:ml-2 text-xs text-[color:var(--text-muted)] italic animate-in fade-in duration-300 whitespace-nowrap">
+                (No se están mostrando:{" "}
+                {[
+                  !showRecibiendo && "Recibiendo casos",
+                  !showPausada && "Pausadas",
+                  !showPendiente && "Pendiente de configurar",
+                  showOnlyActive && "fechas inactivas",
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+                )
+              </div>
+            )}
         </div>
 
         {isLoading ? (
@@ -1061,15 +1211,16 @@ export default function TemporalPage() {
                 No hay coincidencias
               </h3>
               <p className="text-[color:var(--text-secondary)] mb-6 max-w-sm mx-auto">
-                No encontramos encuestas que coincidan con tus criterios. Intenta con otra búsqueda.
+                No encontramos encuestas que coincidan con tus criterios.
+                Intenta con otra búsqueda.
               </p>
               <button
                 onClick={() => {
-                    setSearchQuery("");
-                    setSearchLocation("");
-                    setSearchDateStart("");
-                    setSearchDateEnd("");
-                    setSearchType("name");
+                  setSearchQuery("");
+                  setSearchLocation("");
+                  setSearchDateStart("");
+                  setSearchDateEnd("");
+                  setSearchType("name");
                 }}
                 className="text-[color:var(--primary)] font-semibold hover:underline"
               >
@@ -1093,295 +1244,402 @@ export default function TemporalPage() {
           <div className="space-y-4">
             {paginatedSurveys.map((survey) => {
               // Determinar color de borde según estado
-              let borderColor = 'border-[color:var(--card-border)]';
-              
-              if (survey.isPending || survey.status === 'pendiente') {
-                borderColor = 'border-l-4 border-l-yellow-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
-              } else if (survey.isPaused || survey.status === 'pausada') {
-                borderColor = 'border-l-4 border-l-blue-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
-              } else if (survey.isFinished || survey.status === 'finalizada') {
-                borderColor = 'border-l-4 border-l-gray-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]';
-              } else if (survey.isActive || survey.status === 'recibiendo') {
+              let borderColor = "border-[color:var(--card-border)]";
+
+              if (survey.isPending || survey.status === "pendiente") {
+                borderColor =
+                  "border-l-4 border-l-yellow-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]";
+              } else if (survey.isPaused || survey.status === "pausada") {
+                borderColor =
+                  "border-l-4 border-l-blue-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]";
+              } else if (survey.isFinished || survey.status === "finalizada") {
+                borderColor =
+                  "border-l-4 border-l-gray-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]";
+              } else if (survey.isActive || survey.status === "recibiendo") {
                 // Teal-800 para programadas, green-600 para activas
-                const greenColor = survey.isScheduled ? 'border-l-teal-800' : 'border-l-green-600';
+                const greenColor = survey.isScheduled
+                  ? "border-l-teal-800"
+                  : "border-l-green-600";
                 borderColor = `border-l-4 ${greenColor} border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]`;
               }
-              
+
               return (
-              <div
-                key={survey.id}
-                className={`group bg-[color:var(--card-background)] backdrop-blur-sm rounded-xl p-3 md:p-4 hover:bg-[color:var(--hover-bg)] transition-all relative ${borderColor}`}
-              >
-                <div className="flex flex-col gap-2.5">
-                  {/* Primera línea: Título (grande) + Tag (top-right, superpuesto) */}
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-lg md:text-xl font-bold break-words text-[color:var(--text-primary)] flex-1">
-                      {survey.title}
-                    </h3>
-                    <div className="absolute -top-2 right-3 flex-shrink-0">
-                      <StatusBadge survey={survey} />
+                <div
+                  key={survey.id}
+                  className={`group bg-[color:var(--card-background)] backdrop-blur-sm rounded-xl p-3 md:p-4 hover:bg-[color:var(--hover-bg)] transition-all relative ${borderColor}`}
+                >
+                  <div className="flex flex-col gap-2.5">
+                    {/* Primera línea: Título (grande) + Tag (top-right, superpuesto) */}
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-lg md:text-xl font-bold break-words text-[color:var(--text-primary)] flex-1">
+                        {survey.title}
+                      </h3>
+                      <div className="absolute -top-2 right-3 flex-shrink-0">
+                        <StatusBadge survey={survey} />
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Segunda línea: Descripción (pequeña, muteada) */}
-                  {survey.description && (
-                    <p className="text-xs text-[color:var(--text-secondary)] opacity-70">
-                      {survey.description}
-                    </p>
-                  )}
 
-                  {/* Tercera línea: Fechas + Días restantes */}
-                  <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="flex items-center gap-1.5 text-[color:var(--text-primary)]">
-                      <Calendar size={14} />
-                      {survey.isScheduled ? (
-                        <>
-                          <span className="group-hover:text-yellow-500 group-hover:font-semibold transition-all duration-200">
-                            {formatDate(survey.startDate)}
-                          </span>
-                          <span> - {formatDate(survey.endDate)}</span>
-                        </>
-                      ) : (
-                        <>{formatDate(survey.startDate)} - {formatDate(survey.endDate)}</>
-                      )}
-                    </span>
-                    {survey.status !== "finalizada" && survey.endDate && (() => {
-                      const now = new Date();
-                      const end = new Date(survey.endDate);
-                      const diffTime = Math.abs(end - now);
-                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                      return (
-                        <span className="text-xs text-[color:var(--text-secondary)] opacity-70">
-                          (quedan {diffDays} días)
-                        </span>
-                      );
-                    })()}
-                  </div>
+                    {/* Segunda línea: Descripción (pequeña, muteada) */}
+                    {survey.description && (
+                      <p className="text-xs text-[color:var(--text-secondary)] opacity-70">
+                        {survey.description}
+                      </p>
+                    )}
 
-                  {/* Cuarta línea: Stats (preguntas | encuestadores | casos) */}
-                  <div className="flex flex-wrap gap-3 text-xs text-[color:var(--text-secondary)]">
-                    <span className="flex items-center gap-1.5 whitespace-nowrap">
-                      <FileText size={13} />
-                      {survey.hasConditionalQuestions && survey.minQuestions !== survey.maxQuestions
-                        ? `${survey.minQuestions}-${survey.maxQuestions} preguntas`
-                        : `${survey.questions || 0} preguntas`
-                      }
-                    </span>
-                    <span className="flex items-center gap-1.5 whitespace-nowrap">
-                      <Users size={13} />
-                      {survey.surveyors || 0} encuestadores
-                    </span>
-                    <span className="flex items-center gap-1.5 whitespace-nowrap">
-                      <CheckCircle size={13} />
-                      {survey.cases}/{survey.totalCases || 0} casos
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap justify-between items-center gap-1.5 pt-2 border-t border-[color:var(--card-border)]">
-                    <div className="hidden md:flex flex-wrap gap-1.5">
-                      <ActionButton
-                        icon={ClipboardList}
-                        label="Editar formulario"
-                        onClick={() =>
-                          router.push(
-                            `/dashboard/temporal/nueva?id=${survey.id}`
-                          )
-                        }
-                        hasAlert={!survey.hasForm}
-                      />
-                      <ActionButton
-                        icon={Settings}
-                        label="Configurar"
-                        hasAlert={!survey.hasConfig}
-                        onClick={() =>
-                          router.push(
-                            `/dashboard/temporal/configurar?id=${survey.id}`
-                          )
-                        }
-                      />
-                      <ActionButton
-                        icon={Users}
-                        label="Asignar participantes"
-                        hasAlert={!survey.hasParticipants}
-                        onClick={() =>
-                          router.push(
-                            `/dashboard/temporal/participantes?id=${survey.id}`
-                          )
-                        }
-                      />
-                      <ActionButton
-                        icon={BarChart3}
-                        label="Supervisión"
-                        onClick={() => router.push(`/dashboard/encuestas/${survey.id}/supervision`)}
-                      />
-                    </div>
-                    <div className="hidden md:flex gap-1.5 ml-auto">
-                      {survey.status !== "finalizada" && (
-                        <ActionButton
-                          icon={survey.isActive ? Pause : Play}
-                          label={survey.isActive ? "Pausar" : "Activar"}
-                          variant={survey.isActive ? "warning" : "success"}
-                          iconOnly
-                          tooltip={survey.isActive ? "Pausar encuesta" : "Activar encuesta"}
-                          onClick={() => handleToggleSurvey(survey)}
-                          isLoading={isToggling === survey.id}
-                        />
-                      )}
-                      {survey.cases > 0 && (
-                        <ActionButton
-                          icon={Eraser}
-                          label="Borrar respuestas"
-                          variant="danger"
-                          iconOnly
-                          tooltip="Borrar todas las respuestas"
-                          onClick={() => handleDeleteAnswers(survey)}
-                        />
-                      )}
-                      <ActionButton
-                        icon={Copy}
-                        label="Clonar"
-                        iconOnly
-                        tooltip="Clonar encuesta"
-                        onClick={() => handleClone(survey)}
-                      />
-                      <ActionButton
-                        icon={Trash2}
-                        label="Eliminar"
-                        variant="danger"
-                        iconOnly
-                        tooltip="Eliminar encuesta"
-                        onClick={() => handleDelete(survey.id)}
-                      />
-                    </div>
-                    <div className="flex md:hidden items-center gap-1.5 w-full">
-                      <div className="flex flex-1 flex-wrap gap-1.5">
-                        {/* Si está pendiente de configurar, mostrar botones de configuración */}
-                        {survey.isPending ? (
+                    {/* Tercera línea: Fechas + Días restantes */}
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="flex items-center gap-1.5 text-[color:var(--text-primary)]">
+                        <Calendar size={14} />
+                        {survey.isScheduled ? (
                           <>
-                            <ActionButton
-                              icon={Settings}
-                              label="Configurar"
-                              hasAlert={!survey.hasConfig}
-                              onClick={() =>
-                                router.push(
-                                  `/dashboard/temporal/configurar?id=${survey.id}`
-                                )
-                              }
-                            />
-                            <ActionButton
-                              icon={Users}
-                              label="Participantes"
-                              hasAlert={!survey.hasParticipants}
-                              onClick={() =>
-                                router.push(
-                                  `/dashboard/temporal/participantes?id=${survey.id}`
-                                )
-                              }
-                            />
+                            <span className="group-hover:text-yellow-500 group-hover:font-semibold transition-all duration-200">
+                              {formatDate(survey.startDate)}
+                            </span>
+                            <span> - {formatDate(survey.endDate)}</span>
                           </>
                         ) : (
                           <>
-                            <ActionButton
-                              icon={ClipboardList}
-                              label="Editar"
-                              onClick={() =>
-                                router.push(
-                                  `/dashboard/temporal/nueva?id=${survey.id}`
-                                )
-                              }
-                            />
-                            <ActionButton
-                              icon={BarChart3}
-                              label="Supervisión"
-                              onClick={() =>
-                                router.push(`/dashboard/encuestas/${survey.id}/supervision`)
-                              }
-                            />
+                            {formatDate(survey.startDate)} -{" "}
+                            {formatDate(survey.endDate)}
                           </>
                         )}
-                      </div>
-                      <div className="relative">
-                        <button
+                      </span>
+                      {survey.status !== "finalizada" &&
+                        survey.endDate &&
+                        (() => {
+                          const now = new Date();
+                          const end = new Date(survey.endDate);
+                          const diffTime = Math.abs(end - now);
+                          const diffDays = Math.ceil(
+                            diffTime / (1000 * 60 * 60 * 24)
+                          );
+                          return (
+                            <span className="text-xs text-[color:var(--text-secondary)] opacity-70">
+                              (quedan {diffDays} días)
+                            </span>
+                          );
+                        })()}
+                    </div>
+
+                    {/* Cuarta línea: Stats (preguntas | encuestadores | casos) */}
+                    <div className="flex flex-wrap gap-3 text-xs text-[color:var(--text-secondary)]">
+                      <span className="flex items-center gap-1.5 whitespace-nowrap">
+                        <FileText size={13} />
+                        {survey.hasConditionalQuestions &&
+                        survey.minQuestions !== survey.maxQuestions
+                          ? `${survey.minQuestions}-${survey.maxQuestions} preguntas`
+                          : `${survey.questions || 0} preguntas`}
+                      </span>
+                      <span className="flex items-center gap-1.5 whitespace-nowrap">
+                        <Users size={13} />
+                        {survey.surveyors || 0} encuestadores
+                      </span>
+                      <span className="flex items-center gap-1.5 whitespace-nowrap">
+                        <CheckCircle size={13} />
+                        {survey.cases}/{survey.totalCases || 0} casos
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap justify-between items-center gap-1.5 pt-2 border-t border-[color:var(--card-border)]">
+                      <div className="hidden md:flex flex-wrap gap-1.5">
+                        <ActionButton
+                          icon={ClipboardList}
+                          label="Editar formulario"
                           onClick={() =>
-                            setOpenMenuId((prev) =>
-                              prev === survey.id ? null : survey.id
+                            router.push(
+                              `/dashboard/temporal/nueva?id=${survey.id}`
                             )
                           }
-                          className="px-3 py-2 rounded-lg border border-[color:var(--card-border)] bg-[color:var(--card-background)] text-[color:var(--text-primary)] text-sm font-semibold"
-                        >
-                          Más
-                        </button>
-                        {openMenuId === survey.id && (
-                          <div className="absolute bottom-full right-0 mb-2 w-56 bg-[color:var(--card-background)] border border-[color:var(--card-border)] rounded-xl shadow-lg p-2 flex flex-col gap-1 z-20">
-                            <ActionButton
-                              icon={Settings}
-                              label="Configurar"
-                              hasAlert={!survey.hasConfig}
-                              className="w-full justify-start"
-                              onClick={() => {
-                                router.push(
-                                  `/dashboard/temporal/configurar?id=${survey.id}`
-                                );
-                                setOpenMenuId(null);
-                              }}
-                            />
-                            <ActionButton
-                              icon={Users}
-                              label="Asignar participantes"
-                              hasAlert={!survey.hasParticipants}
-                              className="w-full justify-start"
-                              onClick={() => {
-                                router.push(
-                                  `/dashboard/temporal/participantes?id=${survey.id}`
-                                );
-                                setOpenMenuId(null);
-                              }}
-                            />
-                            <ActionButton
-                              icon={survey.isActive ? Pause : Play}
-                              label={survey.isActive ? "Pausar" : "Activar"}
-                              variant={survey.isActive ? "warning" : "success"}
-                              className="w-full justify-start"
-                              onClick={() => {
-                                handleToggleSurvey(survey.id);
-                                setOpenMenuId(null);
-                              }}
-                            />
-                            <ActionButton
-                              icon={Copy}
-                              label="Clonar"
-                              className="w-full justify-start"
-                              onClick={() => {
-                                handleClone(survey);
-                                setOpenMenuId(null);
-                              }}
-                            />
-                            <ActionButton
-                              icon={Trash2}
-                              label="Eliminar"
-                              variant="danger"
-                              className="w-full justify-start"
-                              onClick={() => {
-                                handleDelete(survey.id);
-                                setOpenMenuId(null);
-                              }}
-                            />
-                          </div>
+                          hasAlert={!survey.hasForm}
+                        />
+                        <ActionButton
+                          icon={Settings}
+                          label="Configurar"
+                          hasAlert={!survey.hasConfig}
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/temporal/configurar?id=${survey.id}`
+                            )
+                          }
+                        />
+                        <ActionButton
+                          icon={Users}
+                          label="Asignar participantes"
+                          hasAlert={!survey.hasParticipants}
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/temporal/participantes?id=${survey.id}`
+                            )
+                          }
+                        />
+                        <ActionButton
+                          icon={BarChart3}
+                          label="Supervisión"
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/encuestas/${survey.id}/supervision`
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="hidden md:flex gap-1.5 ml-auto">
+                        {survey.status !== "finalizada" && (
+                          <ActionButton
+                            icon={survey.isActive ? Pause : Play}
+                            label={survey.isActive ? "Pausar" : "Activar"}
+                            variant={survey.isActive ? "warning" : "success"}
+                            iconOnly
+                            tooltip={
+                              survey.isActive
+                                ? "Pausar encuesta"
+                                : "Activar encuesta"
+                            }
+                            onClick={() => handleToggleSurvey(survey)}
+                            isLoading={isToggling === survey.id}
+                          />
                         )}
+                        {survey.cases > 0 && (
+                          <ActionButton
+                            icon={Eraser}
+                            label="Borrar respuestas"
+                            variant="danger"
+                            iconOnly
+                            tooltip="Borrar todas las respuestas"
+                            onClick={() => handleDeleteAnswers(survey)}
+                          />
+                        )}
+                        <ActionButton
+                          icon={Copy}
+                          label="Clonar"
+                          iconOnly
+                          tooltip="Clonar encuesta"
+                          onClick={() => handleClone(survey)}
+                        />
+                        <ActionButton
+                          icon={Trash2}
+                          label="Eliminar"
+                          variant="danger"
+                          iconOnly
+                          tooltip="Eliminar encuesta"
+                          onClick={() => handleDelete(survey.id)}
+                        />
+                      </div>
+                      <div className="flex md:hidden items-center gap-1.5 w-full">
+                        <div className="flex flex-1 flex-wrap gap-1.5">
+                          {/* Si está pendiente de configurar, mostrar botones de configuración */}
+                          {survey.isPending ? (
+                            <>
+                              <ActionButton
+                                icon={Settings}
+                                label="Configurar"
+                                hasAlert={!survey.hasConfig}
+                                onClick={() =>
+                                  router.push(
+                                    `/dashboard/temporal/configurar?id=${survey.id}`
+                                  )
+                                }
+                              />
+                              <ActionButton
+                                icon={Users}
+                                label="Participantes"
+                                hasAlert={!survey.hasParticipants}
+                                onClick={() =>
+                                  router.push(
+                                    `/dashboard/temporal/participantes?id=${survey.id}`
+                                  )
+                                }
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <ActionButton
+                                icon={ClipboardList}
+                                label="Editar"
+                                onClick={() =>
+                                  router.push(
+                                    `/dashboard/temporal/nueva?id=${survey.id}`
+                                  )
+                                }
+                              />
+                              <ActionButton
+                                icon={BarChart3}
+                                label="Supervisión"
+                                onClick={() =>
+                                  router.push(
+                                    `/dashboard/encuestas/${survey.id}/supervision`
+                                  )
+                                }
+                              />
+                            </>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <button
+                            onClick={() =>
+                              setOpenMenuId((prev) =>
+                                prev === survey.id ? null : survey.id
+                              )
+                            }
+                            className={`px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                              openMenuId === survey.id
+                                ? "border-[color:var(--primary)] bg-[color:var(--primary)]/10 text-[color:var(--primary)]"
+                                : "border-[color:var(--card-border)] bg-[color:var(--card-background)] text-[color:var(--text-primary)]"
+                            }`}
+                          >
+                            Más
+                          </button>
+                          {openMenuId === survey.id && (
+                            <>
+                              {/* Backdrop */}
+                              <div
+                                className="fixed inset-0 bg-[color:var(--primary)]/5 z-10"
+                                onClick={() => setOpenMenuId(null)}
+                              />
+                              {/* Botones flotantes individuales - MUCHO más compactos */}
+                              <div className="absolute bottom-full right-0 mb-1.5 w-40 flex flex-col gap-0.5 z-20">
+                                {/* 1. Configurar */}
+                                <button
+                                  onClick={() => {
+                                    router.push(
+                                      `/dashboard/temporal/configurar?id=${survey.id}`
+                                    );
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="relative w-full px-2 py-1 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
+                                >
+                                  {!survey.hasConfig && (
+                                    <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
+                                      <AlertCircle
+                                        size={8}
+                                        className="text-white"
+                                        strokeWidth={3}
+                                      />
+                                    </div>
+                                  )}
+                                  <Settings size={11} />
+                                  Configurar
+                                </button>
+
+                                {/* 2. Asignar participantes */}
+                                <button
+                                  onClick={() => {
+                                    router.push(
+                                      `/dashboard/temporal/participantes?id=${survey.id}`
+                                    );
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="relative w-full px-2 py-1 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
+                                >
+                                  {!survey.hasParticipants && (
+                                    <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
+                                      <AlertCircle
+                                        size={8}
+                                        className="text-white"
+                                        strokeWidth={3}
+                                      />
+                                    </div>
+                                  )}
+                                  <Users size={11} />
+                                  Participantes
+                                </button>
+
+                                {/* 3. Prueba local */}
+                                <button
+                                  onClick={() => {
+                                    // Guardar surveyId y redirigir en modo test
+                                    if (typeof window !== "undefined") {
+                                      window.sessionStorage.setItem(
+                                        "responder:surveyId",
+                                        survey.id
+                                      );
+                                    }
+                                    router.push(
+                                      `/dashboard/encuestas/responder?mode=test`
+                                    );
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-2 py-1 rounded-md bg-teal-600 dark:bg-teal-500 text-white border border-teal-700/50 dark:border-teal-400/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
+                                >
+                                  <Eye size={11} />
+                                  Prueba local
+                                </button>
+
+                                {/* 4. Clonar */}
+                                <button
+                                  onClick={() => {
+                                    handleClone(survey);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-2 py-1 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
+                                >
+                                  <Copy size={11} />
+                                  Clonar
+                                </button>
+
+                                {/* 5. Pausar/Activar */}
+                                {survey.status !== "finalizada" && (
+                                  <button
+                                    onClick={() => {
+                                      handleToggleSurvey(survey);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className={`w-full px-2 py-1 rounded-md border shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px] ${
+                                      survey.isActive
+                                        ? "bg-yellow-600 text-white border-yellow-700/50"
+                                        : "bg-green-600 text-white border-green-700/50"
+                                    }`}
+                                  >
+                                    {survey.isActive ? (
+                                      <Pause size={11} />
+                                    ) : (
+                                      <Play size={11} />
+                                    )}
+                                    {survey.isActive ? "Pausar" : "Activar"}
+                                  </button>
+                                )}
+
+                                {/* 6. Eliminar respuestas */}
+                                {survey.cases > 0 && (
+                                  <button
+                                    onClick={() => {
+                                      handleDeleteAnswers(survey);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-2 py-1 rounded-md bg-orange-600 text-white border border-orange-700/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
+                                  >
+                                    <Eraser size={11} />
+                                    Borrar respuestas
+                                  </button>
+                                )}
+
+                                {/* 7. Eliminar encuesta */}
+                                <button
+                                  onClick={() => {
+                                    handleDelete(survey.id);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-2 py-1 rounded-md bg-red-600 text-white border border-red-700/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
+                                >
+                                  <Trash2 size={11} />
+                                  Eliminar encuesta
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
+              );
             })}
-
 
             {/* Paginación */}
             {filteredSurveys.length > pageSize && (
               <div className="flex items-center justify-between gap-3 pt-2">
                 <div className="text-xs text-[color:var(--text-secondary)]">
-                  Página {pageSafe + 1} de {totalPages} · {filteredSurveys.length} encuestas
+                  Página {pageSafe + 1} de {totalPages} ·{" "}
+                  {filteredSurveys.length} encuestas
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1394,7 +1652,9 @@ export default function TemporalPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    onClick={() =>
+                      setPage((p) => Math.min(totalPages - 1, p + 1))
+                    }
                     disabled={pageSafe >= totalPages - 1}
                     className="px-3 py-2 rounded-lg border border-[color:var(--card-border)] bg-[color:var(--card-background)] text-[color:var(--text-primary)] text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[color:var(--hover-bg)]"
                   >
@@ -1411,13 +1671,16 @@ export default function TemporalPage() {
           isOpen={pauseModalOpen}
           onClose={() => setPauseModalOpen(false)}
           onConfirm={confirmToggleSurvey}
-          title={surveyToPause?.isActive ? "Pausar encuesta" : "Activar encuesta"}
+          title={
+            surveyToPause?.isActive ? "Pausar encuesta" : "Activar encuesta"
+          }
           confirmText={surveyToPause?.isActive ? "Pausar" : "Activar"}
           variant={surveyToPause?.isActive ? "warning" : "primary"}
           isLoading={isToggling === surveyToPause?.id}
         >
           <p>
-            ¿Estás seguro de que deseas {surveyToPause?.isActive ? "pausar" : "activar"} la encuesta{" "}
+            ¿Estás seguro de que deseas{" "}
+            {surveyToPause?.isActive ? "pausar" : "activar"} la encuesta{" "}
             <span className="font-semibold text-[color:var(--text-primary)]">
               {surveyToPause?.title}
             </span>
@@ -1453,15 +1716,18 @@ export default function TemporalPage() {
           confirmText="Borrar"
           isLoading={isDeletingAnswers}
           variant="danger"
-          alertMessage={`Esta acción es irreversible. Se eliminarán permanentemente todas las respuestas (${surveyToDeleteAnswers?.cases || 0} casos).`}
+          alertMessage={`Esta acción es irreversible. Se eliminarán permanentemente todas las respuestas (${
+            surveyToDeleteAnswers?.cases || 0
+          } casos).`}
         >
           <p>
-              ¿Estás seguro de que deseas borrar todas las respuestas de la encuesta{" "}
-              <span className="font-semibold text-[color:var(--text-primary)]">
-                {surveyToDeleteAnswers?.title}
-              </span>
-              ?
-            </p>
+            ¿Estás seguro de que deseas borrar todas las respuestas de la
+            encuesta{" "}
+            <span className="font-semibold text-[color:var(--text-primary)]">
+              {surveyToDeleteAnswers?.title}
+            </span>
+            ?
+          </p>
         </ConfirmModal>
 
         {/* Modal de confirmación para eliminar encuesta */}
@@ -1476,12 +1742,12 @@ export default function TemporalPage() {
           alertMessage="Esta acción es irreversible. Se eliminarán el formulario, configuración y todas las respuestas."
         >
           <p>
-              ¿Estás seguro de que deseas eliminar la encuesta{" "}
-              <span className="font-semibold text-[color:var(--text-primary)]">
-                {surveyToDelete?.title}
-              </span>
-              ?
-            </p>
+            ¿Estás seguro de que deseas eliminar la encuesta{" "}
+            <span className="font-semibold text-[color:var(--text-primary)]">
+              {surveyToDelete?.title}
+            </span>
+            ?
+          </p>
         </ConfirmModal>
       </div>
     </div>

@@ -112,10 +112,20 @@ export default function ParticipantesPage() {
           const existing = await surveyService.getSurvey(surveyId);
           const surveyDoc = existing?.survey || {};
           const surveyInfo = surveyDoc?.surveyInfo || {};
+          
+          // Usar verificación en cascada para leer IDs guardados
           const savedIds =
             selectedType === "pollsters"
-              ? (surveyDoc.userIds || surveyInfo.userIds || [])
-              : (surveyDoc.supervisorsIds || surveyInfo.supervisorsIds || []);
+              ? (existing?.survey?.surveyInfo?.userIds ||
+                 existing?.survey?.participants?.userIds ||
+                 existing?.survey?.userIds ||
+                 surveyInfo.userIds ||
+                 [])
+              : (existing?.survey?.surveyInfo?.supervisorsIds ||
+                 existing?.survey?.participants?.supervisorsIds ||
+                 existing?.survey?.supervisorsIds ||
+                 surveyInfo.supervisorsIds ||
+                 []);
           setSelectedParticipants((savedIds || []).map(String));
           
           // 4) Cargar meta total y asignaciones de casos (solo para pollsters)
@@ -123,8 +133,18 @@ export default function ParticipantesPage() {
             const target = surveyInfo.target || 0;
             setMetaTotal(target);
             
-            const savedAssignments = surveyDoc.participants?.pollsterAssignments || 
-                                    surveyInfo.pollsterAssignments || [];
+            // Usar verificación en cascada para leer asignaciones de casos
+            const savedAssignments = 
+              existing?.survey?.participants?.pollsterAssignments ||
+              existing?.survey?.pollsterAssignments ||
+              surveyInfo.pollsterAssignments || 
+              [];
+            
+            console.log('📥 Cargando asignaciones existentes:', {
+              savedAssignments: savedAssignments.length,
+              assignments: savedAssignments
+            });
+            
             setPollsterAssignments(savedAssignments);
           }
         } catch (e) {
