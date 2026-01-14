@@ -1560,7 +1560,7 @@ export default function TemporalPage() {
                                       );
                                       setOpenMenuId(null);
                                     }}
-                                    className="px-2 py-1.5 rounded-md bg-teal-600 dark:bg-teal-500 text-white border border-teal-700/50 dark:border-teal-400/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
+                                    className="px-2 py-1.5 rounded-md bg-teal-700 dark:bg-teal-600 text-white border border-teal-800/50 dark:border-teal-500/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
                                   >
                                     <Eye size={12} />
                                     Prueba
