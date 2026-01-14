@@ -12,6 +12,7 @@ import {
   MapPin,
   X,
   ChevronDown,
+  Scale,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { userService } from "@/services/user.service";
@@ -50,6 +51,10 @@ export default function ParticipantesPage() {
   // Selection state
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [showSelectedOnMobile, setShowSelectedOnMobile] = useState(false); // For mobile expandable section
+  
+  // Case assignment state (for pollsters only)
+  const [pollsterAssignments, setPollsterAssignments] = useState([]); // [{ pollsterId, assignedCases }]
+  const [metaTotal, setMetaTotal] = useState(0); // Meta total from survey config
 
   // Pagination (aplica a la grilla luego de filtros/búsqueda)
   const participantsPageSize = 24;
@@ -112,6 +117,16 @@ export default function ParticipantesPage() {
               ? (surveyDoc.userIds || surveyInfo.userIds || [])
               : (surveyDoc.supervisorsIds || surveyInfo.supervisorsIds || []);
           setSelectedParticipants((savedIds || []).map(String));
+          
+          // 4) Cargar meta total y asignaciones de casos (solo para pollsters)
+          if (selectedType === "pollsters") {
+            const target = surveyInfo.target || 0;
+            setMetaTotal(target);
+            
+            const savedAssignments = surveyDoc.participants?.pollsterAssignments || 
+                                    surveyInfo.pollsterAssignments || [];
+            setPollsterAssignments(savedAssignments);
+          }
         } catch (e) {
           console.warn("No se pudo precargar selección desde la encuesta:", e);
         }
@@ -124,6 +139,63 @@ export default function ParticipantesPage() {
       setLoading(false);
     }
   };
+
+  // Helper functions for case assignment
+  const handlePollsterAssignmentChange = (pollsterId, assignedCases) => {
+    setPollsterAssignments((prev) => {
+      const updated = [...prev];
+      const existingIndex = updated.findIndex((a) => a.pollsterId === pollsterId);
+      
+      if (existingIndex >= 0) {
+        updated[existingIndex] = { pollsterId, assignedCases };
+      } else {
+        updated.push({ pollsterId, assignedCases });
+      }
+      
+      return updated;
+    });
+  };
+
+  const getTotalAssignedCases = () => {
+    return pollsterAssignments.reduce(
+      (total, assignment) => total + (assignment.assignedCases || 0),
+      0
+    );
+  };
+
+  const getAssignedCases = (pollsterId) => {
+    const assignment = pollsterAssignments.find(
+      (a) => a.pollsterId === pollsterId
+    );
+    return assignment ? assignment.assignedCases || 0 : 0;
+  };
+
+  const distributeEqually = () => {
+    if (!metaTotal || selectedParticipants.length === 0) return;
+    
+    const casesPerPollster = Math.floor(metaTotal / selectedParticipants.length);
+    const remainder = metaTotal % selectedParticipants.length;
+    
+    const newAssignments = selectedParticipants.map((pollsterId, index) => ({
+      pollsterId,
+      assignedCases: casesPerPollster + (index === 0 ? remainder : 0),
+    }));
+    
+    setPollsterAssignments(newAssignments);
+  };
+
+  // Auto-distribute when pollsters are selected - DISABLED per user request
+  // Users want manual control over case assignment
+  /*
+  useEffect(() => {
+    if (selectedType === "pollsters" && selectedParticipants.length > 0 && metaTotal > 0) {
+      // Only auto-distribute if there are no existing assignments
+      if (pollsterAssignments.length === 0) {
+        distributeEqually();
+      }
+    }
+  }, [selectedParticipants.length, metaTotal, selectedType]);
+  */
 
   // Handle type selection
   const handleTypeSelect = (type) => {
@@ -139,6 +211,8 @@ export default function ParticipantesPage() {
       setParticipants([]);
       setFavorites([]);
       setSelectedParticipants([]);
+      setPollsterAssignments([]); // Reset assignments
+      setMetaTotal(0); // Reset meta
       setSearchQuery("");
       setSelectedProvince("");
       setSelectedCity("");
@@ -198,6 +272,13 @@ export default function ParticipantesPage() {
       if (isAdding && !isSelectedPanelExpanded) {
         setShowAddedFlash(true);
         setTimeout(() => setShowAddedFlash(false), 600); // Flash duration
+      }
+      
+      // If removing a participant, also remove their case assignment
+      if (!isAdding && selectedType === "pollsters") {
+        setPollsterAssignments((prevAssignments) =>
+          prevAssignments.filter((a) => a.pollsterId !== String(participantId))
+        );
       }
       
       return isAdding
@@ -318,13 +399,40 @@ export default function ParticipantesPage() {
       // selectedParticipants ya es un array de IDs (strings)
       const participantIds = selectedParticipants;
       
-      let updatedUserIds = surveyInfo.userIds || [];
-      let updatedSupervisorsIds = surveyInfo.supervisorsIds || [];
+      // Preservar datos existentes y solo actualizar el tipo que estamos editando
+      // Usar verificación en cascada para leer desde múltiples ubicaciones posibles
+      let updatedUserIds = 
+        existing?.survey?.surveyInfo?.userIds ||
+        existing?.survey?.participants?.userIds ||
+        existing?.survey?.userIds ||
+        surveyInfo.userIds ||
+        [];
+      let updatedSupervisorsIds = 
+        existing?.survey?.surveyInfo?.supervisorsIds ||
+        existing?.survey?.participants?.supervisorsIds ||
+        existing?.survey?.supervisorsIds ||
+        surveyInfo.supervisorsIds ||
+        [];
+      let updatedPollsterAssignments = 
+        existing?.survey?.participants?.pollsterAssignments ||
+        existing?.survey?.pollsterAssignments ||
+        [];
+
+      console.log('📊 Preservando datos existentes:', {
+        selectedType,
+        updatedUserIds: updatedUserIds.length,
+        updatedSupervisorsIds: updatedSupervisorsIds.length,
+        updatedPollsterAssignments: updatedPollsterAssignments.length
+      });
+
 
       if (selectedType === 'pollsters') {
         updatedUserIds = participantIds;
+        updatedPollsterAssignments = pollsterAssignments;
+        // Mantener supervisorsIds existentes
       } else if (selectedType === 'supervisors') {
         updatedSupervisorsIds = participantIds;
+        // Mantener userIds y pollsterAssignments existentes
       }
 
       // Preparar datos completos
@@ -339,10 +447,18 @@ export default function ParticipantesPage() {
         participants: {
           userIds: updatedUserIds,
           supervisorsIds: updatedSupervisorsIds,
-          pollsterAssignments: [],
-          quotaAssignments: []
+          pollsterAssignments: updatedPollsterAssignments,
+          quotaAssignments: existing?.survey?.participants?.quotaAssignments || []
         }
       };
+
+      console.log('💾 Guardando datos:', {
+        selectedType,
+        userIds: dataToSave.participants.userIds.length,
+        supervisorsIds: dataToSave.participants.supervisorsIds.length,
+        pollsterAssignments: dataToSave.participants.pollsterAssignments.length
+      });
+
 
       // Actualizar en el backend
       await surveyService.createOrUpdateSurvey(dataToSave, surveyId, false);
@@ -509,7 +625,7 @@ export default function ParticipantesPage() {
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
                     Seleccionados
                   </p>
-                  <p className="text-xs text-[var(--secondary-dark)]">
+                  <p className="text-xs text-[var(--text-primary)] dark:text-[var(--text-secondary)]">
                     {selectedParticipants.length} {selectedType === "pollsters" ? "encuestador" : "supervisor"}{selectedParticipants.length !== 1 ? "es" : ""}
                   </p>
                 </div>
@@ -598,71 +714,159 @@ export default function ParticipantesPage() {
           
           {/* Content - Only visible when expanded */}
           {isSelectedPanelExpanded && (
-            <div className="flex-1 overflow-y-auto p-3 min-h-0">
-              {selectedRows.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-12 h-12 bg-[var(--card-background)] rounded-full flex items-center justify-center mx-auto mb-3 border border-[var(--card-border)]">
-                    <Users className="w-6 h-6 text-[var(--text-secondary)]" />
-                  </div>
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    Ningún participante seleccionado
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {selectedRows.map((participant) => {
-                    const isFavorite = favoriteIds.has(participant.id);
-                    return (
-                      <div
-                        key={participant.id}
-                        className="bg-[var(--background)] border border-[var(--card-border)] rounded-lg px-2.5 py-2 group hover:border-[var(--primary)]/50 transition-all hover:bg-[var(--hover-bg)] relative overflow-hidden"
-                      >
-                         {/* Remove Overlay - Compact */}
-                         <div 
-                           onClick={() => handleParticipantToggle(participant.id)}
-                           className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-red-50/90 cursor-pointer"
-                         >
-                            <div className="flex items-center gap-1.5 text-red-600">
-                                <X className="w-3.5 h-3.5" />
-                                <span className="text-[10px] font-semibold">Quitar</span>
-                            </div>
-                         </div>
-
-                        {/* Content that blurs */}
-                        <div className="relative transition-all duration-200 group-hover:blur-[1.5px] group-hover:opacity-50">
-                            {/* Favorite Star */}
-                            {isFavorite && (
-                              <div className="absolute top-0 right-0 z-10">
-                                <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2">
-                              {/* Photo - smaller for compact list */}
-                              <div className="relative flex-shrink-0">
-                                <UserAvatar
-                                  src={participant.image}
-                                  alt={`Foto de ${participant.fullName || 'usuario'}`}
-                                  size="sm"
-                                  className="rounded-lg"
-                                />
-                              </div>
-                              
-                              {/* Info section - compact */}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
-                                  {participant.fullName}
-                                </p>
-                                <p className="text-[10px] text-[var(--text-secondary)] truncate">
-                                  {participant.city || participant.province || participant.email}
-                                </p>
-                              </div>
-                            </div>
-                        </div>
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+              {/* Header with total and distribute button - Only for pollsters */}
+              {selectedType === "pollsters" && selectedParticipants.length > 0 && metaTotal > 0 && (
+                <div className="flex-shrink-0 p-3 space-y-2 border-b border-[var(--card-border)]">
+                  {/* Total and Distribute button in same row */}
+                  <div className="flex items-center gap-2">
+                    {/* Total indicator */}
+                    <div className="flex-1 bg-[var(--background)] border border-[var(--card-border)] rounded-lg px-2.5 py-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-[var(--text-secondary)]">Total asignado:</span>
+                        <span className={`font-bold ${
+                          getTotalAssignedCases() > metaTotal
+                            ? "text-red-600"
+                            : getTotalAssignedCases() === metaTotal
+                            ? "text-green-600"
+                            : "text-orange-600"
+                        }`}>
+                          {getTotalAssignedCases()} / {metaTotal}
+                        </span>
                       </div>
-                    );
-                  })}
+                    </div>
+
+                    {/* Distribute button */}
+                    <button
+                      onClick={distributeEqually}
+                      className="flex-shrink-0 px-3 py-1.5 text-xs bg-[var(--primary-dark)] dark:bg-[var(--primary-light)] text-white dark:text-[var(--primary-dark)] hover:opacity-90 rounded-lg transition-opacity font-medium flex items-center gap-1.5"
+                    >
+                      <Scale className="w-3.5 h-3.5" />
+                      Distribuir
+                    </button>
+                  </div>
+                  
+                  {/* Warning message if needed */}
+                  {getTotalAssignedCases() !== metaTotal && (
+                    <p className={`text-[9px] px-1 ${
+                      getTotalAssignedCases() > metaTotal ? "text-red-600" : "text-orange-600"
+                    }`}>
+                      {getTotalAssignedCases() > metaTotal 
+                        ? "⚠️ Excede la meta total" 
+                        : `Faltan ${metaTotal - getTotalAssignedCases()} casos por asignar`}
+                    </p>
+                  )}
+
+                  {/* Column Headers */}
+                  <div className="flex items-center gap-2 px-2 pt-2">
+                    <div className="flex-1">
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">
+                        Nombre
+                      </span>
+                    </div>
+                    <div className="w-14 text-center">
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wide">
+                        Casos
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
+              
+              {/* Scrollable list */}
+              <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                {selectedRows.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-12 h-12 bg-[var(--card-background)] rounded-full flex items-center justify-center mx-auto mb-3 border border-[var(--card-border)]">
+                      <Users className="w-6 h-6 text-[var(--text-secondary)]" />
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Ningún participante seleccionado
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {selectedRows.map((participant) => {
+                      const isFavorite = favoriteIds.has(participant.id);
+                      return (
+                        <div
+                          key={participant.id}
+                          className="flex items-center gap-2"
+                        >
+                          {/* Card with hover to remove */}
+                          <div className="flex-1 bg-[var(--background)] border border-[var(--card-border)] rounded-lg group hover:border-[var(--primary)]/50 transition-all hover:bg-[var(--hover-bg)] relative overflow-hidden">
+                            {/* Remove Overlay - Compact */}
+                            <div 
+                              onClick={() => handleParticipantToggle(participant.id)}
+                              className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-red-50/90 cursor-pointer"
+                            >
+                              <div className="flex items-center gap-1.5 text-red-600">
+                                <X className="w-3.5 h-3.5" />
+                                <span className="text-[10px] font-semibold">Quitar</span>
+                              </div>
+                            </div>
+
+                            {/* Content - Card only */}
+                            <div className="relative transition-all duration-200 group-hover:blur-[1.5px] group-hover:opacity-50 p-2">
+                              <div className="flex items-center gap-2">
+                                {/* Photo */}
+                                <div className="relative flex-shrink-0">
+                                  <UserAvatar
+                                    src={participant.image}
+                                    alt={`Foto de ${participant.fullName || 'usuario'}`}
+                                    size="sm"
+                                    className="rounded-lg"
+                                  />
+                                </div>
+                                
+                                {/* Info section with star inline */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    <p className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
+                                      {participant.fullName}
+                                    </p>
+                                    {/* Favorite Star - inline with name */}
+                                    {isFavorite && (
+                                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-[var(--text-secondary)] truncate">
+                                    {participant.city || participant.province || participant.email}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Cases Input - Outside card, always clickeable */}
+                          {selectedType === "pollsters" && metaTotal > 0 && (
+                            <div className="flex-shrink-0">
+                              <input
+                                type="number"
+                                min="0"
+                                max={metaTotal}
+                                value={getAssignedCases(participant.id)}
+                                onChange={(e) =>
+                                  handlePollsterAssignmentChange(
+                                    participant.id,
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                                className={`w-14 px-2 py-1 border rounded text-center text-xs focus:outline-none focus:ring-1 ${
+                                  getAssignedCases(participant.id) === 0
+                                    ? "bg-[var(--error-bg)] text-[var(--error-text)] border-[var(--error-border)] focus:border-[var(--error-border)] focus:ring-[var(--error-border)]"
+                                    : "bg-[var(--input-background)] text-[var(--text-primary)] border-[var(--card-border)] focus:border-[var(--primary)] focus:ring-[var(--primary)]"
+                                }`}
+                                placeholder="0"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -982,6 +1186,50 @@ export default function ParticipantesPage() {
 
               {/* Modal Content */}
               <div className="flex-1 overflow-y-auto p-4">
+                {/* Case Assignment Header - Only for pollsters */}
+                {selectedType === "pollsters" && selectedParticipants.length > 0 && metaTotal > 0 && (
+                  <div className="mb-4 space-y-2 pb-4 border-b border-[var(--card-border)]">
+                    {/* Total and Distribute button in same row */}
+                    <div className="flex items-center gap-2">
+                      {/* Total indicator */}
+                      <div className="flex-1 bg-[var(--background)] border border-[var(--card-border)] rounded-lg px-2.5 py-1.5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-[var(--text-secondary)]">Total asignado:</span>
+                          <span className={`font-bold ${
+                            getTotalAssignedCases() > metaTotal
+                              ? "text-red-600"
+                              : getTotalAssignedCases() === metaTotal
+                              ? "text-green-600"
+                              : "text-orange-600"
+                          }`}>
+                            {getTotalAssignedCases()} / {metaTotal}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Distribute button */}
+                      <button
+                        onClick={distributeEqually}
+                        className="flex-shrink-0 px-3 py-1.5 text-xs bg-[var(--primary-dark)] dark:bg-[var(--primary-light)] text-white dark:text-[var(--primary-dark)] hover:opacity-90 rounded-lg transition-opacity font-medium flex items-center gap-1.5"
+                      >
+                        <Scale className="w-3.5 h-3.5" />
+                        Distribuir
+                      </button>
+                    </div>
+                    
+                    {/* Warning message if needed */}
+                    {getTotalAssignedCases() !== metaTotal && (
+                      <p className={`text-[9px] px-1 ${
+                        getTotalAssignedCases() > metaTotal ? "text-red-600" : "text-orange-600"
+                      }`}>
+                        {getTotalAssignedCases() > metaTotal 
+                          ? "⚠️ Excede la meta total" 
+                          : `Faltan ${metaTotal - getTotalAssignedCases()} casos por asignar`}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
                 {selectedRows.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 bg-[var(--background)] rounded-full flex items-center justify-center mx-auto mb-4 border border-[var(--card-border)]">
@@ -998,35 +1246,32 @@ export default function ParticipantesPage() {
                       return (
                         <div
                           key={participant.id}
-                          className="bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-3 relative overflow-hidden hover:border-[var(--primary)]/50 transition-all"
+                          className="bg-[var(--background)] border border-[var(--card-border)] rounded-xl p-2.5 relative overflow-hidden hover:border-[var(--primary)]/50 transition-all"
                         >
-                          {/* Favorite Star */}
-                          {isFavorite && (
-                            <div className="absolute top-2 right-2 z-10">
-                              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            </div>
-                          )}
-                          <div className="flex items-center gap-3">
-                            {/* Photo as protagonist */}
+                          <div className="flex items-center gap-2.5">
+                            {/* Photo - smaller */}
                             <div className="relative flex-shrink-0">
                               <UserAvatar
                                 src={participant.image}
                                 alt={`Foto de ${participant.fullName || 'usuario'}`}
-                                size="lg"
-                                className="rounded-xl"
+                                size="md"
+                                className="rounded-lg"
                               />
                             </div>
                             
-                            {/* Info section */}
+                            {/* Info section - compact */}
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                                {participant.fullName}
-                              </p>
-                              <p className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
-                                {participant.email}
-                              </p>
+                              <div className="flex items-center gap-1">
+                                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                                  {participant.fullName}
+                                </p>
+                                {/* Favorite Star - inline with name */}
+                                {isFavorite && (
+                                  <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                                )}
+                              </div>
                               {(participant.city || participant.province) && (
-                                <div className="flex items-center gap-1 mt-1">
+                                <div className="flex items-center gap-1 mt-0.5">
                                   <MapPin className="w-3 h-3 text-[var(--text-secondary)]" />
                                   <p className="text-xs text-[var(--text-secondary)] truncate">
                                     {[participant.city, participant.province].filter(Boolean).join(", ")}
@@ -1035,15 +1280,51 @@ export default function ParticipantesPage() {
                               )}
                             </div>
                             
-                            {/* Remove button */}
-                            {/* Remove button - Red cross centered on the right */}
-                            <button
-                              onClick={() => handleParticipantToggle(participant.id)}
-                              className="p-2 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 self-center"
-                              title="Quitar"
-                            >
-                              <X className="w-5 h-5" />
-                            </button>
+                            {/* Cases Input - Only for pollsters */}
+                            {selectedType === "pollsters" && metaTotal > 0 && (
+                              <div className="flex-shrink-0">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={metaTotal}
+                                  value={getAssignedCases(participant.id)}
+                                  onChange={(e) =>
+                                    handlePollsterAssignmentChange(
+                                      participant.id,
+                                      parseInt(e.target.value) || 0
+                                    )
+                                  }
+                                  className={`w-14 px-2 py-1 border rounded text-center text-xs focus:outline-none focus:ring-1 ${
+                                    getAssignedCases(participant.id) === 0
+                                      ? "bg-[var(--error-bg)] text-[var(--error-text)] border-[var(--error-border)] focus:border-[var(--error-border)] focus:ring-[var(--error-border)]"
+                                      : "bg-[var(--input-background)] text-[var(--text-primary)] border-[var(--card-border)] focus:border-[var(--primary)] focus:ring-[var(--primary)]"
+                                  }`}
+                                  placeholder="0"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Remove button - Only show if no cases input or for supervisors */}
+                            {(!selectedType || selectedType !== "pollsters" || !metaTotal) && (
+                              <button
+                                onClick={() => handleParticipantToggle(participant.id)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 self-center"
+                                title="Quitar"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                            
+                            {/* Remove button for pollsters with cases - smaller */}
+                            {selectedType === "pollsters" && metaTotal > 0 && (
+                              <button
+                                onClick={() => handleParticipantToggle(participant.id)}
+                                className="p-1 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 self-start"
+                                title="Quitar"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       );

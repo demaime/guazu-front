@@ -125,6 +125,11 @@ export default function ConfigurarEncuesta() {
       if (participants?.quotaAssignments?.length > 0) {
         setCurrentDistribution(participants);
       }
+      
+      // Cargar asignaciones de casos por encuestador
+      if (participants?.pollsterAssignments?.length > 0) {
+        setPollsterAssignments(participants.pollsterAssignments);
+      }
     } catch (error) {
       console.error("Error al cargar configuración:", error);
       toast.error("Error al cargar la configuración: " + error.message);
@@ -153,6 +158,7 @@ export default function ConfigurarEncuesta() {
   const [encuestadoresParaDistribucion, setEncuestadoresParaDistribucion] =
     useState([]);
   const [currentDistribution, setCurrentDistribution] = useState(null);
+  const [pollsterAssignments, setPollsterAssignments] = useState([]); // Case assignments per pollster
 
   const updateConfig = (field, value) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
@@ -1449,6 +1455,7 @@ export default function ConfigurarEncuesta() {
           encuestadores={encuestadoresParaDistribucion}
           categorias={config.categorias}
           metaTotal={obtenerMetaEfectiva()}
+          pollsterAssignments={pollsterAssignments}
           initialDistribution={currentDistribution}
           onSave={handleSaveDistribution}
         />
