@@ -1264,10 +1264,12 @@ export default function TemporalPage() {
               }
 
               return (
-                <div
-                  key={survey.id}
-                  className={`group bg-[color:var(--card-background)] backdrop-blur-sm rounded-xl p-3 md:p-4 hover:bg-[color:var(--hover-bg)] transition-all relative ${borderColor}`}
-                >
+              <div
+                key={survey.id}
+                className={`group bg-[color:var(--card-background)] backdrop-blur-sm rounded-xl p-3 md:p-4 hover:bg-[color:var(--hover-bg)] transition-all relative ${borderColor} ${
+                  openMenuId === survey.id ? 'ring-2 ring-[color:var(--primary)]/30 bg-[color:var(--primary)]/5' : ''
+                }`}
+              >
                   <div className="flex flex-col gap-2.5">
                     {/* Primera línea: Título (grande) + Tag (top-right, superpuesto) */}
                     <div className="flex items-start justify-between gap-3">
@@ -1495,134 +1497,135 @@ export default function TemporalPage() {
                                 className="fixed inset-0 bg-[color:var(--primary)]/5 z-10"
                                 onClick={() => setOpenMenuId(null)}
                               />
-                              {/* Botones flotantes individuales - MUCHO más compactos */}
-                              <div className="absolute bottom-full right-0 mb-1.5 w-40 flex flex-col gap-0.5 z-20">
-                                {/* 1. Configurar */}
-                                <button
-                                  onClick={() => {
-                                    router.push(
-                                      `/dashboard/temporal/configurar?id=${survey.id}`
-                                    );
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="relative w-full px-2 py-1 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
-                                >
-                                  {!survey.hasConfig && (
-                                    <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
-                                      <AlertCircle
-                                        size={8}
-                                        className="text-white"
-                                        strokeWidth={3}
-                                      />
-                                    </div>
-                                  )}
-                                  <Settings size={11} />
-                                  Configurar
-                                </button>
-
-                                {/* 2. Asignar participantes */}
-                                <button
-                                  onClick={() => {
-                                    router.push(
-                                      `/dashboard/temporal/participantes?id=${survey.id}`
-                                    );
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="relative w-full px-2 py-1 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
-                                >
-                                  {!survey.hasParticipants && (
-                                    <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
-                                      <AlertCircle
-                                        size={8}
-                                        className="text-white"
-                                        strokeWidth={3}
-                                      />
-                                    </div>
-                                  )}
-                                  <Users size={11} />
-                                  Participantes
-                                </button>
-
-                                {/* 3. Prueba local */}
-                                <button
-                                  onClick={() => {
-                                    // Guardar surveyId y redirigir en modo test
-                                    if (typeof window !== "undefined") {
-                                      window.sessionStorage.setItem(
-                                        "responder:surveyId",
-                                        survey.id
+                              {/* Botones flotantes en grid 2 columnas con contenedor */}
+                              <div className="absolute bottom-full right-0 mb-1.5 w-56 bg-[color:var(--background)] border-2 border-[color:var(--primary)]/40 rounded-lg shadow-xl p-1.5 z-20">
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {/* 1. Configurar */}
+                                  <button
+                                    onClick={() => {
+                                      router.push(
+                                        `/dashboard/temporal/configurar?id=${survey.id}`
                                       );
-                                    }
-                                    router.push(
-                                      `/dashboard/encuestas/responder?mode=test`
-                                    );
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="w-full px-2 py-1 rounded-md bg-teal-600 dark:bg-teal-500 text-white border border-teal-700/50 dark:border-teal-400/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
-                                >
-                                  <Eye size={11} />
-                                  Prueba local
-                                </button>
-
-                                {/* 4. Clonar */}
-                                <button
-                                  onClick={() => {
-                                    handleClone(survey);
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="w-full px-2 py-1 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
-                                >
-                                  <Copy size={11} />
-                                  Clonar
-                                </button>
-
-                                {/* 5. Pausar/Activar */}
-                                {survey.status !== "finalizada" && (
-                                  <button
-                                    onClick={() => {
-                                      handleToggleSurvey(survey);
                                       setOpenMenuId(null);
                                     }}
-                                    className={`w-full px-2 py-1 rounded-md border shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px] ${
-                                      survey.isActive
-                                        ? "bg-yellow-600 text-white border-yellow-700/50"
-                                        : "bg-green-600 text-white border-green-700/50"
-                                    }`}
+                                    className="relative px-2 py-1.5 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
                                   >
-                                    {survey.isActive ? (
-                                      <Pause size={11} />
-                                    ) : (
-                                      <Play size={11} />
+                                    {!survey.hasConfig && (
+                                      <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
+                                        <AlertCircle
+                                          size={8}
+                                          className="text-white"
+                                          strokeWidth={3}
+                                        />
+                                      </div>
                                     )}
-                                    {survey.isActive ? "Pausar" : "Activar"}
+                                    <Settings size={12} />
+                                    <span>Configurar</span>
                                   </button>
-                                )}
 
-                                {/* 6. Eliminar respuestas */}
-                                {survey.cases > 0 && (
+                                  {/* 2. Asignar participantes */}
                                   <button
                                     onClick={() => {
-                                      handleDeleteAnswers(survey);
+                                      router.push(
+                                        `/dashboard/temporal/participantes?id=${survey.id}`
+                                      );
                                       setOpenMenuId(null);
                                     }}
-                                    className="w-full px-2 py-1 rounded-md bg-orange-600 text-white border border-orange-700/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
+                                    className="relative px-2 py-1.5 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
                                   >
-                                    <Eraser size={11} />
-                                    Borrar respuestas
+                                    {!survey.hasParticipants && (
+                                      <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
+                                        <AlertCircle
+                                          size={8}
+                                          className="text-white"
+                                          strokeWidth={3}
+                                        />
+                                      </div>
+                                    )}
+                                    <Users size={12} />
+                                    <span>Participantes</span>
                                   </button>
-                                )}
 
-                                {/* 7. Eliminar encuesta */}
-                                <button
-                                  onClick={() => {
-                                    handleDelete(survey.id);
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="w-full px-2 py-1 rounded-md bg-red-600 text-white border border-red-700/50 shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center gap-1.5 font-medium text-[10px]"
-                                >
-                                  <Trash2 size={11} />
-                                  Eliminar encuesta
-                                </button>
+                                  {/* 3. Prueba local */}
+                                  <button
+                                    onClick={() => {
+                                      if (typeof window !== "undefined") {
+                                        window.sessionStorage.setItem(
+                                          "responder:surveyId",
+                                          survey.id
+                                        );
+                                      }
+                                      router.push(
+                                        `/dashboard/encuestas/responder?mode=test`
+                                      );
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="px-2 py-1.5 rounded-md bg-teal-600 dark:bg-teal-500 text-white border border-teal-700/50 dark:border-teal-400/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
+                                  >
+                                    <Eye size={12} />
+                                    Prueba
+                                  </button>
+
+                                  {/* 4. Clonar */}
+                                  <button
+                                    onClick={() => {
+                                      handleClone(survey);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="px-2 py-1.5 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
+                                  >
+                                    <Copy size={12} />
+                                    Clonar
+                                  </button>
+
+                                  {/* 5. Pausar/Activar - ocupa ambas columnas */}
+                                  {survey.status !== "finalizada" && (
+                                    <button
+                                      onClick={() => {
+                                        handleToggleSurvey(survey);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className={`col-span-2 px-2 py-1.5 rounded-md border shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px] ${
+                                        survey.isActive
+                                          ? "bg-yellow-600 text-white border-yellow-700/50"
+                                          : "bg-green-600 text-white border-green-700/50"
+                                      }`}
+                                    >
+                                      {survey.isActive ? (
+                                        <Pause size={12} />
+                                      ) : (
+                                        <Play size={12} />
+                                      )}
+                                      {survey.isActive ? "Pausar" : "Activar"}
+                                    </button>
+                                  )}
+
+                                  {/* 6. Eliminar respuestas */}
+                                  {survey.cases > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        handleDeleteAnswers(survey);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="col-span-2 px-2 py-1.5 rounded-md bg-orange-600 text-white border border-orange-700/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
+                                    >
+                                      <Eraser size={12} />
+                                      Borrar respuestas
+                                    </button>
+                                  )}
+
+                                  {/* 7. Eliminar encuesta - ocupa ambas columnas */}
+                                  <button
+                                    onClick={() => {
+                                      handleDelete(survey.id);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="col-span-2 px-2 py-1.5 rounded-md bg-red-600 text-white border border-red-700/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
+                                  >
+                                    <Trash2 size={12} />
+                                    Eliminar encuesta
+                                  </button>
+                                </div>
                               </div>
                             </>
                           )}
