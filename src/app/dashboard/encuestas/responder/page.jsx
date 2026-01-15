@@ -172,6 +172,21 @@ export default function SurveyResponderStable() {
 
         // Extraer cuotas
         const surveyQuotas = serverEnvelope?.survey?.surveyInfo?.quotas || [];
+        
+        // 🔍 DEBUG: Logging detallado de cuotas
+        console.log('📋 Cuotas de la encuesta:', {
+          mode: typeof navigator !== "undefined" && !navigator.onLine ? 'OFFLINE' : 'ONLINE',
+          surveyId,
+          hasQuotas: surveyQuotas.length > 0,
+          quotasCount: surveyQuotas.length,
+          quotas: surveyQuotas.map(q => ({
+            category: q.category,
+            segmentsCount: q.segments?.length || 0,
+            segments: q.segments?.map(s => s.name) || []
+          })),
+          fullSurveyInfo: serverEnvelope?.survey?.surveyInfo
+        });
+        
         setQuotas(surveyQuotas);
 
         if (
@@ -250,8 +265,13 @@ export default function SurveyResponderStable() {
         setSurveyModel(model);
 
         // Capturar timestamp de inicio para medir duración
-        startTimeRef.current = Date.now();
-        console.log("⏱️ Encuesta iniciada:", new Date().toISOString());
+        // ✅ SOLO setear si aún no existe (prevenir reset en cambios de tema)
+        if (!startTimeRef.current) {
+          startTimeRef.current = Date.now();
+          console.log("⏱️ Encuesta iniciada:", new Date().toISOString());
+        } else {
+          console.log("⏱️ useEffect re-ejecutado, manteniendo startTime original:", new Date(startTimeRef.current).toISOString());
+        }
 
         try {
           const totalQuestions = model.getAllQuestions()?.length || 0;
@@ -390,6 +410,19 @@ export default function SurveyResponderStable() {
       });
 
       // Crear payload con o sin coordenadas
+      // 🔍 DEBUG: Verificar cálculo de time
+      const calculatedTime = startTimeRef.current
+        ? Math.floor((Date.now() - startTimeRef.current) / 1000)
+        : 0;
+      
+      console.log("⏱️ CÁLCULO DE TIME:", {
+        startTimeRefExists: !!startTimeRef.current,
+        startTimeValue: startTimeRef.current,
+        currentTime: Date.now(),
+        calculatedSeconds: calculatedTime,
+        isZero: calculatedTime === 0
+      });
+
       const payload = {
         surveyId: surveyId,
         // ✅ PREVENCIÓN DE DUPLICADOS: Agregar random string para garantizar unicidad
@@ -400,9 +433,7 @@ export default function SurveyResponderStable() {
         answer: transformedAnswers,
         quotaAnswers: extractedQuotaAnswers, // Incluir respuestas de cuotas extraídas del modelo
         createdAt: new Date().toISOString(),
-        time: startTimeRef.current
-          ? Math.floor((Date.now() - startTimeRef.current) / 1000)
-          : 0,
+        time: calculatedTime,
         authToken: token,
         lat: locationData?.lat || null,
         lng: locationData?.lng || null,

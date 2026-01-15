@@ -26,6 +26,7 @@ import {
   ArrowDownWideNarrow,
   ArrowUpWideNarrow,
   Eraser,
+  TestTube2,
 } from "lucide-react";
 import { surveyService } from "@/services/survey.service";
 import { toast } from "react-toastify";
@@ -1411,6 +1412,22 @@ export default function TemporalPage() {
                           />
                         )}
                         <ActionButton
+                          icon={TestTube2}
+                          label="Prueba local"
+                          iconOnly
+                          tooltip="Prueba local"
+                          className="!bg-blue-200 hover:!bg-blue-300"
+                          onClick={() => {
+                            if (typeof window !== "undefined") {
+                              window.sessionStorage.setItem(
+                                "responder:surveyId",
+                                survey.id
+                              );
+                            }
+                            router.push(`/dashboard/encuestas/responder?mode=test`);
+                          }}
+                        />
+                        <ActionButton
                           icon={Copy}
                           label="Clonar"
                           iconOnly
@@ -1560,9 +1577,9 @@ export default function TemporalPage() {
                                       );
                                       setOpenMenuId(null);
                                     }}
-                                    className="px-2 py-1.5 rounded-md bg-teal-700 dark:bg-teal-600 text-white border border-teal-800/50 dark:border-teal-500/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
+                                    className="px-2 py-1.5 rounded-md bg-blue-500 dark:bg-blue-500 text-white border border-blue-600/50 dark:border-blue-400/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
                                   >
-                                    <Eye size={12} />
+                                    <TestTube2 size={12} />
                                     Prueba
                                   </button>
 

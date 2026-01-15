@@ -75,7 +75,7 @@ export function ConfirmModal({
             {alertMessage && (
               <div className={`mt-3 p-3 rounded-lg border flex items-start gap-2 ${variants[variant].alert}`}>
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span className="text-xs text-justify">
+                <span className="text-xs text-left">
                   {alertMessage}
                 </span>
               </div>
