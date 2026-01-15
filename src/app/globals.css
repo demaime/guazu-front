@@ -138,6 +138,7 @@
   --background: #f5f7fb;
   --card-background: #eef0ff;
   --input-background: #ffffff;
+  --inner-card-bg: #ffffff; /* Nuevo fondo para tarjetas internas en light */
   --card-border: #adb8eb;
   --text-primary: #1f2345;
   --text-secondary: #5c6680;
@@ -148,26 +149,26 @@
   --hover-bg: rgba(63, 81, 181, 0.12);
   --disabled-bg: #e9edf7;
   --disabled-text: #9da7c0;
-
+  
   /* Primary color with good contrast for light mode */
   --primary-contrast: var(--primary);
-
+  
   /* Error colors */
   --error-bg: #fdecec;
   --error-border: #f87171;
   --error-text: #b91c1c;
   --error-icon: #ef4444;
-
+  
   /* Success colors */
   --success: #2f8530;
   --success-bg: #cefbcb;
   --success-border: #38a13f;
-
+  
   /* Warning colors */
   --warning: #b7791f;
   --warning-bg: #fff4de;
   --warning-border: #f6ad55;
-
+  
   /* Tag colors for conditional items */
   --tag-module-bg: #abbdf7;
   --tag-module-text: #3e34c8;
@@ -180,6 +181,7 @@
   --background: #0f172a;
   --card-background: #05172f;
   --input-background: #28354e;
+  --inner-card-bg: #1e293b; /* Más claro que el bg principal, mejor contraste */
   --card-border: #334155;
   --text-primary: #ffffff;
   --text-secondary: #97b3db;

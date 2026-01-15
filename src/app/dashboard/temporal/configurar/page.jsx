@@ -121,14 +121,19 @@ export default function ConfigurarEncuesta() {
       });
 
       // Cargar distribución existente si hay
-      const participants = response?.survey?.participants;
-      if (participants?.quotaAssignments?.length > 0) {
-        setCurrentDistribution(participants);
+      // quotaAssignments está en surveyInfo, pollsterAssignments en participants
+      const surveyInfoData = response?.survey?.surveyInfo;
+      const participantsData = response?.survey?.participants;
+      if (surveyInfoData?.quotaAssignments?.length > 0 || participantsData?.pollsterAssignments?.length > 0) {
+        setCurrentDistribution({
+          quotaAssignments: surveyInfoData?.quotaAssignments || [],
+          pollsterAssignments: participantsData?.pollsterAssignments || [],
+        });
       }
       
       // Cargar asignaciones de casos por encuestador
-      if (participants?.pollsterAssignments?.length > 0) {
-        setPollsterAssignments(participants.pollsterAssignments);
+      if (participantsData?.pollsterAssignments?.length > 0) {
+        setPollsterAssignments(participantsData.pollsterAssignments);
       }
     } catch (error) {
       console.error("Error al cargar configuración:", error);
@@ -470,17 +475,19 @@ export default function ConfigurarEncuesta() {
       const definition = existing?.survey?.surveyDefinition;
 
       // Preparar datos completos manteniendo todo lo demás
+      // NOTA: quotaAssignments va en surveyInfo (como define el modelo),
+      // pollsterAssignments va en participants (para asignación de casos)
       const dataToSave = {
         survey: surveyData,
         surveyDefinition: definition,
         surveyInfo: {
           ...surveyInfo,
+          quotaAssignments: distributionData.quotaAssignments, // Asignaciones de cuotas por encuestador
         },
         participants: {
           userIds: surveyInfo.userIds || [],
           supervisorsIds: surveyInfo.supervisorsIds || [],
-          pollsterAssignments: distributionData.pollsterAssignments,
-          quotaAssignments: distributionData.quotaAssignments,
+          pollsterAssignments: distributionData.pollsterAssignments, // Asignación de casos por encuestador
         },
       };
 
@@ -491,7 +498,10 @@ export default function ConfigurarEncuesta() {
       setShowQuotaDistributionModal(false);
 
       // Actualizar distribución actual
-      setCurrentDistribution(dataToSave.participants);
+      setCurrentDistribution({
+        ...dataToSave.participants,
+        quotaAssignments: distributionData.quotaAssignments,
+      });
     } catch (error) {
       console.error("Error al guardar distribución:", error);
       toast.error("Error al guardar distribución: " + error.message);
@@ -521,6 +531,7 @@ export default function ConfigurarEncuesta() {
       }));
 
       // Preparar datos completos manteniendo preguntas existentes
+      // NOTA: quotaAssignments va en surveyInfo, pollsterAssignments va en participants
       const dataToSave = {
         survey: surveyData,
         surveyDefinition: definition,
@@ -531,6 +542,8 @@ export default function ConfigurarEncuesta() {
           target: config.tieneObjetivo ? config.metaTotal : 0,
           requireGps: config.gpsObligatorio,
           quotas: config.cuotasActivas ? quotas : [],
+          quotaAssignments:
+            existing?.survey?.surveyInfo?.quotaAssignments || [],
           userIds:
             existing?.survey?.surveyInfo?.userIds ||
             existing?.survey?.userIds ||
@@ -552,10 +565,6 @@ export default function ConfigurarEncuesta() {
           pollsterAssignments:
             existing?.survey?.participants?.pollsterAssignments ||
             existing?.survey?.pollsterAssignments ||
-            [],
-          quotaAssignments:
-            existing?.survey?.participants?.quotaAssignments ||
-            existing?.survey?.quotaAssignments ||
             [],
         },
       };

@@ -1,17 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Play,
-  Calendar,
   Users,
-  Target,
+  Target, // Re-added
   Clock,
-  MapPin,
-  ChevronRight,
   TestTube2,
   ChevronUp,
   ChevronDown,
-  Minimize2,
   FileText,
+  Send,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,6 +53,9 @@ export function PollsterSurveyList({
 
   // Estado para controlar qué encuestas tienen las cuotas expandidas
   const [expandedQuotas, setExpandedQuotas] = useState({});
+
+  // Estado para el modal de detalle de cuota
+  const [selectedQuotaSegment, setSelectedQuotaSegment] = useState(null);
 
   const toggleQuotas = useCallback((surveyId) => {
     setExpandedQuotas((prev) => ({
@@ -388,11 +388,18 @@ export function PollsterSurveyList({
 
   // Obtener cuotas asignadas al pollster actual (SOLO las suyas)
   const getPollsterQuotas = (survey) => {
-    if (!currentUser?._id || !survey?.surveyInfo?.quotaAssignments) {
+    if (!currentUser?._id) {
       return null;
     }
 
-    const assignment = survey.surveyInfo.quotaAssignments.find(
+    // quotaAssignments vive en surveyInfo según el modelo
+    const quotaAssignments = survey?.surveyInfo?.quotaAssignments || [];
+
+    if (!quotaAssignments || quotaAssignments.length === 0) {
+      return null;
+    }
+
+    const assignment = quotaAssignments.find(
       (qa) => qa.pollsterId === currentUser._id
     );
 
@@ -568,225 +575,285 @@ export function PollsterSurveyList({
 
                   {/* Contenido principal */}
                   <div className="px-4 pb-4">
-                    {/* Información de fechas (no mostrar para universal) */}
+                    {/* Stats Grid - Estilo mockup */}
                     {!isUniversal && (
-                      <div className="flex items-center justify-between text-sm text-[var(--text-secondary)] mb-3">
-                        <div className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-2 text-[var(--text-muted)]" />
-                          <span>{formatDate(surveyInfo.startDate)}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <span>hasta {formatDate(surveyInfo.endDate)}</span>
-                        </div>
-                      </div>
-                    )}
+                      <div className="space-y-6 mb-6">
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Tiempo restante */}
+                          {(() => {
+                            const timeStr = timeRemaining || "Sin fecha";
+                            const parts = timeStr.split(" ");
+                            const value = parts[0];
+                            const label1 = parts[1] || "";
+                            const label2 = parts.slice(2).join(" ") || "";
 
-                    {/* Progreso (oculto para encuesta universal) */}
-                    {!isUniversal && (
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="text-[var(--text-secondary)] flex items-center">
-                            <Target className="w-4 h-4 mr-1" />
-                            Progreso
-                          </span>
-                          <span className="font-medium text-[var(--text-primary)] flex items-center gap-2">
-                            {isProgressLoading ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-[var(--text-muted)] border-t-[var(--primary)] rounded-full animate-spin" />
-                                <span className="text-[var(--text-muted)]">
-                                  Cargando...
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                {completedAnswers} / {assignedCases} casos
-                                asignados
-                              </>
-                            )}
-                          </span>
-                        </div>
-                        <div className="w-full bg-[var(--card-border)] rounded-full h-2">
-                          <div
-                            className={`${
-                              isProgressLoading
-                                ? "bg-gray-300 animate-pulse"
-                                : getProgressColor(survey)
-                            } h-2 rounded-full transition-all duration-500`}
-                            style={{
-                              width: isProgressLoading
-                                ? "30%"
-                                : `${Math.min(progressValue, 100)}%`,
-                            }}
-                          />
-                        </div>
-                        <div className="text-xs text-[var(--text-muted)] mt-1">
-                          {isProgressLoading
-                            ? "Calculando progreso..."
-                            : `${progress} completado`}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Botón Ver Cuotas (solo si la encuesta tiene cuotas) */}
-                    {!isUniversal && hasQuotas(survey) && (
-                      <button
-                        onClick={() => toggleQuotas(survey._id)}
-                        className="w-full mb-4 py-2 px-3 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[var(--text-primary)]"
-                      >
-                        <Users className="w-4 h-4" />
-                        <span>
-                          {expandedQuotas[survey._id]
-                            ? "Ocultar Cuotas"
-                            : "Ver Cuotas"}
-                        </span>
-                        {expandedQuotas[survey._id] ? (
-                          <ChevronUp className="w-4 h-4" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4" />
-                        )}
-                      </button>
-                    )}
-
-                    {/* Sección expandible de Cuotas */}
-                    <AnimatePresence>
-                      {!isUniversal &&
-                        expandedQuotas[survey._id] &&
-                        hasQuotas(survey) && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="mb-4 overflow-hidden"
-                          >
-                            <div className="bg-[var(--input-background)] rounded-xl p-3 border border-[var(--card-border)]">
-                              <div className="mb-3">
-                                <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase">
-                                  Mis Cuotas Asignadas
-                                </span>
+                            return (
+                              <div className="flex items-center gap-2 p-2 px-3 bg-[var(--inner-card-bg)] rounded-xl border border-[var(--card-border)] shadow-sm overflow-hidden">
+                                <div className="p-1.5 bg-orange-500/10 rounded-lg flex-shrink-0">
+                                  <Clock className="w-4 h-4 text-orange-500" />
+                                </div>
+                                <div className="flex items-center gap-1.5 overflow-hidden">
+                                  <span className="text-2xl font-bold text-[var(--text-primary)] leading-none">
+                                    {value}
+                                  </span>
+                                  <div className="flex flex-col text-[10px] leading-[0.85] text-[var(--text-secondary)] font-medium">
+                                    <span className="truncate">{label1}</span>
+                                    <span className="truncate">{label2}</span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="space-y-3">
-                                {getPollsterQuotas(survey).map(
-                                  (quota, idx) => {
-                                    // Calcular progreso actual de esta categoría desde las respuestas
-                                    const totalCategoria = quota.segments.reduce(
-                                      (sum, seg) => sum + seg.target,
-                                      0
-                                    );
+                            );
+                          })()}
 
-                                    return (
-                                      <div key={idx}>
-                                        <div className="flex items-center justify-between mb-2">
-                                          <span className="text-xs font-medium text-[var(--text-primary)] capitalize">
-                                            {quota.category}
-                                          </span>
-                                          <span className="text-xs text-[var(--text-secondary)]">
-                                            Total: {totalCategoria}
-                                          </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                          {quota.segments.map((segment, segIdx) => {
-                                            // Por ahora usamos current si existe, sino 0
-                                            // TODO: En el futuro, calcular desde las respuestas reales
-                                            const currentCount = segment.current || 0;
-                                            const status = getQuotaStatus(
-                                              currentCount,
-                                              segment.target
-                                            );
-                                            return (
-                                              <div
-                                                key={segIdx}
-                                                className={`${status.bgColor} rounded-lg p-2 text-center border ${status.borderColor}`}
-                                              >
-                                                <div className="text-[10px] text-[var(--text-secondary)] mb-1 line-clamp-1">
-                                                  {segment.name}
-                                                </div>
-                                                <div
-                                                  className={`text-sm font-bold ${status.textColor}`}
-                                                >
-                                                  {currentCount}/{segment.target}
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    );
-                                  }
+                          {/* Casos completados */}
+                          <div className="flex items-center gap-2 p-2 px-3 bg-[var(--inner-card-bg)] rounded-xl border border-[var(--card-border)] shadow-sm overflow-hidden">
+                            <div className="p-1.5 bg-[var(--primary)]/10 rounded-lg flex-shrink-0">
+                              <Users className="w-4 h-4 text-[var(--primary)]" />
+                            </div>
+                            <div className="flex items-center gap-1.5 overflow-hidden">
+                              <span className="text-2xl font-bold text-[var(--text-primary)] leading-none">
+                                {isProgressLoading ? (
+                                  "..."
+                                ) : (
+                                  completedAnswers
                                 )}
+                              </span>
+                              <div className="flex flex-col text-[10px] leading-[0.85] text-[var(--text-secondary)] font-medium">
+                                <span className="truncate">/ {assignedCases}</span>
+                                <span className="truncate">casos</span>
                               </div>
                             </div>
-                          </motion.div>
-                        )}
-                    </AnimatePresence>
+                          </div>
+                        </div>
 
-                    {/* Botones de acción */}
-                    <div className="flex gap-3">
-                      {/* Botón principal - Responder */}
-                      <motion.button
-                        onClick={() => handleResponder(survey)}
-                        disabled={isLoading || isFinished}
-                        data-tutorial={
-                          isUniversal ? "respond-button" : undefined
-                        }
-                        className={`
-                    flex-1 flex items-center justify-center gap-2 h-12 px-4 rounded-lg font-medium text-sm transition-all duration-200
-                    ${
-                      isFinished
-                        ? "bg-[var(--disabled-bg)] text-[var(--disabled-text)] cursor-not-allowed"
-                        : "bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white shadow-sm hover:shadow-md active:scale-[0.98]"
-                    }
-                  `}
-                        whileTap={
-                          !isFinished && !isLoading ? { scale: 0.98 } : {}
-                        }
-                      >
-                        {isLoading ? (
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            {isUniversal ? (
-                              <TestTube2 className="w-4 h-4" />
-                            ) : (
-                              <Play className="w-4 h-4" />
-                            )}
-                            {isUniversal
-                              ? "Probar App"
-                              : isFinished
-                              ? "Finalizada"
-                              : "Responder"}
-                          </>
-                        )}
-                      </motion.button>
+                        {/* Barra de progreso */}
+                        <div className="relative">
+                          <div className="h-2 bg-[var(--card-border)] rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${
+                                isProgressLoading
+                                  ? "bg-gray-300 animate-pulse"
+                                  : getProgressColor(survey)
+                              } rounded-full transition-all duration-500`}
+                              style={{
+                                width: isProgressLoading
+                                  ? "30%"
+                                  : `${Math.min(progressValue, 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="absolute right-0 -top-5 text-xs font-semibold text-[var(--text-muted)]">
+                            {isProgressLoading ? "..." : progress}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
-                      {/* Botón Ver Casos (no mostrar para universal) */}
+
+                    {/* Sección de Cuotas - Expandible */}
+                    {!isUniversal && hasQuotas(survey) && (
+                      <div className="bg-[var(--inner-card-bg)] rounded-xl border border-[var(--card-border)] shadow-sm overflow-hidden transition-all duration-300 mb-4">
+                        {/* Cabecera Clickeable */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleQuotas(survey._id);
+                          }}
+                          className="w-full flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="p-1 bg-[var(--primary)]/10 rounded-lg">
+                              <Target className="w-3.5 h-3.5 text-[var(--primary)] text-opacity-80" />
+                            </div>
+                            <span className="text-sm font-semibold text-[var(--text-primary)]">
+                              Cuotas
+                            </span>
+                          </div>
+                          {expandedQuotas[survey._id] ? (
+                            <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                          )}
+                        </button>
+
+                        {/* Contenido Expandible */}
+                        <AnimatePresence>
+                          {expandedQuotas[survey._id] && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <div className="p-3 pt-0 border-t border-[var(--card-border)] border-dashed mt-1">
+                                <div className="space-y-3 pt-3">
+                                  {getPollsterQuotas(survey).map((quota, idx) => (
+                                    <div key={idx}>
+                                      <div className="grid grid-cols-4 gap-2">
+                                        {quota.segments.map((segment, segIdx) => {
+                                          const currentCount = segment.current || 0;
+                                          const status = getQuotaStatus(
+                                            currentCount,
+                                            segment.target
+                                          );
+                                          const genderSymbol =
+                                            quota.category.toLowerCase().includes('género') ||
+                                            quota.category.toLowerCase().includes('sexo')
+                                              ? segment.name.toLowerCase().includes("homs") ||
+                                                segment.name.toLowerCase().includes("masc") ||
+                                                segment.name.toLowerCase() === "h" ||
+                                                segment.name.toLowerCase() === "m"
+                                                ? "♂"
+                                                : "♀"
+                                              : null;
+
+                                          return (
+                                            <button
+                                              key={`${idx}-${segIdx}`}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedQuotaSegment({
+                                                  category: quota.category,
+                                                  ...segment,
+                                                  status, // Pasamos el status calculado para usar sus colores
+                                                });
+                                              }}
+                                              className={`${status.bgColor} rounded-lg p-2 text-center border ${status.borderColor} flex flex-col justify-center items-center h-full min-h-[60px] shadow-sm hover:brightness-95 transition-all cursor-pointer`}
+                                            >
+                                              <div className="flex items-center justify-center gap-1 mb-1 w-full">
+                                                {genderSymbol && (
+                                                  <span className="text-sm font-bold text-[var(--text-secondary)]">
+                                                    {genderSymbol}
+                                                  </span>
+                                                )}
+                                                <span className="text-[10px] text-[var(--text-muted)] truncate w-full leading-tight">
+                                                  {segment.name}
+                                                </span>
+                                              </div>
+                                              <div
+                                                className={`text-xs font-bold ${status.textColor}`}
+                                              >
+                                                {currentCount}/{segment.target}
+                                              </div>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
+                    
+  {/* Modal de Detalle de Cuota */}
+  <AnimatePresence>
+    {selectedQuotaSegment && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-[var(--card-background)] w-full max-w-sm rounded-2xl shadow-xl overflow-hidden border border-[var(--card-border)]"
+        >
+          <div className="p-6">
+            <div className="text-center mb-6">
+              <h3 className="text-[var(--text-secondary)] text-sm font-medium uppercase tracking-wider mb-2">
+                {selectedQuotaSegment.category}
+              </h3>
+              <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+                {selectedQuotaSegment.name}
+              </h2>
+            </div>
+
+            <div className="flex flex-col items-center justify-center mb-8">
+              <div className={`text-4xl font-bold mb-2 ${selectedQuotaSegment.status.textColor}`}>
+                {selectedQuotaSegment.current || 0}
+                <span className="text-2xl text-[var(--text-muted)] font-normal">
+                  /{selectedQuotaSegment.target}
+                </span>
+              </div>
+              <div className="w-full h-3 bg-[var(--card-border)] rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${selectedQuotaSegment.status.textColor.replace('text-', 'bg-')}`}
+                  style={{
+                    width: `${Math.min(
+                      ((selectedQuotaSegment.current || 0) /
+                        selectedQuotaSegment.target) *
+                        100,
+                      100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedQuotaSegment(null)}
+              className="w-full py-3 bg-[var(--primary)] text-white rounded-xl font-semibold hover:bg-[var(--primary-dark)] transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>
+
+                    {/* Botones de acción - Enviados 1/3, Responder 2/3 */}
+                    {/* Botones de acción - Enviados ~40%, Responder ~60% */}
+                    <div className="grid grid-cols-5 gap-2">
+                      {/* Botón Enviados (no mostrar para universal) - 2/5 */}
                       {!isUniversal && (
                         <motion.button
                           onClick={() => {
                             try {
                               const key = "cases:surveyId";
                               if (typeof window !== "undefined") {
-                                window.sessionStorage?.setItem(
-                                  key,
-                                  String(survey._id)
-                                );
-                                window.localStorage?.setItem(
-                                  key,
-                                  String(survey._id)
-                                );
+                                window.sessionStorage?.setItem(key, String(survey._id));
+                                window.localStorage?.setItem(key, String(survey._id));
                               }
                             } catch {}
-                            router.push(
-                              `/dashboard/encuestas/${survey._id}/mis-casos`
-                            );
+                            router.push(`/dashboard/encuestas/${survey._id}/mis-casos`);
                           }}
-                          className="flex items-center justify-center w-12 h-12 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] rounded-lg transition-all duration-200"
+                          className="col-span-2 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] text-[var(--text-primary)] font-semibold py-2.5 rounded-xl transition-colors flex flex-col items-center justify-center gap-0.5"
                           whileTap={{ scale: 0.98 }}
-                          title="Ver mis casos"
                         >
-                          <FileText className="w-5 h-5" />
+                          <Send className="w-4 h-4 mb-0.5" />
+                          <span className="text-xs">Enviados</span>
                         </motion.button>
                       )}
+                      
+                      {/* Botón Responder - 3/5 (o full si es universal) */}
+                      <motion.button
+                        onClick={() => handleResponder(survey)}
+                        disabled={isLoading || isFinished}
+                        data-tutorial={isUniversal ? "respond-button" : undefined}
+                        className={`${isUniversal ? 'col-span-5' : 'col-span-3'} font-semibold py-2.5 rounded-xl transition-colors shadow-lg flex flex-col items-center justify-center gap-0.5 ${
+                          isFinished
+                            ? "bg-[var(--disabled-bg)] text-[var(--disabled-text)] cursor-not-allowed"
+                            : "bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white"
+                        }`}
+                        whileTap={!isFinished && !isLoading ? { scale: 0.98 } : {}}
+                      >
+                        {isLoading ? (
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            {isUniversal ? (
+                              <TestTube2 className="w-4 h-4 mb-0.5" />
+                            ) : (
+                              <Play className="w-4 h-4 mb-0.5" />
+                            )}
+                            <span className="text-xs">
+                              {isUniversal ? "Probar App" : isFinished ? "Finalizada" : "Responder"}
+                            </span>
+                          </>
+                        )}
+                      </motion.button>
                     </div>
                   </div>
                 </motion.div>
