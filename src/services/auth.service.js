@@ -90,6 +90,7 @@ class AuthService {
           email,
           password,
           gettoken: true,
+          rememberMe: rememberMe,
         }),
       });
 

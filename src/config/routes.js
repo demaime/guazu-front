@@ -45,6 +45,7 @@ export const USER_ROUTES = {
   GET_SUPERVISORS: `${API_URL}/api/getsupervisors`,
   GET_PROFILE: `${API_URL}/api/getUserById`,
   GET_BY_ID: (id) => `${API_URL}/api/getUserById/${id}`,
+  GET_STATS: (id) => `${API_URL}/api/stats/${id}`,
   DELETE_USER: `${API_URL}/api/deleteUser`,
   UPDATE: `${API_URL}/api/update`,
   UPDATE_PASSWORD: `${API_URL}/api/changepassword`,

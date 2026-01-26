@@ -35,9 +35,9 @@ const UserAvatar = ({
   if (!src || imageError) {
     return (
       <div
-        className={`${sizeClasses[size]} ${className} ${roundedClass} overflow-hidden bg-gray-200 flex items-center justify-center border border-gray-300`}
+        className={`${sizeClasses[size]} ${className} ${roundedClass} overflow-hidden bg-[var(--card-border)] flex items-center justify-center border border-[var(--card-border)]`}
       >
-        <FallbackIcon className={`${iconSizes[size]} text-gray-400`} />
+        <FallbackIcon className={`${iconSizes[size]} text-[var(--text-muted)]`} />
       </div>
     );
   }
@@ -48,15 +48,15 @@ const UserAvatar = ({
     >
       {!imageLoaded && (
         <div
-          className={`${sizeClasses[size]} ${roundedClass} bg-gray-200 flex items-center justify-center border border-gray-300 absolute inset-0`}
+          className={`w-full h-full ${roundedClass} bg-[var(--card-border)] flex items-center justify-center border border-[var(--card-border)] absolute inset-0`}
         >
-          <FallbackIcon className={`${iconSizes[size]} text-gray-400`} />
+          <FallbackIcon className={`${iconSizes[size]} text-[var(--text-muted)]`} />
         </div>
       )}
       <img
         src={src}
         alt={alt}
-        className={`${sizeClasses[size]} ${roundedClass} object-cover ${
+        className={`w-full h-full object-cover ${
           imageLoaded ? "opacity-100" : "opacity-0"
         } transition-opacity duration-200`}
         onLoad={() => setImageLoaded(true)}

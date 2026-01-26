@@ -1,5 +1,6 @@
 import { USER_ROUTES } from "@/config/routes";
 import { API_URL } from "@/config/constants";
+import { HttpError } from "@/utils/httpError";
 
 class UserService {
   // Helper function para procesar URLs de imágenes
@@ -47,7 +48,13 @@ class UserService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
+        );
       }
 
       const data = await response.json();
@@ -264,9 +271,12 @@ class UserService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
         );
       }
 
@@ -312,9 +322,12 @@ class UserService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
         );
       }
 
@@ -351,9 +364,12 @@ class UserService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
         );
       }
 
@@ -473,6 +489,40 @@ class UserService {
       return data;
     } catch (error) {
       console.error("Error in removeFavorite:", error);
+      throw error;
+    }
+  }
+
+  async getUserStats(userId) {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Usuario no autenticado");
+
+      const response = await fetch(USER_ROUTES.GET_STATS(userId), {
+        method: "GET",
+        headers: new Headers({
+          "Content-Type": "application/json; charset=utf-8",
+          Authorization: token,
+        }),
+        credentials: "include",
+        mode: "cors",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.message || "Error al obtener estadísticas");
+      }
+
+      return data.stats;
+    } catch (error) {
+      console.error("Error in getUserStats:", error);
       throw error;
     }
   }

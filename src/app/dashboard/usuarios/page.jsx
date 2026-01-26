@@ -277,18 +277,19 @@ export default function UsersPage() {
                 Listado de Usuarios
               </h2>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="relative flex-1 sm:flex-none">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 md:flex-none">
                 <input
                   type="text"
                   placeholder="Buscar por nombre, apellido o email..."
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  className="rounded-md border border-[var(--card-border)] bg-[var(--card-background)] w-full sm:w-80 md:w-96 pl-9 pr-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="rounded-md border border-[var(--card-border)] bg-[var(--card-background)] w-full md:w-80 lg:w-96 pl-9 pr-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-[var(--text-muted)]"
                 />
-                <Search className="w-4 h-4 text-[var(--text-secondary)] absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
               </div>
-              <div className="flex items-center justify-center gap-1 p-1 rounded-md bg-[var(--card-border)] flex-shrink-0">
+              {/* Toggle vista: oculto en mobile, solo visible en md+ */}
+              <div className="hidden md:flex items-center justify-center gap-1 p-1 rounded-md bg-[var(--card-border)] flex-shrink-0">
                 <button
                   onClick={() => setViewMode("table")}
                   className={`p-2 rounded-md transition-colors ${
@@ -318,13 +319,14 @@ export default function UsersPage() {
 
         <div className="overflow-hidden px-1 sm:px-2">
           <AnimatePresence mode="wait">
+            {/* Tabla: solo visible en md+ cuando viewMode es table */}
             {viewMode === "table" ? (
               <motion.div
                 key="table-view"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="min-w-full inline-block align-middle"
+                className="hidden md:block min-w-full"
               >
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-[var(--card-border)]">
@@ -426,56 +428,55 @@ export default function UsersPage() {
                   </table>
                 </div>
               </motion.div>
-            ) : (
-              <motion.div
-                key="card-view"
-                initial="hidden"
-                animate="visible"
-                exit="hidden"
-                ref={gridRef}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 p-0"
-                variants={{
-                  hidden: { opacity: 0 },
-                  visible: {
-                    opacity: 1,
-                    transition: {
-                      staggerChildren: 0.1,
-                      delayChildren: 0.1,
-                    },
+            ) : null}
+            
+            {/* Vista de cards: siempre en mobile, en md+ solo cuando viewMode es card */}
+            <motion.div
+              key="card-view"
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              ref={gridRef}
+              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 p-0 ${viewMode === "table" ? "md:hidden" : ""}`}
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.03,
+                    delayChildren: 0.03,
                   },
-                }}
-              >
-                {currentUsers.map((user, index) => (
-                  <motion.div
-                    key={user._id}
-                    className="overflow-hidden"
-                    variants={{
-                      hidden: {
-                        opacity: 0,
-                        filter: "blur(2px)",
-                        y: 20,
+                },
+              }}
+            >
+              {currentUsers.map((user, index) => (
+                <motion.div
+                  key={user._id}
+                  className="h-[110px] sm:h-[120px] md:h-[130px]"
+                  variants={{
+                    hidden: {
+                      opacity: 0,
+                      y: 10,
+                    },
+                    visible: {
+                      opacity: 1,
+                      y: 0,
+                      transition: {
+                        duration: 0.2,
+                        ease: "easeOut",
                       },
-                      visible: {
-                        opacity: 1,
-                        filter: "blur(0px)",
-                        y: 0,
-                        transition: {
-                          duration: 0.4,
-                          ease: "easeOut",
-                        },
-                      },
-                    }}
-                  >
-                    <UserCard
-                      user={user}
-                      currentUser={currentUser}
-                      highlightTerm={searchTerm}
-                      onCardClick={() => handleOpenModal(user)}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
+                    },
+                  }}
+                >
+                  <UserCard
+                    user={user}
+                    currentUser={currentUser}
+                    highlightTerm={searchTerm}
+                    onCardClick={() => handleOpenModal(user)}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
           </AnimatePresence>
         </div>
 

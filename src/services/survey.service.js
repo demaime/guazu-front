@@ -1,6 +1,7 @@
 import { SURVEY_ROUTES } from "@/config/routes";
 import { ANSWER_ROUTES } from "@/config/routes";
 import axios from "axios";
+import { HttpError } from "@/utils/httpError";
 
 class SurveyService {
   async getAllSurveys(page = 1, limit = 10, status = null) {
@@ -33,9 +34,12 @@ class SurveyService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
         );
       }
 
@@ -650,9 +654,12 @@ class SurveyService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
         );
       }
 
@@ -753,9 +760,12 @@ class SurveyService {
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
         );
       }
 
@@ -795,9 +805,12 @@ class SurveyService {
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
         );
       }
 
@@ -839,9 +852,12 @@ class SurveyService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
+        const errorData = await response.json().catch(() => ({}));
+        throw new HttpError(
+          errorData.message || `HTTP error! status: ${response.status}`,
+          response.status,
+          errorData.code,
+          errorData
         );
       }
 

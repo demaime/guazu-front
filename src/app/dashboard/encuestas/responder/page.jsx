@@ -136,6 +136,26 @@ export default function SurveyResponderStable() {
     if (surveyCompletedSuccessfully) setIsBlocking(false);
   }, [surveyCompletedSuccessfully]);
 
+  // ⏱️ TIMEOUT: Prevenir loader infinito cuando no se puede obtener el surveyId
+  useEffect(() => {
+    // Solo activar timeout si surveyId es null (esperando identificador)
+    if (surveyId !== null) return;
+
+    console.log("⚠️ surveyId es null, iniciando timeout de 5 segundos...");
+    
+    const timeoutId = setTimeout(() => {
+      console.log("⏱️ Timeout alcanzado - redirigiendo a lista de encuestas");
+      toast.error("No se pudo cargar la encuesta. Volviendo a la lista...");
+      router.replace("/dashboard/encuestas");
+    }, 5000); // 5 segundos
+
+    // Limpiar timeout si el componente se desmonta o surveyId cambia
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [surveyId, router]);
+
+
   useEffect(() => {
     if (!surveyId) return;
     let modelInstance = null;

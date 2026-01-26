@@ -1,83 +1,107 @@
 import React, { memo } from "react";
-import { motion } from "framer-motion";
-import { Mail, Shield, User, MapPin, ChevronRight } from "lucide-react";
+import { Mail, User, MapPin } from "lucide-react";
 import { HighlightText } from "./HighlightText";
-import UserAvatar from "./UserAvatar";
 
 const UserCard = memo(({ user, currentUser, highlightTerm, onCardClick }) => {
-  const getRoleName = (role) => {
+  const getRoleInfo = (role) => {
     switch (role) {
       case "ROLE_ADMIN":
-        return "Administrador";
+        // Administrador: secondary (morado)
+        return { 
+          label: "Administrador", 
+          bgColor: "bg-[var(--secondary)]",
+          textColor: "text-white",
+          borderColor: "border-[var(--secondary-dark)]"
+        };
       case "SUPERVISOR":
-        return "Supervisor";
+        // Supervisor: primary (azul)
+        return { 
+          label: "Supervisor", 
+          bgColor: "bg-[var(--primary)]",
+          textColor: "text-white",
+          borderColor: "border-[var(--primary-dark)]"
+        };
       case "POLLSTER":
-        return "Encuestador";
+        // Encuestador: primary-light (azul claro)
+        return { 
+          label: "Encuestador", 
+          bgColor: "bg-[var(--primary-light)]",
+          textColor: "text-[var(--primary-dark)]",
+          borderColor: "border-[var(--primary)]"
+        };
       default:
-        return role;
+        return { 
+          label: role, 
+          bgColor: "bg-[var(--card-border)]",
+          textColor: "text-[var(--text-primary)]",
+          borderColor: "border-[var(--card-border)]"
+        };
     }
   };
 
   const isSelf = currentUser?._id && user?._id && currentUser._id === user._id;
   const avatarSrc = user?.image || (isSelf ? currentUser?.image : null);
+  const roleInfo = getRoleInfo(user.role);
 
   return (
     <div
-      className="group relative bg-[var(--card-background)] border border-[var(--card-border)] rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 p-4 pl-5 flex items-center gap-4 cursor-pointer ring-1 ring-transparent hover:ring-primary/40 hover:border-primary/40 min-h-[120px]"
+      className="group relative flex flex-row h-full w-full bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg sm:rounded-xl overflow-hidden shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-black/30 hover:border-[var(--primary)]/50 transition-all duration-300 cursor-pointer"
       onClick={onCardClick}
     >
-      {/* Acento azul lateral */}
-      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl bg-gradient-to-b from-primary-light via-primary to-primary-dark opacity-80 group-hover:w-2 transition-all duration-300" />
-      {/* Avatar a la izquierda (tipo carnet) */}
-      <UserAvatar
-        src={avatarSrc}
-        alt={`Foto de ${user.name}`}
-        size="lg"
-        className="shadow-sm"
-      />
+      {/* Primer tercio VERTICAL: Foto sin padding ni bordes */}
+      <div className="w-1/3 h-full flex-shrink-0 overflow-hidden">
+        {avatarSrc ? (
+          <img
+            src={avatarSrc}
+            alt={`Foto de ${user.name}`}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-[var(--card-border)] flex items-center justify-center">
+            <User className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--text-muted)]" />
+          </div>
+        )}
+      </div>
 
-      {/* Contenido principal */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-base md:text-lg font-semibold text-[var(--text-primary)] truncate">
+      {/* Otros 2 tercios VERTICALES: Información */}
+      <div className="w-2/3 flex flex-col justify-between p-2 sm:p-3 min-w-0 overflow-hidden">
+        {/* Nombre */}
+        <div className="flex items-start gap-1 min-w-0">
+          <h3 className="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate flex-1" title={`${user.name} ${user.lastName}`}>
             <HighlightText
               text={`${user.name} ${user.lastName}`}
               highlight={highlightTerm}
             />
           </h3>
           {isSelf && (
-            <span className="text-[var(--primary-light)] text-xs md:text-sm font-semibold whitespace-nowrap">
-              (tú)
+            <span className="flex-shrink-0 text-[var(--primary-light)] text-[8px] sm:text-[9px] font-bold bg-[var(--primary)]/20 px-1 py-0.5 rounded">
+              TÚ
             </span>
           )}
         </div>
-
-        <div className="mt-1 text-sm text-[var(--text-secondary)] flex items-center gap-2 min-w-0">
-          <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <span className="truncate">
+        
+        {/* Email */}
+        <div className="flex items-center gap-1 text-[10px] sm:text-xs text-[var(--text-secondary)] min-w-0">
+          <Mail size={10} className="flex-shrink-0 sm:w-[11px] sm:h-[11px]" />
+          <span className="truncate" title={user.email}>
             <HighlightText text={user.email} highlight={highlightTerm} />
           </span>
         </div>
 
-        {/* Badges: ciudad (prioritaria) y rol */}
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
-            <MapPin className="w-3 h-3" />
-            {user.city || "No especificada"}
-          </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[var(--card-border)] text-[var(--text-secondary)] text-xs">
-            <Shield className="w-3 h-3" />
-            {getRoleName(user.role)}
+        {/* Ciudad */}
+        <div className="flex items-center gap-1 text-[10px] sm:text-xs text-[var(--text-secondary)] min-w-0">
+          <MapPin size={10} className="flex-shrink-0 sm:w-[11px] sm:h-[11px]" />
+          <span className="truncate" title={user.city || "Sin ciudad"}>
+            {user.city || "Sin ciudad"}
           </span>
         </div>
-      </div>
 
-      {/* Overlay de acción en hover (blur azulado) */}
-      <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center glass-primary rounded-xl">
-        <span className="px-3 py-1.5 rounded-full bg-primary text-white text-sm shadow-md flex items-center gap-1 transform -translate-y-1 group-hover:translate-y-0 group-hover:scale-105 transition-transform">
-          Ver perfil
-          <ChevronRight className="w-4 h-4" />
-        </span>
+        {/* Rol */}
+        <div>
+          <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold uppercase tracking-wider border ${roleInfo.bgColor} ${roleInfo.textColor} ${roleInfo.borderColor}`}>
+            {roleInfo.label}
+          </span>
+        </div>
       </div>
     </div>
   );

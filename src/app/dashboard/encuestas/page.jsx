@@ -16,6 +16,7 @@ import {
 } from "@/services/db/pouch";
 import { syncPendingResponses } from "@/services/sync";
 import { authService } from "@/services/auth.service";
+import { handleAuthError } from "@/utils/authErrorHandler";
 import { SurveyList } from "@/components/ui/SurveyList";
 import { PollsterSurveyList } from "@/components/ui/PollsterSurveyList";
 import {
@@ -242,73 +243,72 @@ export default function Encuestas() {
         fallbackToastShownRef.current = false;
       } catch (e) {
         console.error("loadAllSurveys error", e);
+        
+        // PRIMERO: Verificar si es error de autenticación
+        const authResult = handleAuthError(e, router, { silent: false });
+        
+        if (authResult.handled) {
+          // Ya se manejó (logout + mensaje + redirect)
+          return;
+        }
+        
+        // SEGUNDO: Si es error de red, usar fallback a caché
+        if (e.isNetworkError && e.isNetworkError()) {
+          try {
+            const cached = await getAllSurveysLocal();
+            if (cached && cached.length > 0) {
+              console.log("⚠️ Usando encuestas en caché:", cached.length);
 
-        // Intentar cargar desde caché como fallback
-        try {
-          const cached = await getAllSurveysLocal();
-          if (cached && cached.length > 0) {
-            console.log("⚠️ Usando encuestas en caché:", cached.length);
+              // Filtrar activas/finalizadas del caché
+              const now = new Date();
+              const isActive = (s) => {
+                const info = s?.surveyInfo || {};
+                if (!info.startDate || !info.endDate) return true;
+                const sd = new Date(info.startDate);
+                const ed = new Date(info.endDate);
+                return now >= sd && now <= ed;
+              };
+              const isFinished = (s) => {
+                const info = s?.surveyInfo || {};
+                if (!info.startDate || !info.endDate) return false;
+                const ed = new Date(info.endDate);
+                return now > ed;
+              };
 
-            // Filtrar activas/finalizadas del caché
-            const now = new Date();
-            const isActive = (s) => {
-              const info = s?.surveyInfo || {};
-              if (!info.startDate || !info.endDate) return true;
-              const sd = new Date(info.startDate);
-              const ed = new Date(info.endDate);
-              return now >= sd && now <= ed;
-            };
-            const isFinished = (s) => {
-              const info = s?.surveyInfo || {};
-              if (!info.startDate || !info.endDate) return false;
-              const ed = new Date(info.endDate);
-              return now > ed;
-            };
+              const active = cached.filter(isActive);
+              const finished = cached.filter(isFinished);
 
-            const active = cached.filter(isActive);
-            const finished = cached.filter(isFinished);
-
-            setActiveSurveysData(active);
-            setFinishedSurveysData(finished);
-            setActiveTotalPages(Math.max(1, Math.ceil(active.length / limit)));
-            setFinishedTotalPages(
-              Math.max(1, Math.ceil(finished.length / limit))
-            );
-            setActiveCurrentPage(1);
-            setFinishedCurrentPage(1);
-            setTabCounts({
-              active: active.length,
-              finished: finished.length,
-              drafts: 0,
-            });
-
-            // Limpiar error y mostrar mensaje informativo (solo una vez)
-            setError(null);
-            if (!fallbackToastShownRef.current) {
-              toast.warning(
-                "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente."
+              setActiveSurveysData(active);
+              setFinishedSurveysData(finished);
+              setActiveTotalPages(Math.max(1, Math.ceil(active.length / limit)));
+              setFinishedTotalPages(
+                Math.max(1, Math.ceil(finished.length / limit))
               );
-              fallbackToastShownRef.current = true;
+              setActiveCurrentPage(1);
+              setFinishedCurrentPage(1);
+              setTabCounts({
+                active: active.length,
+                finished: finished.length,
+                drafts: 0,
+              });
+
+              // Limpiar error y mostrar mensaje informativo (solo una vez)
+              setError(null);
+              if (!fallbackToastShownRef.current) {
+                toast.warning(
+                  "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente."
+                );
+                fallbackToastShownRef.current = true;
+              }
+              return; // Salir exitosamente
             }
-            return; // Salir exitosamente
+          } catch (cacheError) {
+            console.warn("No se pudo leer caché:", cacheError);
           }
-        } catch (cacheError) {
-          console.warn("No se pudo leer caché:", cacheError);
         }
-
-        // No hay servidor NI caché → Error final traducido
-        let errorMsg =
-          "No se pudo conectar con el servidor. Por favor, verifica tu conexión e intenta nuevamente.\n\nDe persistir el inconveniente, puede comunicarse con nosotros.";
-
-        if (
-          e.message &&
-          !e.message.includes("Failed to fetch") &&
-          !e.message.includes("Network request failed") &&
-          !e.message.includes("fetch")
-        ) {
-          errorMsg = e.message; // Usar mensaje si ya está en español
-        }
-
+        
+        // TERCERO: Otros errores
+        let errorMsg = e.message || 'Error al cargar encuestas';
         setError(errorMsg);
       } finally {
         setIsLoading({ active: false, finished: false, drafts: false });
@@ -499,84 +499,83 @@ export default function Encuestas() {
         fallbackToastShownRef.current = false;
       } catch (err) {
         console.error(`Error loading data for tab ${tabName}:`, err);
-
-        // Intentar cargar desde caché como fallback
-        try {
-          const cached = await getAllSurveysLocal();
-          if (cached && cached.length > 0) {
-            console.log(
-              `⚠️ Usando encuestas en caché para tab ${tabName}:`,
-              cached.length
-            );
-
-            const now = new Date();
-            const activeSurveys = cached.filter((survey) => {
-              if (
-                !survey.surveyInfo?.startDate ||
-                !survey.surveyInfo?.endDate
-              ) {
-                return true;
-              }
-              const startDate = new Date(survey.surveyInfo.startDate);
-              const endDate = new Date(survey.surveyInfo.endDate);
-              return now >= startDate && now <= endDate;
-            });
-            const finishedSurveys = cached.filter((survey) => {
-              if (
-                !survey.surveyInfo?.startDate ||
-                !survey.surveyInfo?.endDate
-              ) {
-                return false;
-              }
-              const endDate = new Date(survey.surveyInfo.endDate);
-              return now > endDate;
-            });
-
-            const filtered =
-              tabName === "active" ? activeSurveys : finishedSurveys;
-
-            if (tabName === "active") {
-              setActiveSurveysData(filtered);
-              setActiveTotalPages(1);
-              setActiveCurrentPage(1);
-            } else if (tabName === "finished") {
-              setFinishedSurveysData(filtered);
-              setFinishedTotalPages(1);
-              setFinishedCurrentPage(1);
-            }
-            setTabCounts((prev) => ({
-              ...prev,
-              active: activeSurveys.length,
-              finished: finishedSurveys.length,
-            }));
-
-            // Limpiar error y mostrar mensaje informativo (solo una vez)
-            setError(null);
-            if (!fallbackToastShownRef.current) {
-              toast.warning(
-                "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente."
+        
+        // PRIMERO: Verificar si es error de autenticación
+        const authResult = handleAuthError(err, router, { silent: false });
+        
+        if (authResult.handled) {
+          // Ya se manejó (logout + mensaje + redirect)
+          return;
+        }
+        
+        // SEGUNDO: Si es error de red, usar fallback a caché
+        if (err.isNetworkError && err.isNetworkError()) {
+          try {
+            const cached = await getAllSurveysLocal();
+            if (cached && cached.length > 0) {
+              console.log(
+                `⚠️ Usando encuestas en caché para tab ${tabName}:`,
+                cached.length
               );
-              fallbackToastShownRef.current = true;
+
+              const now = new Date();
+              const activeSurveys = cached.filter((survey) => {
+                if (
+                  !survey.surveyInfo?.startDate ||
+                  !survey.surveyInfo?.endDate
+                ) {
+                  return true;
+                }
+                const startDate = new Date(survey.surveyInfo.startDate);
+                const endDate = new Date(survey.surveyInfo.endDate);
+                return now >= startDate && now <= endDate;
+              });
+              const finishedSurveys = cached.filter((survey) => {
+                if (
+                  !survey.surveyInfo?.startDate ||
+                  !survey.surveyInfo?.endDate
+                ) {
+                  return false;
+                }
+                const endDate = new Date(survey.surveyInfo.endDate);
+                return now > endDate;
+              });
+
+              const filtered =
+                tabName === "active" ? activeSurveys : finishedSurveys;
+
+              if (tabName === "active") {
+                setActiveSurveysData(filtered);
+                setActiveTotalPages(1);
+                setActiveCurrentPage(1);
+              } else if (tabName === "finished") {
+                setFinishedSurveysData(filtered);
+                setFinishedTotalPages(1);
+                setFinishedCurrentPage(1);
+              }
+              setTabCounts((prev) => ({
+                ...prev,
+                active: activeSurveys.length,
+                finished: finishedSurveys.length,
+              }));
+
+              // Limpiar error y mostrar mensaje informativo (solo una vez)
+              setError(null);
+              if (!fallbackToastShownRef.current) {
+                toast.warning(
+                  "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente."
+                );
+                fallbackToastShownRef.current = true;
+              }
+              return; // Salir exitosamente
             }
-            return; // Salir exitosamente
+          } catch (cacheError) {
+            console.warn("No se pudo leer caché:", cacheError);
           }
-        } catch (cacheError) {
-          console.warn("No se pudo leer caché:", cacheError);
         }
-
-        // No hay servidor NI caché → Error final traducido
-        let errorMsg =
-          "No se pudo conectar con el servidor. Por favor, verifica tu conexión e intenta nuevamente.\n\nDe persistir el inconveniente, puede comunicarse con nosotros.";
-
-        if (
-          err.message &&
-          !err.message.includes("Failed to fetch") &&
-          !err.message.includes("Network request failed") &&
-          !err.message.includes("fetch")
-        ) {
-          errorMsg = err.message; // Usar mensaje si ya está en español
-        }
-
+        
+        // TERCERO: Otros errores
+        let errorMsg = err.message || 'Error al cargar encuestas';
         setError(errorMsg);
         if (tabName === "active") {
           setActiveSurveysData([]);
