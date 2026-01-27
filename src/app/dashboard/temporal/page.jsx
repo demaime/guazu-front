@@ -1416,7 +1416,7 @@ export default function TemporalPage() {
                           label="Prueba local"
                           iconOnly
                           tooltip="Prueba local"
-                          className="!bg-blue-200 hover:!bg-blue-300"
+                          className="[&>svg]:text-[color:var(--primary-contrast)]"
                           onClick={() => {
                             if (typeof window !== "undefined") {
                               window.sessionStorage.setItem(

@@ -24,6 +24,7 @@ import {
   BadgePlus,
   Loader2,
   Scale,
+  Pencil,
 } from "lucide-react";
 import { useSurveyCreation } from "../context/SurveyCreationContext";
 import { surveyService } from "@/services/survey.service";
@@ -107,17 +108,24 @@ export default function ConfigurarEncuesta() {
         gpsObligatorio: surveyInfo.requireGps || false,
         tieneObjetivo: (surveyInfo.target || 0) > 0,
         cuotasActivas: (surveyInfo.quotas || []).length > 0,
-        categorias: (surveyInfo.quotas || []).map((q) => ({
-          id: Date.now() + Math.random(),
-          nombre: q.category,
-          segmentos: q.segments.map((s) => ({
+        categorias: (surveyInfo.quotas || []).map((q, catIdx) => {
+          // Calcular el total de objetivos de esta categoría para poder calcular porcentajes
+          const totalObjetivos = q.segments.reduce((sum, s) => sum + (s.target || 0), 0);
+          return {
             id: Date.now() + Math.random(),
-            nombre: s.name,
-            objetivo: s.target,
-            porcentaje: 0,
-            icon: "User",
-          })),
-        })),
+            nombre: q.category,
+            segmentos: q.segments.map((s, segIdx) => ({
+              id: Date.now() + Math.random(),
+              // Preservar segmentId si existe, o generar uno nuevo para datos legacy
+              segmentId: s.segmentId || `seg_legacy_${catIdx}_${segIdx}_${Math.random().toString(36).substr(2, 9)}`,
+              nombre: s.name,
+              objetivo: s.target,
+              // Calcular porcentaje basado en el objetivo del segmento respecto al total
+              porcentaje: totalObjetivos > 0 ? Math.round((s.target / totalObjetivos) * 100) : 0,
+              icon: "User",
+            })),
+          };
+        }),
       });
 
       // Cargar distribución existente si hay
@@ -164,6 +172,7 @@ export default function ConfigurarEncuesta() {
     useState([]);
   const [currentDistribution, setCurrentDistribution] = useState(null);
   const [pollsterAssignments, setPollsterAssignments] = useState([]); // Case assignments per pollster
+  const [editingSegmentName, setEditingSegmentName] = useState(null); // {categoriaId, segmentoIndex}
 
   const updateConfig = (field, value) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
@@ -283,7 +292,13 @@ export default function ConfigurarEncuesta() {
       ...prev,
       segmentos: [
         ...prev.segmentos,
-        { nombre: "", objetivo: 0, porcentaje: 0, icon: "User" },
+        { 
+          nombre: "", 
+          objetivo: 0, 
+          porcentaje: 0, 
+          icon: "User",
+          segmentId: `seg_${Date.now()}_${prev.segmentos.length}_${Math.random().toString(36).substr(2, 9)}`,
+        },
       ],
     }));
   };
@@ -338,7 +353,10 @@ export default function ConfigurarEncuesta() {
     if (plantilla) {
       setNuevaCategoria({
         nombre: plantilla.nombre,
-        segmentos: plantilla.segmentos.map((seg) => ({ ...seg })),
+        segmentos: plantilla.segmentos.map((seg, idx) => ({
+          ...seg,
+          segmentId: `seg_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+        })),
       });
       setPlantillaSeleccionada(tipo);
     }
@@ -374,11 +392,17 @@ export default function ConfigurarEncuesta() {
       return;
     }
 
+    // Generar segmentId único para cada segmento
+    const segmentosConId = segmentosValidos.map((s, idx) => ({
+      ...s,
+      segmentId: s.segmentId || `seg_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+    }));
+
     const nuevaCat = {
       id: Date.now(),
       nombre: nuevaCategoria.nombre,
       editable: true,
-      segmentos: segmentosValidos,
+      segmentos: segmentosConId,
     };
 
     setConfig((prev) => ({
@@ -524,6 +548,7 @@ export default function ConfigurarEncuesta() {
       const quotas = config.categorias.map((cat) => ({
         category: cat.nombre,
         segments: cat.segmentos.map((seg) => ({
+          segmentId: seg.segmentId, // Incluir ID para sincronización robusta
           name: seg.nombre,
           target: seg.objetivo,
           current: 0,
@@ -868,50 +893,111 @@ export default function ConfigurarEncuesta() {
                               key={idx}
                               className="flex items-center gap-2 sm:gap-3"
                             >
-                              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[var(--primary)]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center flex-shrink-0">
                                 <IconRenderer
                                   iconName={segmento.icon}
                                   size={16}
-                                  className="text-[var(--primary)] sm:w-[18px] sm:h-[18px]"
+                                  className="text-white sm:w-[18px] sm:h-[18px]"
                                 />
                               </div>
-                              <div className="flex-1 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-[var(--text-primary)] font-medium text-sm sm:text-base truncate min-w-0">
-                                {segmento.nombre}
+                              <div className="flex-1 min-w-0 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 flex items-center gap-2 group/name">
+                                {editingSegmentName?.categoriaId === categoria.id && editingSegmentName?.segmentoIndex === idx ? (
+                                  <input
+                                    type="text"
+                                    value={segmento.nombre}
+                                    onChange={(e) =>
+                                      updateSegmento(
+                                        categoria.id,
+                                        idx,
+                                        "nombre",
+                                        e.target.value
+                                      )
+                                    }
+                                    onBlur={() => setEditingSegmentName(null)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") setEditingSegmentName(null);
+                                    }}
+                                    autoFocus
+                                    className="flex-1 min-w-0 bg-transparent text-[var(--text-primary)] font-medium text-sm sm:text-base focus:outline-none focus:ring-0 border-none"
+                                    placeholder="Nombre del segmento"
+                                  />
+                                ) : (
+                                  <span className="flex-1 min-w-0 text-[var(--text-primary)] font-medium text-sm sm:text-base truncate">
+                                    {segmento.nombre || "Sin nombre"}
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingSegmentName({ categoriaId: categoria.id, segmentoIndex: idx })}
+                                  className="text-[var(--text-muted)] opacity-0 group-hover/name:opacity-100 hover:text-[var(--primary)] transition-all flex-shrink-0 p-0.5"
+                                  title="Editar nombre"
+                                >
+                                  <Pencil size={14} />
+                                </button>
                               </div>
-                              {/* Input de porcentaje con % integrado */}
-                              <div className="relative flex-shrink-0">
-                                <input
-                                  type="number"
-                                  value={segmento.porcentaje}
-                                  onChange={(e) =>
+                              {/* Input de porcentaje con botones +/- */}
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() =>
                                     updateSegmento(
                                       categoria.id,
                                       idx,
                                       "porcentaje",
-                                      e.target.value
+                                      Math.max(0, (parseInt(segmento.porcentaje) || 0) - 1)
                                     )
                                   }
-                                  className="w-14 sm:w-16 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg pl-2 pr-6 sm:pr-7 py-1.5 sm:py-2 text-[var(--text-primary)] text-center text-sm sm:text-base focus:outline-none focus:border-[var(--secondary)]"
-                                  min="0"
-                                  max="100"
-                                />
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-xs sm:text-sm pointer-events-none">
-                                  %
-                                </span>
+                                  className="w-7 h-7 sm:w-8 sm:h-8 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
+                                >
+                                  −
+                                </button>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={segmento.porcentaje}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '');
+                                      updateSegmento(
+                                        categoria.id,
+                                        idx,
+                                        "porcentaje",
+                                        val === '' ? 0 : Math.min(100, parseInt(val))
+                                      );
+                                    }}
+                                    className="w-14 sm:w-16 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg pl-2 pr-6 sm:pr-7 py-1.5 sm:py-2 text-[var(--text-primary)] text-center text-sm sm:text-base focus:outline-none focus:border-[var(--secondary)]"
+                                  />
+                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-xs sm:text-sm pointer-events-none">
+                                    %
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    updateSegmento(
+                                      categoria.id,
+                                      idx,
+                                      "porcentaje",
+                                      Math.min(100, (parseInt(segmento.porcentaje) || 0) + 1)
+                                    )
+                                  }
+                                  className="w-7 h-7 sm:w-8 sm:h-8 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
+                                >
+                                  +
+                                </button>
                               </div>
                               <input
-                                type="number"
+                                type="text"
+                                inputMode="numeric"
                                 value={segmento.objetivo}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9]/g, '');
                                   updateSegmento(
                                     categoria.id,
                                     idx,
                                     "objetivo",
-                                    e.target.value
-                                  )
-                                }
-                                className="font-bold w-14 sm:w-20 bg-[color:var(--primary-dark)] dark:bg-[color:var(--primary-light)] border border-[color:var(--primary)] rounded-lg px-1 sm:px-2 py-1.5 sm:py-2 text-white dark:text-[color:var(--primary-dark)] text-center text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]"
-                                min="0"
+                                    val === '' ? 0 : parseInt(val)
+                                  );
+                                }}
+                                className="font-bold w-16 sm:w-20 bg-[color:var(--primary-dark)] dark:bg-[color:var(--primary-light)] border border-[color:var(--primary)] rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-white dark:text-[color:var(--primary-dark)] text-center text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]"
                               />
                             </div>
                           ))}

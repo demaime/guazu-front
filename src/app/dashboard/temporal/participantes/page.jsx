@@ -12,6 +12,7 @@ import {
   MapPin,
   X,
   ChevronDown,
+  AlertCircle,
   Scale,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -130,7 +131,21 @@ export default function ParticipantesPage() {
           
           // 4) Cargar meta total y asignaciones de casos (solo para pollsters)
           if (selectedType === "pollsters") {
-            const target = surveyInfo.target || 0;
+            let target = surveyInfo.target || 0;
+            
+            // Calculate effective target from quotas if manual target is 0
+            if (!target && surveyInfo.quotas && surveyInfo.quotas.length > 0) {
+              const quotas = surveyInfo.quotas;
+              // The effective target is the maximum sum of segments in any category (since quotas are parallel)
+              // OR the sum of the first category if we assume simple structure.
+              // Usually quotas are independent dimensions (e.g. 50 men, 50 women = 100 total; 20 in North, 80 in South = 100 total).
+              // So we should find the max total across categories.
+              const categoryTotals = quotas.map(q => 
+                (q.segments || []).reduce((sum, s) => sum + (s.target || 0), 0)
+              );
+              target = Math.max(...categoryTotals, 0);
+            }
+            
             setMetaTotal(target);
             
             // Usar verificación en cascada para leer asignaciones de casos
@@ -142,7 +157,8 @@ export default function ParticipantesPage() {
             
             console.log('📥 Cargando asignaciones existentes:', {
               savedAssignments: savedAssignments.length,
-              assignments: savedAssignments
+              assignments: savedAssignments,
+              metaTotal: target
             });
             
             setPollsterAssignments(savedAssignments);
@@ -736,7 +752,7 @@ export default function ParticipantesPage() {
           {isSelectedPanelExpanded && (
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               {/* Header with total and distribute button - Only for pollsters */}
-              {selectedType === "pollsters" && selectedParticipants.length > 0 && metaTotal > 0 && (
+              {selectedType === "pollsters" && selectedParticipants.length > 0 && (
                 <div className="flex-shrink-0 p-3 space-y-2 border-b border-[var(--card-border)]">
                   {/* Total and Distribute button in same row */}
                   <div className="flex items-center gap-2">
@@ -751,30 +767,35 @@ export default function ParticipantesPage() {
                             ? "text-green-600"
                             : "text-orange-600"
                         }`}>
-                          {getTotalAssignedCases()} / {metaTotal}
+                          {getTotalAssignedCases()} {metaTotal > 0 ? `/ ${metaTotal}` : ""}
                         </span>
                       </div>
                     </div>
 
-                    {/* Distribute button */}
-                    <button
-                      onClick={distributeEqually}
-                      className="flex-shrink-0 px-3 py-1.5 text-xs bg-[var(--primary-dark)] dark:bg-[var(--primary-light)] text-white dark:text-[var(--primary-dark)] hover:opacity-90 rounded-lg transition-opacity font-medium flex items-center gap-1.5"
-                    >
-                      <Scale className="w-3.5 h-3.5" />
-                      Distribuir
-                    </button>
+                    {/* Distribute button - only if metaTotal > 0 */}
+                    {metaTotal > 0 && (
+                      <button
+                        onClick={distributeEqually}
+                        className="flex-shrink-0 px-3 py-1.5 text-xs bg-[var(--primary-dark)] dark:bg-[var(--primary-light)] text-white dark:text-[var(--primary-dark)] hover:opacity-90 rounded-lg transition-opacity font-medium flex items-center gap-1.5"
+                      >
+                        <Scale className="w-3.5 h-3.5" />
+                        Distribuir
+                      </button>
+                    )}
                   </div>
                   
                   {/* Warning message if needed */}
-                  {getTotalAssignedCases() !== metaTotal && (
-                    <p className={`text-[9px] px-1 ${
+                  {metaTotal > 0 && getTotalAssignedCases() !== metaTotal && (
+                    <div className={`flex items-center gap-1 text-[9px] px-1 ${
                       getTotalAssignedCases() > metaTotal ? "text-red-600" : "text-orange-600"
                     }`}>
-                      {getTotalAssignedCases() > metaTotal 
-                        ? "⚠️ Excede la meta total" 
-                        : `Faltan ${metaTotal - getTotalAssignedCases()} casos por asignar`}
-                    </p>
+                      <AlertCircle className="w-3 h-3" />
+                      <span>
+                        {getTotalAssignedCases() > metaTotal 
+                          ? "Excede la meta total" 
+                          : `Faltan ${metaTotal - getTotalAssignedCases()} casos`}
+                      </span>
+                    </div>
                   )}
 
                   {/* Column Headers */}
@@ -811,7 +832,7 @@ export default function ParticipantesPage() {
                       return (
                         <div
                           key={participant.id}
-                          className="flex items-center gap-2"
+                          className="flex items-stretch gap-2"
                         >
                           {/* Card with hover to remove */}
                           <div className="flex-1 bg-[var(--background)] border border-[var(--card-border)] rounded-lg group hover:border-[var(--primary)]/50 transition-all hover:bg-[var(--hover-bg)] relative overflow-hidden">
@@ -859,23 +880,23 @@ export default function ParticipantesPage() {
                           </div>
                           
                           {/* Cases Input - Outside card, always clickeable */}
-                          {selectedType === "pollsters" && metaTotal > 0 && (
-                            <div className="flex-shrink-0">
+                          {selectedType === "pollsters" && (
+                            <div className="flex-shrink-0 w-20">
                               <input
-                                type="number"
-                                min="0"
-                                max={metaTotal}
+                                type="text"
+                                inputMode="numeric"
                                 value={getAssignedCases(participant.id)}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9]/g, '');
                                   handlePollsterAssignmentChange(
                                     participant.id,
-                                    parseInt(e.target.value) || 0
-                                  )
-                                }
-                                className={`w-14 px-2 py-1 border rounded text-center text-xs focus:outline-none focus:ring-1 ${
+                                    val === '' ? 0 : parseInt(val)
+                                  );
+                                }}
+                                className={`w-full h-full px-2 border-2 rounded-xl text-center font-bold text-lg focus:outline-none transition-all ${
                                   getAssignedCases(participant.id) === 0
-                                    ? "bg-[var(--error-bg)] text-[var(--error-text)] border-[var(--error-border)] focus:border-[var(--error-border)] focus:ring-[var(--error-border)]"
-                                    : "bg-[var(--input-background)] text-[var(--text-primary)] border-[var(--card-border)] focus:border-[var(--primary)] focus:ring-[var(--primary)]"
+                                    ? "bg-[var(--input-background)] text-[var(--text-secondary)] border-[var(--card-border)] focus:border-[var(--primary)]"
+                                    : "bg-[var(--primary)] text-white border-[var(--primary)] focus:brightness-110"
                                 }`}
                                 placeholder="0"
                               />
@@ -1207,7 +1228,7 @@ export default function ParticipantesPage() {
               {/* Modal Content */}
               <div className="flex-1 overflow-y-auto p-4">
                 {/* Case Assignment Header - Only for pollsters */}
-                {selectedType === "pollsters" && selectedParticipants.length > 0 && metaTotal > 0 && (
+                {selectedType === "pollsters" && selectedParticipants.length > 0 && (
                   <div className="mb-4 space-y-2 pb-4 border-b border-[var(--card-border)]">
                     {/* Total and Distribute button in same row */}
                     <div className="flex items-center gap-2">
@@ -1222,19 +1243,21 @@ export default function ParticipantesPage() {
                               ? "text-green-600"
                               : "text-orange-600"
                           }`}>
-                            {getTotalAssignedCases()} / {metaTotal}
+                            {getTotalAssignedCases()} {metaTotal > 0 ? `/ ${metaTotal}` : ""}
                           </span>
                         </div>
                       </div>
 
                       {/* Distribute button */}
-                      <button
-                        onClick={distributeEqually}
-                        className="flex-shrink-0 px-3 py-1.5 text-xs bg-[var(--primary-dark)] dark:bg-[var(--primary-light)] text-white dark:text-[var(--primary-dark)] hover:opacity-90 rounded-lg transition-opacity font-medium flex items-center gap-1.5"
-                      >
-                        <Scale className="w-3.5 h-3.5" />
-                        Distribuir
-                      </button>
+                      {metaTotal > 0 && (
+                        <button
+                          onClick={distributeEqually}
+                          className="flex-shrink-0 px-3 py-1.5 text-xs bg-[var(--primary-dark)] dark:bg-[var(--primary-light)] text-white dark:text-[var(--primary-dark)] hover:opacity-90 rounded-lg transition-opacity font-medium flex items-center gap-1.5"
+                        >
+                          <Scale className="w-3.5 h-3.5" />
+                          Distribuir
+                        </button>
+                      )}
                     </div>
                     
                     {/* Warning message if needed */}
@@ -1243,7 +1266,7 @@ export default function ParticipantesPage() {
                         getTotalAssignedCases() > metaTotal ? "text-red-600" : "text-orange-600"
                       }`}>
                         {getTotalAssignedCases() > metaTotal 
-                          ? "⚠️ Excede la meta total" 
+                          ? "Excede la meta total" 
                           : `Faltan ${metaTotal - getTotalAssignedCases()} casos por asignar`}
                       </p>
                     )}
@@ -1301,31 +1324,31 @@ export default function ParticipantesPage() {
                             </div>
                             
                             {/* Cases Input - Only for pollsters */}
-                            {selectedType === "pollsters" && metaTotal > 0 && (
-                              <div className="flex-shrink-0">
+                            {selectedType === "pollsters" && (
+                              <div className="flex-shrink-0 w-16">
                                 <input
-                                  type="number"
-                                  min="0"
-                                  max={metaTotal}
+                                  type="text"
+                                  inputMode="numeric"
                                   value={getAssignedCases(participant.id)}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9]/g, '');
                                     handlePollsterAssignmentChange(
                                       participant.id,
-                                      parseInt(e.target.value) || 0
-                                    )
-                                  }
-                                  className={`w-14 px-2 py-1 border rounded text-center text-xs focus:outline-none focus:ring-1 ${
+                                      val === '' ? 0 : parseInt(val)
+                                    );
+                                  }}
+                                  className={`w-full py-1.5 border rounded-lg text-center font-bold text-sm focus:outline-none transition-all ${
                                     getAssignedCases(participant.id) === 0
-                                      ? "bg-[var(--error-bg)] text-[var(--error-text)] border-[var(--error-border)] focus:border-[var(--error-border)] focus:ring-[var(--error-border)]"
-                                      : "bg-[var(--input-background)] text-[var(--text-primary)] border-[var(--card-border)] focus:border-[var(--primary)] focus:ring-[var(--primary)]"
+                                      ? "bg-[var(--input-background)] text-[var(--text-secondary)] border-[var(--card-border)] focus:border-[var(--primary)]"
+                                      : "bg-[var(--primary)] text-white border-[var(--primary)]"
                                   }`}
                                   placeholder="0"
                                 />
                               </div>
                             )}
                             
-                            {/* Remove button - Only show if no cases input or for supervisors */}
-                            {(!selectedType || selectedType !== "pollsters" || !metaTotal) && (
+                            {/* Remove button - Only show if no cases input (not pollster) */}
+                            {(!selectedType || selectedType !== "pollsters") && (
                               <button
                                 onClick={() => handleParticipantToggle(participant.id)}
                                 className="p-1.5 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 self-center"

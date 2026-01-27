@@ -116,6 +116,7 @@ export default function ModuleCard({
                 const copia = {
                   ...modulo,
                   id: Date.now(),
+                  nombre: `Copia de ${modulo.nombre}`,
                   descripcion: modulo.descripcion || '',
                   preguntas: modulo.preguntas.map(p => ({ ...p, id: Date.now() + Math.random() })),
                   condicionada: modulo.condicionada || { activa: false, condiciones: [] },
@@ -171,6 +172,7 @@ export default function ModuleCard({
                 const copia = {
                   ...modulo,
                   id: Date.now(),
+                  nombre: `Copia de ${modulo.nombre}`,
                   descripcion: modulo.descripcion || '',
                   preguntas: modulo.preguntas.map(p => ({ ...p, id: Date.now() + Math.random() })),
                   condicionada: modulo.condicionada || { activa: false, condiciones: [] },

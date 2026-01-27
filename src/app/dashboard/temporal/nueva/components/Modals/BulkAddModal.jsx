@@ -1,7 +1,7 @@
 "use client";
 
-import { X, Upload, Eye } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { X, Upload, GripVertical } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BulkAddModal({ 
@@ -14,6 +14,13 @@ export default function BulkAddModal({
   const [isAnimating, setIsAnimating] = useState(false);
   const [texto, setTexto] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [opciones, setOpciones] = useState([]);
+  const prevTextoRef = useRef('');
+  
+  // Estado para redimensionar paneles
+  const [leftPanelWidth, setLeftPanelWidth] = useState(50); // porcentaje
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -22,28 +29,71 @@ export default function BulkAddModal({
       setIsAnimating(false);
       setTexto('');
       setShowPreview(false);
+      setOpciones([]);
+      prevTextoRef.current = '';
+      setLeftPanelWidth(50);
     }
   }, [isOpen]);
 
+  // Procesar texto cuando cambia y actualizar opciones
+  useEffect(() => {
+    if (texto !== prevTextoRef.current) {
+      const lineas = texto
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+      
+      const nuevasOpciones = lineas.map((text, index) => {
+        // Mantener el value personalizado si existe y el texto es el mismo
+        const existente = opciones.find((op, i) => i === index && op.text === text);
+        return {
+          value: existente ? existente.value : String(index + 1),
+          text: text
+        };
+      });
+      
+      setOpciones(nuevasOpciones);
+      prevTextoRef.current = texto;
+    }
+  }, [texto]);
+
+  // Handlers para redimensionar
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isResizing || !containerRef.current) return;
+    
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    
+    // Limitar entre 25% y 75%
+    const clampedWidth = Math.min(Math.max(newWidth, 25), 75);
+    setLeftPanelWidth(clampedWidth);
+  }, [isResizing]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp]);
+
   if (!isOpen) return null;
 
-  const procesarTexto = () => {
-    const lineas = texto
-      .split('\n')
-      .map(l => l.trim())
-      .filter(l => l.length > 0);
-    
-    return lineas.map((text, index) => ({
-      value: String(index + 1),
-      text: text
-    }));
-  };
-
-  const opcionesPreview = procesarTexto();
-
   const handleConfirm = () => {
-    if (opcionesPreview.length === 0) return;
-    onConfirm(opcionesPreview);
+    if (opciones.length === 0) return;
+    onConfirm(opciones);
     onClose();
   };
 
@@ -52,6 +102,18 @@ export default function BulkAddModal({
     setTimeout(() => {
       setShowPreview(true);
     }, 100);
+  };
+
+  const handleValueChange = (index, newValue) => {
+    setOpciones(prev => prev.map((op, i) => 
+      i === index ? { ...op, value: newValue } : op
+    ));
+  };
+
+  const handleTextChange = (index, newText) => {
+    setOpciones(prev => prev.map((op, i) => 
+      i === index ? { ...op, text: newText } : op
+    ));
   };
 
   return (
@@ -66,7 +128,7 @@ export default function BulkAddModal({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className={`bg-[color:var(--card-background)] rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col border border-[color:var(--card-border)] shadow-2xl`}
+        className={`bg-[color:var(--card-background)] rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col border border-[color:var(--card-border)] shadow-2xl ${isResizing ? 'select-none' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -81,13 +143,19 @@ export default function BulkAddModal({
         </div>
 
         {/* Contenido */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="flex-1 overflow-hidden p-4" style={{ minHeight: '400px' }}>
+          <div 
+            ref={containerRef}
+            className="flex h-full gap-0"
+          >
             {/* Panel de entrada */}
-            <div className="space-y-2">
-                <label className="block text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
-                  Texto (una opción por línea)
-                </label>
+            <div 
+              className="space-y-2 overflow-hidden flex flex-col"
+              style={{ width: `${leftPanelWidth}%` }}
+            >
+              <label className="block text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
+                Texto (una opción por línea)
+              </label>
 
               <textarea
                 value={texto}
@@ -105,43 +173,71 @@ export default function BulkAddModal({
               </p>
             </div>
 
+            {/* Divisor redimensionable */}
+            <div
+              onMouseDown={handleMouseDown}
+              className={`w-3 flex-shrink-0 flex items-center justify-center cursor-col-resize group hover:bg-[color:var(--primary)]/10 transition-colors mx-1 rounded ${isResizing ? 'bg-[color:var(--primary)]/20' : ''}`}
+            >
+              <div className={`w-1 h-16 rounded-full transition-colors ${isResizing ? 'bg-[color:var(--primary)]' : 'bg-[color:var(--card-border)] group-hover:bg-[color:var(--primary)]'}`} />
+            </div>
+
             {/* Panel de preview */}
-            <div className="space-y-2">
+            <div 
+              className="space-y-2 overflow-hidden flex flex-col"
+              style={{ width: `${100 - leftPanelWidth}%` }}
+            >
               <label className="block text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
-                Vista previa ({opcionesPreview.length} {opcionesPreview.length === 1 ? 'opción' : 'opciones'})
+                Vista previa ({opciones.length} {opciones.length === 1 ? 'opción' : 'opciones'})
               </label>
-              <div className="border border-[color:var(--card-border)] rounded-lg bg-[color:var(--hover-bg)] p-3 h-[calc(12*1.5rem+2rem)] overflow-y-auto">
-                <AnimatePresence mode="popLayout">
-                  {opcionesPreview.length > 0 ? (
-                    <div className="space-y-2">
-                      {opcionesPreview.map((opcion, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.03 }}
-                          className="flex items-center gap-2 p-2 rounded bg-[color:var(--card-background)] border border-[color:var(--card-border)]"
-                        >
-                          <span className="w-8 text-center text-xs font-mono bg-[color:var(--primary)] text-white px-2 py-0.5 rounded">
-                            {opcion.value}
-                          </span>
-                          <span className="flex-1 text-sm text-[color:var(--text-primary)]">
-                            {opcion.text}
-                          </span>
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-[color:var(--text-muted)] text-sm">
-                      {texto.length === 0 
-                        ? 'Escribe o pega texto para ver el preview'
-                        : 'No hay opciones válidas (líneas vacías serán ignoradas)'
-                      }
-                    </div>
-                  )}
-                </AnimatePresence>
+              
+              <div className="border border-[color:var(--card-border)] rounded-lg bg-[color:var(--hover-bg)] overflow-hidden h-[calc(12*1.5rem+2rem)]">
+                {/* Encabezados de columna - siempre visibles */}
+                <div className="flex items-center gap-2 px-4 py-2 bg-[color:var(--card-background)] border-b border-[color:var(--card-border)] text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
+                  <span className="w-20 text-center">Variable</span>
+                  <span className="flex-1">Texto</span>
+                </div>
+                
+                <div className="p-3 overflow-y-auto" style={{ height: 'calc(100% - 36px)' }}>
+                  <AnimatePresence mode="popLayout">
+                    {opciones.length > 0 ? (
+                      <div className="space-y-2">
+                        {opciones.map((opcion, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.03 }}
+                            className="flex items-center gap-2 p-2 rounded bg-[color:var(--card-background)] border border-[color:var(--card-border)]"
+                          >
+                            <input
+                              type="text"
+                              value={opcion.value}
+                              onChange={(e) => handleValueChange(index, e.target.value)}
+                              className="w-20 text-center text-xs font-mono bg-[color:var(--primary)] text-white px-2 py-1 rounded border-0 focus:ring-2 focus:ring-white/30 focus:outline-none"
+                              title="Editar valor de variable"
+                            />
+                            <input
+                              type="text"
+                              value={opcion.text}
+                              onChange={(e) => handleTextChange(index, e.target.value)}
+                              className="flex-1 text-sm text-[color:var(--text-primary)] bg-transparent border-0 outline-none focus:bg-[color:var(--hover-bg)] px-2 py-1 rounded transition-colors"
+                              title="Editar texto de opción"
+                            />
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-[color:var(--text-muted)] text-sm">
+                        {texto.length === 0 
+                          ? 'Escribe o pega texto para ver el preview'
+                          : 'No hay opciones válidas (líneas vacías serán ignoradas)'
+                        }
+                      </div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
-              {opcionesPreview.length > 0 && opcionesPreview.length < 2 && (
+              {opciones.length > 0 && opciones.length < 2 && (
                 <p className="text-xs text-orange-600">
                   ⚠️ Se requieren al menos 2 opciones
                 </p>
@@ -160,17 +256,14 @@ export default function BulkAddModal({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={opcionesPreview.length === 0}
+            disabled={opciones.length === 0}
             className="flex-1 px-4 py-2.5 rounded-lg bg-[color:var(--primary)] hover:opacity-90 text-white font-medium transition-opacity text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Upload size={16} />
-            Agregar {opcionesPreview.length > 0 ? `${opcionesPreview.length} opciones` : 'opciones'}
+            Agregar {opciones.length > 0 ? `${opciones.length} opciones` : 'opciones'}
           </button>
         </div>
       </motion.div>
     </div>
   );
 }
-
-
-
