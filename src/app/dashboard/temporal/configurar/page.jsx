@@ -7,6 +7,7 @@ import {
   MapPin,
   Check,
   AlertCircle,
+  ChevronDown,
   X,
   ArrowLeft,
   Plus,
@@ -25,12 +26,16 @@ import {
   Loader2,
   Scale,
   Pencil,
+  BarChart3,
+  Shuffle,
 } from "lucide-react";
 import { useSurveyCreation } from "../context/SurveyCreationContext";
 import { surveyService } from "@/services/survey.service";
 import { userService } from "@/services/user.service";
 import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import QuotaDistributionModal from "../nueva/components/Modals/QuotaDistributionModal";
+import PollsterSelectionModal from "../nueva/components/Modals/PollsterSelectionModal";
+import SupervisorSelectionModal from "../nueva/components/Modals/SupervisorSelectionModal";
 
 const IconRenderer = ({ iconName, size = 18, className = "" }) => {
   const icons = {
@@ -57,11 +62,43 @@ export default function ConfigurarEncuesta() {
     fechaInicio: "",
     fechaFin: "",
     gpsObligatorio: false,
-    tieneObjetivo: true,
+    goalType: "cases", // 'cases' o 'quotas'
     metaTotal: 100,
-    cuotasActivas: true,
     categorias: [],
   });
+
+  const [tienePreguntasCuota, setTienePreguntasCuota] = useState(false);
+  const [quotaStructure, setQuotaStructure] = useState(null);
+
+  // Función helper para detectar preguntas cuota
+  const detectarPreguntasCuota = (surveyDefinition) => {
+    if (!surveyDefinition?.modulos) return false;
+    const todasLasPreguntas = surveyDefinition.modulos.flatMap(m => m.preguntas || []);
+    return todasLasPreguntas.some(p => 
+      p.tipo === 'cuota-genero' || p.tipo === 'cuota-edad'
+    );
+  };
+
+  // Función para detectar estructura de cuotas y extraer opciones
+  const detectQuotaStructure = (surveyDefinition) => {
+    if (!surveyDefinition?.modulos) return null;
+    
+    const todasLasPreguntas = surveyDefinition.modulos.flatMap(m => m.preguntas || []);
+    const genderQuestion = todasLasPreguntas.find(p => p.tipo === 'cuota-genero');
+    const ageQuestion = todasLasPreguntas.find(p => p.tipo === 'cuota-edad');
+    
+    if (!genderQuestion && !ageQuestion) return null;
+    
+    const structure = {
+      hasGender: !!genderQuestion,
+      hasAge: !!ageQuestion,
+      genderOptions: genderQuestion?.opciones || [],
+      ageOptions: ageQuestion?.opciones || [],
+      isCrossTable: !!genderQuestion && !!ageQuestion
+    };
+    
+    return structure;
+  };
 
   // Cargar encuesta existente si hay ID
   useEffect(() => {
@@ -76,8 +113,7 @@ export default function ConfigurarEncuesta() {
           fechaFin: surveyData.fechaFin,
           metaTotal: surveyData.metaTotal,
           gpsObligatorio: surveyData.gpsObligatorio,
-          tieneObjetivo: surveyData.tieneObjetivo,
-          cuotasActivas: surveyData.cuotasActivas,
+          goalType: surveyData.goalType || "cases",
           categorias: surveyData.categorias || [],
         }));
         setIsLoading(false);
@@ -94,6 +130,7 @@ export default function ConfigurarEncuesta() {
       setIsLoading(true);
       const response = await surveyService.getSurvey(id);
       const surveyInfo = response?.survey?.surveyInfo || {};
+      const surveyDefinition = response?.survey?.surveyDefinition;
 
       const formatDateForInput = (dateString) => {
         if (!dateString) return "";
@@ -101,13 +138,32 @@ export default function ConfigurarEncuesta() {
         return !isNaN(date.getTime()) ? date.toISOString().split("T")[0] : "";
       };
 
+      // Detectar si hay preguntas cuota en el formulario
+      const hasCuotas = detectarPreguntasCuota(surveyDefinition);
+      setTienePreguntasCuota(hasCuotas);
+
+      // Detectar estructura de cuotas (opciones de género/edad)
+      const structure = detectQuotaStructure(surveyDefinition);
+      setQuotaStructure(structure);
+
+      // Determinar goalType basado en los datos existentes
+      let goalType = "cases"; // default
+      
+      // Si hay preguntas cuota, FORZAR a 'quotas'
+      if (hasCuotas) {
+        goalType = "quotas";
+      } else {
+        // Si no hay cuotas, usar el goalType guardado o inferirlo
+        const hasQuotas = (surveyInfo.quotas || []).length > 0;
+        goalType = surveyInfo.goalType || (hasQuotas ? "quotas" : "cases");
+      }
+
       setConfig({
         fechaInicio: formatDateForInput(surveyInfo.startDate),
         fechaFin: formatDateForInput(surveyInfo.endDate),
         metaTotal: surveyInfo.target || 0,
         gpsObligatorio: surveyInfo.requireGps || false,
-        tieneObjetivo: (surveyInfo.target || 0) > 0,
-        cuotasActivas: (surveyInfo.quotas || []).length > 0,
+        goalType: goalType,
         categorias: (surveyInfo.quotas || []).map((q, catIdx) => {
           // Calcular el total de objetivos de esta categoría para poder calcular porcentajes
           const totalObjetivos = q.segments.reduce((sum, s) => sum + (s.target || 0), 0);
@@ -143,6 +199,39 @@ export default function ConfigurarEncuesta() {
       if (participantsData?.pollsterAssignments?.length > 0) {
         setPollsterAssignments(participantsData.pollsterAssignments);
       }
+      
+      // Cargar participantes asignados - buscar en múltiples ubicaciones posibles
+      const userIds = 
+        response?.survey?.surveyInfo?.userIds ||
+        response?.survey?.participants?.userIds ||
+        response?.survey?.userIds ||
+        surveyInfo.userIds ||
+        participantsData?.userIds ||
+        [];
+        
+      const supervisorsIds = 
+        response?.survey?.surveyInfo?.supervisorsIds ||
+        response?.survey?.participants?.supervisorsIds ||
+        response?.survey?.supervisorsIds ||
+        surveyInfo.supervisorsIds ||
+        participantsData?.supervisorsIds ||
+        [];
+        
+      console.log('🔍 DEBUG - Loading participants:', {
+        userIds,
+        supervisorsIds,
+        surveyInfoUserIds: surveyInfo.userIds,
+        participantsUserIds: participantsData?.userIds,
+        fullResponse: response?.survey
+      });
+        
+      setAssignedPollsters((userIds || []).map(String));
+      setAssignedSupervisors((supervisorsIds || []).map(String));
+      
+      // Cargar detalles de encuestadores
+      if (userIds && userIds.length > 0) {
+        await loadPollsterDetails(userIds.map(String));
+      }
     } catch (error) {
       console.error("Error al cargar configuración:", error);
       toast.error("Error al cargar la configuración: " + error.message);
@@ -174,8 +263,61 @@ export default function ConfigurarEncuesta() {
   const [pollsterAssignments, setPollsterAssignments] = useState([]); // Case assignments per pollster
   const [editingSegmentName, setEditingSegmentName] = useState(null); // {categoriaId, segmentoIndex}
 
+  // Estados para modales de participantes
+  const [showPollsterModal, setShowPollsterModal] = useState(false);
+  const [showSupervisorModal, setShowSupervisorModal] = useState(false);
+  const [assignedPollsters, setAssignedPollsters] = useState([]);
+  const [assignedSupervisors, setAssignedSupervisors] = useState([]);
+  const [pollsterDetails, setPollsterDetails] = useState({}); // {id: {nombre, apellido}}
+
   const updateConfig = (field, value) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Función para cargar detalles de encuestadores
+  const loadPollsterDetails = async (pollsterIds) => {
+    if (!pollsterIds || pollsterIds.length === 0) {
+      setPollsterDetails({});
+      return;
+    }
+    
+    try {
+      // Cargar todos los encuestadores del backend
+      const pollstersResponse = await userService.getPollsters();
+      const allPollsters = pollstersResponse.users || [];
+      
+      const details = {};
+      pollsterIds.forEach((id) => {
+        // Buscar el encuestador en la lista cargada
+        const pollster = allPollsters.find(p => String(p._id) === String(id));
+        if (pollster) {
+          details[id] = {
+            nombre: pollster.nombre || pollster.name || '',
+            apellido: pollster.apellido || pollster.lastName || '',
+            foto: pollster.foto || pollster.photo || pollster.avatar || null
+          };
+        } else {
+          details[id] = {
+            nombre: 'Encuestador',
+            apellido: '',
+            foto: null
+          };
+        }
+      });
+      setPollsterDetails(details);
+    } catch (error) {
+      console.error('Error loading pollster details:', error);
+      // Fallback a placeholders en caso de error
+      const details = {};
+      pollsterIds.forEach((id, index) => {
+        details[id] = {
+          nombre: `Encuestador ${index + 1}`,
+          apellido: '',
+          foto: null
+        };
+      });
+      setPollsterDetails(details);
+    }
   };
 
   const calcularDuracion = () => {
@@ -204,10 +346,10 @@ export default function ConfigurarEncuesta() {
   };
 
   const obtenerMetaEfectiva = () => {
-    if (config.tieneObjetivo && config.metaTotal > 0) {
+    if (config.goalType === "cases" && config.metaTotal > 0) {
       return config.metaTotal;
     }
-    // Si no hay objetivo pero hay cuotas, usar el total de cuotas como mínimo
+    // Si es por cuotas, usar el total de cuotas como mínimo
     const totalCuotas = calcularTotalDeCuotas();
     return totalCuotas > 0 ? totalCuotas : 0; // Default 0 si no hay nada
   };
@@ -564,9 +706,10 @@ export default function ConfigurarEncuesta() {
           ...surveyInfo,
           startDate: config.fechaInicio,
           endDate: config.fechaFin,
-          target: config.tieneObjetivo ? config.metaTotal : 0,
+          goalType: config.goalType,
+          target: config.goalType === "cases" ? config.metaTotal : 0,
           requireGps: config.gpsObligatorio,
-          quotas: config.cuotasActivas ? quotas : [],
+          quotas: config.goalType === "quotas" ? quotas : [],
           quotaAssignments:
             existing?.survey?.surveyInfo?.quotaAssignments || [],
           userIds:
@@ -608,6 +751,112 @@ export default function ConfigurarEncuesta() {
       setIsSaving(false);
       setShowValidationModal(false);
       setShowGoToParticipantsOption(false);
+    }
+  };
+
+  // Funciones para manejar modales de participantes
+  const handleSavePollsters = async (pollsterIds) => {
+    setAssignedPollsters(pollsterIds);
+    // Cargar detalles de encuestadores
+    await loadPollsterDetails(pollsterIds);
+    setShowPollsterModal(false);
+  };
+
+  const handleSaveSupervisors = async (supervisorIds) => {
+    setAssignedSupervisors(supervisorIds);
+    setShowSupervisorModal(false);
+  };
+
+  // Funciones para distribución de casos
+  const handleCaseAssignment = (pollsterId, cases) => {
+    setPollsterAssignments(prev => {
+      const updated = [...prev];
+      const existingIndex = updated.findIndex(a => a.pollsterId === pollsterId);
+      
+      if (existingIndex >= 0) {
+        updated[existingIndex] = { pollsterId, assignedCases: parseInt(cases) || 0 };
+      } else {
+        updated.push({ pollsterId, assignedCases: parseInt(cases) || 0 });
+      }
+      
+      return updated;
+    });
+  };
+
+  const getTotalAssignedCases = () => {
+    return pollsterAssignments.reduce(
+      (total, assignment) => total + (assignment.assignedCases || 0),
+      0
+    );
+  };
+
+  const getAssignedCases = (pollsterId) => {
+    const assignment = pollsterAssignments.find(a => a.pollsterId === pollsterId);
+    return assignment ? assignment.assignedCases || 0 : 0;
+  };
+
+  const updatePollsterCases = (pollsterId, cases) => {
+    setPollsterAssignments(prev => {
+      const existing = prev.find(a => a.pollsterId === pollsterId);
+      if (existing) {
+        return prev.map(a => 
+          a.pollsterId === pollsterId 
+            ? { ...a, assignedCases: cases }
+            : a
+        );
+      } else {
+        return [...prev, { pollsterId, assignedCases: cases }];
+      }
+    });
+  };
+
+  const distributeEqually = () => {
+    const metaEfectiva = obtenerMetaEfectiva();
+    if (!metaEfectiva || assignedPollsters.length === 0) return;
+    
+    const casesPerPollster = Math.floor(metaEfectiva / assignedPollsters.length);
+    const remainder = metaEfectiva % assignedPollsters.length;
+    
+    const newAssignments = assignedPollsters.map((pollsterId, index) => ({
+      pollsterId,
+      assignedCases: casesPerPollster + (index === 0 ? remainder : 0),
+    }));
+    
+    setPollsterAssignments(newAssignments);
+    toast.success('Casos distribuidos equitativamente');
+  };
+
+  const saveCaseDistribution = async () => {
+    try {
+      setIsSaving(true);
+      
+      const existing = await surveyService.getSurvey(surveyId);
+      const surveyData = existing?.survey?.survey || existing?.survey;
+      const surveyInfo = existing?.survey?.surveyInfo || {};
+      const definition = existing?.survey?.surveyDefinition;
+
+      const dataToSave = {
+        survey: surveyData,
+        surveyDefinition: definition,
+        surveyInfo: {
+          ...surveyInfo,
+          metaMode: config.goalType === 'cases' ? 'casos' : 'cuotas', // Guardar metaMode
+        },
+        participants: {
+          userIds: assignedPollsters,
+          supervisorsIds: assignedSupervisors,
+          pollsterAssignments: pollsterAssignments,
+          quotaAssignments: existing?.survey?.participants?.quotaAssignments || []
+        }
+      };
+
+      await surveyService.createOrUpdateSurvey(dataToSave, surveyId, false);
+      toast.success('Distribución de casos guardada exitosamente');
+    } catch (error) {
+      console.error('Error al guardar distribución de casos:', error);
+      toast.error('Error al guardar distribución: ' + error.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -727,393 +976,338 @@ export default function ConfigurarEncuesta() {
               </div>
             </div>
 
-            {/* 3. Objetivo */}
+            {/* 3. Tipo de Meta */}
             <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="p-2 bg-[var(--primary)]/10 rounded-lg flex-shrink-0">
-                    <Target size={20} className="text-[var(--primary)]" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <label className="font-semibold text-base sm:text-lg text-[var(--text-primary)] block">
-                      Objetivo de Casos
-                    </label>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      Define una meta numérica para tu encuesta
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() =>
-                    updateConfig("tieneObjetivo", !config.tieneObjetivo)
-                  }
-                  className={`relative w-12 h-7 sm:w-14 sm:h-8 rounded-full transition-all flex-shrink-0 ${
-                    config.tieneObjetivo
-                      ? "bg-[var(--primary)] hover:opacity-90"
-                      : "bg-[var(--card-border)] hover:bg-[var(--text-secondary)]/30"
-                  }`}
-                >
-                  <div
-                    className={`absolute top-1 left-1 w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full shadow-sm transition-transform ${
-                      config.tieneObjetivo ? "transform translate-x-5 sm:translate-x-6" : ""
-                    }`}
-                  />
-                </button>
+              <div className="mb-4">
+                <h3 className="font-semibold text-base sm:text-lg text-[var(--text-primary)] mb-2">
+                  Tipo de Meta
+                </h3>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Selecciona cómo deseas establecer el objetivo de tu encuesta
+                </p>
               </div>
 
-              {config.tieneObjetivo && (
-                <div className="pl-11 sm:pl-[52px] pt-2">
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    Meta total de encuestas{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={config.metaTotal}
-                    onChange={(e) =>
-                      updateConfig("metaTotal", parseInt(e.target.value) || 0)
-                    }
-                    className="w-full bg-[var(--input-background)] border border-[var(--card-border)] rounded-lg px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-all"
-                    placeholder="Ingrese la meta"
-                    min="1"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* 4. Sistema de Cuotas */}
-            <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                  <div className="p-2 bg-[var(--primary)]/10 rounded-lg flex-shrink-0">
-                    <PieChart size={20} className="text-[var(--primary)]" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-base sm:text-lg text-[var(--text-primary)] truncate">
-                      Sistema de Cuotas
-                    </h3>
-                    <p className="text-sm text-[var(--text-secondary)] truncate">
-                      Balancea tu muestra por segmentos
-                    </p>
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {/* Opción: Objetivo de Casos */}
                 <button
-                  onClick={() =>
-                    updateConfig("cuotasActivas", !config.cuotasActivas)
-                  }
-                  className={`relative w-12 h-7 sm:w-14 sm:h-8 rounded-full transition-all flex-shrink-0 ${
-                    config.cuotasActivas
-                      ? "bg-[var(--primary)] hover:opacity-90"
-                      : "bg-[var(--card-border)] hover:bg-[var(--text-secondary)]/30"
+                  onClick={() => !tienePreguntasCuota && updateConfig("goalType", "cases")}
+                  disabled={tienePreguntasCuota}
+                  className={`relative p-4 rounded-lg border-2 transition-all text-left ${
+                    config.goalType === "cases"
+                      ? "border-[var(--primary)] bg-[var(--primary)]/5 shadow-sm"
+                      : tienePreguntasCuota
+                      ? "border-[var(--card-border)] bg-[var(--card-background)] opacity-60 cursor-not-allowed"
+                      : "border-[var(--card-border)] bg-[var(--card-background)] opacity-50 hover:opacity-100 hover:border-[var(--primary)]/50"
                   }`}
+                  title={tienePreguntasCuota ? "Tu encuesta tiene preguntas de tipo cuota, no es posible seleccionar meta por casos" : ""}
                 >
-                  <div
-                    className={`absolute top-1 left-1 w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full shadow-sm transition-transform ${
-                      config.cuotasActivas
-                        ? "transform translate-x-5 sm:translate-x-6"
-                        : ""
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {config.cuotasActivas && (
-                <div className="space-y-3 sm:space-y-4">
-                  {/* Meta efectiva - solo mostrar si NO hay objetivo */}
-                  {!config.tieneObjetivo && (
-                    <div className="bg-[var(--input-background)] rounded-lg p-3 sm:p-4 border border-[var(--card-border)]">
-                      <div className="text-xs sm:text-sm text-[var(--text-secondary)] mb-1 sm:mb-2">
-                        Meta mínima (basada en cuotas)
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg flex-shrink-0 transition-all ${
+                      config.goalType === "cases"
+                        ? "bg-[var(--primary)] shadow-sm"
+                        : "bg-[var(--card-border)]"
+                    }`}>
+                      <Target size={20} className={
+                        config.goalType === "cases"
+                          ? "text-white"
+                          : "text-[var(--text-secondary)]"
+                      } />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className={`font-semibold text-sm sm:text-base ${
+                          config.goalType === "cases"
+                            ? "text-[var(--text-primary)]"
+                            : "text-[var(--text-secondary)]"
+                        }`}>
+                          Objetivo de Casos
+                        </h4>
+                        {config.goalType === "cases" && (
+                          <div className="w-5 h-5 bg-[var(--primary)] rounded-full flex items-center justify-center flex-shrink-0">
+                            <Check size={14} className="text-white" />
+                          </div>
+                        )}
                       </div>
-                      <div className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-                        {obtenerMetaEfectiva()} encuestas
-                      </div>
-                      {config.categorias.length > 0 && (
-                        <div className="mt-2 text-xs text-[var(--text-secondary)] flex items-center gap-1.5">
-                          <Info size={14} className="flex-shrink-0" />
-                          <span>Sin límite superior - Las cuotas definen el mínimo requerido</span>
+                      <p className={`text-xs sm:text-sm ${
+                        config.goalType === "cases"
+                          ? "text-[var(--text-secondary)]"
+                          : "text-[var(--text-secondary)]/70"
+                      }`}>
+                        Define una meta numérica para tu encuesta
+                      </p>
+                      
+                      {/* Mensaje de advertencia si hay preguntas cuota */}
+                      {tienePreguntasCuota && (
+                        <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
+                          <AlertCircle size={14} className="flex-shrink-0" />
+                          <span>Tu encuesta tiene preguntas de tipo cuota</span>
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
+                </button>
 
-                  {/* Botón para agregar categoría */}
-                  <button
-                    onClick={() => setShowCategoriaModal(true)}
-                    className="w-full bg-[var(--secondary)]/10 hover:bg-[var(--secondary)]/20 border-2 border-dashed border-[var(--secondary)]/50 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 text-[var(--text-brand-secondary)] font-medium text-sm sm:text-base transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Plus size={18} className="sm:w-5 sm:h-5" />
-                    <span className="hidden sm:inline">
-                      Agregar Categoría de Cuota
-                    </span>
-                    <span className="sm:hidden">Agregar Cuota</span>
-                  </button>
-
-                  {/* Lista de categorías */}
-                  {config.categorias.map((categoria) => {
-                    const totalAsignado = calcularTotalAsignado(categoria);
-                    const metaEfectiva = obtenerMetaEfectiva();
-                    const isCompleto = totalAsignado === metaEfectiva;
-                    const excedido = totalAsignado > metaEfectiva;
-
-                    return (
-                      <div
-                        key={categoria.id}
-                        className="bg-[var(--input-background)] rounded-lg p-3 sm:p-4 border border-[var(--card-border)]"
-                      >
-                        <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-                          <h3 className="font-semibold text-sm sm:text-base lg:text-lg text-[var(--text-primary)] truncate">
-                            {categoria.nombre}
-                          </h3>
-                          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                            <button
-                              onClick={() =>
-                                distribuirEquitativamente(categoria.id)
-                              }
-                              className="text-xs bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] px-2 sm:px-3 py-1 rounded transition-colors whitespace-nowrap flex items-center gap-1"
-                            >
-                              <Scale size={14} className="sm:w-3.5 sm:h-3.5" />
-                              Distribuir
-                            </button>
-                            <button
-                              onClick={() => eliminarCategoria(categoria.id)}
-                              className="text-[var(--error-text)] hover:text-[var(--error-border)] p-1"
-                            >
-                              <Trash2
-                                size={16}
-                                className="sm:w-[18px] sm:h-[18px]"
-                              />
-                            </button>
+                {/* Opción: Sistema de Cuotas */}
+                <button
+                  onClick={() => updateConfig("goalType", "quotas")}
+                  className={`relative p-4 rounded-lg border-2 transition-all text-left ${
+                    config.goalType === "quotas"
+                      ? "border-[var(--primary)] bg-[var(--primary)]/5 shadow-sm"
+                      : "border-[var(--card-border)] bg-[var(--card-background)] opacity-50 hover:opacity-100 hover:border-[var(--primary)]/50"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg flex-shrink-0 transition-all ${
+                      config.goalType === "quotas"
+                        ? "bg-[var(--primary)] shadow-sm"
+                        : "bg-[var(--card-border)]"
+                    }`}>
+                      <PieChart size={20} className={
+                        config.goalType === "quotas"
+                          ? "text-white"
+                          : "text-[var(--text-secondary)]"
+                      } />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className={`font-semibold text-sm sm:text-base ${
+                          config.goalType === "quotas"
+                            ? "text-[var(--text-primary)]"
+                            : "text-[var(--text-secondary)]"
+                        }`}>
+                          Sistema de Cuotas
+                        </h4>
+                        {config.goalType === "quotas" && (
+                          <div className="w-5 h-5 bg-[var(--primary)] rounded-full flex items-center justify-center flex-shrink-0">
+                            <Check size={14} className="text-white" />
                           </div>
-                        </div>
+                        )}
+                      </div>
+                      <p className={`text-xs sm:text-sm ${
+                        config.goalType === "quotas"
+                          ? "text-[var(--text-secondary)]"
+                          : "text-[var(--text-secondary)]/70"
+                      }`}>
+                        Balancea tu muestra por segmentos
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
 
-                        <div className="space-y-2 sm:space-y-3">
-                          {categoria.segmentos.map((segmento, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-2 sm:gap-3"
-                            >
-                              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center flex-shrink-0">
-                                <IconRenderer
-                                  iconName={segmento.icon}
-                                  size={16}
-                                  className="text-white sm:w-[18px] sm:h-[18px]"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 flex items-center gap-2 group/name">
-                                {editingSegmentName?.categoriaId === categoria.id && editingSegmentName?.segmentoIndex === idx ? (
-                                  <input
-                                    type="text"
-                                    value={segmento.nombre}
-                                    onChange={(e) =>
-                                      updateSegmento(
-                                        categoria.id,
-                                        idx,
-                                        "nombre",
-                                        e.target.value
-                                      )
-                                    }
-                                    onBlur={() => setEditingSegmentName(null)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") setEditingSegmentName(null);
-                                    }}
-                                    autoFocus
-                                    className="flex-1 min-w-0 bg-transparent text-[var(--text-primary)] font-medium text-sm sm:text-base focus:outline-none focus:ring-0 border-none"
-                                    placeholder="Nombre del segmento"
+              {/* Contenido específico según el tipo seleccionado */}
+              {config.goalType === "cases" && (
+                <div className="mt-6 pt-6 border-t border-[var(--card-border)]">
+                  <div className="max-w-md mx-auto">
+                    <label className="block text-center text-sm font-medium text-[var(--text-secondary)] mb-3">
+                      Meta total de encuestas <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={config.metaTotal || ''}
+                        onChange={(e) =>
+                          updateConfig("metaTotal", parseInt(e.target.value) || 0)
+                        }
+                        onFocus={(e) => e.target.select()}
+                        className="w-full bg-gradient-to-br from-[var(--primary)]/5 to-[var(--primary)]/10 border-2 border-[var(--primary)]/30 rounded-xl px-6 py-5 text-[var(--primary)] text-center text-4xl font-bold focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="0"
+                        min="1"
+                      />
+                      <div className="text-center mt-2 text-xs text-[var(--text-secondary)]">
+                        Número de encuestas objetivo
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+
+            {/* 5. Asignación de Participantes */}
+            <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-[var(--primary)]/10 rounded-lg">
+                  <Users2 size={20} className="text-[var(--primary)]" />
+                </div>
+                <h3 className="font-semibold text-base sm:text-lg text-[var(--text-primary)]">
+                  Participantes Asignados
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Botón Encuestadores */}
+                <button
+                  onClick={() => setShowPollsterModal(true)}
+                  className="flex items-center gap-4 p-4 bg-[var(--card-background)] border-2 border-[var(--primary-light)] hover:border-[var(--primary)] rounded-xl transition-all shadow-sm hover:shadow-md"
+                >
+                  <div className="w-14 h-14 rounded-xl bg-[var(--primary-light)] flex items-center justify-center flex-shrink-0">
+                    <Users2 size={24} className="text-white" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-base font-bold text-[var(--text-primary)] mb-1">
+                      Encuestadores
+                    </p>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      {assignedPollsters.length} asignados
+                    </p>
+                  </div>
+                </button>
+
+                {/* Botón Supervisores */}
+                <button
+                  onClick={() => setShowSupervisorModal(true)}
+                  className="flex items-center gap-4 p-4 bg-[var(--card-background)] border-2 border-[var(--secondary-dark)] hover:border-[var(--secondary)] rounded-xl transition-all shadow-sm hover:shadow-md"
+                >
+                  <div className="w-14 h-14 rounded-xl bg-[var(--secondary-dark)] flex items-center justify-center flex-shrink-0">
+                    <UserCheck size={24} className="text-white" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-base font-bold text-[var(--text-primary)] mb-1">
+                      Supervisores
+                    </p>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      {assignedSupervisors.length} asignados
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 6. Distribución de Casos/Cuotas */}
+            {config.goalType && (
+              <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-[var(--primary)]/10 rounded-lg">
+                    <BarChart3 size={20} className="text-[var(--primary)]" />
+                  </div>
+                  <h3 className="font-semibold text-base sm:text-lg text-[var(--text-primary)]">
+                    {config.goalType === 'cases' ? 'Distribución de Casos' : 'Distribución de Cuotas'}
+                  </h3>
+                </div>
+
+                {/* Distribución por Casos */}
+                {config.goalType === 'cases' && (
+                  assignedPollsters.length === 0 ? (
+                    <div className="flex items-center gap-3 p-4 bg-[var(--primary)]/5 border border-[var(--card-border)] rounded-lg">
+                      <AlertCircle size={20} className="flex-shrink-0 text-[var(--text-secondary)]" />
+                      <p className="text-[var(--text-secondary)]">
+                        Es necesario seleccionar los participantes antes de distribuir los casos
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Botón Distribuir Equitativamente */}
+                      <div className="flex justify-end">
+                        <button
+                          onClick={distributeEqually}
+                          className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+                        >
+                          <Shuffle size={16} />
+                          Distribuir Equitativamente
+                        </button>
+                      </div>
+
+                      {/* Lista de encuestadores con inputs */}
+                      <div className="space-y-2">
+                        {assignedPollsters.map((pollsterId) => {
+                          const details = pollsterDetails[pollsterId];
+                          return (
+                            <div key={pollsterId} className="flex items-center gap-3 p-3 bg-[var(--hover-bg)] rounded-lg border border-[var(--card-border)]">
+                              <div className="flex-1 flex items-center gap-3">
+                                {/* Foto del encuestador */}
+                                {details?.foto ? (
+                                  <img 
+                                    src={details.foto} 
+                                    alt={`${details.nombre} ${details.apellido}`}
+                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <span className="flex-1 min-w-0 text-[var(--text-primary)] font-medium text-sm sm:text-base truncate">
-                                    {segmento.nombre || "Sin nombre"}
-                                  </span>
+                                  <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] font-semibold text-sm flex-shrink-0">
+                                    <Users2 size={16} />
+                                  </div>
                                 )}
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingSegmentName({ categoriaId: categoria.id, segmentoIndex: idx })}
-                                  className="text-[var(--text-muted)] opacity-0 group-hover/name:opacity-100 hover:text-[var(--primary)] transition-all flex-shrink-0 p-0.5"
-                                  title="Editar nombre"
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                              </div>
-                              {/* Input de porcentaje con botones +/- */}
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <button
-                                  onClick={() =>
-                                    updateSegmento(
-                                      categoria.id,
-                                      idx,
-                                      "porcentaje",
-                                      Math.max(0, (parseInt(segmento.porcentaje) || 0) - 1)
-                                    )
+                                <span className="font-medium text-[var(--text-primary)] text-sm">
+                                  {details 
+                                    ? `${details.nombre} ${details.apellido}`.trim() || 'Encuestador'
+                                    : 'Encuestador'
                                   }
-                                  className="w-7 h-7 sm:w-8 sm:h-8 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
-                                >
-                                  −
-                                </button>
-                                <div className="relative">
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={segmento.porcentaje}
-                                    onChange={(e) => {
-                                      const val = e.target.value.replace(/[^0-9]/g, '');
-                                      updateSegmento(
-                                        categoria.id,
-                                        idx,
-                                        "porcentaje",
-                                        val === '' ? 0 : Math.min(100, parseInt(val))
-                                      );
-                                    }}
-                                    className="w-14 sm:w-16 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg pl-2 pr-6 sm:pr-7 py-1.5 sm:py-2 text-[var(--text-primary)] text-center text-sm sm:text-base focus:outline-none focus:border-[var(--secondary)]"
-                                  />
-                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] text-xs sm:text-sm pointer-events-none">
-                                    %
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() =>
-                                    updateSegmento(
-                                      categoria.id,
-                                      idx,
-                                      "porcentaje",
-                                      Math.min(100, (parseInt(segmento.porcentaje) || 0) + 1)
-                                    )
-                                  }
-                                  className="w-7 h-7 sm:w-8 sm:h-8 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
-                                >
-                                  +
-                                </button>
+                                </span>
                               </div>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={segmento.objetivo}
-                                onChange={(e) => {
-                                  const val = e.target.value.replace(/[^0-9]/g, '');
-                                  updateSegmento(
-                                    categoria.id,
-                                    idx,
-                                    "objetivo",
-                                    val === '' ? 0 : parseInt(val)
-                                  );
-                                }}
-                                className="font-bold w-16 sm:w-20 bg-[color:var(--primary-dark)] dark:bg-[color:var(--primary-light)] border border-[color:var(--primary)] rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-white dark:text-[color:var(--primary-dark)] text-center text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[color:var(--primary)]"
-                              />
+                              <div className="flex items-center gap-2">
+                                <label className="text-sm text-[var(--text-secondary)]">Casos:</label>
+                                <input
+                                  type="number"
+                                  value={getAssignedCases(pollsterId) || ''}
+                                  onChange={(e) => updatePollsterCases(pollsterId, parseInt(e.target.value) || 0)}
+                                  onFocus={(e) => e.target.select()}
+                                  className="w-20 px-3 py-2 bg-[var(--primary)]/5 border border-[var(--primary)]/30 rounded-lg text-[var(--primary)] text-center font-semibold focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  placeholder="0"
+                                  min="0"
+                                  max={config.metaTotal}
+                                />
+                              </div>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
+                      </div>
 
-                        {/* Validación */}
-                        <div
-                          className={`mt-3 sm:mt-4 p-2 sm:p-3 rounded-lg border ${
-                            isCompleto
-                              ? "bg-[var(--success-bg)] border-[var(--success-border)]"
-                              : excedido
-                              ? "bg-[var(--error-bg)] border-[var(--error-border)]"
-                              : "bg-[var(--warning-bg)] border-[var(--warning-border)]"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-xs sm:text-sm gap-2">
-                            <span
-                              className={`flex items-center gap-1.5 sm:gap-2 ${
-                                isCompleto
-                                  ? "text-[var(--success)]"
-                                  : excedido
-                                  ? "text-[var(--error-text)]"
-                                  : "text-[var(--warning)]"
-                              }`}
-                            >
-                              {isCompleto ? (
-                                <Check
-                                  size={14}
-                                  className="sm:w-4 sm:h-4 flex-shrink-0"
-                                />
-                              ) : (
-                                <AlertCircle
-                                  size={14}
-                                  className="sm:w-4 sm:h-4 flex-shrink-0"
-                                />
-                              )}
-                              <span className="hidden sm:inline">
-                                Total asignado
-                              </span>
-                              <span className="sm:hidden">Total</span>
-                            </span>
-                            <span className="font-mono font-bold whitespace-nowrap">
-                              {totalAsignado} / {obtenerMetaEfectiva()}
-                            </span>
-                          </div>
-                          {!isCompleto && (
-                            <div className="text-xs mt-1 text-[var(--text-secondary)]">
-                              {excedido
-                                ? `Excede en ${
-                                    totalAsignado - obtenerMetaEfectiva()
-                                  }`
-                                : `Faltan ${
-                                    obtenerMetaEfectiva() - totalAsignado
-                                  }`}
-                            </div>
-                          )}
+                      {/* Total asignado */}
+                      <div className="flex items-center justify-between p-4 bg-[var(--primary)]/5 border-2 border-[var(--primary)]/30 rounded-lg">
+                        <span className="font-semibold text-[var(--text-primary)]">Total Asignado:</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-2xl font-bold ${
+                            getTotalAssignedCases() > config.metaTotal 
+                              ? 'text-[var(--error-text)]' 
+                              : 'text-[var(--primary)]'
+                          }`}>
+                            {getTotalAssignedCases()}
+                          </span>
+                          <span className="text-[var(--text-secondary)]">/ {config.metaTotal}</span>
                         </div>
                       </div>
-                    );
-                  })}
 
-                  {config.categorias.length === 0 && (
-                    <div className="text-center py-6 sm:py-8 text-[var(--text-secondary)] px-4">
-                      <p className="text-xs sm:text-sm">
-                        No has creado categorías de cuotas aún
-                      </p>
-                      <p className="text-xs mt-1">
-                        <span className="hidden sm:inline">
-                          Haz clic en "Agregar Categoría de Cuota" para comenzar
-                        </span>
-                        <span className="sm:hidden">
-                          Toca "Agregar Cuota" para comenzar
-                        </span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Botón de Distribución por Encuestador */}
-                  {config.categorias.length > 0 && (
-                    <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-[var(--card-border)]">
-                      <button
-                        onClick={handleDistribuirCuotas}
-                        disabled={isSaving || isLoadingDistribution}
-                        className="w-full py-2.5 sm:py-3 px-3 sm:px-4 bg-[var(--secondary)] hover:bg-[var(--secondary-dark)] text-white rounded-lg transition-colors font-semibold text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {isLoadingDistribution ? (
-                          <>
-                            <Loader2
-                              size={18}
-                              className="sm:w-5 sm:h-5 animate-spin"
-                            />
-                            Cargando encuestadores...
-                          </>
-                        ) : (
-                          <>
-                            <PieChart size={18} className="sm:w-5 sm:h-5" />
-                            Distribuir por Encuestador
-                          </>
-                        )}
-                      </button>
-
-                      {/* Resumen de distribución si existe */}
-                      {hasDistribution && (
-                        <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-[var(--success-bg)] border border-[var(--success-border)] rounded-lg">
-                          <p className="text-xs sm:text-sm text-[var(--success)] flex items-center gap-1.5">
-                            <Check size={14} className="flex-shrink-0" />
-                            <span>Cuotas distribuidas entre {distributedPollstersCount} encuestador{distributedPollstersCount !== 1 ? "es" : ""}</span>
-                          </p>
+                      {getTotalAssignedCases() > config.metaTotal && (
+                        <div className="flex items-center gap-2 p-3 bg-[var(--error-bg)] border border-[var(--error-border)] rounded-lg text-[var(--error-text)] text-sm">
+                          <AlertCircle size={16} className="flex-shrink-0" />
+                          <span>El total asignado excede la meta. Ajusta los valores antes de guardar.</span>
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
+                  )
+                )}
+
+                {/* Distribución por Cuotas */}
+                {config.goalType === 'quotas' && (
+                  <div>
+                    {!quotaStructure ? (
+                      <div className="flex items-center gap-3 p-4 bg-[var(--primary)]/5 border border-[var(--warning-border)] rounded-lg">
+                        <AlertCircle size={20} className="flex-shrink-0 text-[var(--warning)]" />
+                        <div className="flex-1">
+                          <p className="font-medium text-[var(--text-primary)]">Es necesario crear las preguntas de tipo cuota en el formulario para poder configurar la distribución</p>
+                          <p className="text-sm mt-1 text-[var(--text-secondary)]">
+                            Ve a la sección de creación de formulario y agrega preguntas de tipo "Cuota Género" o "Cuota Edad"
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-[var(--text-secondary)]">
+                        <p>Distribución de cuotas en desarrollo...</p>
+                        <p className="text-sm mt-2">
+                          {quotaStructure.isCrossTable 
+                            ? `Tabla cruzada: ${quotaStructure.genderOptions.length} géneros × ${quotaStructure.ageOptions.length} edades`
+                            : `Tabla simple: ${(quotaStructure.genderOptions.length || quotaStructure.ageOptions.length)} opciones`
+                          }
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
         </div>
       </div>
 
@@ -1555,6 +1749,28 @@ export default function ConfigurarEncuesta() {
           onSave={handleSaveDistribution}
         />
       )}
+
+      {/* Modal de Selección de Encuestadores */}
+      <PollsterSelectionModal
+        open={showPollsterModal}
+        onClose={() => setShowPollsterModal(false)}
+        surveyId={surveyId}
+        onSave={handleSavePollsters}
+        initialData={{
+          pollsters: assignedPollsters,
+        }}
+      />
+
+      {/* Modal de Selección de Supervisores */}
+      <SupervisorSelectionModal
+        open={showSupervisorModal}
+        onClose={() => setShowSupervisorModal(false)}
+        surveyId={surveyId}
+        onSave={handleSaveSupervisors}
+        initialData={{
+          supervisors: assignedSupervisors,
+        }}
+      />
     </div>
   );
 }

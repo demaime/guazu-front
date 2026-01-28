@@ -26,13 +26,14 @@ export default function QuestionEditorModal({
   const [bulkAddModalOpen, setBulkAddModalOpen] = useState(false);
   const [bulkAddTarget, setBulkAddTarget] = useState(null); // 'opciones' | 'filas' | 'columnas'
   const [showValidationModal, setShowValidationModal] = useState(false);
+  const [showQuotaWarning, setShowQuotaWarning] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => setIsAnimating(true), 10);
       // Inicializar estado local con los datos de la pregunta
       if (pregunta) {
-        setEditedData({
+        const newData = {
           value: pregunta.value || '',
           text: pregunta.text || '',
           tipo: pregunta.tipo || 'texto',
@@ -43,7 +44,42 @@ export default function QuestionEditorModal({
           campos: pregunta.campos || [],
           configuracionEscala: pregunta.configuracionEscala || {},
           condicionada: pregunta.condicionada || { activa: false, condiciones: [] }
-        });
+        };
+
+        // Inicializar para cuota-genero
+        if (pregunta.tipo === 'cuota-genero') {
+          // Valor predeterminado editable
+          if (!pregunta.value) {
+            newData.value = 'cuota_genero';
+          }
+          
+          // Opciones predeterminadas editables
+          if (!pregunta.opciones || pregunta.opciones.length === 0) {
+            newData.opciones = [
+              { id: Date.now() + '_1', value: 'masculino', text: 'Masculino' },
+              { id: Date.now() + '_2', value: 'femenino', text: 'Femenino' }
+            ];
+          }
+        }
+
+        // Inicializar para cuota-edad
+        if (pregunta.tipo === 'cuota-edad') {
+          // Valor predeterminado editable
+          if (!pregunta.value) {
+            newData.value = 'cuota_edad';
+          }
+          
+          // Opciones predeterminadas editables (3 rangos)
+          if (!pregunta.opciones || pregunta.opciones.length === 0) {
+            newData.opciones = [
+              { id: Date.now() + '_1', value: '18-35', text: '18-35' },
+              { id: Date.now() + '_2', value: '36-55', text: '36-55' },
+              { id: Date.now() + '_3', value: '56+', text: '56+' }
+            ];
+          }
+        }
+
+        setEditedData(newData);
       }
     } else {
       setIsAnimating(false);
@@ -55,6 +91,11 @@ export default function QuestionEditorModal({
   useEffect(() => {
     if (externalUpdate && isOpen) {
       setEditedData(prev => ({ ...prev, ...externalUpdate }));
+      
+      // Mostrar advertencia si se selecciona tipo cuota
+      if (externalUpdate.tipo === 'cuota-genero' || externalUpdate.tipo === 'cuota-edad') {
+        setShowQuotaWarning(true);
+      }
     }
   }, [externalUpdate, isOpen]);
 
@@ -163,6 +204,52 @@ export default function QuestionEditorModal({
       );
     }
 
+    // Cuota Género - Opciones editables
+    if (tipo === 'cuota-genero') {
+      return (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
+              Opciones de género
+            </label>
+            <OptionsEditor
+              opciones={editedData.opciones || []}
+              onUpdate={(opciones) => updateField('opciones', opciones)}
+              onBulkAdd={() => handleBulkAdd('opciones')}
+              label=""
+              placeholder="Ej: Masculino, Femenino"
+            />
+            <p className="text-xs text-[color:var(--text-muted)] mt-2">
+              Define las opciones de género que necesitas. Puedes agregar, editar o eliminar opciones según tus necesidades.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Cuota Edad - Rangos configurables
+    if (tipo === 'cuota-edad') {
+      return (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-2">
+              Rangos de edad
+            </label>
+            <OptionsEditor
+              opciones={editedData.opciones || []}
+              onUpdate={(opciones) => updateField('opciones', opciones)}
+              onBulkAdd={() => handleBulkAdd('opciones')}
+              label=""
+              placeholder="Ej: 18-35, 36-55, 56+"
+            />
+            <p className="text-xs text-[color:var(--text-muted)] mt-2">
+              Define los rangos etarios que necesitas para esta encuesta. Puedes agregar, editar o eliminar rangos según tus necesidades.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return null;
   };
 
@@ -226,7 +313,7 @@ export default function QuestionEditorModal({
             </label>
             <button
               type="button"
-              onClick={onOpenTypeSelector}
+              onClick={() => onOpenTypeSelector(editedData.tipo)}
               className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:border-[color:var(--primary)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-2">
@@ -310,6 +397,17 @@ export default function QuestionEditorModal({
         onConfirm={() => setShowValidationModal(false)}
         title="Pregunta condicional sin condiciones"
         message="Ha marcado esta pregunta como condicional pero no ha establecido ninguna condición. Por favor, indique al menos una condición o desactive la casilla."
+        confirmText="Entendido"
+        cancelText={null}
+      />
+
+      {/* Modal de advertencia de cuotas */}
+      <ConfirmModal
+        isOpen={showQuotaWarning}
+        onClose={() => setShowQuotaWarning(false)}
+        onConfirm={() => setShowQuotaWarning(false)}
+        title="⚠️ Pregunta de Cuota Detectada"
+        message="Al usar preguntas de tipo cuota, tu encuesta se configurará automáticamente con Sistema de Cuotas. No podrás seleccionar Meta por Casos en la configuración."
         confirmText="Entendido"
         cancelText={null}
       />

@@ -23,7 +23,9 @@ function mapQuestionType(tipoTemporal) {
     'ordenar': 'ranking',
     'fecha': 'text',
     'foto': 'file',
-    'microfono': 'file'
+    'microfono': 'file',
+    'cuota-genero': 'radiogroup',
+    'cuota-edad': 'radiogroup'
   };
 
   return typeMap[tipoTemporal] || 'text';
@@ -441,6 +443,32 @@ function transformCategoria(categoria) {
  * @returns {Object} - Objeto formateado para el backend
  */
 export function prepareDataForBackend(surveyData) {
+  // Detectar preguntas de cuota
+  const preguntasCuota = [];
+  surveyData.modulos?.forEach(modulo => {
+    modulo.preguntas?.forEach(pregunta => {
+      if (pregunta.tipo === 'cuota-genero' || pregunta.tipo === 'cuota-edad') {
+        preguntasCuota.push(pregunta);
+      }
+    });
+  });
+
+  // Generar quotaMetadata si hay preguntas de cuota
+  let quotaMetadata = null;
+  let metaMode = 'casos';
+  
+  if (preguntasCuota.length > 0) {
+    metaMode = 'cuotas';
+    quotaMetadata = {
+      type: preguntasCuota.length === 2 ? 'combined' : 'simple',
+      dimensions: preguntasCuota.map(p => ({
+        category: p.tipo === 'cuota-genero' ? 'género' : 'edad',
+        questionId: p.id,
+        options: (p.opciones || []).map(opt => opt.value)
+      }))
+    };
+  }
+
   // 1. Crear formato SurveyJS
   const surveyJSFormat = {
     locale: "es",
@@ -469,9 +497,15 @@ export function prepareDataForBackend(surveyData) {
     requireGps: surveyData.gpsObligatorio || false,
     userIds: surveyData.encuestadoresIds || [],
     supervisorsIds: surveyData.supervisoresIds || [],
+    
+    // Nuevos campos para cuotas
+    metaMode: metaMode,
+    quotaMetadata: quotaMetadata,
+    quotaAssignments: [], // Se llenará en configuración
+    
+    // Mantener compatibilidad con sistema antiguo
     quotas: (surveyData.categorias || []).map(transformCategoria),
     pollsterAssignments: [],
-    quotaAssignments: [],
     location: "" // Agregar campo vacío por defecto
   };
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FolderPlus, Type, Hash, Radio, CheckSquare, Grid3x3, AlignLeft, User, Calendar, Mic, Camera, BarChart3, ChevronDown, GripVertical } from 'lucide-react';
+import { FolderPlus, Type, Hash, Radio, CheckSquare, Grid3x3, AlignLeft, User, Calendar, Mic, Camera, BarChart3, ChevronDown, GripVertical, VenusAndMars, ArrowDown01 } from 'lucide-react';
 import FormHeader from './components/FormHeader';
 import ModuleCard from './components/ModuleCard';
 import NewModuleModal from './components/Modals/NewModuleModal';
@@ -246,6 +246,14 @@ export default function FormBuilder() {
     setModulos(nuevoEstado.modulos);
   };
 
+  const detectarPreguntasCuota = (modulosArray) => {
+    const todasLasPreguntas = modulosArray.flatMap(m => m.preguntas);
+    return todasLasPreguntas.some(p => 
+      p.tipo === 'cuota-genero' || p.tipo === 'cuota-edad'
+    );
+  };
+
+
   const obtenerTodasLasPreguntas = () => {
     const todasLasPreguntas = [];
     let numeroGlobal = 1;
@@ -283,7 +291,9 @@ export default function FormBuilder() {
     { value: 'ordenar', label: 'Ordenar opciones', icon: GripVertical },
     { value: 'fecha', label: 'Fecha', icon: Calendar },
     { value: 'foto', label: 'Foto', icon: Camera },
-    { value: 'microfono', label: 'Micrófono', icon: Mic }
+    { value: 'microfono', label: 'Micrófono', icon: Mic },
+    { value: 'cuota-genero', label: 'Cuota Género', icon: VenusAndMars },
+    { value: 'cuota-edad', label: 'Cuota Edad', icon: ArrowDown01 }
   ];
 
   const validarValueUnico = (value, preguntaId) => {
@@ -328,8 +338,8 @@ export default function FormBuilder() {
       case 'opcion-multiple': return <CheckSquare {...iconProps} />;
       case 'matriz': return <Grid3x3 {...iconProps} />;
       case 'matriz-multiple': return <Grid3x3 {...iconProps} />;
-      case 'cuota-genero': return <User {...iconProps} />;
-      case 'cuota-edad': return <User {...iconProps} />;
+      case 'cuota-genero': return <VenusAndMars {...iconProps} />;
+      case 'cuota-edad': return <ArrowDown01 {...iconProps} />;
       case 'escala': return <BarChart3 {...iconProps} />;
       case 'foto': return <Camera {...iconProps} />;
       case 'microfono': return <Mic {...iconProps} />;
@@ -995,21 +1005,40 @@ export default function FormBuilder() {
     
     const nuevasIndicaciones = getIndicacionesPorDefecto(tipo.value);
     
+    // Preparar actualizaciones base
+    const updates = {
+      tipo: tipo.value,
+      indicaciones: nuevasIndicaciones
+    };
+    
+    // Inicializar valores predeterminados para cuota-genero
+    if (tipo.value === 'cuota-genero') {
+      updates.value = 'cuota_genero';
+      updates.opciones = [
+        { id: Date.now() + '_1', value: 'masculino', text: 'Masculino' },
+        { id: Date.now() + '_2', value: 'femenino', text: 'Femenino' }
+      ];
+    }
+    
+    // Inicializar valores predeterminados para cuota-edad
+    if (tipo.value === 'cuota-edad') {
+      updates.value = 'cuota_edad';
+      updates.opciones = [
+        { id: Date.now() + '_1', value: '18-35', text: '18-35' },
+        { id: Date.now() + '_2', value: '36-55', text: '36-55' },
+        { id: Date.now() + '_3', value: '56+', text: '56+' }
+      ];
+    }
+    
     // Si estamos editando desde el modal de pregunta, actualizar el estado externo
     if (modalEditarPregunta) {
-      setExternalUpdateForQuestion({ 
-        tipo: tipo.value,
-        indicaciones: nuevasIndicaciones
-      });
+      setExternalUpdateForQuestion(updates);
       // Limpiar después de un breve delay para que el efecto se ejecute
       setTimeout(() => setExternalUpdateForQuestion(null), 100);
     } else {
       // Actualización directa (no debería ocurrir en el flujo actual, pero por si acaso)
       const { moduloId, preguntaId } = modalSelectorTipo;
-      actualizarPregunta(moduloId, preguntaId, { 
-        tipo: tipo.value,
-        indicaciones: nuevasIndicaciones
-      });
+      actualizarPregunta(moduloId, preguntaId, updates);
     }
     
     setModalSelectorTipo(null);
@@ -1142,13 +1171,12 @@ export default function FormBuilder() {
           tiposPreguntas={tiposPreguntas}
           externalUpdate={externalUpdateForQuestion}
           preguntasDisponibles={modalEditarPregunta ? getPreguntasConOpciones(modalEditarPregunta.preguntaId) : []}
-          onOpenTypeSelector={() => {
+          onOpenTypeSelector={(tipoActualEditado) => {
             if (modalEditarPregunta) {
-              const preguntaActual = getPreguntaActual();
               setModalSelectorTipo({
                 moduloId: modalEditarPregunta.moduloId,
                 preguntaId: modalEditarPregunta.preguntaId,
-                tipoActual: preguntaActual?.tipo
+                tipoActual: tipoActualEditado || getPreguntaActual()?.tipo
               });
             }
           }}
