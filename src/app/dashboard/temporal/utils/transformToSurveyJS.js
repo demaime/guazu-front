@@ -69,6 +69,8 @@ function transformPregunta(pregunta, preguntaIdToValue = {}) {
     case 'opcion-multiple':
     case 'desplegable':
     case 'ordenar':
+    case 'cuota-genero':
+    case 'cuota-edad':
       // Convertir opciones a formato SurveyJS
       if (pregunta.opciones && Array.isArray(pregunta.opciones)) {
         element.choices = pregunta.opciones.map(opt => ({

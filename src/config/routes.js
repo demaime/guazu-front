@@ -20,8 +20,7 @@ export const SURVEY_ROUTES = {
   GET: (id) => `${API_URL}/api/surveyById/${id}`,
   ANSWERS: (id) => `${API_URL}/api/answerBySurveyId/${id}`,
   CREATE: `${API_URL}/api/create-survey`,
-  GET_DRAFTS: `${API_URL}/api/drafts`,
-  PUBLISH_DRAFT: (id) => `${API_URL}/api/publish-draft/${id}`,
+
   // Rutas de progreso de pollsters
   POLLSTER_PROGRESS: (surveyId, pollsterId) =>
     `${API_URL}/api/survey/${surveyId}/pollster-progress/${pollsterId}`,

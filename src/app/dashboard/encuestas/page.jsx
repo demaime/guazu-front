@@ -53,7 +53,7 @@ export default function Encuestas() {
   // --- Estados por Pestaña --- //
   const [activeSurveysData, setActiveSurveysData] = useState([]);
   const [finishedSurveysData, setFinishedSurveysData] = useState([]);
-  const [draftSurveysData, setDraftSurveysData] = useState([]);
+
 
   const [activeCurrentPage, setActiveCurrentPage] = useState(1);
   const [finishedCurrentPage, setFinishedCurrentPage] = useState(1);
@@ -64,14 +64,14 @@ export default function Encuestas() {
   const [tabCounts, setTabCounts] = useState({
     active: 0,
     finished: 0,
-    drafts: 0,
+
   });
 
   const [isLoading, setIsLoading] = useState({
     // Loading por tab
     active: true,
     finished: true,
-    drafts: true,
+
   });
 
   const [error, setError] = useState(null);
@@ -87,7 +87,6 @@ export default function Encuestas() {
   const [progressRefreshToken, setProgressRefreshToken] = useState(0);
   // Loader inicial a pantalla completa mientras se actualizan encuestas
   const [isInitialLoadingView, setIsInitialLoadingView] = useState(true);
-  const [isNavigatingToEdit, setIsNavigatingToEdit] = useState(false);
   // Estado de permisos/estado de ubicación
   const [locationStatus, setLocationStatus] = useState("unknown"); // granted | denied | prompt | unsupported | unknown
   // Flag para evitar toast duplicado en carga inicial
@@ -97,7 +96,6 @@ export default function Encuestas() {
   const [openMenuId, setOpenMenuId] = useState(null); // Considerar si aún es necesario
   const [isCreatingSurvey, setIsCreatingSurvey] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showPublishModal, setShowPublishModal] = useState(false);
   const [selectedSurveyId, setSelectedSurveyId] = useState(null);
   const [isConfirmLoading, setIsConfirmLoading] = useState(false);
 
@@ -109,7 +107,6 @@ export default function Encuestas() {
 
       // Usar el usuario pasado como parámetro o el del estado
       const currentUser = userData || user;
-      console.log("📊 loadAllSurveys - Usuario actual:", currentUser);
 
       try {
         // Si offline, leer todo del caché local
@@ -131,17 +128,14 @@ export default function Encuestas() {
             const { surveys = [], totalPages = 1 } =
               await surveyService.getAllSurveys(page, perPage, null);
             
-            // 🔍 DEBUG
-            console.log(`🔍 DEBUG - Página ${page} recibida:`, surveys.length, "encuestas");
-            console.log(`🔍 DEBUG - Encuestas de esta página:`, surveys);
+          
             
             all = all.concat(surveys);
             if (page >= totalPages) break;
             page += 1;
           }
           
-          console.log("🔍 DEBUG - Total encuestas combinadas:", all.length);
-          console.log("🔍 DEBUG - Todas las encuestas:", all);
+          
         }
 
         const now = new Date();
@@ -169,59 +163,7 @@ export default function Encuestas() {
         setActiveCurrentPage(1);
         setFinishedCurrentPage(1);
 
-        // Borradores (solo ADMIN)
-        try {
-          console.log("🔍 Verificando rol para borradores:", currentUser?.role);
-          if (currentUser?.role === "ROLE_ADMIN") {
-            console.log("👤 Usuario es ADMIN, cargando borradores...");
-            if (typeof navigator !== "undefined" && navigator.onLine) {
-              const draftsResp = await surveyService.getDrafts();
-              console.log("📦 loadAllSurveys - Respuesta drafts:", draftsResp);
-              const drafts = draftsResp.drafts || [];
-              console.log(
-                "📋 loadAllSurveys - Borradores:",
-                drafts.length,
-                drafts
-              );
-              setDraftSurveysData(drafts);
-              setTabCounts({
-                active: active.length,
-                finished: finished.length,
-                drafts: drafts.length,
-              });
-            } else {
-              // offline: no intentar drafts
-              console.log("📴 Offline - no se cargan borradores");
-              setDraftSurveysData([]);
-              setTabCounts({
-                active: active.length,
-                finished: finished.length,
-                drafts: 0,
-              });
-            }
-          } else {
-            // No admin: no consultar drafts
-            console.log(
-              "🚫 Usuario no es ADMIN (rol:",
-              currentUser?.role,
-              "), no se consultan borradores"
-            );
-            setDraftSurveysData([]);
-            setTabCounts({
-              active: active.length,
-              finished: finished.length,
-              drafts: 0,
-            });
-          }
-        } catch (err) {
-          console.error("❌ Error cargando borradores:", err);
-          setDraftSurveysData([]);
-          setTabCounts({
-            active: active.length,
-            finished: finished.length,
-            drafts: 0,
-          });
-        }
+
 
         // Reemplazar completamente el cache con las encuestas actuales del servidor (solo índices)
         try {
@@ -318,46 +260,7 @@ export default function Encuestas() {
   );
   const fetchDataForTab = useCallback(
     async (tabName, page) => {
-      if (tabName === "drafts") {
-        // Solo ADMIN consulta borradores
-        if (user?.role !== "ROLE_ADMIN") {
-          setDraftSurveysData([]);
-          setTabCounts((prev) => ({ ...prev, drafts: 0 }));
-          return;
-        }
-        setIsLoading((prev) => ({ ...prev, drafts: true }));
-        setError(null);
-        try {
-          console.log("🔍 Solicitando borradores...");
-          const response = await surveyService.getDrafts();
-          console.log("📦 Respuesta de getDrafts:", response);
-          const drafts = response.drafts || [];
-          console.log("📋 Borradores encontrados:", drafts.length, drafts);
-          setDraftSurveysData(drafts);
-          setTabCounts((prev) => ({ ...prev, drafts: drafts.length }));
-        } catch (err) {
-          console.error(`❌ Error loading data for tab drafts:`, err);
 
-          // Traducir error si es necesario
-          let errorMsg =
-            "No se pudo cargar los borradores. Por favor, verifica tu conexión e intenta nuevamente.";
-
-          if (
-            err.message &&
-            !err.message.includes("Failed to fetch") &&
-            !err.message.includes("Network request failed") &&
-            !err.message.includes("fetch")
-          ) {
-            errorMsg = err.message; // Usar mensaje si ya está en español
-          }
-
-          setError(errorMsg);
-          setDraftSurveysData([]);
-        } finally {
-          setIsLoading((prev) => ({ ...prev, drafts: false }));
-        }
-        return;
-      }
 
       setIsLoading((prev) => ({ ...prev, [tabName]: true }));
       setError(null);
@@ -896,51 +799,7 @@ export default function Encuestas() {
     }
   };
 
-  const handlePublishDraft = async (draftId) => {
-    setSelectedSurveyId(draftId);
-    setShowPublishModal(true);
-  };
 
-  const confirmPublish = async () => {
-    if (!selectedSurveyId) return;
-    try {
-      setIsConfirmLoading(true);
-      setIsLoading((prev) => ({
-        ...prev,
-        drafts: true,
-        active: true,
-        finished: true,
-      }));
-      await surveyService.publishDraft(selectedSurveyId);
-      // Recargar todo explícitamente
-      await fetchDataForTab("drafts", 1);
-      await fetchDataForTab("active", 1);
-      await fetchDataForTab("finished", 1);
-      setActiveTab("active");
-      setActiveCurrentPage(1);
-      setFinishedCurrentPage(1); // Resetear ambas páginas
-      toast.success("Borrador publicado correctamente");
-    } catch (err) {
-      console.error("Error al publicar borrador:", err);
-      toast.error(err.message || "Error al publicar el borrador");
-    } finally {
-      setIsConfirmLoading(false);
-      setShowPublishModal(false);
-      setSelectedSurveyId(null);
-    }
-  };
-
-  const handleEditDraft = async (draftId) => {
-    setIsNavigatingToEdit(true);
-
-    // Pequeño delay para mostrar el loader antes de navegar
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    router.push(`/dashboard/encuestas/${draftId}/editar`);
-
-    // Limpiar el loading después de un delay (por si la navegación tarda)
-    setTimeout(() => setIsNavigatingToEdit(false), 2000);
-  };
 
   const handleDeleteAnswers = async (surveyId) => {
     if (!surveyId) {
@@ -976,22 +835,9 @@ export default function Encuestas() {
     }
   };
 
-  // Handler para recargar borradores después de clonar
+  // Handler para recargar borradores después de clonar - DEPRECATED/REMOVED
   const handleSurveyListChange = async () => {
-    console.log("🔄 Recargando borradores después de clonar...");
-    try {
-      if (user?.role === "ROLE_ADMIN") {
-        console.log("👤 Recargando borradores para ADMIN...");
-        const draftsResp = await surveyService.getDrafts();
-        console.log("📦 Borradores actualizados:", draftsResp);
-        const drafts = draftsResp.drafts || [];
-        setDraftSurveysData(drafts);
-        setTabCounts((prev) => ({ ...prev, drafts: drafts.length }));
-        console.log("✅ Borradores recargados:", drafts.length);
-      }
-    } catch (err) {
-      console.error("❌ Error recargando borradores:", err);
-    }
+    // No-op
   };
 
   // --- Helper para Cambiar Página (LLAMAR A FETCH DIRECTAMENTE) --- //
@@ -1039,15 +885,8 @@ export default function Encuestas() {
         currentPageForDisplay: finishedCurrentPage,
         currentCountForTab: tabCounts.finished,
       };
-    } else if (activeTab === "drafts") {
-      return {
-        currentSurveys: draftSurveysData,
-        currentTotalPages: 0, // No paginación para drafts
-        currentLoadingState: isLoading.drafts,
-        currentPageForDisplay: 1,
-        currentCountForTab: tabCounts.drafts,
-      };
     }
+
     return {
       currentSurveys: [],
       currentTotalPages: 0,
@@ -1065,11 +904,10 @@ export default function Encuestas() {
     finishedTotalPages,
     finishedCurrentPage,
     tabCounts.finished,
-    draftSurveysData,
-    tabCounts.drafts,
+
     isLoading.active,
     isLoading.finished,
-    isLoading.drafts,
+
   ]);
 
   // Derivados para indicadores (evita usar locationStatus crudo en JSX)
@@ -1089,17 +927,7 @@ export default function Encuestas() {
     );
   }
 
-  // Mostrar loader full screen cuando se navega a editar
-  if (isNavigatingToEdit) {
-    return (
-      <LoaderWrapper
-        size="lg"
-        fullScreen={true}
-        text="Cargando editor de encuesta…"
-        className="text-primary"
-      />
-    );
-  }
+
 
   return (
     <motion.div
@@ -1297,18 +1125,7 @@ export default function Encuestas() {
                 Finalizadas ({isLoading.finished ? "..." : tabCounts.finished})
               </button>
             )}
-            {user?.role === "ROLE_ADMIN" && (
-              <button
-                onClick={() => setActiveTab("drafts")}
-                className={`px-4 py-2 rounded-lg text-sm cursor-pointer font-medium transition-colors ${
-                  activeTab === "drafts"
-                    ? "bg-primary text-white"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                Borradores ({isLoading.drafts ? "..." : tabCounts.drafts})
-              </button>
-            )}
+
           </div>
         </div>
 
@@ -1423,184 +1240,8 @@ export default function Encuestas() {
             {!isInitialLoadingView &&
               !currentLoadingState &&
               currentSurveys.length > 0 &&
-              (activeTab === "drafts" ? (
-                // Renderizado específico para borradores con diseño consistente
-                <div className="space-y-4">
-                  {currentSurveys.map((draft, index) => (
-                    <motion.div
-                      key={draft._id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.18,
-                        ease: "easeOut",
-                        delay: index * 0.02,
-                      }}
-                      className="bg-[var(--card-background)] rounded-xl shadow-sm border border-[var(--card-border)] overflow-hidden hover:shadow-md transition-shadow duration-200"
-                    >
-                      {/* Vista mobile con estilo similar a encuestas activas */}
-                      <div className="lg:hidden">
-                        {/* Header azul con título - similar a las cards de encuestas activas */}
-                        <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] p-3">
-                          <div className="flex justify-between items-center">
-                            <div className="text-white text-sm font-medium">
-                              <span className="line-clamp-1">
-                                {draft.survey?.title?.es ||
-                                  draft.survey?.title ||
-                                  "Borrador sin título"}
-                              </span>
-                            </div>
-                            <div className="text-white text-xs font-medium">
-                              Borrador
-                            </div>
-                          </div>
-                        </div>
 
-                        {/* Contenido del cuerpo */}
-                        <div className="p-4">
-                          {/* Descripción si existe */}
-                          {(draft.survey?.description ||
-                            draft.survey?.description?.es) && (
-                            <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-4">
-                              {draft.survey?.description?.es ||
-                                draft.survey?.description}
-                            </p>
-                          )}
-
-                          {/* Metadatos */}
-                          <div className="text-xs text-[var(--text-muted)] mb-4">
-                            Última edición:{" "}
-                            {draft.lastEdited
-                              ? new Date(draft.lastEdited).toLocaleDateString(
-                                  "es-ES",
-                                  {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    year: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  }
-                                )
-                              : "N/A"}
-                          </div>
-
-                          {/* Botones de acción */}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleEditDraft(draft._id)}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)] transition-all duration-200 font-medium"
-                              title="Editar borrador"
-                            >
-                              <Edit className="w-3 h-3" />
-                              <span>Editar</span>
-                            </button>
-
-                            <button
-                              onClick={() => handlePublishDraft(draft._id)}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg bg-green-500 text-white hover:bg-green-600 transition-all duration-200 font-medium"
-                              title="Publicar borrador"
-                            >
-                              <Send className="w-3 h-3" />
-                              <span>Publicar</span>
-                            </button>
-
-                            <button
-                              onClick={() => handleDelete(draft._id)}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs rounded-lg bg-red-500 text-white hover:bg-red-600 transition-all duration-200 font-medium"
-                              title="Eliminar borrador"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              <span>Eliminar</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Vista desktop - mantener como estaba */}
-                      <div className="hidden lg:flex lg:flex-row lg:items-center justify-between gap-4 p-6">
-                        {/* Información del borrador */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-3">
-                            {/* Indicador visual de borrador */}
-                            <div className="flex-shrink-0 mt-1">
-                              <div className="w-6 h-6 rounded-lg bg-[var(--primary-dark)] text-[var(--primary-light)] flex items-center justify-center">
-                                <FilePenLine className="w-3.5 h-3.5" />
-                              </div>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-bold text-[var(--text-primary)] line-clamp-2 mb-2">
-                                {draft.survey?.title?.es ||
-                                  draft.survey?.title ||
-                                  "Borrador sin título"}
-                              </h3>
-
-                              {/* Descripción si existe */}
-                              {(draft.survey?.description ||
-                                draft.survey?.description?.es) && (
-                                <p className="text-sm font-normal text-[var(--text-secondary)] line-clamp-2 mb-3 opacity-80">
-                                  {draft.survey?.description?.es ||
-                                    draft.survey?.description}
-                                </p>
-                              )}
-
-                              {/* Metadatos */}
-                              <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                                <span className="flex items-center gap-1">
-                                  <div className="w-1 h-1 rounded-full bg-primary"></div>
-                                  Borrador
-                                </span>
-                                <span>
-                                  Última edición:{" "}
-                                  {draft.lastEdited
-                                    ? new Date(
-                                        draft.lastEdited
-                                      ).toLocaleDateString("es-ES", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })
-                                    : "N/A"}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Botones de acción alineados a la derecha */}
-                        <div className="flex items-center gap-2 lg:flex-shrink-0">
-                          <button
-                            onClick={() => handleEditDraft(draft._id)}
-                            className="w-9 h-9 rounded-full flex items-center justify-center bg-[var(--primary-light)] text-white hover:bg-[var(--primary-dark)] transition-all duration-200 hover:-translate-y-0.5 shadow-md hover:shadow-lg"
-                            title="Editar borrador"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => handlePublishDraft(draft._id)}
-                            className="w-9 h-9 rounded-full flex items-center justify-center bg-green-500 text-white hover:bg-green-600 transition-all duration-200 hover:-translate-y-0.5 shadow-md hover:shadow-lg"
-                            title="Publicar borrador"
-                          >
-                            <Send className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => handleDelete(draft._id)}
-                            className="w-9 h-9 rounded-full flex items-center justify-center bg-red-500 text-white hover:bg-red-600 transition-all duration-200 hover:-translate-y-0.5 shadow-md hover:shadow-lg"
-                            title="Eliminar borrador"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : // Renderizado para activas y finalizadas - diferentes para pollsters
-              user?.role === "POLLSTER" ? (
+              (user?.role === "POLLSTER" ? (
                 <PollsterSurveyList
                   surveys={currentSurveys}
                   isFinished={activeTab === "finished"}
@@ -1615,8 +1256,6 @@ export default function Encuestas() {
                   listType={activeTab}
                   onDelete={handleDelete}
                   onDeleteAnswers={handleDeleteAnswers}
-                  onEditDraft={handleEditDraft}
-                  onPublishDraft={handlePublishDraft}
                   onSurveyListChange={handleSurveyListChange}
                   openMenuId={openMenuId}
                   setOpenMenuId={setOpenMenuId}
@@ -1671,18 +1310,7 @@ export default function Encuestas() {
           puede deshacer.
         </p>
       </ConfirmModal>
-      <ConfirmModal
-        isOpen={showPublishModal}
-        onClose={() => setShowPublishModal(false)}
-        onConfirm={confirmPublish}
-        title="Confirmar Publicación"
-        isLoading={isConfirmLoading}
-      >
-        <p>
-          ¿Estás seguro de que deseas publicar este borrador? Una vez publicado,
-          será visible para los encuestadores asignados.
-        </p>
-      </ConfirmModal>
+
 
       {/* Tutorial Driver - mostrar solo para pollsters */}
       {user?.role === "POLLSTER" && showTutorial && (

@@ -89,11 +89,24 @@ export default function ConfigurarEncuesta() {
     
     if (!genderQuestion && !ageQuestion) return null;
     
+    // Extraer solo el texto de las opciones (las opciones son objetos {id, value, text})
+    const extractOptionTexts = (options) => {
+      if (!options || !Array.isArray(options)) return [];
+      return options.map(opt => {
+        // Si es un objeto, extraer el texto
+        if (typeof opt === 'object' && opt !== null) {
+          return opt.text || opt.value || opt.label || String(opt);
+        }
+        // Si ya es un string, usarlo directamente
+        return String(opt);
+      });
+    };
+    
     const structure = {
       hasGender: !!genderQuestion,
       hasAge: !!ageQuestion,
-      genderOptions: genderQuestion?.opciones || [],
-      ageOptions: ageQuestion?.opciones || [],
+      genderOptions: extractOptionTexts(genderQuestion?.opciones),
+      ageOptions: extractOptionTexts(ageQuestion?.opciones),
       isCrossTable: !!genderQuestion && !!ageQuestion
     };
     
@@ -232,6 +245,46 @@ export default function ConfigurarEncuesta() {
       if (userIds && userIds.length > 0) {
         await loadPollsterDetails(userIds.map(String));
       }
+      
+      // Cargar distribución de cuotas existente
+      console.log('QUOTASDEBUG - participantsData:', participantsData);
+      console.log('QUOTASDEBUG - surveyInfoData:', surveyInfoData);
+      const quotaAssignments = participantsData?.quotaAssignments || surveyInfoData?.quotaAssignments || [];
+      if (quotaAssignments.length > 0) {
+        const loadedQuotaData = {};
+        
+        quotaAssignments.forEach(assignment => {
+          const pollsterId = String(assignment.pollsterId);
+          loadedQuotaData[pollsterId] = {};
+          
+          // Reconstruir los datos de distribución desde quotas/segments
+          if (assignment.quotas && Array.isArray(assignment.quotas)) {
+            assignment.quotas.forEach(quota => {
+              // Cada quota tiene category y segments
+              if (quota.segments && Array.isArray(quota.segments)) {
+                quota.segments.forEach(segment => {
+                  // Detectar si es tabla cruzada o simple basándose en el nombre del segmento
+                  const nameParts = segment.name.split(' - ');
+                  
+                  if (nameParts.length === 2) {
+                    // Tabla cruzada: "Masculino - 18-35"
+                    const [gender, age] = nameParts;
+                    const key = `${gender}_${age}`;
+                    loadedQuotaData[pollsterId][key] = segment.target || 0;
+                  } else {
+                    // Tabla simple: solo género o edad
+                    loadedQuotaData[pollsterId][segment.name] = segment.target || 0;
+                  }
+                });
+              }
+            });
+          }
+        });
+        
+        console.log('QUOTASDEBUG - Loaded quotaAssignments from backend:', quotaAssignments);
+        console.log('QUOTASDEBUG - Reconstructed quotaDistributionData:', loadedQuotaData);
+        setQuotaDistributionData(loadedQuotaData);
+      }
     } catch (error) {
       console.error("Error al cargar configuración:", error);
       toast.error("Error al cargar la configuración: " + error.message);
@@ -262,6 +315,7 @@ export default function ConfigurarEncuesta() {
   const [currentDistribution, setCurrentDistribution] = useState(null);
   const [pollsterAssignments, setPollsterAssignments] = useState([]); // Case assignments per pollster
   const [editingSegmentName, setEditingSegmentName] = useState(null); // {categoriaId, segmentoIndex}
+  const [quotaDistributionData, setQuotaDistributionData] = useState({}); // {pollsterId: {segmentKey: value}}
 
   // Estados para modales de participantes
   const [showPollsterModal, setShowPollsterModal] = useState(false);
@@ -865,6 +919,138 @@ export default function ConfigurarEncuesta() {
   const distributedPollstersCount =
     currentDistribution?.pollsterAssignments?.length || 0;
 
+  // Funciones para distribución de cuotas
+  const updateQuotaValue = (pollsterId, segmentKey, value) => {
+    setQuotaDistributionData(prev => ({
+      ...prev,
+      [pollsterId]: {
+        ...(prev[pollsterId] || {}),
+        [segmentKey]: parseInt(value) || 0
+      }
+    }));
+  };
+
+  const getQuotaValue = (pollsterId, segmentKey) => {
+    return quotaDistributionData[pollsterId]?.[segmentKey] || 0;
+  };
+
+  // Calcular total de una fila (género) para un pollster en tabla cruzada
+  const getRowTotal = (pollsterId, genderOption) => {
+    if (!quotaStructure?.ageOptions) return 0;
+    return quotaStructure.ageOptions.reduce((sum, ageOption) => {
+      const key = `${genderOption}_${ageOption}`;
+      return sum + getQuotaValue(pollsterId, key);
+    }, 0);
+  };
+
+  // Calcular total de una columna (edad) para un pollster en tabla cruzada
+  const getColumnTotal = (pollsterId, ageOption) => {
+    if (!quotaStructure?.genderOptions) return 0;
+    return quotaStructure.genderOptions.reduce((sum, genderOption) => {
+      const key = `${genderOption}_${ageOption}`;
+      return sum + getQuotaValue(pollsterId, key);
+    }, 0);
+  };
+
+  // Calcular total general de un pollster
+  const getPollsterQuotaTotal = (pollsterId) => {
+    if (!quotaStructure) return 0;
+    
+    if (quotaStructure.isCrossTable) {
+      // Tabla cruzada: sumar todas las celdas
+      return quotaStructure.genderOptions.reduce((total, genderOption) => {
+        return total + quotaStructure.ageOptions.reduce((sum, ageOption) => {
+          const key = `${genderOption}_${ageOption}`;
+          return sum + getQuotaValue(pollsterId, key);
+        }, 0);
+      }, 0);
+    } else {
+      // Tabla simple: sumar todos los segmentos
+      const options = quotaStructure.hasGender ? quotaStructure.genderOptions : quotaStructure.ageOptions;
+      return options.reduce((sum, option) => {
+        return sum + getQuotaValue(pollsterId, option);
+      }, 0);
+    }
+  };
+
+  // Calcular total general de todos los pollsters
+  const getTotalQuotaDistribution = () => {
+    return assignedPollsters.reduce((total, pollsterId) => {
+      return total + getPollsterQuotaTotal(pollsterId);
+    }, 0);
+  };
+
+  // Preparar quotaAssignments para el backend
+  const prepareQuotaAssignments = () => {
+    if (!quotaStructure || assignedPollsters.length === 0) return [];
+
+    return assignedPollsters.map(pollsterId => {
+      const pollsterData = quotaDistributionData[pollsterId] || {};
+
+      const quotas = [];
+
+      if (quotaStructure.isCrossTable) {
+        // Tabla cruzada: crear UNA cuota con categoría "Género y Edad" y todos los segmentos
+        const segments = [];
+        
+        quotaStructure.genderOptions.forEach(genderOption => {
+          quotaStructure.ageOptions.forEach(ageOption => {
+            const key = `${genderOption}_${ageOption}`;
+            const value = pollsterData[key] || 0;
+            
+            if (value > 0) {
+              segments.push({
+                name: `${genderOption} - ${ageOption}`,
+                target: value,
+                current: 0
+              });
+            }
+          });
+        });
+
+        if (segments.length > 0) {
+          quotas.push({
+            category: "Género y Edad",
+            segments: segments
+          });
+        }
+      } else {
+        // Tabla simple: crear UNA cuota con la categoría correspondiente
+        const category = quotaStructure.hasGender ? "Género" : "Edad";
+        const options = quotaStructure.hasGender 
+          ? quotaStructure.genderOptions 
+          : quotaStructure.ageOptions;
+        
+        const segments = [];
+        options.forEach(option => {
+          const value = pollsterData[option] || 0;
+          
+          if (value > 0) {
+            segments.push({
+              name: option,
+              target: value,
+              current: 0
+            });
+          }
+        });
+
+        if (segments.length > 0) {
+          quotas.push({
+            category: category,
+            segments: segments
+          });
+        }
+      }
+
+      return {
+        pollsterId,
+        quotas: quotas
+      };
+    }).filter(assignment => assignment.quotas.length > 0);
+  };
+
+  console.log('QUOTASDEBUG - prepareQuotaAssignments result:', prepareQuotaAssignments());
+
   const duracion = calcularDuracion();
 
   if (isLoading) {
@@ -952,8 +1138,8 @@ export default function ConfigurarEncuesta() {
                     </label>
                     <p className="text-sm text-[var(--text-secondary)] mt-1">
                       {config.gpsObligatorio
-                        ? "Los encuestadores no podrán enviar respuestas sin coordenadas GPS."
-                        : "Se intentará obtener la ubicación pero se permitirá enviar sin coordenadas en caso de error."}
+                        ? "GPS obligatorio. En caso de error o fallas con la señal, el caso no se registra"
+                        : "GPS no obligatorio. En caso de error o fallas con la señal, el caso se registra sin coordenadas"}
                     </p>
                   </div>
                 </div>
@@ -1291,15 +1477,175 @@ export default function ConfigurarEncuesta() {
                           </p>
                         </div>
                       </div>
-                    ) : (
-                      <div className="text-center py-8 text-[var(--text-secondary)]">
-                        <p>Distribución de cuotas en desarrollo...</p>
-                        <p className="text-sm mt-2">
-                          {quotaStructure.isCrossTable 
-                            ? `Tabla cruzada: ${quotaStructure.genderOptions.length} géneros × ${quotaStructure.ageOptions.length} edades`
-                            : `Tabla simple: ${(quotaStructure.genderOptions.length || quotaStructure.ageOptions.length)} opciones`
-                          }
+                    ) : assignedPollsters.length === 0 ? (
+                      <div className="flex items-center gap-3 p-4 bg-[var(--primary)]/5 border border-[var(--card-border)] rounded-lg">
+                        <AlertCircle size={20} className="flex-shrink-0 text-[var(--text-secondary)]" />
+                        <p className="text-[var(--text-secondary)]">
+                          Es necesario seleccionar los participantes antes de distribuir las cuotas
                         </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+
+                        {/* Tablas por encuestador */}
+                        {assignedPollsters.map((pollsterId, pollsterIndex) => {
+                          const details = pollsterDetails[pollsterId];
+                          const pollsterName = details 
+                            ? `${details.nombre} ${details.apellido}`.trim() || 'Encuestador'
+                            : 'Encuestador';
+
+                          return (
+                            <div key={pollsterId} className="border-2 border-[var(--card-border)] rounded-lg p-4">
+                              {/* Header del encuestador */}
+                              <div className="flex items-center gap-3 mb-4 pb-3">
+                                {details?.foto ? (
+                                  <img 
+                                    src={details.foto} 
+                                    alt={pollsterName}
+                                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] font-semibold flex-shrink-0">
+                                    <Users2 size={20} />
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <h4 className="font-bold text-[var(--text-primary)]">{pollsterName}</h4>
+                                  <p className="text-sm text-[var(--text-secondary)]">
+                                    Total: <span className="font-semibold text-[var(--primary)]">
+                                      {getAssignedCases(pollsterId) || 0}
+                                    </span> casos
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Tabla de distribución */}
+                              {quotaStructure.isCrossTable ? (
+                                // Tabla de doble entrada (Género Y Edad)
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse">
+                                    <thead>
+                                      <tr>
+                                        <th className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-left text-sm font-semibold text-[var(--text-primary)]">
+                                          {/* Esquina superior izquierda vacía */}
+                                        </th>
+                                        {quotaStructure.ageOptions.map((ageOption, idx) => (
+                                          <th key={idx} className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-center text-sm font-semibold text-[var(--text-primary)]">
+                                            {ageOption}
+                                          </th>
+                                        ))}
+                                        <th className="border border-[var(--card-border)] bg-[var(--primary)]/10 p-2 text-center text-sm font-bold text-[var(--primary)]">
+                                          TOTAL
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {quotaStructure.genderOptions.map((genderOption, genderIdx) => (
+                                        <tr key={genderIdx}>
+                                          <td className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-sm font-semibold text-[var(--text-primary)]">
+                                            {genderOption}
+                                          </td>
+                                          {quotaStructure.ageOptions.map((ageOption, ageIdx) => {
+                                            const cellKey = `${genderOption}_${ageOption}`;
+                                            return (
+                                              <td key={ageIdx} className="border border-[var(--card-border)] bg-[var(--card-background)] p-1">
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  placeholder="0"
+                                                  value={getQuotaValue(pollsterId, cellKey) || ''}
+                                                  onChange={(e) => updateQuotaValue(pollsterId, cellKey, e.target.value)}
+                                                  className="w-full px-2 py-1.5 bg-[var(--input-background)] border border-[var(--card-border)] rounded text-center text-sm font-medium text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                  onFocus={(e) => e.target.select()}
+                                                />
+                                              </td>
+                                            );
+                                          })}
+                                          <td className="border border-[var(--card-border)] bg-[var(--primary)]/5 p-2 text-center text-sm font-bold text-[var(--primary)]">
+                                            {getRowTotal(pollsterId, genderOption)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                      {/* Fila de totales */}
+                                      <tr>
+                                        <td className="border border-[var(--card-border)] bg-[var(--primary)]/10 p-2 text-sm font-bold text-[var(--primary)]">
+                                          Total
+                                        </td>
+                                        {quotaStructure.ageOptions.map((ageOption, idx) => (
+                                          <td key={idx} className="border border-[var(--card-border)] bg-[var(--primary)]/5 p-2 text-center text-sm font-bold text-[var(--primary)]">
+                                            {getColumnTotal(pollsterId, ageOption)}
+                                          </td>
+                                        ))}
+                                        <td className="border border-[var(--card-border)] bg-[var(--primary)]/10 p-2 text-center text-sm font-bold text-[var(--primary)]">
+                                          {getPollsterQuotaTotal(pollsterId)}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                // Tabla simple (Género O Edad)
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse">
+                                    <thead>
+                                      <tr>
+                                        <th className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-left text-sm font-semibold text-[var(--text-primary)]">
+                                          {quotaStructure.hasGender ? 'Género' : 'Edad'}
+                                        </th>
+                                        <th className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-center text-sm font-semibold text-[var(--text-primary)]">
+                                          Casos
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(quotaStructure.hasGender ? quotaStructure.genderOptions : quotaStructure.ageOptions).map((option, idx) => {
+                                        const cellKey = `${pollsterId}_${option}`;
+                                        return (
+                                          <tr key={idx}>
+                                            <td className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-sm font-medium text-[var(--text-primary)]">
+                                              {option}
+                                            </td>
+                                            <td className="border border-[var(--card-border)] bg-[var(--card-background)] p-1">
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                placeholder="0"
+                                                value={getQuotaValue(pollsterId, option) || ''}
+                                                onChange={(e) => updateQuotaValue(pollsterId, option, e.target.value)}
+                                                className="w-full px-2 py-1.5 bg-[var(--input-background)] border border-[var(--card-border)] rounded text-center text-sm font-medium text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                onFocus={(e) => e.target.select()}
+                                              />
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                      {/* Fila de total */}
+                                      <tr>
+                                        <td className="border border-[var(--card-border)] bg-[var(--primary)]/10 p-2 text-sm font-bold text-[var(--primary)]">
+                                          Total
+                                        </td>
+                                        <td className="border border-[var(--card-border)] bg-[var(--primary)]/5 p-2 text-center text-sm font-bold text-[var(--primary)]">
+                                          {getPollsterQuotaTotal(pollsterId)}
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* Resumen global */}
+                        <div className="flex items-center justify-between p-4 bg-[var(--primary)]/5 border-2 border-[var(--primary)]/30 rounded-lg">
+                          <span className="font-semibold text-[var(--text-primary)]">Total General Asignado:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold text-[var(--primary)]">
+                              {getTotalQuotaDistribution()}
+                            </span>
+                            <span className="text-[var(--text-secondary)]">casos</span>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1415,9 +1761,17 @@ export default function ConfigurarEncuesta() {
                     ...surveyInfo,
                     startDate: config.fechaInicio,
                     endDate: config.fechaFin,
-                    target: config.tieneObjetivo ? config.metaTotal : 0,
+                    target: tienePreguntasCuota 
+                      ? getTotalQuotaDistribution() 
+                      : (config.tieneObjetivo ? config.metaTotal : 0),
                     requireGps: config.gpsObligatorio,
                     quotas: config.cuotasActivas ? quotas : [],
+                    quotaAssignments:
+                      tienePreguntasCuota 
+                        ? prepareQuotaAssignments()
+                        : (existing?.survey?.surveyInfo?.quotaAssignments ||
+                           existing?.survey?.participants?.quotaAssignments ||
+                           []),
                     // CRÍTICO: Preservar participantes existentes
                     userIds:
                       existing?.survey?.surveyInfo?.userIds ||
@@ -1441,12 +1795,13 @@ export default function ConfigurarEncuesta() {
                       existing?.survey?.participants?.pollsterAssignments ||
                       existing?.survey?.pollsterAssignments ||
                       [],
-                    quotaAssignments:
-                      existing?.survey?.participants?.quotaAssignments ||
-                      existing?.survey?.quotaAssignments ||
-                      [],
                   },
                 };
+
+                console.log('QUOTASDEBUG - dataToSave:', JSON.stringify(dataToSave, null, 2));
+                console.log('QUOTASDEBUG - quotaAssignments being saved:', dataToSave.surveyInfo.quotaAssignments);
+                console.log('QUOTASDEBUG - tienePreguntasCuota:', tienePreguntasCuota);
+                console.log('QUOTASDEBUG - assignedPollsters:', assignedPollsters);
 
                 // Actualizar en el backend - PUBLISHED, no draft
                 await surveyService.createOrUpdateSurvey(

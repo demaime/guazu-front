@@ -82,12 +82,12 @@ const classifyStatus = (survey) => {
   const isConfigurationComplete =
     survey.isConfigurationComplete === true ? true : calculatedComplete;
 
-  // 2a. Pausada manualmente - AZUL
+  // 2a. Pausada manualmente - AMARILLO
   if (isPaused) {
     return {
       lifecycle: "pausada",
       label: "Pausada",
-      color: "blue",
+      color: "yellow",
       isPaused: true,
     };
   }
@@ -278,20 +278,7 @@ export default function TemporalPage() {
       console.log("🔍 DEBUG - Encuestas recibidas del backend:", resp);
       console.log("🔍 DEBUG - Total encuestas:", resp?.surveys?.length || 0);
 
-      // 2. Traer DRAFTS (separado, como lo hace el creador viejo)
-      let draftsResp = { drafts: [] };
-      try {
-        draftsResp = await surveyService.getDrafts();
-        console.log("📦 Drafts recibidos:", draftsResp);
-      } catch (e) {
-        console.error("Error al cargar drafts:", e);
-      }
-
-      // 3. Combinar ambos
-      const allSurveys = [
-        ...(resp?.surveys || []),
-        ...(draftsResp?.drafts || []),
-      ];
+      const allSurveys = resp?.surveys || [];
 
       console.log(
         "🔍 DEBUG - Total combinado (surveys + drafts):",
@@ -745,10 +732,10 @@ export default function TemporalPage() {
         </span>
       );
     }
-    // Pausada - AZUL
+    // Pausada - AMARILLO
     if (survey.isPaused || survey.status === "pausada") {
       return (
-        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-blue-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
+        <span className="px-2 py-0.5 md:px-3 md:py-1 bg-yellow-500 text-white rounded-full text-xs font-medium flex items-center gap-1">
           <Pause size={12} className="md:w-3.5 md:h-3.5" />
           Pausada
         </span>
@@ -998,8 +985,8 @@ export default function TemporalPage() {
                     <div
                       className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${
                         showPausada
-                          ? "border-blue-500 dark:border-blue-400 bg-blue-500 dark:bg-blue-400"
-                          : "border-blue-300 dark:border-blue-700 opacity-40"
+                          ? "border-yellow-500 dark:border-yellow-400 bg-yellow-500 dark:bg-yellow-400"
+                          : "border-yellow-300 dark:border-yellow-700 opacity-40"
                       }`}
                     >
                       {showPausada && (
@@ -1028,8 +1015,8 @@ export default function TemporalPage() {
                     <span
                       className={`px-1.5 py-0.5 rounded-full text-xs font-semibold transition-colors ${
                         showPausada
-                          ? "bg-blue-500 text-white"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-500"
+                          ? "bg-yellow-500 text-white"
+                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-500"
                       }`}
                     >
                       {
@@ -1252,7 +1239,7 @@ export default function TemporalPage() {
                   "border-l-4 border-l-yellow-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]";
               } else if (survey.isPaused || survey.status === "pausada") {
                 borderColor =
-                  "border-l-4 border-l-blue-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]";
+                  "border-l-4 border-l-yellow-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]";
               } else if (survey.isFinished || survey.status === "finalizada") {
                 borderColor =
                   "border-l-4 border-l-gray-500 border-t border-r border-b border-t-[color:var(--card-border)] border-r-[color:var(--card-border)] border-b-[color:var(--card-border)]";
@@ -1390,7 +1377,6 @@ export default function TemporalPage() {
                           <ActionButton
                             icon={survey.isActive ? Pause : Play}
                             label={survey.isActive ? "Pausar" : "Activar"}
-                            variant={survey.isActive ? "warning" : "success"}
                             iconOnly
                             tooltip={
                               survey.isActive
@@ -1405,7 +1391,6 @@ export default function TemporalPage() {
                           <ActionButton
                             icon={Eraser}
                             label="Borrar respuestas"
-                            variant="danger"
                             iconOnly
                             tooltip="Borrar todas las respuestas"
                             onClick={() => handleDeleteAnswers(survey)}
@@ -1416,7 +1401,6 @@ export default function TemporalPage() {
                           label="Prueba local"
                           iconOnly
                           tooltip="Prueba local"
-                          className="[&>svg]:text-[color:var(--primary-contrast)]"
                           onClick={() => {
                             if (typeof window !== "undefined") {
                               window.sessionStorage.setItem(

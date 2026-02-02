@@ -429,19 +429,11 @@ export default function SurveyResponderStable() {
         }
       });
 
-      // Crear payload con o sin coordenadas
-      // 🔍 DEBUG: Verificar cálculo de time
       const calculatedTime = startTimeRef.current
         ? Math.floor((Date.now() - startTimeRef.current) / 1000)
         : 0;
       
-      console.log("⏱️ CÁLCULO DE TIME:", {
-        startTimeRefExists: !!startTimeRef.current,
-        startTimeValue: startTimeRef.current,
-        currentTime: Date.now(),
-        calculatedSeconds: calculatedTime,
-        isZero: calculatedTime === 0
-      });
+ 
 
       const payload = {
         surveyId: surveyId,

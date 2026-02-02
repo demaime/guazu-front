@@ -21,6 +21,7 @@ import SupervisionStats from "@/components/dashboard/SupervisionStats";
 import PollsterFilter from "@/components/dashboard/PollsterFilter";
 import DailyResponsesChart from "@/components/dashboard/DailyResponsesChart";
 import PollsterAverageTime from "@/components/dashboard/PollsterAverageTime";
+import QuotaProgressTable from "@/components/dashboard/QuotaProgressTable";
 import ExportControls from "@/components/ExportControls/ExportControls";
 
 // Colores para los encuestadores - Paleta ampliada con colores bien distinguibles
@@ -694,180 +695,6 @@ export default function PanelDeSupervision() {
           </div>
         </div>
 
-        {/* Control de Cuotas */}
-        {Object.keys(quotas).length > 0 && (
-          <div className="mb-6 bg-[var(--card-background)] rounded-xl border border-[var(--card-border)] p-4 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-[var(--text-primary)]">
-              Cuotas
-            </h3>
-
-            {/* Agrupar por categoría */}
-            <div className="space-y-6 mb-6">
-              {Object.entries(quotas).map(([category, segments]) => {
-                const categoryTotal = segments.reduce(
-                  (sum, s) => sum + s.current,
-                  0
-                );
-                const categoryTarget = segments.reduce(
-                  (sum, s) => sum + s.target,
-                  0
-                );
-                const categoryPercentage =
-                  categoryTarget > 0
-                    ? (categoryTotal / categoryTarget) * 100
-                    : 0;
-
-                return (
-                  <div
-                    key={category}
-                    className="bg-[var(--card-background)] rounded-xl p-4 border border-[var(--card-border)]"
-                  >
-                    {/* Header de la categoría */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
-                      <h4 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]">
-                        {category}
-                      </h4>
-                      <div className="text-xs sm:text-sm text-[var(--text-secondary)]">
-                        {categoryTotal}/{categoryTarget} (
-                        {Math.round(categoryPercentage)}%)
-                      </div>
-                    </div>
-
-                    {/* Segmentos de esta categoría */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {segments.map((segment, idx) => {
-                        const percentage =
-                          segment.target > 0
-                            ? (segment.current / segment.target) * 100
-                            : 0;
-                        const isComplete = segment.current >= segment.target;
-
-                        return (
-                          <div
-                            key={idx}
-                            className={`rounded-lg p-3 border transition-colors ${
-                              isComplete
-                                ? "bg-[var(--success-bg)] border-[var(--success-border)]"
-                                : "bg-[var(--input-background)] border-[var(--primary)]"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              <span
-                                className={`text-xs sm:text-sm font-medium ${
-                                  isComplete
-                                    ? "text-[var(--success)]"
-                                    : "text-[var(--text-secondary)]"
-                                }`}
-                              >
-                                {segment.name}
-                              </span>
-                            </div>
-                            <div
-                              className={`text-3xl sm:text-4xl font-extrabold mb-1 ${
-                                isComplete
-                                  ? "text-[var(--success)]"
-                                  : "text-[var(--primary)]"
-                              }`}
-                            >
-                              {segment.current}
-                              <span
-                                className={`text-base sm:text-lg ${
-                                  isComplete
-                                    ? "text-[var(--success)]"
-                                    : "text-[var(--text-secondary)]"
-                                }`}
-                              >
-                                /{segment.target}
-                              </span>
-                            </div>
-                            <div className="h-2 bg-[var(--input-background)] rounded-full overflow-hidden">
-                              <div
-                                className={`h-full transition-all ${
-                                  isComplete
-                                    ? "bg-[var(--success-border)]"
-                                    : "bg-[var(--primary)]"
-                                }`}
-                                style={{
-                                  width: `${Math.min(percentage, 100)}%`,
-                                }}
-                              ></div>
-                            </div>
-                            <div
-                              className={`text-xs mt-1 text-center ${
-                                isComplete
-                                  ? "text-[var(--success)]"
-                                  : "text-[var(--text-secondary)]"
-                              }`}
-                            >
-                              {Math.round(percentage)}%
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Barra de progreso total */}
-            <div className="bg-[var(--input-background)] rounded-xl p-4 border border-[var(--card-border)]">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-[var(--text-secondary)]">
-                  Progreso Total de Cuotas
-                </span>
-                <span className="text-sm font-semibold text-[var(--text-primary)]">
-                  {Object.values(quotas)
-                    .flat()
-                    .reduce((sum, s) => sum + s.current, 0)}
-                  <span className="text-[var(--text-secondary)]">
-                    /
-                    {Object.values(quotas)
-                      .flat()
-                      .reduce((sum, s) => sum + s.target, 0)}
-                  </span>
-                </span>
-              </div>
-              <div className="relative h-6 bg-[var(--card-background)] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[var(--primary)] flex items-center justify-center transition-all"
-                  style={{
-                    width: `${Math.min(
-                      (Object.values(quotas)
-                        .flat()
-                        .reduce((sum, s) => sum + s.current, 0) /
-                        Math.max(
-                          Object.values(quotas)
-                            .flat()
-                            .reduce((sum, s) => sum + s.target, 0),
-                          1
-                        )) *
-                        100,
-                      100
-                    )}%`,
-                  }}
-                >
-                  <span className="text-xs font-bold text-white">
-                    {Math.round(
-                      (Object.values(quotas)
-                        .flat()
-                        .reduce((sum, s) => sum + s.current, 0) /
-                        Math.max(
-                          Object.values(quotas)
-                            .flat()
-                            .reduce((sum, s) => sum + s.target, 0),
-                          1
-                        )) *
-                        100
-                    )}
-                    %
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Gráfico de Encuestas por Día */}
         <DailyResponsesChart
           dailyData={dailyData}
@@ -880,6 +707,9 @@ export default function PanelDeSupervision() {
           pollstersTime={pollstersTime}
           selectedPollsters={selectedPollsters}
         />
+
+        {/* Progreso de Cuotas */}
+        <QuotaProgressTable survey={survey} answers={filteredAnswers} />
 
         {/* Proyección */}
         <div className="p-4 sm:p-6 rounded-2xl border-2 bg-[var(--success-bg)] border-[var(--success-border)] mb-6">

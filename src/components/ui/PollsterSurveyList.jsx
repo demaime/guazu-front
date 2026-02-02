@@ -9,11 +9,14 @@ import {
   ChevronDown,
   FileText,
   Send,
+  Eye,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { surveyService } from "@/services/survey.service";
 import { useTutorial } from "@/contexts/TutorialContext";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { Loader } from "@/components/ui/Loader";
 
 // ID fijo de la encuesta universal visible para todos los pollsters
 const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
@@ -30,8 +33,10 @@ export function PollsterSurveyList({
   const [progressData, setProgressData] = useState({}); // { surveyId: { assignedCases, completedAnswers, ... } }
   const [progressLoading, setProgressLoading] = useState({});
   const [isOnline, setIsOnline] = useState(
-    typeof navigator === "undefined" ? true : navigator.onLine
+    typeof navigator === "undefined" ? true : navigator.onLine,
   );
+  const [answersBySurvey, setAnswersBySurvey] = useState({});
+  const [quotasLoading, setQuotasLoading] = useState({});
 
   // Encuesta universal: permitir minimizar/expandir (persistente)
   const [isUniversalMinimized, setIsUniversalMinimized] = useState(() => {
@@ -57,12 +62,56 @@ export function PollsterSurveyList({
   // Estado para el modal de detalle de cuota
   const [selectedQuotaSegment, setSelectedQuotaSegment] = useState(null);
 
-  const toggleQuotas = useCallback((surveyId) => {
-    setExpandedQuotas((prev) => ({
-      ...prev,
-      [surveyId]: !prev[surveyId],
-    }));
+  const loadAnswersForSurvey = useCallback(async (surveyId) => {
+    setQuotasLoading((prev) => ({ ...prev, [surveyId]: true }));
+    try {
+      const data = await surveyService.getSurveyWithAnswers(surveyId);
+      const answers = data?.answers || [];
+      setAnswersBySurvey((prev) => ({ ...prev, [surveyId]: answers }));
+    } catch {
+      setAnswersBySurvey((prev) => ({ ...prev, [surveyId]: [] }));
+    } finally {
+      setQuotasLoading((prev) => ({ ...prev, [surveyId]: false }));
+    }
   }, []);
+
+  const toggleQuotas = useCallback(
+    (surveyId) => {
+      setExpandedQuotas((prev) => {
+        const next = !prev[surveyId];
+        if (next && !answersBySurvey[surveyId]) {
+          loadAnswersForSurvey(surveyId);
+        }
+        return { ...prev, [surveyId]: next };
+      });
+    },
+    [answersBySurvey, loadAnswersForSurvey],
+  );
+
+  // Estado para el modal de prueba
+  const [testModalOpen, setTestModalOpen] = useState(false);
+  const [surveyToTest, setSurveyToTest] = useState(null);
+
+  const handleTestClick = (survey) => {
+    setSurveyToTest(survey);
+    setTestModalOpen(true);
+  };
+
+  const confirmTest = () => {
+    if (!surveyToTest) return;
+    try {
+      const buttonKey = surveyToTest._id;
+      setLoadingStates((prev) => ({ ...prev, [buttonKey]: true }));
+
+      const key = "responder:surveyId";
+      if (typeof window !== "undefined") {
+        window.sessionStorage?.setItem(key, String(surveyToTest._id));
+        window.localStorage?.setItem(key, String(surveyToTest._id));
+      }
+      router.push(`/dashboard/encuestas/responder?mode=test`);
+    } catch {}
+    setTestModalOpen(false);
+  };
 
   useEffect(() => {
     const updateOnline = () => setIsOnline(navigator.onLine);
@@ -78,7 +127,7 @@ export function PollsterSurveyList({
   useEffect(() => {
     if (shouldStartTutorial) {
       console.log(
-        "📚 [PollsterSurveyList] Tutorial activado - expandiendo encuesta de prueba"
+        "📚 [PollsterSurveyList] Tutorial activado - expandiendo encuesta de prueba",
       );
       setIsUniversalMinimized(false);
       try {
@@ -107,7 +156,7 @@ export function PollsterSurveyList({
         Object.keys(progressData).length > 0
       ) {
         console.log(
-          "🔄 Progress data already loaded for these surveys, skipping..."
+          "🔄 Progress data already loaded for these surveys, skipping...",
         );
         return;
       }
@@ -124,14 +173,14 @@ export function PollsterSurveyList({
 
       // Cargar progreso sólo para encuestas que no sean universales
       const surveysNeedingProgress = surveys.filter(
-        (survey) => survey._id !== UNIVERSAL_SURVEY_ID
+        (survey) => survey._id !== UNIVERSAL_SURVEY_ID,
       );
 
       const progressPromises = surveysNeedingProgress.map(async (survey) => {
         try {
           const progressResponse = await surveyService.getPollsterProgress(
             survey._id,
-            currentUser._id
+            currentUser._id,
           );
           return {
             surveyId: survey._id,
@@ -142,7 +191,7 @@ export function PollsterSurveyList({
           if (survey._id !== UNIVERSAL_SURVEY_ID) {
             console.error(
               `❌ Error loading progress for survey ${survey._id}:`,
-              error
+              error,
             );
           }
 
@@ -250,7 +299,7 @@ export function PollsterSurveyList({
     // Buscar en survey.pollsterAssignments (nivel raíz) primero
     if (survey.pollsterAssignments) {
       const assignment = survey.pollsterAssignments.find(
-        (assignment) => assignment.pollsterId === currentUser._id
+        (assignment) => assignment.pollsterId === currentUser._id,
       );
       if (assignment && assignment.assignedCases > 0) {
         return assignment.assignedCases;
@@ -260,7 +309,7 @@ export function PollsterSurveyList({
     // Buscar en surveyInfo.pollsterAssignments
     if (survey.surveyInfo?.pollsterAssignments) {
       const assignment = survey.surveyInfo.pollsterAssignments.find(
-        (assignment) => assignment.pollsterId === currentUser._id
+        (assignment) => assignment.pollsterId === currentUser._id,
       );
       if (assignment && assignment.assignedCases > 0) {
         return assignment.assignedCases;
@@ -270,7 +319,7 @@ export function PollsterSurveyList({
     // Fallback: Intentar en participants (para compatibilidad)
     if (survey.participants?.pollsterAssignments) {
       const assignment = survey.participants.pollsterAssignments.find(
-        (assignment) => assignment.pollsterId === currentUser._id
+        (assignment) => assignment.pollsterId === currentUser._id,
       );
       if (assignment && assignment.assignedCases > 0) {
         return assignment.assignedCases;
@@ -359,7 +408,7 @@ export function PollsterSurveyList({
         }, 1000);
       }
     },
-    [router]
+    [router],
   );
 
   const getStatusColor = (survey) => {
@@ -386,28 +435,161 @@ export function PollsterSurveyList({
     return "bg-red-500";
   };
 
-  // Obtener cuotas asignadas al pollster actual (SOLO las suyas)
   const getPollsterQuotas = (survey) => {
     if (!currentUser?._id) {
+      console.log("QUOTASDEBUG - No currentUser._id");
       return null;
     }
 
-    // quotaAssignments vive en surveyInfo según el modelo
-    const quotaAssignments = survey?.surveyInfo?.quotaAssignments || [];
+    const quotaAssignments =
+      survey?.participants?.quotaAssignments ||
+      survey?.surveyInfo?.quotaAssignments ||
+      [];
+
+    console.log("QUOTASDEBUG - Survey:", survey._id);
+    console.log(
+      "QUOTASDEBUG - quotaAssignments:",
+      JSON.stringify(quotaAssignments, null, 2),
+    );
+    console.log("QUOTASDEBUG - currentUser._id:", currentUser._id);
 
     if (!quotaAssignments || quotaAssignments.length === 0) {
+      console.log("QUOTASDEBUG - No quotaAssignments found");
       return null;
     }
 
     const assignment = quotaAssignments.find(
-      (qa) => qa.pollsterId === currentUser._id
+      (qa) => String(qa.pollsterId) === String(currentUser._id),
+    );
+
+    console.log(
+      "QUOTASDEBUG - Found assignment:",
+      JSON.stringify(assignment, null, 2),
     );
 
     if (!assignment || !assignment.quotas || assignment.quotas.length === 0) {
+      console.log("QUOTASDEBUG - No assignment or quotas for this pollster");
       return null;
     }
 
-    return assignment.quotas;
+    const quotaMetadata = survey?.surveyInfo?.quotaMetadata;
+    let dimensions = quotaMetadata?.dimensions || [];
+
+    if (dimensions.length === 0 && survey?.surveyDefinition?.modulos) {
+      const detected = [];
+      survey.surveyDefinition.modulos.forEach((modulo) => {
+        modulo.preguntas?.forEach((pregunta) => {
+          if (pregunta.tipo === "cuota-genero") {
+            detected.push({
+              category: "género",
+              questionId: pregunta.value || pregunta.id,
+              options: (pregunta.opciones || []).map(
+                (opt) => opt.value || opt.text,
+              ),
+            });
+          } else if (pregunta.tipo === "cuota-edad") {
+            detected.push({
+              category: "edad",
+              questionId: pregunta.value || pregunta.id,
+              options: (pregunta.opciones || []).map(
+                (opt) => opt.value || opt.text,
+              ),
+            });
+          }
+        });
+      });
+      dimensions = detected;
+    }
+
+    const genderDimension = dimensions.find((d) => d.category === "género");
+    const ageDimension = dimensions.find((d) => d.category === "edad");
+    const isCrossTable = !!genderDimension && !!ageDimension;
+    const genderQuestionId = genderDimension?.questionId;
+    const ageQuestionId = ageDimension?.questionId;
+
+    const progress = {};
+    const allAnswers = answersBySurvey[survey._id] || [];
+    const pollsterAnswers =
+      allAnswers.filter(
+        (answer) => String(answer.userId) === String(currentUser._id),
+      ) || [];
+
+    pollsterAnswers.forEach((answer) => {
+      const answerData = answer.answer || {};
+      const genderValue = genderQuestionId
+        ? answerData[genderQuestionId]
+        : null;
+      const ageValue = ageQuestionId ? answerData[ageQuestionId] : null;
+
+      if (isCrossTable) {
+        if (genderValue && ageValue) {
+          const key = `${genderValue} - ${ageValue}`;
+          progress[key] = (progress[key] || 0) + 1;
+        }
+      } else {
+        if (genderValue) {
+          progress[genderValue] = (progress[genderValue] || 0) + 1;
+        } else if (ageValue) {
+          progress[ageValue] = (progress[ageValue] || 0) + 1;
+        }
+      }
+    });
+
+    // Extraer todos los segmentos y agregar el progreso calculado
+    const allSegments = [];
+    assignment.quotas.forEach((quota) => {
+      if (quota.segments && Array.isArray(quota.segments)) {
+        quota.segments.forEach((segment) => {
+          // Calcular el progreso real desde las respuestas
+          const calculatedCurrent = Math.floor(progress[segment.name] || 0);
+
+          console.log(
+            `QUOTASDEBUG - Processing segment: ${segment.name}, calculated current: ${calculatedCurrent}, target: ${segment.target}`,
+          );
+
+          // Detectar género y edad del nombre del segmento
+          const nameParts = segment.name.split(" - ");
+
+          if (nameParts.length === 2) {
+            // Tabla cruzada: "Masculino - 18-35"
+            allSegments.push({
+              ...segment,
+              current: calculatedCurrent, // Usar el progreso calculado en lugar del almacenado
+              gender: nameParts[0],
+              age: nameParts[1],
+            });
+          } else {
+            // Tabla simple: solo género o edad
+            // Determinar si es género o edad basándose en la categoría
+            if (quota.category === "Género") {
+              allSegments.push({
+                ...segment,
+                current: calculatedCurrent,
+                gender: segment.name,
+              });
+            } else if (quota.category === "Edad") {
+              allSegments.push({
+                ...segment,
+                current: calculatedCurrent,
+                age: segment.name,
+              });
+            } else {
+              // Categoría desconocida, agregar sin modificar
+              allSegments.push({
+                ...segment,
+                current: calculatedCurrent,
+              });
+            }
+          }
+        });
+      }
+    });
+
+    console.log(
+      "QUOTASDEBUG - Returning segments:",
+      JSON.stringify(allSegments, null, 2),
+    );
+    return allSegments.length > 0 ? allSegments : null;
   };
 
   // Verificar si la encuesta tiene cuotas
@@ -481,8 +663,8 @@ export function PollsterSurveyList({
         const progressValue = isUniversal
           ? 0
           : assignedCases > 0
-          ? (completedAnswers / assignedCases) * 100
-          : 0;
+            ? (completedAnswers / assignedCases) * 100
+            : 0;
         const isLoading = loadingStates[survey._id];
         const isProgressLoading = isUniversal
           ? false
@@ -501,39 +683,29 @@ export function PollsterSurveyList({
               isUniversal
                 ? "test-survey"
                 : index === 1
-                ? "survey-card"
-                : undefined
+                  ? "survey-card"
+                  : undefined
             }
           >
-            {/* Header - universal con control de minimizar */}
-            {!isFinished && (
-              <div
-                onClick={() => isUniversal && toggleUniversalSurvey()}
-                className={`bg-gradient-to-r ${
-                  isUniversal
-                    ? "from-blue-500 to-purple-600"
-                    : getStatusColor(survey)
-                } p-2 px-4 ${isUniversal ? "cursor-pointer select-none" : ""}`}
-              >
-                <div className="flex justify-between items-center">
-                  {isUniversal ? (
-                    <div className="text-white text-xs font-medium flex items-center gap-2">
+            {
+              /* Header - Removed colored banner, now integrated into card body */
+              isUniversal && (
+                <div
+                  onClick={() => toggleUniversalSurvey()}
+                  className="bg-slate-700/10 p-2 px-4 cursor-pointer select-none border-b border-[var(--card-border)]"
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="text-[var(--text-primary)] text-xs font-medium flex items-center gap-2">
                       <TestTube2 className="w-4 h-4" />
                       <span>Encuesta de Prueba</span>
                     </div>
-                  ) : (
-                    <span />
-                  )}
-                  <div className="flex items-center gap-2">
-                    {!isUniversal && (
-                      <div className="text-white text-xs font-medium">
-                        {timeRemaining}
-                      </div>
-                    )}
-                    {isUniversal && (
+                    <div className="flex items-center gap-2">
                       <button
-                        onClick={toggleUniversalSurvey}
-                        className="text-white hover:bg-white/20 p-1 rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleUniversalSurvey();
+                        }}
+                        className="text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] p-1 rounded transition-colors"
                         title={isUniversalMinimized ? "Expandir" : "Minimizar"}
                       >
                         {isUniversalMinimized ? (
@@ -542,11 +714,11 @@ export function PollsterSurveyList({
                           <ChevronUp className="w-4 h-4" />
                         )}
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            }
 
             {(!isUniversal || !isUniversalMinimized) && (
               <AnimatePresence mode="wait">
@@ -558,19 +730,35 @@ export function PollsterSurveyList({
                 >
                   {/* Contenido del header - título y descripción */}
                   <div className="p-4 pb-2">
+                    {/* Orange header block for styling match if needed, but going for clean look first as per instructions to remove banner */}
+
                     {!isUniversal && (
-                      <h3 className="text-base font-semibold leading-tight mb-2 text-[var(--text-primary)] line-clamp-2">
-                        {getLocalizedText(survey.survey?.title) || "Sin título"}
-                      </h3>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">
+                            {getLocalizedText(survey.survey?.title) ||
+                              "Sin título"}
+                          </h3>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            {getLocalizedText(
+                              survey.survey?.description,
+                              "Sin descripción",
+                            )}
+                          </p>
+                        </div>
+                        {/* Optional: Add status badge here if needed in future */}
+                      </div>
                     )}
-                    <p className="text-[var(--text-secondary)] text-sm line-clamp-1 mb-3">
-                      {isUniversal
-                        ? "Para probar funcionalidades de la app"
-                        : getLocalizedText(
-                            survey.survey?.description,
-                            "Sin descripción"
-                          )}
-                    </p>
+
+                    {isUniversal && (
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            Para probar funcionalidades de la app
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Contenido principal */}
@@ -582,23 +770,22 @@ export function PollsterSurveyList({
                           {/* Tiempo restante */}
                           {(() => {
                             const timeStr = timeRemaining || "Sin fecha";
+                            // Basic parsing to match the mockup style "3 dias restantes"
                             const parts = timeStr.split(" ");
                             const value = parts[0];
-                            const label1 = parts[1] || "";
-                            const label2 = parts.slice(2).join(" ") || "";
+                            const rest = parts.slice(1).join(" ");
 
                             return (
-                              <div className="flex items-center gap-2 p-2 px-3 bg-[var(--inner-card-bg)] rounded-xl border border-[var(--card-border)] shadow-sm overflow-hidden">
-                                <div className="p-1.5 bg-orange-500/10 rounded-lg flex-shrink-0">
-                                  <Clock className="w-4 h-4 text-orange-500" />
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <Clock className="w-4 h-4 text-orange-400" />
                                 </div>
-                                <div className="flex items-center gap-1.5 overflow-hidden">
-                                  <span className="text-2xl font-bold text-[var(--text-primary)] leading-none">
-                                    {value}
-                                  </span>
-                                  <div className="flex flex-col text-[10px] leading-[0.85] text-[var(--text-secondary)] font-medium">
-                                    <span className="truncate">{label1}</span>
-                                    <span className="truncate">{label2}</span>
+                                <div>
+                                  <div className="text-xs text-[var(--text-secondary)]">
+                                    Tiempo restante
+                                  </div>
+                                  <div className="text-sm font-semibold text-[var(--text-primary)]">
+                                    {value} {rest}
                                   </div>
                                 </div>
                               </div>
@@ -606,21 +793,20 @@ export function PollsterSurveyList({
                           })()}
 
                           {/* Casos completados */}
-                          <div className="flex items-center gap-2 p-2 px-3 bg-[var(--inner-card-bg)] rounded-xl border border-[var(--card-border)] shadow-sm overflow-hidden">
-                            <div className="p-1.5 bg-[var(--primary)]/10 rounded-lg flex-shrink-0">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-[var(--primary)]/20 rounded-lg flex items-center justify-center flex-shrink-0">
                               <Users className="w-4 h-4 text-[var(--primary)]" />
                             </div>
-                            <div className="flex items-center gap-1.5 overflow-hidden">
-                              <span className="text-2xl font-bold text-[var(--text-primary)] leading-none">
-                                {isProgressLoading ? (
-                                  "..."
-                                ) : (
-                                  completedAnswers
-                                )}
-                              </span>
-                              <div className="flex flex-col text-[10px] leading-[0.85] text-[var(--text-secondary)] font-medium">
-                                <span className="truncate">/ {assignedCases}</span>
-                                <span className="truncate">casos</span>
+                            <div>
+                              <div className="text-xs text-[var(--text-secondary)]">
+                                Casos completados
+                              </div>
+                              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                                {isProgressLoading ? "..." : completedAnswers}
+                                <span className="text-[var(--text-muted)] font-normal">
+                                  {" "}
+                                  / {assignedCases}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -633,7 +819,9 @@ export function PollsterSurveyList({
                               className={`h-full ${
                                 isProgressLoading
                                   ? "bg-gray-300 animate-pulse"
-                                  : getProgressColor(survey)
+                                  : isUniversal
+                                    ? "bg-indigo-500"
+                                    : "bg-[var(--primary)]"
                               } rounded-full transition-all duration-500`}
                               style={{
                                 width: isProgressLoading
@@ -642,13 +830,12 @@ export function PollsterSurveyList({
                               }}
                             />
                           </div>
-                          <span className="absolute right-0 -top-5 text-xs font-semibold text-[var(--text-muted)]">
+                          <span className="absolute right-0 -top-5 text-xs font-semibold text-[var(--text-secondary)]">
                             {isProgressLoading ? "..." : progress}
                           </span>
                         </div>
                       </div>
                     )}
-
 
                     {/* Sección de Cuotas - Expandible */}
                     {!isUniversal && hasQuotas(survey) && (
@@ -659,7 +846,7 @@ export function PollsterSurveyList({
                             e.stopPropagation();
                             toggleQuotas(survey._id);
                           }}
-                          className="w-full flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] transition-colors text-left"
+                          className="w-full flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] transition-colors text-left border-b border-[var(--card-border)] focus:outline-none focus-visible:outline-none focus-visible:ring-0"
                         >
                           <div className="flex items-center gap-2">
                             <div className="p-1 bg-[var(--primary)]/10 rounded-lg">
@@ -669,11 +856,16 @@ export function PollsterSurveyList({
                               Cuotas
                             </span>
                           </div>
-                          {expandedQuotas[survey._id] ? (
-                            <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
-                          )}
+                          <div className="flex items-center gap-2">
+                            {quotasLoading[survey._id] && (
+                              <Loader size="sm" className="scale-90" />
+                            )}
+                            {expandedQuotas[survey._id] ? (
+                              <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                            )}
+                          </div>
                         </button>
 
                         {/* Contenido Expandible */}
@@ -685,37 +877,48 @@ export function PollsterSurveyList({
                               exit={{ height: 0, opacity: 0 }}
                               transition={{ duration: 0.2 }}
                             >
-                              <div className="p-3 pt-0 border-t border-[var(--card-border)] border-dashed mt-1">
-                                <div className="space-y-3 pt-3">
-                                  {getPollsterQuotas(survey).map((quota, idx) => (
-                                    <div key={idx}>
-                                      <div className="grid grid-cols-4 gap-2">
-                                        {quota.segments.map((segment, segIdx) => {
-                                          const currentCount = segment.current || 0;
+                              <div className="p-3 pt-2">
+                                {quotasLoading[survey._id] ? (
+                                  <div className="text-xs py-8 text-center text-[var(--text-muted)] italic">
+                                    cargando cuotas...
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {(getPollsterQuotas(survey) || [])
+                                      .length ? (
+                                      getPollsterQuotas(survey).map(
+                                        (segment, idx) => {
+                                          const currentCount =
+                                            segment.current || 0;
                                           const status = getQuotaStatus(
                                             currentCount,
-                                            segment.target
+                                            segment.target,
                                           );
-                                          const genderSymbol =
-                                            quota.category.toLowerCase().includes('género') ||
-                                            quota.category.toLowerCase().includes('sexo')
-                                              ? segment.name.toLowerCase().includes("homs") ||
-                                                segment.name.toLowerCase().includes("masc") ||
-                                                segment.name.toLowerCase() === "h" ||
-                                                segment.name.toLowerCase() === "m"
-                                                ? "♂"
-                                                : "♀"
-                                              : null;
+
+                                          // Determinar el símbolo de género
+                                          const genderSymbol = segment.gender
+                                            ? segment.gender
+                                                .toLowerCase()
+                                                .includes("masc") ||
+                                              segment.gender
+                                                .toLowerCase()
+                                                .includes("homb") ||
+                                              segment.gender.toLowerCase() ===
+                                                "m" ||
+                                              segment.gender.toLowerCase() ===
+                                                "h"
+                                              ? "♂"
+                                              : "♀"
+                                            : null;
 
                                           return (
                                             <button
-                                              key={`${idx}-${segIdx}`}
+                                              key={idx}
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 setSelectedQuotaSegment({
-                                                  category: quota.category,
                                                   ...segment,
-                                                  status, // Pasamos el status calculado para usar sus colores
+                                                  status,
                                                 });
                                               }}
                                               className={`${status.bgColor} rounded-lg p-2 text-center border ${status.borderColor} flex flex-col justify-center items-center h-full min-h-[60px] shadow-sm hover:brightness-95 transition-all cursor-pointer`}
@@ -727,7 +930,7 @@ export function PollsterSurveyList({
                                                   </span>
                                                 )}
                                                 <span className="text-[10px] text-[var(--text-muted)] truncate w-full leading-tight">
-                                                  {segment.name}
+                                                  {segment.age || segment.name}
                                                 </span>
                                               </div>
                                               <div
@@ -737,123 +940,161 @@ export function PollsterSurveyList({
                                               </div>
                                             </button>
                                           );
-                                        })}
+                                        },
+                                      )
+                                    ) : (
+                                      <div className="col-span-3 py-8 text-center text-[var(--text-muted)] italic">
+                                        No hay cuotas definidas para esta
+                                        encuesta
                                       </div>
-                                    </div>
-                                  ))}
-                                </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </div>
                     )}
-                    
-  {/* Modal de Detalle de Cuota */}
-  <AnimatePresence>
-    {selectedQuotaSegment && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-[var(--card-background)] w-full max-w-sm rounded-2xl shadow-xl overflow-hidden border border-[var(--card-border)]"
-        >
-          <div className="p-6">
-            <div className="text-center mb-6">
-              <h3 className="text-[var(--text-secondary)] text-sm font-medium uppercase tracking-wider mb-2">
-                {selectedQuotaSegment.category}
-              </h3>
-              <h2 className="text-2xl font-bold text-[var(--text-primary)]">
-                {selectedQuotaSegment.name}
-              </h2>
-            </div>
 
-            <div className="flex flex-col items-center justify-center mb-8">
-              <div className={`text-4xl font-bold mb-2 ${selectedQuotaSegment.status.textColor}`}>
-                {selectedQuotaSegment.current || 0}
-                <span className="text-2xl text-[var(--text-muted)] font-normal">
-                  /{selectedQuotaSegment.target}
-                </span>
-              </div>
-              <div className="w-full h-3 bg-[var(--card-border)] rounded-full overflow-hidden">
-                <div
-                  className={`h-full ${selectedQuotaSegment.status.textColor.replace('text-', 'bg-')}`}
-                  style={{
-                    width: `${Math.min(
-                      ((selectedQuotaSegment.current || 0) /
-                        selectedQuotaSegment.target) *
-                        100,
-                      100
-                    )}%`,
-                  }}
-                />
-              </div>
-            </div>
+                    {/* Modal de Detalle de Cuota */}
+                    <AnimatePresence>
+                      {selectedQuotaSegment && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-[var(--card-background)] w-full max-w-sm rounded-2xl shadow-xl overflow-hidden border border-[var(--card-border)]"
+                          >
+                            <div className="p-6">
+                              <div className="text-center mb-6">
+                                <h3 className="text-[var(--text-secondary)] text-sm font-medium uppercase tracking-wider mb-2">
+                                  Cuota
+                                </h3>
+                                <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+                                  {selectedQuotaSegment.gender &&
+                                  selectedQuotaSegment.age
+                                    ? `${selectedQuotaSegment.gender} - ${selectedQuotaSegment.age}`
+                                    : selectedQuotaSegment.name}
+                                </h2>
+                              </div>
 
-            <button
-              onClick={() => setSelectedQuotaSegment(null)}
-              className="w-full py-3 bg-[var(--primary)] text-white rounded-xl font-semibold hover:bg-[var(--primary-dark)] transition-colors"
-            >
-              Cerrar
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    )}
-  </AnimatePresence>
+                              <div className="flex flex-col items-center justify-center mb-8">
+                                <div
+                                  className={`text-4xl font-bold mb-2 ${selectedQuotaSegment.status.textColor}`}
+                                >
+                                  {selectedQuotaSegment.current || 0}
+                                  <span className="text-2xl text-[var(--text-muted)] font-normal">
+                                    /{selectedQuotaSegment.target}
+                                  </span>
+                                </div>
+                                <div className="w-full h-3 bg-[var(--card-border)] rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full ${selectedQuotaSegment.status.textColor.replace("text-", "bg-")}`}
+                                    style={{
+                                      width: `${Math.min(
+                                        ((selectedQuotaSegment.current || 0) /
+                                          selectedQuotaSegment.target) *
+                                          100,
+                                        100,
+                                      )}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => setSelectedQuotaSegment(null)}
+                                className="w-full py-3 bg-[var(--primary)] text-white rounded-xl font-semibold hover:bg-[var(--primary-dark)] transition-colors"
+                              >
+                                Cerrar
+                              </button>
+                            </div>
+                          </motion.div>
+                        </div>
+                      )}
+                    </AnimatePresence>
 
                     {/* Botones de acción - Enviados 1/3, Responder 2/3 */}
                     {/* Botones de acción - Enviados ~40%, Responder ~60% */}
-                    <div className="grid grid-cols-5 gap-2">
-                      {/* Botón Enviados (no mostrar para universal) - 2/5 */}
+                    {/* Botones de acción - 3 columnas */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* Botón Probar - No mostrar en universal */}
                       {!isUniversal && (
-                        <motion.button
+                        <button
+                          onClick={() => handleTestClick(survey)}
+                          className="bg-[var(--input-background)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] text-[var(--text-current)] font-semibold py-3.5 rounded-xl transition-colors flex flex-col items-center justify-center gap-1"
+                        >
+                          <div className="flex items-center justify-center">
+                            <Eye className="w-4 h-4" />
+                          </div>
+                          <span className="text-xs">Probar</span>
+                        </button>
+                      )}
+
+                      {/* Botón Enviados */}
+                      {!isUniversal && (
+                        <button
                           onClick={() => {
                             try {
                               const key = "cases:surveyId";
                               if (typeof window !== "undefined") {
-                                window.sessionStorage?.setItem(key, String(survey._id));
-                                window.localStorage?.setItem(key, String(survey._id));
+                                window.sessionStorage?.setItem(
+                                  key,
+                                  String(survey._id),
+                                );
+                                window.localStorage?.setItem(
+                                  key,
+                                  String(survey._id),
+                                );
                               }
                             } catch {}
-                            router.push(`/dashboard/encuestas/${survey._id}/mis-casos`);
+                            router.push(
+                              `/dashboard/encuestas/${survey._id}/mis-casos`,
+                            );
                           }}
-                          className="col-span-2 bg-[var(--input-background)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] text-[var(--text-primary)] font-semibold py-2.5 rounded-xl transition-colors flex flex-col items-center justify-center gap-0.5"
-                          whileTap={{ scale: 0.98 }}
+                          className="bg-[var(--input-background)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] text-[var(--text-current)] font-semibold py-3.5 rounded-xl transition-colors flex flex-col items-center justify-center gap-1"
                         >
-                          <Send className="w-4 h-4 mb-0.5" />
+                          <Send className="w-4 h-4" />
                           <span className="text-xs">Enviados</span>
-                        </motion.button>
+                        </button>
                       )}
-                      
-                      {/* Botón Responder - 3/5 (o full si es universal) */}
-                      <motion.button
+
+                      {/* Botón Responder */}
+                      <button
                         onClick={() => handleResponder(survey)}
                         disabled={isLoading || isFinished}
-                        data-tutorial={isUniversal ? "respond-button" : undefined}
-                        className={`${isUniversal ? 'col-span-5' : 'col-span-3'} font-semibold py-2.5 rounded-xl transition-colors shadow-lg flex flex-col items-center justify-center gap-0.5 ${
+                        data-tutorial={
+                          isUniversal ? "respond-button" : undefined
+                        }
+                        className={`${isUniversal ? "col-span-3" : ""} bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white font-semibold py-3.5 rounded-xl transition-colors shadow-lg flex flex-col items-center justify-center gap-1 ${
                           isFinished
                             ? "bg-[var(--disabled-bg)] text-[var(--disabled-text)] cursor-not-allowed"
-                            : "bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white"
+                            : ""
                         }`}
-                        whileTap={!isFinished && !isLoading ? { scale: 0.98 } : {}}
                       >
                         {isLoading ? (
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
                           <>
-                            {isUniversal ? (
-                              <TestTube2 className="w-4 h-4 mb-0.5" />
-                            ) : (
-                              <Play className="w-4 h-4 mb-0.5" />
-                            )}
+                            <div className="flex items-center justify-center">
+                              {isUniversal ? (
+                                <TestTube2 className="w-4 h-4" />
+                              ) : (
+                                <Play className="w-4 h-4" />
+                              )}
+                            </div>
                             <span className="text-xs">
-                              {isUniversal ? "Probar App" : isFinished ? "Finalizada" : "Responder"}
+                              {isUniversal
+                                ? "Probar App"
+                                : isFinished
+                                  ? "Finalizada"
+                                  : "Responder"}
                             </span>
                           </>
                         )}
-                      </motion.button>
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -862,6 +1103,24 @@ export function PollsterSurveyList({
           </motion.div>
         );
       })}
+
+      <ConfirmModal
+        isOpen={testModalOpen}
+        onClose={() => setTestModalOpen(false)}
+        onConfirm={confirmTest}
+        title="Modo Prueba"
+        confirmText="Comenzar Prueba"
+        cancelText="Cancelar"
+        variant="primary"
+        alertMessage="Esta herramienta es solo para verificar el correcto funcionamiento del formulario."
+      >
+        <p className="font-medium mb-2">¿Querés probar esta encuesta?</p>
+        <p className="text-sm">
+          Estás a punto de ingresar al modo de prueba. Las respuestas que envíes
+          <span className="font-bold text-blue-500"> NO se guardarán </span>
+          como casos reales ni afectarán las cuotas.
+        </p>
+      </ConfirmModal>
     </div>
   );
 }
