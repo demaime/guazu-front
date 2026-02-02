@@ -450,15 +450,14 @@ export default function SupervisorSelectionModal({
                 )}
               </div>
 
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+              <div className="flex items-center gap-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg px-3 py-2">
+                <Search className="w-4 h-4 text-[var(--text-secondary)]" />
                 <input
                   type="text"
                   placeholder="Buscar por nombre o email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--secondary)]"
+                  className="flex-1 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none"
                 />
               </div>
 

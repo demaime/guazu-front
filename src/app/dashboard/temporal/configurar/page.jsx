@@ -796,8 +796,6 @@ export default function ConfigurarEncuesta() {
 
       toast.success("Configuración guardada exitosamente");
 
-      // Redirigir a participantes
-      router.push(`/dashboard/temporal/participantes?id=${surveyId}`);
     } catch (error) {
       console.error("Error al guardar configuración:", error);
       toast.error("Error al guardar: " + error.message);
@@ -2071,7 +2069,7 @@ export default function ConfigurarEncuesta() {
                         Guardando...
                       </>
                     ) : (
-                      "Guardar y asignar participantes"
+                      "Guardar"
                     )}
                   </button>
                 </div>

@@ -1353,16 +1353,6 @@ export default function TemporalPage() {
                           }
                         />
                         <ActionButton
-                          icon={Users}
-                          label="Asignar participantes"
-                          hasAlert={!survey.hasParticipants}
-                          onClick={() =>
-                            router.push(
-                              `/dashboard/temporal/participantes?id=${survey.id}`
-                            )
-                          }
-                        />
-                        <ActionButton
                           icon={BarChart3}
                           label="Supervisión"
                           onClick={() =>
@@ -1442,16 +1432,6 @@ export default function TemporalPage() {
                                   )
                                 }
                               />
-                              <ActionButton
-                                icon={Users}
-                                label="Participantes"
-                                hasAlert={!survey.hasParticipants}
-                                onClick={() =>
-                                  router.push(
-                                    `/dashboard/temporal/participantes?id=${survey.id}`
-                                  )
-                                }
-                              />
                             </>
                           ) : (
                             <>
@@ -1522,29 +1502,6 @@ export default function TemporalPage() {
                                     )}
                                     <Settings size={12} />
                                     <span>Configurar</span>
-                                  </button>
-
-                                  {/* 2. Asignar participantes */}
-                                  <button
-                                    onClick={() => {
-                                      router.push(
-                                        `/dashboard/temporal/participantes?id=${survey.id}`
-                                      );
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="relative px-2 py-1.5 rounded-md bg-indigo-600 dark:bg-indigo-500 text-white border border-indigo-700/50 dark:border-indigo-400/50 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
-                                  >
-                                    {!survey.hasParticipants && (
-                                      <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
-                                        <AlertCircle
-                                          size={8}
-                                          className="text-white"
-                                          strokeWidth={3}
-                                        />
-                                      </div>
-                                    )}
-                                    <Users size={12} />
-                                    <span>Participantes</span>
                                   </button>
 
                                   {/* 3. Prueba local */}
