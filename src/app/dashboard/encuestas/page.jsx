@@ -1082,7 +1082,7 @@ export default function Encuestas() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
-        className="rounded-lg bg-[var(--background)] border border-[var(--card-border)] px-4 py-4 md:px-5 md:py-6 shadow-sm"
+        className="rounded-lg bg-[var(--background)] px-4 py-4 md:px-5 md:py-6 shadow-sm"
       >
         {/* --- Error Display --- */}
         {error && (

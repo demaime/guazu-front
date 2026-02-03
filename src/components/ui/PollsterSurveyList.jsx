@@ -9,6 +9,7 @@ import {
   ChevronDown,
   FileText,
   Send,
+  FileInput,
   Eye,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -825,7 +826,7 @@ export function PollsterSurveyList({
                             // Basic parsing to match the mockup style "3 dias restantes"
                             const parts = timeStr.split(" ");
                             const value = parts[0];
-                            const rest = parts.slice(1).join(" ");
+                            const unit = parts[1] || "";
 
                             return (
                               <div className="flex items-center gap-2">
@@ -837,7 +838,7 @@ export function PollsterSurveyList({
                                     Tiempo restante
                                   </div>
                                   <div className="text-sm font-semibold text-[var(--text-primary)]">
-                                    {value} {rest}
+                                    {value} {unit}
                                   </div>
                                 </div>
                               </div>
@@ -851,7 +852,7 @@ export function PollsterSurveyList({
                             </div>
                             <div>
                               <div className="text-xs text-[var(--text-secondary)]">
-                                Casos completados
+                                Casos
                               </div>
                               <div className="text-sm font-semibold text-[var(--text-primary)]">
                                 {isProgressLoading ? "..." : completedAnswers}
@@ -1108,7 +1109,7 @@ export function PollsterSurveyList({
                           }}
                           className="bg-[var(--input-background)] hover:bg-[var(--hover-bg)] border border-[var(--card-border)] text-[var(--text-current)] font-semibold py-3.5 rounded-xl transition-colors flex flex-col items-center justify-center gap-1"
                         >
-                          <Send className="w-4 h-4" />
+                          <FileInput className="w-4 h-4" />
                           <span className="text-xs">Enviados</span>
                         </button>
                       )}
@@ -1134,7 +1135,7 @@ export function PollsterSurveyList({
                               {isUniversal ? (
                                 <TestTube2 className="w-4 h-4" />
                               ) : (
-                                <Play className="w-4 h-4" />
+                                <Send className="w-4 h-4" />
                               )}
                             </div>
                             <span className="text-xs">
