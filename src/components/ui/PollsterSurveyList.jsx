@@ -535,6 +535,58 @@ export function PollsterSurveyList({
       }
     });
 
+    const genderOptionsSet = new Set();
+    const ageOptionsSet = new Set();
+    assignment.quotas?.forEach((quota) => {
+      quota.segments?.forEach((segment) => {
+        const parts = segment.name.split(" - ");
+        if (parts.length === 2) {
+          genderOptionsSet.add(parts[0].trim());
+          ageOptionsSet.add(parts[1].trim());
+        } else if (parts.length === 1) {
+          if (quota.category === "Género") {
+            genderOptionsSet.add(parts[0].trim());
+          } else if (quota.category === "Edad") {
+            ageOptionsSet.add(parts[0].trim());
+          }
+        }
+      });
+    });
+    const normalize = (s) =>
+      typeof s === "string"
+        ? s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim()
+        : "";
+    const genderNormSet = new Set(Array.from(genderOptionsSet).map(normalize));
+    const ageNormSet = new Set(Array.from(ageOptionsSet).map(normalize));
+    const progressSum = Object.values(progress).reduce((a, b) => a + b, 0);
+    if (progressSum === 0 && pollsterAnswers.length > 0) {
+      pollsterAnswers.forEach((answer) => {
+        const vals = Object.values(answer.answer || {}).map((v) =>
+          typeof v === "string" ? v : String(v),
+        );
+        let g = null;
+        let a = null;
+        for (const v of vals) {
+          const nv = normalize(v);
+          if (!g && genderNormSet.has(nv)) g = v;
+          if (!a && ageNormSet.has(nv)) a = v;
+          if (g && a) break;
+        }
+        if (isCrossTable) {
+          if (g && a) {
+            const key = `${g} - ${a}`;
+            progress[key] = (progress[key] || 0) + 1;
+          }
+        } else {
+          const single = g || a;
+          if (single) {
+            progress[single] = (progress[single] || 0) + 1;
+          }
+        }
+      });
+      console.log("QUOTASDEBUG - Fallback progress calculated:", progress);
+    }
+
     // Extraer todos los segmentos y agregar el progreso calculado
     const allSegments = [];
     assignment.quotas.forEach((quota) => {
