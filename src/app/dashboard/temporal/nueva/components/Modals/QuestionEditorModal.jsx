@@ -1,7 +1,8 @@
 "use client";
 
-import { X, ChevronDown, Save } from 'lucide-react';
+import { X, ChevronDown, Save, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useMobileDetect } from '../../hooks/useMobileDetect';
 import OptionsEditor from '../OptionsEditor';
 import MatrixEditor from '../MatrixEditor';
 import MultiTextFieldsEditor from '../MultiTextFieldsEditor';
@@ -27,6 +28,7 @@ export default function QuestionEditorModal({
   const [bulkAddTarget, setBulkAddTarget] = useState(null); // 'opciones' | 'filas' | 'columnas'
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [showQuotaWarning, setShowQuotaWarning] = useState(false);
+  const isMobile = useMobileDetect();
 
   useEffect(() => {
     if (isOpen) {
@@ -253,6 +255,168 @@ export default function QuestionEditorModal({
     return null;
   };
 
+  // Renderizar contenido del formulario (compartido entre mobile y desktop)
+  const renderFormContent = () => (
+    <>
+      {/* Variable name */}
+      <div>
+        <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
+          Variable (nombre interno)
+        </label>
+        <input
+          type="text"
+          value={editedData.value || ''}
+          onChange={(e) => updateField('value', e.target.value)}
+          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm font-mono transition-all"
+          placeholder="p1"
+        />
+      </div>
+
+      {/* Texto de la pregunta */}
+      <div>
+        <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
+          Texto de la pregunta
+        </label>
+        <textarea
+          value={editedData.text || ''}
+          onChange={(e) => updateField('text', e.target.value)}
+          placeholder="Escribe aquí la pregunta que verá el usuario..."
+          rows={3}
+          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all resize-none"
+          autoFocus
+        />
+      </div>
+
+      {/* Tipo de pregunta */}
+      <div>
+        <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
+          Tipo de pregunta
+        </label>
+        <button
+          type="button"
+          onClick={() => onOpenTypeSelector(editedData.tipo)}
+          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:border-[color:var(--primary)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            {Icon && <Icon size={16} />}
+            <span>{tipoActual?.label || 'Seleccionar tipo'}</span>
+          </div>
+          <ChevronDown size={16} />
+        </button>
+      </div>
+
+      {/* Instrucciones */}
+      <div>
+        <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
+          Instrucciones para el usuario
+        </label>
+        <input
+          type="text"
+          value={editedData.indicaciones || ''}
+          onChange={(e) => updateField('indicaciones', e.target.value)}
+          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all"
+          placeholder="Ej: Seleccione una opción, Ingrese su respuesta..."
+        />
+      </div>
+
+      {/* Condiciones de visibilidad */}
+      {preguntasDisponibles.length > 0 && (
+        <ConditionalEditor
+          condicionada={editedData.condicionada}
+          preguntasDisponibles={preguntasDisponibles}
+          onUpdate={(nuevaCondicionada) => updateField('condicionada', nuevaCondicionada)}
+          label="Pregunta condicional"
+        />
+      )}
+
+      {/* Configuración específica según el tipo */}
+      {renderConfiguracionEspecifica()}
+    </>
+  );
+
+  // Mobile: Full-screen page
+  if (isMobile) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-[color:var(--background)] z-[100] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center gap-3 p-4 border-b border-[color:var(--card-border)] bg-[color:var(--card-background)]">
+            <button
+              onClick={onClose}
+              className="p-2 -ml-2 text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)] rounded-lg transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <h3 className="text-base font-semibold text-[color:var(--text-primary)]">Editar pregunta</h3>
+          </div>
+
+          {/* Contenido scrolleable */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {renderFormContent()}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-[color:var(--card-border)] bg-[color:var(--card-background)] flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 rounded-lg border-2 border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] hover:text-[color:var(--text-primary)] font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex-1 px-4 py-3 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <Save size={16} />
+              Guardar
+            </button>
+          </div>
+        </div>
+
+        {/* Modales auxiliares */}
+        <BulkAddModal
+          isOpen={bulkAddModalOpen}
+          onClose={() => {
+            setBulkAddModalOpen(false);
+            setBulkAddTarget(null);
+          }}
+          onConfirm={handleBulkAddConfirm}
+          title={
+            bulkAddTarget === 'filas' ? 'Carga rápida de filas' :
+            bulkAddTarget === 'columnas' ? 'Carga rápida de columnas' :
+            'Carga rápida de opciones'
+          }
+          placeholder={
+            bulkAddTarget === 'filas' ? 'Ingresa una fila por línea...\n\nEjemplo:\nProducto A\nProducto B\nProducto C' :
+            bulkAddTarget === 'columnas' ? 'Ingresa una columna por línea...\n\nEjemplo:\nCalidad\nPrecio\nServicio' :
+            'Ingresa una opción por línea...\n\nEjemplo:\nBuena\nMala\nRegular'
+          }
+        />
+
+        <ConfirmModal
+          isOpen={showValidationModal}
+          onClose={() => setShowValidationModal(false)}
+          onConfirm={() => setShowValidationModal(false)}
+          title="Pregunta condicional sin condiciones"
+          message="Ha marcado esta pregunta como condicional pero no ha establecido ninguna condición. Por favor, indique al menos una condición o desactive la casilla."
+          confirmText="Entendido"
+          cancelText={null}
+        />
+
+        <ConfirmModal
+          isOpen={showQuotaWarning}
+          onClose={() => setShowQuotaWarning(false)}
+          onConfirm={() => setShowQuotaWarning(false)}
+          title="⚠️ Pregunta de Cuota Detectada"
+          message="Al usar preguntas de tipo cuota, tu encuesta se configurará automáticamente con Sistema de Cuotas. No podrás seleccionar Meta por Casos en la configuración."
+          confirmText="Entendido"
+          cancelText={null}
+        />
+      </>
+    );
+  }
+
+  // Desktop: Modal overlay (original behavior)
   return (
     <div 
       className={`fixed inset-0 bg-black flex items-center justify-center p-4 z-[100] transition-all duration-200 ${
@@ -277,79 +441,7 @@ export default function QuestionEditorModal({
 
         {/* Contenido scrolleable */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Variable name */}
-          <div>
-            <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-              Variable (nombre interno)
-            </label>
-            <input
-              type="text"
-              value={editedData.value || ''}
-              onChange={(e) => updateField('value', e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm font-mono transition-all"
-              placeholder="p1"
-            />
-          </div>
-
-          {/* Texto de la pregunta */}
-          <div>
-            <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-              Texto de la pregunta
-            </label>
-            <textarea
-              value={editedData.text || ''}
-              onChange={(e) => updateField('text', e.target.value)}
-              placeholder="Escribe aquí la pregunta que verá el usuario..."
-              rows={3}
-              className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all resize-none"
-              autoFocus
-            />
-          </div>
-
-          {/* Tipo de pregunta */}
-          <div>
-            <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-              Tipo de pregunta
-            </label>
-            <button
-              type="button"
-              onClick={() => onOpenTypeSelector(editedData.tipo)}
-              className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:border-[color:var(--primary)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                {Icon && <Icon size={16} />}
-                <span>{tipoActual?.label || 'Seleccionar tipo'}</span>
-              </div>
-              <ChevronDown size={16} />
-            </button>
-          </div>
-
-          {/* Instrucciones */}
-          <div>
-            <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-              Instrucciones para el usuario
-            </label>
-            <input
-              type="text"
-              value={editedData.indicaciones || ''}
-              onChange={(e) => updateField('indicaciones', e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all"
-              placeholder="Ej: Seleccione una opción, Ingrese su respuesta..."
-            />
-          </div>
-
-          {/* Condiciones de visibilidad */}
-          {preguntasDisponibles.length > 0 && (
-            <ConditionalEditor
-              condicionada={editedData.condicionada}
-              preguntasDisponibles={preguntasDisponibles}
-              onUpdate={(nuevaCondicionada) => updateField('condicionada', nuevaCondicionada)}
-              label="Pregunta condicional"
-            />
-          )}
-
-          {/* Configuración específica según el tipo */}
-          {renderConfiguracionEspecifica()}
+          {renderFormContent()}
         </div>
 
         {/* Footer */}
