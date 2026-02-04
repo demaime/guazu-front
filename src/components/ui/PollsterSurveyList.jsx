@@ -555,7 +555,11 @@ export function PollsterSurveyList({
     });
     const normalize = (s) =>
       typeof s === "string"
-        ? s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim()
+        ? s
+            .normalize("NFD")
+            .replace(/\p{Diacritic}/gu, "")
+            .toLowerCase()
+            .trim()
         : "";
     const genderNormSet = new Set(Array.from(genderOptionsSet).map(normalize));
     const ageNormSet = new Set(Array.from(ageOptionsSet).map(normalize));
@@ -664,7 +668,7 @@ export function PollsterSurveyList({
     return {
       bgColor: "bg-[var(--input-background)]",
       textColor: "text-[var(--text-primary)]",
-      borderColor: "border-[var(--card-border)]",
+      borderColor: "border-[var(--primary-light)]",
       status: "incomplete",
     };
   };
@@ -792,12 +796,11 @@ export function PollsterSurveyList({
                             {getLocalizedText(survey.survey?.title) ||
                               "Sin título"}
                           </h3>
-                          <p className="text-xs text-[var(--text-secondary)]">
-                            {getLocalizedText(
-                              survey.survey?.description,
-                              "Sin descripción",
-                            )}
-                          </p>
+                          {survey.survey?.description && (
+                            <p className="text-xs text-[var(--text-secondary)]">
+                              {getLocalizedText(survey.survey?.description)}
+                            </p>
+                          )}
                         </div>
                         {/* Optional: Add status badge here if needed in future */}
                       </div>
@@ -830,8 +833,8 @@ export function PollsterSurveyList({
 
                             return (
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <Clock className="w-4 h-4 text-orange-400" />
+                                <div className="w-8 h-8 bg-[var(--text-secondary)]/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <Clock className="w-4 h-4 text-[var(--text-secondary-light)]" />
                                 </div>
                                 <div>
                                   <div className="text-xs text-[var(--text-secondary)]">

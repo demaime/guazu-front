@@ -30,7 +30,8 @@ export default function ModuleCard({
   onEditQuestion,
   // Props para condicionales de módulo
   actualizarModulo,
-  preguntasDisponiblesModulo = []
+  preguntasDisponiblesModulo = [],
+  setModalCloneQuotaWarning
 }) {
   const isExpanded = expandidaModulos[modulo.id];
 
@@ -113,18 +114,44 @@ export default function ModuleCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                
+                // Detectar preguntas de cuota en el módulo
+                const tieneCuotas = modulo.preguntas.some(p => 
+                  p.tipo === 'cuota-genero' || p.tipo === 'cuota-edad'
+                );
+                
+                // Clonar preguntas, convirtiendo cuotas a opcion-unica
+                const preguntasClonadas = modulo.preguntas.map(p => {
+                  const nuevaPregunta = { ...p, id: Date.now() + Math.random() };
+                  
+                  // Si es pregunta de cuota, convertir a opcion-unica
+                  if (p.tipo === 'cuota-genero' || p.tipo === 'cuota-edad') {
+                    nuevaPregunta.tipo = 'opcion-unica';
+                    nuevaPregunta.indicaciones = 'Seleccione una opción';
+                  }
+                  
+                  return nuevaPregunta;
+                });
+                
                 const copia = {
                   ...modulo,
                   id: Date.now(),
                   nombre: `Copia de ${modulo.nombre}`,
                   descripcion: modulo.descripcion || '',
-                  preguntas: modulo.preguntas.map(p => ({ ...p, id: Date.now() + Math.random() })),
+                  preguntas: preguntasClonadas,
                   condicionada: modulo.condicionada || { activa: false, condiciones: [] },
                   dinamico: modulo.dinamico || { activo: false, panelCount: 1, minPanelCount: 0, maxPanelCount: 10, panelAddText: 'Agregar', panelRemoveText: 'Eliminar' }
                 };
+                
                 setModulos([...modulos, copia]);
                 setModuloCondicionandose(null);
                 setModuloDinamizandose(null);
+                
+                
+                // Mostrar advertencia si había preguntas de cuota
+                if (tieneCuotas && setModalCloneQuotaWarning) {
+                  setModalCloneQuotaWarning(true);
+                }
               }}
               className="p-1 text-[color:var(--text-secondary)] hover:text-[color:var(--primary)] transition-colors"
               title="Clonar módulo"
@@ -169,18 +196,44 @@ export default function ModuleCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                
+                // Detectar preguntas de cuota en el módulo
+                const tieneCuotas = modulo.preguntas.some(p => 
+                  p.tipo === 'cuota-genero' || p.tipo === 'cuota-edad'
+                );
+                
+                // Clonar preguntas, convirtiendo cuotas a opcion-unica
+                const preguntasClonadas = modulo.preguntas.map(p => {
+                  const nuevaPregunta = { ...p, id: Date.now() + Math.random() };
+                  
+                  // Si es pregunta de cuota, convertir a opcion-unica
+                  if (p.tipo === 'cuota-genero' || p.tipo === 'cuota-edad') {
+                    nuevaPregunta.tipo = 'opcion-unica';
+                    nuevaPregunta.indicaciones = 'Seleccione una opción';
+                  }
+                  
+                  return nuevaPregunta;
+                });
+                
                 const copia = {
                   ...modulo,
                   id: Date.now(),
                   nombre: `Copia de ${modulo.nombre}`,
                   descripcion: modulo.descripcion || '',
-                  preguntas: modulo.preguntas.map(p => ({ ...p, id: Date.now() + Math.random() })),
+                  preguntas: preguntasClonadas,
                   condicionada: modulo.condicionada || { activa: false, condiciones: [] },
                   dinamico: modulo.dinamico || { activo: false, panelCount: 1, minPanelCount: 0, maxPanelCount: 10, panelAddText: 'Agregar', panelRemoveText: 'Eliminar' }
                 };
+                
                 setModulos([...modulos, copia]);
                 setModuloCondicionandose(null);
                 setModuloDinamizandose(null);
+                
+                
+                // Mostrar advertencia si había preguntas de cuota
+                if (tieneCuotas && setModalCloneQuotaWarning) {
+                  setModalCloneQuotaWarning(true);
+                }
               }}
               className="p-1 text-[color:var(--text-secondary)] hover:text-[color:var(--primary)] transition-colors"
               title="Clonar módulo"

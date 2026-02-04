@@ -10,7 +10,9 @@ export default function ConfirmModal({
   title = "¿Estás seguro?",
   message = "Esta acción no se puede deshacer.",
   confirmText = "Eliminar",
-  cancelText = "Cancelar"
+  cancelText = "Cancelar",
+  icon: Icon = AlertTriangle,
+  iconColor = "red"
 }) {
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -31,13 +33,21 @@ export default function ConfirmModal({
       }`}
     >
       <div 
-        className={`bg-[color:var(--card-background)] rounded-lg p-6 max-w-sm w-full border border-[color:var(--card-border)] shadow-2xl transition-all duration-200 ${
+        className={`bg-[color:var(--card-background)] rounded-lg p-6 max-w-lg w-full border border-[color:var(--card-border)] shadow-2xl transition-all duration-200 ${
           isAnimating ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
       >
         <div className="flex items-start gap-3 mb-4">
-          <div className="p-2 bg-red-500/10 rounded-lg">
-            <AlertTriangle size={24} className="text-red-500" />
+          <div className={`p-2 rounded-lg ${
+            iconColor === 'primary' 
+              ? 'bg-[color:var(--primary)]/10' 
+              : 'bg-red-500/10'
+          }`}>
+            <Icon size={24} className={
+              iconColor === 'primary' 
+                ? 'text-[color:var(--primary)]' 
+                : 'text-red-500'
+            } />
           </div>
           <div className="flex-1">
             <h3 className="text-base font-semibold text-[color:var(--text-primary)] mb-1">

@@ -1358,6 +1358,18 @@ export default function TemporalPage() {
                             )
                           }
                         />
+                        <ActionButton
+                          icon={Settings}
+                          label="Configurar"
+                          className="px-3 py-1.5 text-xs"
+                          iconSize={14}
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/temporal/configurar?id=${survey.id}`,
+                            )
+                          }
+                          hasAlert={!survey.hasConfig}
+                        />
                       </div>
                       <div className="hidden md:flex gap-1.5 ml-auto">
                         {survey.status !== "finalizada" && (

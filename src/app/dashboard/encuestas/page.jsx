@@ -163,6 +163,15 @@ export default function Encuestas() {
         setActiveCurrentPage(1);
         setFinishedCurrentPage(1);
 
+        // Actualizar contadores de pestañas (excluyendo encuesta universal de prueba)
+        const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
+        const activeCount = active.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+        const finishedCount = finished.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+        
+        setTabCounts({
+          active: activeCount,
+          finished: finishedCount,
+        });
 
 
         // Reemplazar completamente el cache con las encuestas actuales del servidor (solo índices)
@@ -228,9 +237,15 @@ export default function Encuestas() {
               );
               setActiveCurrentPage(1);
               setFinishedCurrentPage(1);
+              
+              // Actualizar contadores excluyendo encuesta universal
+              const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
+              const activeCount = active.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+              const finishedCount = finished.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+              
               setTabCounts({
-                active: active.length,
-                finished: finished.length,
+                active: activeCount,
+                finished: finishedCount,
                 drafts: 0,
               });
 
@@ -296,10 +311,14 @@ export default function Encuestas() {
             setFinishedTotalPages(1);
             setFinishedCurrentPage(1);
           }
+          const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
+          const activeCount = activeSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+          const finishedCount = finishedSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+          
           setTabCounts((prev) => ({
             ...prev,
-            active: activeSurveys.length,
-            finished: finishedSurveys.length,
+            active: activeCount,
+            finished: finishedCount,
           }));
           return;
         }
@@ -352,11 +371,15 @@ export default function Encuestas() {
           setFinishedCurrentPage(response.currentPage || 1);
         }
 
-        // Actualizar contadores con los valores filtrados por fecha, no del backend
+        // Actualizar contadores con los valores filtrados por fecha, no del backend (excluyendo encuesta universal)
+        const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
+        const activeCount = activeSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+        const finishedCount = finishedSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+        
         setTabCounts((prev) => ({
           ...prev,
-          active: activeSurveys.length,
-          finished: finishedSurveys.length,
+          active: activeCount,
+          finished: finishedCount,
         }));
 
         // Reemplazar completamente el cache EN POUCH SÓLO con ACTIVAS
@@ -456,10 +479,15 @@ export default function Encuestas() {
                 setFinishedTotalPages(1);
                 setFinishedCurrentPage(1);
               }
+              
+              const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
+              const activeCount = activeSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+              const finishedCount = finishedSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
+              
               setTabCounts((prev) => ({
                 ...prev,
-                active: activeSurveys.length,
-                finished: finishedSurveys.length,
+                active: activeCount,
+                finished: finishedCount,
               }));
 
               // Limpiar error y mostrar mensaje informativo (solo una vez)
@@ -1082,7 +1110,7 @@ export default function Encuestas() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
-        className="rounded-lg bg-[var(--background)] px-4 py-4 md:px-5 md:py-6 shadow-sm"
+        className="rounded-lg bg-[var(--background)] px-4 py-4 md:px-5 md:py-6"
       >
         {/* --- Error Display --- */}
         {error && (
