@@ -363,7 +363,7 @@ function DashboardLayoutContent({ children }) {
               }`}
               onClick={handleProfileClick}
             >
-              <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-3 ${isSidebarCollapsed ? "flex-col" : ""}`}>
                 <div
                   className={`w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-lg flex-shrink-0 overflow-hidden ${
                     isSidebarCollapsed ? "mx-auto" : ""
@@ -390,6 +390,11 @@ function DashboardLayoutContent({ children }) {
                     "U"
                   )}
                 </div>
+                {isSidebarCollapsed && (
+                  <span className="text-[10px] leading-3 mt-1 text-[var(--text-secondary)] lg:hidden">
+                    Perfil
+                  </span>
+                )}
                 <div
                   className={`flex-1 min-w-0 transition-all ${
                     isSidebarCollapsed ? "hidden" : "block"
@@ -436,19 +441,21 @@ function DashboardLayoutContent({ children }) {
                     >
                       <div
                         className={`flex items-center ${
-                          isSidebarCollapsed ? "justify-center" : "w-full"
+                          isSidebarCollapsed
+                            ? "flex-col justify-center"
+                            : "w-full"
                         }`}
                       >
                         <Icon className="nav-item-icon" />
-                        <span
-                          className={`nav-item-text ${
-                            isSidebarCollapsed
-                              ? "opacity-0 hidden"
-                              : "opacity-100"
-                          }`}
-                        >
-                          {item.label}
-                        </span>
+                        {isSidebarCollapsed ? (
+                          <span className="text-[10px] leading-3 mt-1 text-[var(--text-secondary)] lg:hidden">
+                            {item.label}
+                          </span>
+                        ) : (
+                          <span className="nav-item-text opacity-100">
+                            {item.label}
+                          </span>
+                        )}
                       </div>
                     </motion.div>
                   </Link>

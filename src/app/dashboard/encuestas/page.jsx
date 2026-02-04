@@ -42,6 +42,19 @@ import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 import { Loader } from "@/components/ui/Loader";
 import { trackEvent } from "@/lib/analytics";
 
+const getRoleName = (role) => {
+  switch (role) {
+    case "ROLE_ADMIN":
+      return "Administrador";
+    case "SUPERVISOR":
+      return "Supervisor";
+    case "POLLSTER":
+      return "Encuestador";
+    default:
+      return "Usuario";
+  }
+};
+
 export default function Encuestas() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -54,7 +67,6 @@ export default function Encuestas() {
   const [activeSurveysData, setActiveSurveysData] = useState([]);
   const [finishedSurveysData, setFinishedSurveysData] = useState([]);
 
-
   const [activeCurrentPage, setActiveCurrentPage] = useState(1);
   const [finishedCurrentPage, setFinishedCurrentPage] = useState(1);
 
@@ -64,14 +76,12 @@ export default function Encuestas() {
   const [tabCounts, setTabCounts] = useState({
     active: 0,
     finished: 0,
-
   });
 
   const [isLoading, setIsLoading] = useState({
     // Loading por tab
     active: true,
     finished: true,
-
   });
 
   const [error, setError] = useState(null);
@@ -81,7 +91,7 @@ export default function Encuestas() {
   const [syncProgress, setSyncProgress] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [isOnline, setIsOnline] = useState(
-    typeof navigator === "undefined" ? true : navigator.onLine
+    typeof navigator === "undefined" ? true : navigator.onLine,
   );
   const [isOutboxSyncing, setIsOutboxSyncing] = useState(false);
   const [progressRefreshToken, setProgressRefreshToken] = useState(0);
@@ -127,15 +137,11 @@ export default function Encuestas() {
           while (true) {
             const { surveys = [], totalPages = 1 } =
               await surveyService.getAllSurveys(page, perPage, null);
-            
-          
-            
+
             all = all.concat(surveys);
             if (page >= totalPages) break;
             page += 1;
           }
-          
-          
         }
 
         const now = new Date();
@@ -165,44 +171,50 @@ export default function Encuestas() {
 
         // Actualizar contadores de pestañas (excluyendo encuesta universal de prueba)
         const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
-        const activeCount = active.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-        const finishedCount = finished.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-        
+        const activeCount = active.filter(
+          (s) => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+        ).length;
+        const finishedCount = finished.filter(
+          (s) => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+        ).length;
+
         setTabCounts({
           active: activeCount,
           finished: finishedCount,
         });
-
 
         // Reemplazar completamente el cache con las encuestas actuales del servidor (solo índices)
         try {
           await safeReplaceAllSurveys(active);
           // Registrar la hora de sync solo en la carga inicial
           await setLastSync(Date.now());
-          
+
           // 🔍 DEBUG: Verificar que las cuotas se están guardando
-          console.log('📊 Encuestas guardadas en cache:', active.map(s => ({
-            id: s._id,
-            title: s.survey?.title || s.surveyInfo?.title || 'Sin título',
-            hasQuotas: !!(s.surveyInfo?.quotas?.length > 0),
-            quotasCount: s.surveyInfo?.quotas?.length || 0,
-            quotas: s.surveyInfo?.quotas?.map(q => q.category) || []
-          })));
+          console.log(
+            "📊 Encuestas guardadas en cache:",
+            active.map((s) => ({
+              id: s._id,
+              title: s.survey?.title || s.surveyInfo?.title || "Sin título",
+              hasQuotas: !!(s.surveyInfo?.quotas?.length > 0),
+              quotasCount: s.surveyInfo?.quotas?.length || 0,
+              quotas: s.surveyInfo?.quotas?.map((q) => q.category) || [],
+            })),
+          );
         } catch {}
 
         // Reset flag si la carga fue exitosa
         fallbackToastShownRef.current = false;
       } catch (e) {
         console.error("loadAllSurveys error", e);
-        
+
         // PRIMERO: Verificar si es error de autenticación
         const authResult = handleAuthError(e, router, { silent: false });
-        
+
         if (authResult.handled) {
           // Ya se manejó (logout + mensaje + redirect)
           return;
         }
-        
+
         // SEGUNDO: Si es error de red, usar fallback a caché
         if (e.isNetworkError && e.isNetworkError()) {
           try {
@@ -231,18 +243,27 @@ export default function Encuestas() {
 
               setActiveSurveysData(active);
               setFinishedSurveysData(finished);
-              setActiveTotalPages(Math.max(1, Math.ceil(active.length / limit)));
+              setActiveTotalPages(
+                Math.max(1, Math.ceil(active.length / limit)),
+              );
               setFinishedTotalPages(
-                Math.max(1, Math.ceil(finished.length / limit))
+                Math.max(1, Math.ceil(finished.length / limit)),
               );
               setActiveCurrentPage(1);
               setFinishedCurrentPage(1);
-              
+
               // Actualizar contadores excluyendo encuesta universal
-              const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
-              const activeCount = active.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-              const finishedCount = finished.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-              
+              const UNIVERSAL_SURVEY_ID =
+                "db7aa030-81f6-11f0-b66d-053a86e645bd";
+              const activeCount = active.filter(
+                (s) =>
+                  s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+              ).length;
+              const finishedCount = finished.filter(
+                (s) =>
+                  s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+              ).length;
+
               setTabCounts({
                 active: activeCount,
                 finished: finishedCount,
@@ -253,7 +274,7 @@ export default function Encuestas() {
               setError(null);
               if (!fallbackToastShownRef.current) {
                 toast.warning(
-                  "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente."
+                  "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente.",
                 );
                 fallbackToastShownRef.current = true;
               }
@@ -263,20 +284,18 @@ export default function Encuestas() {
             console.warn("No se pudo leer caché:", cacheError);
           }
         }
-        
+
         // TERCERO: Otros errores
-        let errorMsg = e.message || 'Error al cargar encuestas';
+        let errorMsg = e.message || "Error al cargar encuestas";
         setError(errorMsg);
       } finally {
         setIsLoading({ active: false, finished: false, drafts: false });
       }
     },
-    [limit]
+    [limit],
   );
   const fetchDataForTab = useCallback(
     async (tabName, page) => {
-
-
       setIsLoading((prev) => ({ ...prev, [tabName]: true }));
       setError(null);
 
@@ -312,9 +331,15 @@ export default function Encuestas() {
             setFinishedCurrentPage(1);
           }
           const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
-          const activeCount = activeSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-          const finishedCount = finishedSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-          
+          const activeCount = activeSurveys.filter(
+            (s) =>
+              s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+          ).length;
+          const finishedCount = finishedSurveys.filter(
+            (s) =>
+              s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+          ).length;
+
           setTabCounts((prev) => ({
             ...prev,
             active: activeCount,
@@ -329,7 +354,7 @@ export default function Encuestas() {
         const response = await surveyService.getAllSurveys(
           safePage,
           limit,
-          null // Sin filtro de status en backend
+          null, // Sin filtro de status en backend
         );
         setSyncProgress(40);
 
@@ -373,9 +398,13 @@ export default function Encuestas() {
 
         // Actualizar contadores con los valores filtrados por fecha, no del backend (excluyendo encuesta universal)
         const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
-        const activeCount = activeSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-        const finishedCount = finishedSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-        
+        const activeCount = activeSurveys.filter(
+          (s) => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+        ).length;
+        const finishedCount = finishedSurveys.filter(
+          (s) => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+        ).length;
+
         setTabCounts((prev) => ({
           ...prev,
           active: activeCount,
@@ -400,7 +429,7 @@ export default function Encuestas() {
                 console.warn(
                   "[Prefetch] detalle encuesta fallo",
                   id,
-                  e?.message
+                  e?.message,
                 );
               }
               done += 1;
@@ -425,15 +454,15 @@ export default function Encuestas() {
         fallbackToastShownRef.current = false;
       } catch (err) {
         console.error(`Error loading data for tab ${tabName}:`, err);
-        
+
         // PRIMERO: Verificar si es error de autenticación
         const authResult = handleAuthError(err, router, { silent: false });
-        
+
         if (authResult.handled) {
           // Ya se manejó (logout + mensaje + redirect)
           return;
         }
-        
+
         // SEGUNDO: Si es error de red, usar fallback a caché
         if (err.isNetworkError && err.isNetworkError()) {
           try {
@@ -441,7 +470,7 @@ export default function Encuestas() {
             if (cached && cached.length > 0) {
               console.log(
                 `⚠️ Usando encuestas en caché para tab ${tabName}:`,
-                cached.length
+                cached.length,
               );
 
               const now = new Date();
@@ -479,11 +508,18 @@ export default function Encuestas() {
                 setFinishedTotalPages(1);
                 setFinishedCurrentPage(1);
               }
-              
-              const UNIVERSAL_SURVEY_ID = "db7aa030-81f6-11f0-b66d-053a86e645bd";
-              const activeCount = activeSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-              const finishedCount = finishedSurveys.filter(s => s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID).length;
-              
+
+              const UNIVERSAL_SURVEY_ID =
+                "db7aa030-81f6-11f0-b66d-053a86e645bd";
+              const activeCount = activeSurveys.filter(
+                (s) =>
+                  s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+              ).length;
+              const finishedCount = finishedSurveys.filter(
+                (s) =>
+                  s._id !== UNIVERSAL_SURVEY_ID && s.id !== UNIVERSAL_SURVEY_ID,
+              ).length;
+
               setTabCounts((prev) => ({
                 ...prev,
                 active: activeCount,
@@ -494,7 +530,7 @@ export default function Encuestas() {
               setError(null);
               if (!fallbackToastShownRef.current) {
                 toast.warning(
-                  "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente."
+                  "No se pudo conectar con el servidor. Mostrando encuestas guardadas localmente.",
                 );
                 fallbackToastShownRef.current = true;
               }
@@ -504,9 +540,9 @@ export default function Encuestas() {
             console.warn("No se pudo leer caché:", cacheError);
           }
         }
-        
+
         // TERCERO: Otros errores
-        let errorMsg = err.message || 'Error al cargar encuestas';
+        let errorMsg = err.message || "Error al cargar encuestas";
         setError(errorMsg);
         if (tabName === "active") {
           setActiveSurveysData([]);
@@ -523,7 +559,7 @@ export default function Encuestas() {
         }, 300);
       }
     },
-    [limit]
+    [limit],
   );
 
   // --- useEffect para Carga Inicial (una sola llamada) --- //
@@ -578,7 +614,7 @@ export default function Encuestas() {
                 toast.success(
                   synced === 1
                     ? "Se registró 1 caso correctamente en el servidor."
-                    : `Se registraron ${synced} casos correctamente en el servidor.`
+                    : `Se registraron ${synced} casos correctamente en el servidor.`,
                 );
                 // Refrescar encuestas activas para reflejar progreso
                 await fetchDataForTab("active", 1);
@@ -690,7 +726,7 @@ export default function Encuestas() {
                 trackEvent("location_permission_status", { status: "denied" });
               } catch {}
             },
-            { maximumAge: 0, timeout: 800 }
+            { maximumAge: 0, timeout: 800 },
           );
         } else {
           if (mounted) setLocationStatus("unsupported");
@@ -729,7 +765,7 @@ export default function Encuestas() {
       } else if (total > 0) {
         // Hay elementos pero no se pudieron sincronizar (servidor caído/bloqueado)
         toast.error(
-          "No se pudo sincronizar. El servidor no está disponible. Intenta nuevamente."
+          "No se pudo sincronizar. El servidor no está disponible. Intenta nuevamente.",
         );
       } else {
         // Realmente no hay elementos para sincronizar
@@ -765,7 +801,7 @@ export default function Encuestas() {
           setLocationStatus("denied");
           toast.error("No se pudo obtener la ubicación.");
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
       );
     } catch {}
   }, []);
@@ -795,12 +831,12 @@ export default function Encuestas() {
     try {
       setIsConfirmLoading(true);
       const tabWhereSurveyWas = draftSurveysData.some(
-        (d) => d._id === selectedSurveyId
+        (d) => d._id === selectedSurveyId,
       )
         ? "drafts"
         : activeSurveysData.some((a) => a._id === selectedSurveyId)
-        ? "active"
-        : "finished";
+          ? "active"
+          : "finished";
 
       setIsLoading((prev) => ({ ...prev, [tabWhereSurveyWas]: true }));
       await surveyService.deleteSurvey(selectedSurveyId);
@@ -810,8 +846,8 @@ export default function Encuestas() {
         tabWhereSurveyWas === "active"
           ? activeCurrentPage
           : tabWhereSurveyWas === "finished"
-          ? finishedCurrentPage
-          : 1;
+            ? finishedCurrentPage
+            : 1;
       await fetchDataForTab(tabWhereSurveyWas, pageToReload);
       // Siempre recargar counts de borradores por si acaso
       if (tabWhereSurveyWas !== "drafts") await fetchDataForTab("drafts", 1);
@@ -826,8 +862,6 @@ export default function Encuestas() {
       setSelectedSurveyId(null);
     }
   };
-
-
 
   const handleDeleteAnswers = async (surveyId) => {
     if (!surveyId) {
@@ -935,7 +969,6 @@ export default function Encuestas() {
 
     isLoading.active,
     isLoading.finished,
-
   ]);
 
   // Derivados para indicadores (evita usar locationStatus crudo en JSX)
@@ -955,8 +988,6 @@ export default function Encuestas() {
     );
   }
 
-
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -973,13 +1004,18 @@ export default function Encuestas() {
       >
         {/* Fila título a la izquierda, indicadores a la derecha */}
         <div className="flex items-center justify-between w-full">
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]"
-          >
-            {user?.role === "POLLSTER" ? "Mis Encuestas" : "Encuestas"}
-          </motion.h1>
+          <div className="flex flex-col">
+            <motion.h1
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]"
+            >
+              ¡Hola {user?.name || user?.email || "Usuario"}!
+            </motion.h1>
+            <span className="mt-2 text-xs text-[var(--text-secondary)]">
+              {getRoleName(user?.role)}
+            </span>
+          </div>
           <div
             className="flex items-center gap-3"
             data-tutorial="status-indicators"
@@ -1153,7 +1189,6 @@ export default function Encuestas() {
                 Finalizadas ({isLoading.finished ? "..." : tabCounts.finished})
               </button>
             )}
-
           </div>
         </div>
 
@@ -1198,8 +1233,8 @@ export default function Encuestas() {
                     {activeTab === "drafts"
                       ? "borradores"
                       : activeTab === "active"
-                      ? "activas"
-                      : "finalizadas"}{" "}
+                        ? "activas"
+                        : "finalizadas"}{" "}
                     disponibles.
                   </p>
                   {typeof navigator !== "undefined" && !navigator.onLine && (
@@ -1221,7 +1256,7 @@ export default function Encuestas() {
                               return true;
                             }
                             const startDate = new Date(
-                              survey.surveyInfo.startDate
+                              survey.surveyInfo.startDate,
                             );
                             const endDate = new Date(survey.surveyInfo.endDate);
                             return now >= startDate && now <= endDate;
@@ -1268,7 +1303,6 @@ export default function Encuestas() {
             {!isInitialLoadingView &&
               !currentLoadingState &&
               currentSurveys.length > 0 &&
-
               (user?.role === "POLLSTER" ? (
                 <PollsterSurveyList
                   surveys={currentSurveys}
@@ -1338,7 +1372,6 @@ export default function Encuestas() {
           puede deshacer.
         </p>
       </ConfirmModal>
-
 
       {/* Tutorial Driver - mostrar solo para pollsters */}
       {user?.role === "POLLSTER" && showTutorial && (
