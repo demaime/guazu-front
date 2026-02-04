@@ -673,6 +673,119 @@ export function PollsterSurveyList({
     };
   };
 
+  // Analizar estructura de cuotas para determinar layout
+  const analyzeQuotaStructure = (segments) => {
+    if (!segments || segments.length === 0) {
+      return { type: 'empty', segments: [] };
+    }
+
+    const hasGender = segments.some(s => s.gender);
+    const hasAge = segments.some(s => s.age);
+    const isCrossTable = hasGender && hasAge;
+
+    if (isCrossTable) {
+      // Extraer géneros y edades únicas, preservando el orden
+      const genders = [...new Set(segments.map(s => s.gender).filter(Boolean))];
+      const ages = [...new Set(segments.map(s => s.age).filter(Boolean))];
+      return { type: 'cross', genders, ages, segments };
+    }
+
+    return { type: 'simple', segments };
+  };
+
+  // Renderizar una card individual de cuota
+  const renderQuotaCard = (segment, idx, totalSegments = 0) => {
+    const currentCount = segment.current || 0;
+    const status = getQuotaStatus(currentCount, segment.target);
+
+    // Determinar el símbolo de género
+    const genderSymbol = segment.gender
+      ? segment.gender.toLowerCase().includes("masc") ||
+        segment.gender.toLowerCase().includes("homb") ||
+        segment.gender.toLowerCase() === "m" ||
+        segment.gender.toLowerCase() === "h"
+        ? "♂"
+        : "♀"
+      : null;
+
+    // Ajustar tamaño de texto de edad según número de columnas
+    const ageTextSize = totalSegments === 4 ? "text-[9px]" : "text-[10px]";
+
+    return (
+      <button
+        key={idx}
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedQuotaSegment({
+            ...segment,
+            status,
+          });
+        }}
+        className={`${status.bgColor} rounded-lg p-2 text-center border ${status.borderColor} flex flex-col justify-center items-center h-full min-h-[60px] shadow-sm hover:brightness-95 transition-all cursor-pointer`}
+      >
+        <div className="flex items-center justify-center gap-1 mb-1 w-full">
+          {genderSymbol && (
+            <span className="text-sm font-bold text-[var(--text-secondary)]">
+              {genderSymbol}
+            </span>
+          )}
+          <span className={`${ageTextSize} text-[var(--text-muted)] truncate w-full leading-tight`}>
+            {segment.age || segment.name}
+          </span>
+        </div>
+        <div className={`text-xs font-bold ${status.textColor}`}>
+          {currentCount}/{segment.target}
+        </div>
+      </button>
+    );
+  };
+
+  // Renderizar cuotas simples con grid adaptativo
+  const renderSimpleQuotas = (segments) => {
+    // Determinar número de columnas basado en cantidad de segmentos
+    const getGridCols = (count) => {
+      if (count <= 4) return `grid-cols-${count}`;
+      // Para 5+, usar 4 columnas y dejar que fluya en múltiples filas
+      return 'grid-cols-4';
+    };
+
+    return (
+      <div className={`grid ${getGridCols(segments.length)} gap-2`}>
+        {segments.map((segment, idx) => renderQuotaCard(segment, idx, segments.length))}
+      </div>
+    );
+  };
+
+  // Renderizar cuotas dobles (género × edad) agrupadas por género
+  const renderCrossTableQuotas = (structure) => {
+    const { genders, ages } = structure;
+
+    // Determinar columnas por fila de edad
+    const getAgeGridCols = (ageCount) => {
+      if (ageCount <= 4) return `grid-cols-${ageCount}`;
+      // Para 5+ edades, usar 4 columnas y permitir wrap
+      return 'grid-cols-4';
+    };
+
+    return (
+      <div className="space-y-3">
+        {genders.map(gender => {
+          const genderSegments = structure.segments.filter(s => s.gender === gender);
+          return (
+            <div key={gender}>
+              <div className="text-xs font-semibold text-[var(--text-secondary)] mb-1.5 px-1">
+                {gender}
+              </div>
+              <div className={`grid ${getAgeGridCols(ages.length)} gap-2`}>
+                {genderSegments.map((segment, idx) => renderQuotaCard(segment, `${gender}-${idx}`, ages.length))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   if (!surveys || surveys.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -938,74 +1051,23 @@ export function PollsterSurveyList({
                                   <div className="text-xs py-8 text-center text-[var(--text-muted)] italic">
                                     cargando cuotas...
                                   </div>
-                                ) : (
-                                  <div className="grid grid-cols-3 gap-2">
-                                    {(getPollsterQuotas(survey) || [])
-                                      .length ? (
-                                      getPollsterQuotas(survey).map(
-                                        (segment, idx) => {
-                                          const currentCount =
-                                            segment.current || 0;
-                                          const status = getQuotaStatus(
-                                            currentCount,
-                                            segment.target,
-                                          );
-
-                                          // Determinar el símbolo de género
-                                          const genderSymbol = segment.gender
-                                            ? segment.gender
-                                                .toLowerCase()
-                                                .includes("masc") ||
-                                              segment.gender
-                                                .toLowerCase()
-                                                .includes("homb") ||
-                                              segment.gender.toLowerCase() ===
-                                                "m" ||
-                                              segment.gender.toLowerCase() ===
-                                                "h"
-                                              ? "♂"
-                                              : "♀"
-                                            : null;
-
-                                          return (
-                                            <button
-                                              key={idx}
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedQuotaSegment({
-                                                  ...segment,
-                                                  status,
-                                                });
-                                              }}
-                                              className={`${status.bgColor} rounded-lg p-2 text-center border ${status.borderColor} flex flex-col justify-center items-center h-full min-h-[60px] shadow-sm hover:brightness-95 transition-all cursor-pointer`}
-                                            >
-                                              <div className="flex items-center justify-center gap-1 mb-1 w-full">
-                                                {genderSymbol && (
-                                                  <span className="text-sm font-bold text-[var(--text-secondary)]">
-                                                    {genderSymbol}
-                                                  </span>
-                                                )}
-                                                <span className="text-[10px] text-[var(--text-muted)] truncate w-full leading-tight">
-                                                  {segment.age || segment.name}
-                                                </span>
-                                              </div>
-                                              <div
-                                                className={`text-xs font-bold ${status.textColor}`}
-                                              >
-                                                {currentCount}/{segment.target}
-                                              </div>
-                                            </button>
-                                          );
-                                        },
-                                      )
-                                    ) : (
-                                      <div className="col-span-3 py-8 text-center text-[var(--text-muted)] italic">
-                                        No hay cuotas definidas para esta
-                                        encuesta
+                                ) : (() => {
+                                  const quotaSegments = getPollsterQuotas(survey) || [];
+                                  
+                                  if (!quotaSegments.length) {
+                                    return (
+                                      <div className="py-8 text-center text-[var(--text-muted)] italic text-xs">
+                                        No hay cuotas definidas para esta encuesta
                                       </div>
-                                    )}
-                                  </div>
-                                )}
+                                    );
+                                  }
+
+                                  const structure = analyzeQuotaStructure(quotaSegments);
+
+                                  return structure.type === 'cross'
+                                    ? renderCrossTableQuotas(structure)
+                                    : renderSimpleQuotas(quotaSegments);
+                                })()}
                               </div>
                             </motion.div>
                           )}
