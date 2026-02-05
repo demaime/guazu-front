@@ -509,7 +509,7 @@ export default function PanelDeSupervision() {
     <div className="min-h-screen bg-[var(--background)] p-3 sm:p-6">
       {/* Barra de filtros sticky */}
       {(!selectedPollsters.includes("all") || selectedDate) && (
-        <div className="sticky top-0 z-50 backdrop-blur-md bg-[var(--primary-dark)]/80 shadow-xl mb-4 sm:mb-6 -mx-3 sm:-mx-6 px-3 sm:px-6 py-3 rounded-b-2xl border-b-2 border-[var(--primary-light)]/30 transition-all">
+        <div className="sticky top-0 z-50 backdrop-blur-md bg-[var(--primary-dark)]/80 shadow-xl mb-4 sm:mb-6 px-3 sm:px-6 py-3 rounded-b-2xl border-b-2 border-[var(--primary-light)]/30 transition-all">
           <div className="max-w-7xl mx-auto">
             {/* Header compacto siempre visible */}
             <div className="flex items-center gap-3">
@@ -596,27 +596,60 @@ export default function PanelDeSupervision() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+          {/* Mobile: Stack everything vertically */}
+          <div className="flex flex-col gap-4 sm:hidden mb-4">
+            <div className="flex items-start gap-3">
               <button
                 onClick={() => router.back()}
                 className="p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors flex-shrink-0"
               >
                 <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
               </button>
-              <div className="min-w-0">
-                <h1 className="text-xl sm:text-3xl font-bold mb-1 text-[var(--text-primary)] truncate">
+              <div className="flex-1">
+                <h1 className="text-xl font-bold mb-1 text-[var(--text-primary)]">
                   {survey?.survey?.title || "Panel de Supervisión"}
                 </h1>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                <p className="text-xs text-[var(--text-secondary)]">
                   Período: {periodo}
                 </p>
               </div>
             </div>
-            <div className="flex gap-3 w-full sm:w-auto justify-end">
+            <div className="flex gap-3 justify-end">
               <button
                 onClick={() => router.push(`/dashboard/encuestas/${params.id}/editar-base`)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium whitespace-nowrap"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Editar Base
+              </button>
+              <ExportControls
+                answers={answers}
+                titleSurvey={survey?.survey?.title}
+                surveyId={params.id}
+              />
+            </div>
+          </div>
+
+          {/* Desktop: Single row with proper spacing */}
+          <div className="hidden sm:flex items-start gap-4 mb-4">
+            <button
+              onClick={() => router.back()}
+              className="p-2 hover:bg-[var(--hover-bg)] rounded-lg transition-colors flex-shrink-0 mt-1"
+            >
+              <ArrowLeft className="w-5 h-5 text-[var(--text-secondary)]" />
+            </button>
+            <div className="flex-1 max-w-3xl">
+              <h1 className="text-3xl font-bold mb-1 text-[var(--text-primary)]">
+                {survey?.survey?.title || "Panel de Supervisión"}
+              </h1>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Período: {periodo}
+              </p>
+            </div>
+            <div className="flex gap-3 flex-shrink-0">
+              <button
+                onClick={() => router.push(`/dashboard/encuestas/${params.id}/editar-base`)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium whitespace-nowrap"
               >
                 <FileSpreadsheet className="w-4 h-4" />
                 Editar Base

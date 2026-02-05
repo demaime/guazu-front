@@ -403,7 +403,160 @@ const QuotaProgressTable = ({ survey, answers }) => {
         Progreso de Cuotas
       </h3>
 
-      <div className="overflow-x-auto">
+      {/* Mobile: Card Layout */}
+      <div className="block sm:hidden space-y-3">
+        {isCrossTable ? (
+          // Tabla cruzada en mobile: mostrar cada combinación como una card
+          <>
+            {genderOptions.map((genderOption, genderIdx) => (
+              <div key={genderIdx} className="space-y-2">
+                <div className="text-sm font-bold text-[var(--primary)] mb-2">
+                  {genderOption}
+                </div>
+                {ageOptions.map((ageOption, ageIdx) => {
+                  const current = getCellProgress(genderOption, ageOption);
+                  const target = getCellTarget(genderOption, ageOption);
+                  const percentage =
+                    target > 0 ? Math.round((current / target) * 100) : 0;
+                  const isComplete = current >= target && target > 0;
+
+                  return (
+                    <div
+                      key={ageIdx}
+                      className={`p-3 rounded-lg border ${
+                        isComplete
+                          ? "bg-green-500/10 border-green-500/30"
+                          : "bg-[var(--input-background)] border-[var(--card-border)]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-[var(--text-primary)]">
+                          {ageOption}
+                        </span>
+                        <span className="text-sm font-bold text-[var(--text-primary)]">
+                          {current}
+                          <span className="text-[var(--text-secondary)] font-normal">
+                            /{target}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${
+                            isComplete
+                              ? "bg-gradient-to-r from-green-500 to-green-600"
+                              : "bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)]"
+                          }`}
+                          style={{ width: `${Math.min(percentage, 100)}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-[var(--text-secondary)] mt-1 text-right">
+                        {percentage}%
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+            {/* Total general en mobile */}
+            <div className="mt-4 p-4 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold text-[var(--primary)]">
+                  TOTAL GENERAL
+                </span>
+                <span className="text-lg font-bold text-[var(--primary)]">
+                  {grandTotal.current}
+                  <span className="text-[var(--text-secondary)] font-normal text-sm">
+                    /{grandTotal.target}
+                  </span>
+                </span>
+              </div>
+              <div className="h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] transition-all"
+                  style={{ width: `${Math.min(grandPercentage, 100)}%` }}
+                />
+              </div>
+              <div className="text-xs text-[var(--text-secondary)] mt-1 text-right">
+                {grandPercentage}%
+              </div>
+            </div>
+          </>
+        ) : (
+          // Tabla simple en mobile
+          <>
+            {(hasGender ? genderOptions : ageOptions).map((option, idx) => {
+              const current = getCellProgress(option, null);
+              const target = getCellTarget(option, null);
+              const percentage =
+                target > 0 ? Math.round((current / target) * 100) : 0;
+              const isComplete = current >= target && target > 0;
+
+              return (
+                <div
+                  key={idx}
+                  className={`p-3 rounded-lg border ${
+                    isComplete
+                      ? "bg-green-500/10 border-green-500/30"
+                      : "bg-[var(--input-background)] border-[var(--card-border)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      {option}
+                    </span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">
+                      {current}
+                      <span className="text-[var(--text-secondary)] font-normal">
+                        /{target}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${
+                        isComplete
+                          ? "bg-gradient-to-r from-green-500 to-green-600"
+                          : "bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)]"
+                      }`}
+                      style={{ width: `${Math.min(percentage, 100)}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-[var(--text-secondary)] mt-1 text-right">
+                    {percentage}%
+                  </div>
+                </div>
+              );
+            })}
+            {/* Total en mobile */}
+            <div className="mt-2 p-4 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold text-[var(--primary)]">
+                  TOTAL
+                </span>
+                <span className="text-lg font-bold text-[var(--primary)]">
+                  {grandTotal.current}
+                  <span className="text-[var(--text-secondary)] font-normal text-sm">
+                    /{grandTotal.target}
+                  </span>
+                </span>
+              </div>
+              <div className="h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] transition-all"
+                  style={{ width: `${Math.min(grandPercentage, 100)}%` }}
+                />
+              </div>
+              <div className="text-xs text-[var(--text-secondary)] mt-1 text-right">
+                {grandPercentage}%
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Desktop: Table Layout */}
+      <div className="hidden sm:block overflow-x-auto">
         {isCrossTable ? (
           // Tabla de doble entrada (Género Y Edad)
           <table className="w-full">

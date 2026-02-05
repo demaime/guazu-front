@@ -38,26 +38,16 @@ export default function ConfirmModal({
         }`}
       >
         <div className="flex items-start gap-3 mb-4">
-          <div
-            className={`p-2 rounded-lg ${
+          <Icon
+            size={24}
+            className={
               iconColor === "primary"
-                ? "bg-[color:var(--primary)]/10"
+                ? "text-[color:var(--primary)]"
                 : iconColor === "warning"
-                  ? "bg-transparent"
-                  : "bg-red-500/10"
-            }`}
-          >
-            <Icon
-              size={24}
-              className={
-                iconColor === "primary"
-                  ? "text-[color:var(--primary)]"
-                  : iconColor === "warning"
-                    ? "text-[color:var(--warning)]"
-                    : "text-red-500"
-              }
-            />
-          </div>
+                  ? "text-[color:var(--warning)]"
+                  : "text-red-500"
+            }
+          />
           <div className="flex-1">
             <h3 className="text-base font-semibold text-[color:var(--text-primary)] mb-1">
               {title}

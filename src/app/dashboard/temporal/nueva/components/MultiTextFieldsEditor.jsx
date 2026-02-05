@@ -140,7 +140,7 @@ export default function MultiTextFieldsEditor({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') setEditingValueIndex(null);
                       }}
-                      className="w-full px-2 py-1 text-xs text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
+                      className="w-full px-2 py-1 text-sm text-center rounded bg-[color:var(--input-background)] border border-[color:var(--primary)] text-[color:var(--text-primary)] font-mono focus:outline-none"
                       autoFocus
                     />
                   ) : (
@@ -163,7 +163,7 @@ export default function MultiTextFieldsEditor({
                   onChange={(e) => actualizarCampo(index, 'label', e.target.value)}
                   onKeyDown={(e) => handleKeyDown(e, index)}
                   placeholder="Etiqueta"
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-sm transition-all min-w-0"
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-base transition-all min-w-0"
                 />
 
                 {/* Tipo de campo */}
@@ -171,7 +171,7 @@ export default function MultiTextFieldsEditor({
                   <select
                     value={campo.tipo || 'text'}
                     onChange={(e) => actualizarCampo(index, 'tipo', e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-xs transition-all"
+                    className="w-full px-2 py-1.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:outline-none text-base transition-all"
                   >
                     {tiposCampo.map(tipo => (
                       <option key={tipo.value} value={tipo.value}>

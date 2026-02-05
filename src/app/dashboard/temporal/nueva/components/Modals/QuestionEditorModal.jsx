@@ -281,7 +281,7 @@ export default function QuestionEditorModal({
           type="text"
           value={editedData.value || ''}
           onChange={(e) => updateField('value', e.target.value)}
-          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm font-mono transition-all"
+          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-base font-mono transition-all"
           placeholder="p1"
         />
       </div>
@@ -296,7 +296,7 @@ export default function QuestionEditorModal({
           onChange={(e) => updateField('text', e.target.value)}
           placeholder="Escribe aquí la pregunta que verá el usuario..."
           rows={3}
-          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all resize-none"
+          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-base transition-all resize-none"
           autoFocus
         />
       </div>
@@ -328,7 +328,7 @@ export default function QuestionEditorModal({
           type="text"
           value={editedData.indicaciones || ''}
           onChange={(e) => updateField('indicaciones', e.target.value)}
-          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-sm transition-all"
+          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-base transition-all"
           placeholder="Ej: Seleccione una opción, Ingrese su respuesta..."
         />
       </div>
