@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   MapPin,
@@ -23,6 +23,7 @@ import DailyResponsesChart from "@/components/dashboard/DailyResponsesChart";
 import PollsterAverageTime from "@/components/dashboard/PollsterAverageTime";
 import QuotaProgressTable from "@/components/dashboard/QuotaProgressTable";
 import ExportControls from "@/components/ExportControls/ExportControls";
+ 
 
 // Colores para los encuestadores - Paleta ampliada con colores bien distinguibles
 const markerColors = [
@@ -146,6 +147,21 @@ export default function PanelDeSupervision() {
   const [selectedPollsters, setSelectedPollsters] = useState(["all"]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [activeSection, setActiveSection] = useState("sec-casos-mapeados");
+  const [navOpen, setNavOpen] = useState(false);
+  const [pollsterProgressData, setPollsterProgressData] = useState(null);
+  const [expandedPollsters, setExpandedPollsters] = useState({});
+  const lastScrollY = useRef(0);
+  const isClickScrolling = useRef(false);
+  const sectionItems = useMemo(
+    () => [
+      { id: "sec-casos-mapeados", label: "Casos mapeados" },
+      { id: "sec-encuestas-por-dia", label: "Encuestas por día" },
+      { id: "sec-tiempo-promedio", label: "Tiempo promedio" },
+      { id: "sec-progreso-cuotas", label: "Progreso de cuotas" },
+    ],
+    [],
+  );
 
   useEffect(() => {
     const checkPermissions = () => {
@@ -187,6 +203,118 @@ export default function PanelDeSupervision() {
       fetchSurveyData();
     }
   }, [params.id, router]);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        if (!params.id) return;
+        const data = await surveyService.getAllPollsterProgress(params.id);
+        setPollsterProgressData(data);
+      } catch (e) {}
+    };
+    fetchProgress();
+  }, [params.id]);
+
+  useEffect(() => {
+    const updateActiveSection = () => {
+      const scrollContainer = document.querySelector('.main-content');
+      if (!scrollContainer) return;
+      
+      const scrollY = scrollContainer.scrollTop;
+      
+      // Skip if this is a programmatic scroll from clicking navbar
+      if (isClickScrolling.current) {
+        console.log('SCROLL_DEBUG: Skipping - programmatic scroll from click');
+        lastScrollY.current = scrollY;
+        return;
+      }
+      
+      // Only update if user actually scrolled (not just a tiny browser adjustment)
+      if (Math.abs(scrollY - lastScrollY.current) < 5) {
+        return;
+      }
+      
+      console.log('SCROLL_DEBUG: updateActiveSection, scrollY:', scrollY);
+      lastScrollY.current = scrollY;
+      
+      const ids = sectionItems.map((s) => s.id);
+      let current = ids[0];
+      
+      // Find which section we've scrolled past
+      for (let i = ids.length - 1; i >= 0; i--) {
+        const el = document.getElementById(ids[i]);
+        if (!el) continue;
+        
+        if (scrollY >= el.offsetTop - 150) {
+          current = ids[i];
+          console.log(`SCROLL_DEBUG: Active section: ${current} (offsetTop: ${el.offsetTop})`);
+          break;
+        }
+      }
+      
+      setActiveSection(current);
+    };
+    
+    const scrollContainer = document.querySelector('.main-content');
+    if (scrollContainer) {
+      scrollContainer.addEventListener("scroll", updateActiveSection, { passive: true });
+    }
+    window.addEventListener("resize", updateActiveSection);
+    updateActiveSection();
+    
+    return () => {
+      if (scrollContainer) {
+        scrollContainer.removeEventListener("scroll", updateActiveSection);
+      }
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [sectionItems]);
+
+  const scrollToSection = (id) => {
+    console.log('SCROLL_DEBUG: scrollToSection called with id:', id);
+    
+    const el = document.getElementById(id);
+    if (!el) {
+      console.log("SCROLL_DEBUG: Element not found:", id);
+      return;
+    }
+    
+    const scrollContainer = document.querySelector('.main-content');
+    if (!scrollContainer) {
+      console.log('SCROLL_DEBUG: Scroll container not found!');
+      return;
+    }
+    
+    // Mark that we're doing a programmatic scroll
+    isClickScrolling.current = true;
+    
+    // Set active section immediately
+    setActiveSection(id);
+    console.log('SCROLL_DEBUG: Active section set to:', id);
+    
+    // Scroll to position
+    const targetY = el.offsetTop - 150;
+    console.log('SCROLL_DEBUG: Scrolling to:', targetY);
+    scrollContainer.scrollTo({ top: targetY, behavior: "smooth" });
+    
+    // Re-enable scroll detection after animation completes
+    setTimeout(() => {
+      isClickScrolling.current = false;
+      lastScrollY.current = scrollContainer.scrollTop;
+      console.log('SCROLL_DEBUG: Re-enabled scroll detection');
+    }, 1000);
+    
+    setNavOpen(false);
+  };
+
+ 
+
+  const togglePollsterExpand = (pollsterId) => {
+    setExpandedPollsters((prev) => ({
+      ...prev,
+      [pollsterId]: !prev[pollsterId],
+    }));
+  };
 
   // Calcular métricas y datos procesados
   const processedData = useMemo(() => {
@@ -250,7 +378,7 @@ export default function PanelDeSupervision() {
           ...p,
           hasCoordinates:
             pollsterAnswers[p.id]?.some(
-              (ans) => ans.lat !== null && ans.lng !== null
+              (ans) => ans.lat !== null && ans.lng !== null,
             ) || false,
         }))
         .sort((a, b) => b.responses - a.responses), // Ordenar de mayor a menor
@@ -268,7 +396,7 @@ export default function PanelDeSupervision() {
 
     if (!selectedPollsters.includes("all")) {
       filteredAnswers = filteredAnswers.filter((answer) =>
-        selectedPollsters.includes(answer.userId)
+        selectedPollsters.includes(answer.userId),
       );
       console.log("👤 After pollster filter:", filteredAnswers.length);
     }
@@ -308,7 +436,7 @@ export default function PanelDeSupervision() {
     });
 
     const dailyData = Object.values(dailyMap).sort(
-      (a, b) => a.fullDate - b.fullDate
+      (a, b) => a.fullDate - b.fullDate,
     );
 
     // 4. Calcular progreso de cuotas desde las respuestas filtradas
@@ -339,7 +467,7 @@ export default function PanelDeSupervision() {
             } else {
               quotaCounts[key] = 1;
             }
-          }
+          },
         );
       }
     });
@@ -361,7 +489,7 @@ export default function PanelDeSupervision() {
     // 5. Calcular días restantes
     const diasRestantes = surveyInfo.endDate
       ? Math.ceil(
-          (new Date(surveyInfo.endDate) - new Date()) / (1000 * 60 * 60 * 24)
+          (new Date(surveyInfo.endDate) - new Date()) / (1000 * 60 * 60 * 24),
         )
       : 0;
 
@@ -371,7 +499,7 @@ export default function PanelDeSupervision() {
         const userAnswers = answers.filter((a) => a.userId === userId);
         const totalTime = userAnswers.reduce(
           (sum, a) => sum + (a.time || 0),
-          0
+          0,
         );
         const avgSeconds =
           userAnswers.length > 0 ? totalTime / userAnswers.length : 0;
@@ -428,7 +556,7 @@ export default function PanelDeSupervision() {
     console.log("🎯 Centering map on pollster:", pollsterId);
     console.log(
       "📍 Filtered answers for this pollster:",
-      filteredAnswers.filter((a) => a.userId === pollsterId)
+      filteredAnswers.filter((a) => a.userId === pollsterId),
     );
 
     // Disparar evento personalizado para que el mapa se centre
@@ -616,7 +744,9 @@ export default function PanelDeSupervision() {
             </div>
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => router.push(`/dashboard/encuestas/${params.id}/editar-base`)}
+                onClick={() =>
+                  router.push(`/dashboard/encuestas/${params.id}/editar-base`)
+                }
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium whitespace-nowrap"
               >
                 <FileSpreadsheet className="w-4 h-4" />
@@ -648,7 +778,9 @@ export default function PanelDeSupervision() {
             </div>
             <div className="flex gap-3 flex-shrink-0">
               <button
-                onClick={() => router.push(`/dashboard/encuestas/${params.id}/editar-base`)}
+                onClick={() =>
+                  router.push(`/dashboard/encuestas/${params.id}/editar-base`)
+                }
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium whitespace-nowrap"
               >
                 <FileSpreadsheet className="w-4 h-4" />
@@ -663,11 +795,67 @@ export default function PanelDeSupervision() {
           </div>
         </div>
 
+        {/* Navbar de secciones */}
+        <div className="sticky top-0 z-50 mb-4">
+          <div className="bg-[var(--background)] px-2 py-2">
+            <div className="sm:hidden relative">
+              <button
+                onClick={() => setNavOpen((v) => !v)}
+                className="w-full px-3 py-2 rounded-lg hover:bg-[var(--hover-bg)]"
+              >
+                <span className="flex items-center justify-between">
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    {sectionItems.find((s) => s.id === activeSection)?.label ||
+                      sectionItems[0].label}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                </span>
+              </button>
+              {navOpen && (
+                <div className="absolute left-0 right-0 mt-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-background)]/98 shadow-xl backdrop-blur-md">
+                  {sectionItems.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => scrollToSection(s.id)}
+                      className={`w-full text-left px-3 py-2 text-sm ${
+                        activeSection === s.id
+                          ? "font-bold text-[var(--primary)]"
+                          : "font-medium text-[var(--text-secondary)]"
+                      } hover:bg-[var(--hover-bg)]`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="hidden sm:flex items-center gap-2">
+              {sectionItems.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => scrollToSection(s.id)}
+                  className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                    activeSection === s.id
+                      ? "font-bold text-[var(--primary)] bg-[var(--primary)]/10"
+                      : "font-medium text-[var(--text-secondary)]"
+                  } hover:bg-[var(--hover-bg)]`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* KPIs Principales */}
         <SupervisionStats stats={stats} />
 
         {/* Mapa de Casos */}
-        <div className="mb-6 bg-[var(--card-background)] rounded-xl border border-[var(--card-border)] p-4 sm:p-6">
+        <div
+          id="sec-casos-mapeados"
+          className="mb-6 bg-[var(--card-background)] rounded-xl border border-[var(--card-border)] p-4 sm:p-6"
+          style={{ scrollMarginTop: "110px" }}
+        >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-lg sm:text-xl font-semibold flex items-center gap-2 text-[var(--text-primary)]">
@@ -729,20 +917,98 @@ export default function PanelDeSupervision() {
         </div>
 
         {/* Gráfico de Encuestas por Día */}
-        <DailyResponsesChart
-          dailyData={dailyData}
-          onDateClick={handleDateClick}
-          selectedDate={selectedDate}
-        />
+        <div id="sec-encuestas-por-dia" style={{ scrollMarginTop: "110px" }}>
+          <DailyResponsesChart
+            dailyData={dailyData}
+            onDateClick={handleDateClick}
+            selectedDate={selectedDate}
+          />
+        </div>
 
         {/* Tiempo Promedio por Encuestador */}
-        <PollsterAverageTime
-          pollstersTime={pollstersTime}
-          selectedPollsters={selectedPollsters}
-        />
+        <div id="sec-tiempo-promedio" style={{ scrollMarginTop: "110px" }}>
+          <PollsterAverageTime
+            pollstersTime={pollstersTime}
+            selectedPollsters={selectedPollsters}
+          />
+        </div>
 
         {/* Progreso de Cuotas */}
-        <QuotaProgressTable survey={survey} answers={filteredAnswers} />
+        <div id="sec-progreso-cuotas" style={{ scrollMarginTop: "110px" }}>
+          <QuotaProgressTable survey={survey} answers={filteredAnswers} />
+        </div>
+
+        {pollsterProgressData?.pollsterProgress &&
+          pollsterProgressData.pollsterProgress.length > 0 && (
+            <div className="bg-[var(--card-background)] rounded-xl border border-[var(--card-border)] p-4 sm:p-6 mb-6">
+              <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 text-[var(--text-primary)]">
+                Progreso por Encuestador
+              </h3>
+              <div className="space-y-3">
+                {pollsterProgressData.pollsterProgress.map((p) => {
+                  const isExpanded = !!expandedPollsters[p.pollsterId];
+                  return (
+                    <div
+                      key={p.pollsterId}
+                      className="rounded-lg border bg-[var(--input-background)] border-[var(--card-border)]"
+                    >
+                      <button
+                        onClick={() => togglePollsterExpand(p.pollsterId)}
+                        className="w-full p-3 flex items-center justify-between"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+                              {p.pollsterName || p.pollsterEmail || p.pollsterId}
+                            </span>
+                            <span className="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">
+                              {p.completedAnswers}
+                              <span className="text-[var(--text-secondary)] font-normal">
+                                /{p.assignedCases}
+                              </span>
+                              <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                                ({p.progressPercentage}%)
+                              </span>
+                            </span>
+                          </div>
+                          <div className="mt-2 h-2 bg-[var(--card-background)] rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${
+                                p.isCompleted
+                                  ? "bg-[var(--success)]"
+                                  : "bg-[var(--primary)]"
+                              }`}
+                              style={{
+                                width: `${Math.min(
+                                  p.progressPercentage || 0,
+                                  100,
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-[var(--text-secondary)] ml-3 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-[var(--text-secondary)] ml-3 flex-shrink-0" />
+                        )}
+                      </button>
+                      {isExpanded && (
+                        <div className="px-3 pb-3">
+                          <QuotaProgressTable
+                            survey={survey}
+                            answers={answers}
+                            pollsterId={p.pollsterId}
+                            hideTitle
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
         {/* Proyección */}
         <div className="p-4 sm:p-6 rounded-2xl border-2 bg-[var(--success-bg)] border-[var(--success-border)] mb-6">
@@ -768,7 +1034,7 @@ export default function PanelDeSupervision() {
                         answers.length +
                           (dailyData.reduce((sum, d) => sum + d.responses, 0) /
                             dailyData.length) *
-                            stats.diasRestantes
+                            stats.diasRestantes,
                       )
                     : 0}
                 </span>{" "}

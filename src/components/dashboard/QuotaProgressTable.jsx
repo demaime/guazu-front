@@ -3,7 +3,12 @@
 import { useMemo } from "react";
 import { Target } from "lucide-react";
 
-const QuotaProgressTable = ({ survey, answers }) => {
+const QuotaProgressTable = ({
+  survey,
+  answers,
+  pollsterId = null,
+  hideTitle = false,
+}) => {
   // Calcular datos de cuotas
   const quotaData = useMemo(() => {
     console.log("QUOTA_TABLA_DEBUG - Component rendered");
@@ -117,42 +122,39 @@ const QuotaProgressTable = ({ survey, answers }) => {
       );
     }
 
-    // Crear estructura de targets sumando todos los assignments de todos los pollsters
+    // Crear estructura de targets
     const targets = {};
-
-    quotaAssignments.forEach((assignment, assignmentIdx) => {
-      console.log(
-        `QUOTA_TABLA_DEBUG - Processing assignment ${assignmentIdx}:`,
-        assignment,
+    if (pollsterId) {
+      const assignment = quotaAssignments.find(
+        (a) => String(a.pollsterId) === String(pollsterId),
       );
-
-      assignment.quotas?.forEach((quota, quotaIdx) => {
-        console.log(
-          `QUOTA_TABLA_DEBUG - Processing quota ${quotaIdx} for assignment ${assignmentIdx}:`,
-          quota,
-        );
-
-        quota.segments?.forEach((segment, segmentIdx) => {
-          console.log(
-            `QUOTA_TABLA_DEBUG - Processing segment ${segmentIdx}:`,
-            segment,
-          );
-
-          // Para tabla cruzada, el key es "Género - Edad"
-          // Para tabla simple, el key es solo el nombre del segmento
-          const key = segment.name;
-
-          if (!targets[key]) {
-            targets[key] = 0;
-          }
-          targets[key] += segment.target || 0;
-
-          console.log(
-            `QUOTA_TABLA_DEBUG - Added target for "${key}": ${segment.target}, total now: ${targets[key]}`,
-          );
+      if (assignment) {
+        assignment.quotas?.forEach((quota) => {
+          quota.segments?.forEach((segment) => {
+            const key = segment.name;
+            targets[key] = (targets[key] || 0) + (segment.target || 0);
+          });
+        });
+      } else {
+        quotaAssignments.forEach((assignment) => {
+          assignment.quotas?.forEach((quota) => {
+            quota.segments?.forEach((segment) => {
+              const key = segment.name;
+              targets[key] = (targets[key] || 0) + (segment.target || 0);
+            });
+          });
+        });
+      }
+    } else {
+      quotaAssignments.forEach((assignment) => {
+        assignment.quotas?.forEach((quota) => {
+          quota.segments?.forEach((segment) => {
+            const key = segment.name;
+            targets[key] = (targets[key] || 0) + (segment.target || 0);
+          });
         });
       });
-    });
+    }
 
     console.log(
       "QUOTA_TABLA_DEBUG - targets calculated from quotaAssignments:",
@@ -162,8 +164,13 @@ const QuotaProgressTable = ({ survey, answers }) => {
     // Calcular progreso actual desde las respuestas
     // CLAVE: Usar los questionId de quotaMetadata para extraer las respuestas correctas
     const progress = {};
+    const localAnswers = pollsterId
+      ? (answers || []).filter(
+          (ans) => String(ans.userId) === String(pollsterId),
+        )
+      : answers || [];
 
-    answers.forEach((answer, idx) => {
+    localAnswers.forEach((answer, idx) => {
       if (idx === 0) {
         console.log("QUOTA_TABLA_DEBUG - First answer structure:", answer);
         console.log("QUOTA_TABLA_DEBUG - First answer.answer:", answer.answer);
@@ -257,15 +264,15 @@ const QuotaProgressTable = ({ survey, answers }) => {
       typeof s === "string"
         ? s
             .normalize("NFD")
-            .replace(/\p{Diacritic}/gu, "")
+            .replace(/[\u0300-\u036f]/g, "")
             .toLowerCase()
             .trim()
         : "";
     const genderNormSet = new Set(extractedGenderOptions.map(normalize));
     const ageNormSet = new Set(extractedAgeOptions.map(normalize));
     const progressSum = Object.values(progress).reduce((a, b) => a + b, 0);
-    if (progressSum === 0 && answers.length > 0) {
-      answers.forEach((answer) => {
+    if (progressSum === 0 && localAnswers.length > 0) {
+      localAnswers.forEach((answer) => {
         const vals = Object.values(answer.answer || {}).map((v) =>
           typeof v === "string" ? v : String(v),
         );
@@ -307,7 +314,7 @@ const QuotaProgressTable = ({ survey, answers }) => {
 
     console.log("QUOTA_TABLA_DEBUG - Final quotaData:", result);
     return result;
-  }, [survey, answers]);
+  }, [survey, answers, pollsterId]);
 
   if (!quotaData) return null;
 
@@ -398,10 +405,12 @@ const QuotaProgressTable = ({ survey, answers }) => {
 
   return (
     <div className="bg-[var(--card-background)] rounded-xl border border-[var(--card-border)] p-4 sm:p-6 mb-6">
-      <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center gap-2 text-[var(--text-primary)]">
-        <Target size={20} className="sm:w-6 sm:h-6 text-[var(--primary)]" />
-        Progreso de Cuotas
-      </h3>
+      {!hideTitle && (
+        <h3 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center gap-2 text-[var(--text-primary)]">
+          <Target size={20} className="sm:w-6 sm:h-6 text-[var(--primary)]" />
+          Progreso de Cuotas
+        </h3>
+      )}
 
       {/* Mobile: Card Layout */}
       <div className="block sm:hidden space-y-3">
@@ -410,6 +419,9 @@ const QuotaProgressTable = ({ survey, answers }) => {
           <>
             {genderOptions.map((genderOption, genderIdx) => (
               <div key={genderIdx} className="space-y-2">
+                {genderIdx > 0 && (
+                  <div className="h-px bg-[var(--card-border)]/20 my-4" />
+                )}
                 <div className="text-sm font-bold text-[var(--primary)] mb-2">
                   {genderOption}
                 </div>
@@ -429,7 +441,7 @@ const QuotaProgressTable = ({ survey, answers }) => {
                           : "bg-[var(--input-background)] border-[var(--card-border)]"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-[var(--text-primary)]">
                           {ageOption}
                         </span>
@@ -438,20 +450,10 @@ const QuotaProgressTable = ({ survey, answers }) => {
                           <span className="text-[var(--text-secondary)] font-normal">
                             /{target}
                           </span>
+                          <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                            ({percentage}%)
+                          </span>
                         </span>
-                      </div>
-                      <div className="h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all ${
-                            isComplete
-                              ? "bg-gradient-to-r from-green-500 to-green-600"
-                              : "bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)]"
-                          }`}
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-[var(--text-secondary)] mt-1 text-right">
-                        {percentage}%
                       </div>
                     </div>
                   );
@@ -460,7 +462,7 @@ const QuotaProgressTable = ({ survey, answers }) => {
             ))}
             {/* Total general en mobile */}
             <div className="mt-4 p-4 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/30">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-[var(--primary)]">
                   TOTAL GENERAL
                 </span>
@@ -469,16 +471,10 @@ const QuotaProgressTable = ({ survey, answers }) => {
                   <span className="text-[var(--text-secondary)] font-normal text-sm">
                     /{grandTotal.target}
                   </span>
+                  <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                    ({grandPercentage}%)
+                  </span>
                 </span>
-              </div>
-              <div className="h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] transition-all"
-                  style={{ width: `${Math.min(grandPercentage, 100)}%` }}
-                />
-              </div>
-              <div className="text-xs text-[var(--text-secondary)] mt-1 text-right">
-                {grandPercentage}%
               </div>
             </div>
           </>
@@ -501,7 +497,7 @@ const QuotaProgressTable = ({ survey, answers }) => {
                       : "bg-[var(--input-background)] border-[var(--card-border)]"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-[var(--text-primary)]">
                       {option}
                     </span>
@@ -510,27 +506,17 @@ const QuotaProgressTable = ({ survey, answers }) => {
                       <span className="text-[var(--text-secondary)] font-normal">
                         /{target}
                       </span>
+                      <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                        ({percentage}%)
+                      </span>
                     </span>
-                  </div>
-                  <div className="h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all ${
-                        isComplete
-                          ? "bg-gradient-to-r from-green-500 to-green-600"
-                          : "bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)]"
-                      }`}
-                      style={{ width: `${Math.min(percentage, 100)}%` }}
-                    />
-                  </div>
-                  <div className="text-xs text-[var(--text-secondary)] mt-1 text-right">
-                    {percentage}%
                   </div>
                 </div>
               );
             })}
             {/* Total en mobile */}
             <div className="mt-2 p-4 rounded-lg bg-[var(--primary)]/10 border border-[var(--primary)]/30">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-[var(--primary)]">
                   TOTAL
                 </span>
@@ -539,16 +525,10 @@ const QuotaProgressTable = ({ survey, answers }) => {
                   <span className="text-[var(--text-secondary)] font-normal text-sm">
                     /{grandTotal.target}
                   </span>
+                  <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                    ({grandPercentage}%)
+                  </span>
                 </span>
-              </div>
-              <div className="h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] transition-all"
-                  style={{ width: `${Math.min(grandPercentage, 100)}%` }}
-                />
-              </div>
-              <div className="text-xs text-[var(--text-secondary)] mt-1 text-right">
-                {grandPercentage}%
               </div>
             </div>
           </>
@@ -585,7 +565,10 @@ const QuotaProgressTable = ({ survey, answers }) => {
                     : 0;
 
                 return (
-                  <tr key={genderIdx}>
+                  <tr
+                    key={genderIdx}
+                    className="border-b border-[var(--card-border)]/30"
+                  >
                     <td className="bg-[var(--card-background)] p-3 text-sm font-semibold text-[var(--text-primary)]">
                       {genderOption}
                     </td>
@@ -610,19 +593,9 @@ const QuotaProgressTable = ({ survey, answers }) => {
                             <span className="text-[var(--text-secondary)] font-normal">
                               /{target}
                             </span>
-                          </div>
-                          <div className="mt-1 h-1.5 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full transition-all ${
-                                isComplete
-                                  ? "bg-gradient-to-r from-green-500 to-green-600"
-                                  : "bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)]"
-                              }`}
-                              style={{ width: `${Math.min(percentage, 100)}%` }}
-                            />
-                          </div>
-                          <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                            {percentage}%
+                            <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                              ({percentage}%)
+                            </span>
                           </div>
                         </td>
                       );
@@ -633,9 +606,9 @@ const QuotaProgressTable = ({ survey, answers }) => {
                         <span className="text-[var(--text-secondary)] font-normal">
                           /{rowTotal.target}
                         </span>
-                      </div>
-                      <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        {rowPercentage}%
+                        <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                          ({rowPercentage}%)
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -663,9 +636,9 @@ const QuotaProgressTable = ({ survey, answers }) => {
                         <span className="text-[var(--text-secondary)] font-normal">
                           /{colTotal.target}
                         </span>
-                      </div>
-                      <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                        {colPercentage}%
+                        <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                          ({colPercentage}%)
+                        </span>
                       </div>
                     </td>
                   );
@@ -676,9 +649,9 @@ const QuotaProgressTable = ({ survey, answers }) => {
                     <span className="text-[var(--text-secondary)] font-normal">
                       /{grandTotal.target}
                     </span>
-                  </div>
-                  <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                    {grandPercentage}%
+                    <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                      ({grandPercentage}%)
+                    </span>
                   </div>
                 </td>
               </tr>
@@ -691,12 +664,6 @@ const QuotaProgressTable = ({ survey, answers }) => {
               <tr>
                 <th className="bg-[var(--background)] p-3 text-left text-sm font-semibold text-[var(--text-primary)] rounded-tl-lg">
                   {hasGender ? "Género" : "Edad"}
-                </th>
-                <th className="bg-[var(--background)] p-3 text-center text-sm font-semibold text-[var(--text-primary)]">
-                  Actual
-                </th>
-                <th className="bg-[var(--background)] p-3 text-center text-sm font-semibold text-[var(--text-primary)]">
-                  Objetivo
                 </th>
                 <th className="bg-[var(--background)] p-3 text-center text-sm font-semibold text-[var(--text-primary)] rounded-tr-lg">
                   Progreso
@@ -712,36 +679,27 @@ const QuotaProgressTable = ({ survey, answers }) => {
                 const isComplete = current >= target && target > 0;
 
                 return (
-                  <tr key={idx}>
+                  <tr
+                    key={idx}
+                    className="border-b border-[var(--card-border)]/30"
+                  >
                     <td className="bg-[var(--card-background)] p-3 text-sm font-semibold text-[var(--text-primary)]">
                       {option}
                     </td>
-                    <td className="bg-[var(--card-background)] p-3 text-center text-sm font-bold text-[var(--text-primary)]">
-                      {current}
-                    </td>
-                    <td className="bg-[var(--card-background)] p-3 text-center text-sm font-bold text-[var(--text-primary)]">
-                      {target}
-                    </td>
                     <td
-                      className={`p-3 align-middle ${
+                      className={`p-3 text-center align-middle ${
                         isComplete
                           ? "bg-green-500/10"
                           : "bg-[var(--card-background)]"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full transition-all ${
-                              isComplete
-                                ? "bg-gradient-to-r from-green-500 to-green-600"
-                                : "bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)]"
-                            }`}
-                            style={{ width: `${Math.min(percentage, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-bold text-[var(--text-primary)] min-w-[3rem] text-right">
-                          {percentage}%
+                      <div className="text-sm font-bold text-[var(--text-primary)]">
+                        {current}
+                        <span className="text-[var(--text-secondary)] font-normal">
+                          /{target}
+                        </span>
+                        <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                          ({percentage}%)
                         </span>
                       </div>
                     </td>
@@ -753,22 +711,14 @@ const QuotaProgressTable = ({ survey, answers }) => {
                 <td className="bg-[var(--primary)]/10 p-3 text-sm font-bold text-[var(--primary)] rounded-bl-lg">
                   TOTAL
                 </td>
-                <td className="bg-[var(--primary)]/5 p-3 text-center text-sm font-bold text-[var(--primary)]">
-                  {grandTotal.current}
-                </td>
-                <td className="bg-[var(--primary)]/5 p-3 text-center text-sm font-bold text-[var(--primary)]">
-                  {grandTotal.target}
-                </td>
-                <td className="bg-[var(--primary)]/5 p-3 rounded-br-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-[var(--card-border)]/50 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] transition-all"
-                        style={{ width: `${Math.min(grandPercentage, 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-bold text-[var(--primary)] min-w-[3rem] text-right">
-                      {grandPercentage}%
+                <td className="bg-[var(--primary)]/5 p-3 text-center rounded-br-lg">
+                  <div className="text-sm font-bold text-[var(--primary)]">
+                    {grandTotal.current}
+                    <span className="text-[var(--text-secondary)] font-normal">
+                      /{grandTotal.target}
+                    </span>
+                    <span className="text-xs text-[var(--text-secondary)] font-normal ml-1">
+                      ({grandPercentage}%)
                     </span>
                   </div>
                 </td>

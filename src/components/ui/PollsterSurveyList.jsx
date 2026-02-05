@@ -557,7 +557,7 @@ export function PollsterSurveyList({
       typeof s === "string"
         ? s
             .normalize("NFD")
-            .replace(/\p{Diacritic}/gu, "")
+            .replace(/[\u0300-\u036f]/g, "")
             .toLowerCase()
             .trim()
         : "";
