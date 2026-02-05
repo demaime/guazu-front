@@ -3,7 +3,7 @@
 import { X, Upload, GripVertical, ArrowLeft } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useMobileDetect } from '../hooks/useMobileDetect';
+import { useMobileDetect } from '../../hooks/useMobileDetect';
 
 export default function BulkAddModal({ 
   isOpen, 
