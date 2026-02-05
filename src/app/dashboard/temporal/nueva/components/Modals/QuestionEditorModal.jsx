@@ -30,6 +30,8 @@ export default function QuestionEditorModal({
   const [showQuotaWarning, setShowQuotaWarning] = useState(false);
   const isMobile = useMobileDetect();
 
+  const renumerar = (ops = []) => ops.map((opt, i) => ({ ...opt, value: String(i + 1) }));
+
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => setIsAnimating(true), 10);
@@ -58,9 +60,11 @@ export default function QuestionEditorModal({
           // Opciones predeterminadas editables
           if (!pregunta.opciones || pregunta.opciones.length === 0) {
             newData.opciones = [
-              { id: Date.now() + '_1', value: 'masculino', text: 'Masculino' },
-              { id: Date.now() + '_2', value: 'femenino', text: 'Femenino' }
+              { id: Date.now() + '_1', value: '1', text: 'Masculino' },
+              { id: Date.now() + '_2', value: '2', text: 'Femenino' }
             ];
+          } else {
+            newData.opciones = renumerar(newData.opciones);
           }
         }
 
@@ -74,10 +78,12 @@ export default function QuestionEditorModal({
           // Opciones predeterminadas editables (3 rangos)
           if (!pregunta.opciones || pregunta.opciones.length === 0) {
             newData.opciones = [
-              { id: Date.now() + '_1', value: '18-35', text: '18-35' },
-              { id: Date.now() + '_2', value: '36-55', text: '36-55' },
-              { id: Date.now() + '_3', value: '56+', text: '56+' }
+              { id: Date.now() + '_1', value: '1', text: '18-35' },
+              { id: Date.now() + '_2', value: '2', text: '36-55' },
+              { id: Date.now() + '_3', value: '3', text: '56+' }
             ];
+          } else {
+            newData.opciones = renumerar(newData.opciones);
           }
         }
 
@@ -92,7 +98,15 @@ export default function QuestionEditorModal({
   // Aplicar actualizaciones externas (ej: desde el selector de tipo)
   useEffect(() => {
     if (externalUpdate && isOpen) {
-      setEditedData(prev => ({ ...prev, ...externalUpdate }));
+      if (externalUpdate.tipo === 'cuota-genero' || externalUpdate.tipo === 'cuota-edad') {
+        setEditedData(prev => {
+          const merged = { ...prev, ...externalUpdate };
+          merged.opciones = renumerar(merged.opciones || []);
+          return merged;
+        });
+      } else {
+        setEditedData(prev => ({ ...prev, ...externalUpdate }));
+      }
       
       // Mostrar advertencia si se selecciona tipo cuota
       if (externalUpdate.tipo === 'cuota-genero' || externalUpdate.tipo === 'cuota-edad') {
@@ -407,10 +421,11 @@ export default function QuestionEditorModal({
           isOpen={showQuotaWarning}
           onClose={() => setShowQuotaWarning(false)}
           onConfirm={() => setShowQuotaWarning(false)}
-          title="⚠️ Pregunta de Cuota Detectada"
-          message="Al usar preguntas de tipo cuota, tu encuesta se configurará automáticamente con Sistema de Cuotas. No podrás seleccionar Meta por Casos en la configuración."
+          title="Pregunta de Cuota Detectada"
+          message="Al seleccionar una pregunta de cuota, la cantidad de encuestas a recolectar se calculará según la distribución de cuotas que definas en la pestaña Configuración"
           confirmText="Entendido"
           cancelText={null}
+          iconColor="warning"
         />
       </>
     );
@@ -498,12 +513,12 @@ export default function QuestionEditorModal({
         isOpen={showQuotaWarning}
         onClose={() => setShowQuotaWarning(false)}
         onConfirm={() => setShowQuotaWarning(false)}
-        title="⚠️ Pregunta de Cuota Detectada"
-        message="Al usar preguntas de tipo cuota, tu encuesta se configurará automáticamente con Sistema de Cuotas. No podrás seleccionar Meta por Casos en la configuración."
+        title="Pregunta de Cuota Detectada"
+        message="Al seleccionar una pregunta de cuota, la cantidad de encuestas a recolectar se calculará según la distribución de cuotas que definas en la pestaña Configuración"
         confirmText="Entendido"
         cancelText={null}
+        iconColor="warning"
       />
     </div>
   );
 }
-

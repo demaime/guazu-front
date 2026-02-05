@@ -355,21 +355,22 @@ export default function FormBuilder() {
 
   const validarTipoCuotaUnico = (nuevoTipo, preguntaActualId) => {
     // Solo validar para tipos de cuota
-    if (nuevoTipo !== 'cuota-genero' && nuevoTipo !== 'cuota-edad') {
+    if (nuevoTipo !== "cuota-genero" && nuevoTipo !== "cuota-edad") {
       return { valido: true };
     }
 
     // Buscar si ya existe otra pregunta con este tipo
     const todasLasPreguntas = modulos.flatMap((m) => m.preguntas);
     const yaExiste = todasLasPreguntas.some(
-      (p) => p.tipo === nuevoTipo && p.id !== preguntaActualId
+      (p) => p.tipo === nuevoTipo && p.id !== preguntaActualId,
     );
 
     if (yaExiste) {
-      const tipoNombre = nuevoTipo === 'cuota-genero' ? 'Cuota Género' : 'Cuota Edad';
+      const tipoNombre =
+        nuevoTipo === "cuota-genero" ? "Cuota Género" : "Cuota Edad";
       return {
         valido: false,
-        mensaje: `Ya existe una pregunta de tipo "${tipoNombre}" en esta encuesta. Solo puede haber una pregunta de cada tipo de cuota.`
+        mensaje: `Ya existe una pregunta de tipo "${tipoNombre}" en esta encuesta. Solo puede haber una pregunta de cada tipo de cuota.`,
       };
     }
 
@@ -1219,11 +1220,11 @@ export default function FormBuilder() {
     // Validar si el tipo de cuota ya existe
     const preguntaId = modalSelectorTipo.preguntaId;
     const validacion = validarTipoCuotaUnico(tipo.value, preguntaId);
-    
+
     if (!validacion.valido) {
       setModalValidacion({
         title: "Tipo de pregunta no permitido",
-        message: validacion.mensaje
+        message: validacion.mensaje,
       });
       setModalSelectorTipo(null);
       return;
@@ -1305,7 +1306,9 @@ export default function FormBuilder() {
         />
 
         {modulos.length === 0 && (
-          <div className={`bg-[color:var(--card-background)] rounded-lg p-4 md:p-6 shadow-lg mb-6 border border-[color:var(--card-border)] transition-opacity ${indiceAbierto ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div
+            className={`bg-[color:var(--card-background)] rounded-lg p-4 md:p-6 shadow-lg mb-6 border border-[color:var(--card-border)] transition-opacity ${indiceAbierto ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+          >
             <button
               onClick={() => setModalNuevoModulo(true)}
               className="w-full py-3 rounded border-2 border-dashed border-[color:var(--primary)] text-[color:var(--primary)] hover:bg-[color:var(--primary)] hover:text-white font-medium transition-all flex items-center justify-center gap-2 text-sm"
@@ -1316,7 +1319,9 @@ export default function FormBuilder() {
         )}
 
         {modulos.length > 0 && (
-          <div className={`bg-[color:var(--card-background)] rounded-lg p-4 md:p-6 shadow-lg border border-[color:var(--card-border)] mb-6 transition-opacity ${indiceAbierto ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div
+            className={`bg-[color:var(--card-background)] rounded-lg p-4 md:p-6 shadow-lg border border-[color:var(--card-border)] mb-6 transition-opacity ${indiceAbierto ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+          >
             <div className="mb-4">
               <span className="text-xs text-[color:var(--text-secondary)]">
                 {modulos.length} módulo{modulos.length !== 1 ? "s" : ""}
@@ -1465,9 +1470,8 @@ export default function FormBuilder() {
           cancelText={null}
         />
 
-        {/* Barra fija de acciones */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[color:var(--card-border)] bg-[color:var(--background)]/90 backdrop-blur">
-          <div className="max-w-3xl mx-auto w-full px-3 md:px-8 py-3 flex gap-3">
+        <div className="sticky bottom-0 z-20 bg-[color:var(--background)]">
+          <div className="w-full px-3 md:px-8 py-3 flex gap-3">
             <button
               onClick={() => {
                 if (

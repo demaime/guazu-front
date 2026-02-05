@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { authService } from "@/services/auth.service";
 import {
   Plus,
   Search,
@@ -38,6 +39,19 @@ const safeDate = (value) => {
   if (!value) return null;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const getRoleName = (role) => {
+  switch (role) {
+    case "ROLE_ADMIN":
+      return "Administrador";
+    case "SUPERVISOR":
+      return "Supervisor";
+    case "POLLSTER":
+      return "Encuestador";
+    default:
+      return "Usuario";
+  }
 };
 
 // Nueva clasificación: FINALIZADAS | ACTIVAS (recibiendo | pausada | pendiente)
@@ -193,6 +207,7 @@ export default function TemporalPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [surveys, setSurveys] = useState([]);
+  const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("activas");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -452,6 +467,15 @@ export default function TemporalPage() {
   useEffect(() => {
     setIsLoading(true);
     loadSurveysData();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const userData = authService.getUser();
+      setUser(userData);
+    } catch (error) {
+      console.error("Error obteniendo usuario:", error);
+    }
   }, []);
 
   const filteredSurveys = useMemo(() => {
@@ -792,7 +816,14 @@ export default function TemporalPage() {
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl md:text-3xl font-bold">Encuestas</h2>
+            <div className="flex flex-col">
+              <h1 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
+                ¡Hola {user?.name || user?.email || "Usuario"}!
+              </h1>
+              <span className="mt-2 text-xs text-[var(--text-secondary)]">
+                {getRoleName(user?.role)}
+              </span>
+            </div>
             <button
               onClick={() => router.push("/dashboard/temporal/nueva")}
               className="bg-[color:var(--primary)] hover:opacity-90 px-4 md:px-6 py-2.5 md:py-3 rounded-xl flex items-center gap-2 font-semibold transition-all shadow-lg text-white text-sm md:text-base"
