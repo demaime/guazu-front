@@ -8,7 +8,11 @@ import { useState, useEffect } from 'react';
  * @returns {boolean} true si es móvil
  */
 export function useMobileDetect(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    // Inicializar correctamente en SSR
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < breakpoint;
+  });
 
   useEffect(() => {
     // Solo ejecutar en el cliente

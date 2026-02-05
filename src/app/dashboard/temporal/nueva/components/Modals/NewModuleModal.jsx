@@ -41,7 +41,7 @@ export default function NewModuleModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-4">
+        <div className="flex-1 p-4 space-y-4">
           <input
             type="text"
             value={moduleName}
@@ -51,22 +51,22 @@ export default function NewModuleModal({
             onKeyPress={(e) => e.key === 'Enter' && onConfirm()}
             autoFocus
           />
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-[color:var(--card-border)] bg-[color:var(--card-background)] flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-3 rounded-lg border-2 border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] font-medium transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 px-4 py-3 rounded-lg bg-[color:var(--primary)] hover:opacity-90 text-white font-medium transition-colors"
-          >
-            Crear
-          </button>
+          
+          {/* Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 rounded-lg border-2 border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 px-4 py-3 rounded-lg bg-[color:var(--primary)] hover:opacity-90 text-white font-medium transition-colors"
+            >
+              Crear
+            </button>
+          </div>
         </div>
       </div>
     );
