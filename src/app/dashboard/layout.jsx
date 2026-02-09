@@ -39,6 +39,9 @@ function DashboardLayoutContent({ children }) {
   const [userImageExists, setUserImageExists] = useState(false);
   const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
 
   useEffect(() => {
     const checkAuth = () => {
@@ -78,6 +81,21 @@ function DashboardLayoutContent({ children }) {
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       localStorage.setItem = originalSetItem;
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateOnline = () => {
+      const online = navigator.onLine;
+      console.log("🔌 [Layout] Estado de conexión:", online);
+      setIsOnline(online);
+    };
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    updateOnline();
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
     };
   }, []);
 
@@ -280,7 +298,7 @@ function DashboardLayoutContent({ children }) {
             </div>
             {pathname === "/dashboard/encuestas/responder" ? (
               <StatusIndicators />
-            ) : (
+            ) : isOnline ? (
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
@@ -294,7 +312,7 @@ function DashboardLayoutContent({ children }) {
                   }`}
                 />
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </motion.header>

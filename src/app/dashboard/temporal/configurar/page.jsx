@@ -230,13 +230,7 @@ export default function ConfigurarEncuesta() {
         participantsData?.supervisorsIds ||
         [];
         
-      console.log('🔍 DEBUG - Loading participants:', {
-        userIds,
-        supervisorsIds,
-        surveyInfoUserIds: surveyInfo.userIds,
-        participantsUserIds: participantsData?.userIds,
-        fullResponse: response?.survey
-      });
+
         
       setAssignedPollsters((userIds || []).map(String));
       setAssignedSupervisors((supervisorsIds || []).map(String));
@@ -247,8 +241,7 @@ export default function ConfigurarEncuesta() {
       }
       
       // Cargar distribución de cuotas existente
-      console.log('QUOTASDEBUG - participantsData:', participantsData);
-      console.log('QUOTASDEBUG - surveyInfoData:', surveyInfoData);
+
       const quotaAssignments = participantsData?.quotaAssignments || surveyInfoData?.quotaAssignments || [];
       if (quotaAssignments.length > 0) {
         const loadedQuotaData = {};
@@ -281,8 +274,7 @@ export default function ConfigurarEncuesta() {
           }
         });
         
-        console.log('QUOTASDEBUG - Loaded quotaAssignments from backend:', quotaAssignments);
-        console.log('QUOTASDEBUG - Reconstructed quotaDistributionData:', loadedQuotaData);
+
         setQuotaDistributionData(loadedQuotaData);
       }
     } catch (error) {
@@ -1047,7 +1039,7 @@ export default function ConfigurarEncuesta() {
     }).filter(assignment => assignment.quotas.length > 0);
   };
 
-  console.log('QUOTASDEBUG - prepareQuotaAssignments result:', prepareQuotaAssignments());
+
 
   const duracion = calcularDuracion();
 
@@ -1796,10 +1788,7 @@ export default function ConfigurarEncuesta() {
                   },
                 };
 
-                console.log('QUOTASDEBUG - dataToSave:', JSON.stringify(dataToSave, null, 2));
-                console.log('QUOTASDEBUG - quotaAssignments being saved:', dataToSave.surveyInfo.quotaAssignments);
-                console.log('QUOTASDEBUG - tienePreguntasCuota:', tienePreguntasCuota);
-                console.log('QUOTASDEBUG - assignedPollsters:', assignedPollsters);
+
 
                 // Actualizar en el backend - PUBLISHED, no draft
                 await surveyService.createOrUpdateSurvey(

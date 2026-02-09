@@ -189,17 +189,7 @@ export default function Encuestas() {
           // Registrar la hora de sync solo en la carga inicial
           await setLastSync(Date.now());
 
-          // 🔍 DEBUG: Verificar que las cuotas se están guardando
-          console.log(
-            "📊 Encuestas guardadas en cache:",
-            active.map((s) => ({
-              id: s._id,
-              title: s.survey?.title || s.surveyInfo?.title || "Sin título",
-              hasQuotas: !!(s.surveyInfo?.quotas?.length > 0),
-              quotasCount: s.surveyInfo?.quotas?.length || 0,
-              quotas: s.surveyInfo?.quotas?.map((q) => q.category) || [],
-            })),
-          );
+
         } catch {}
 
         // Reset flag si la carga fue exitosa

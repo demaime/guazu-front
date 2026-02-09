@@ -438,7 +438,6 @@ export function PollsterSurveyList({
 
   const getPollsterQuotas = (survey) => {
     if (!currentUser?._id) {
-      console.log("QUOTASDEBUG - No currentUser._id");
       return null;
     }
 
@@ -447,15 +446,9 @@ export function PollsterSurveyList({
       survey?.surveyInfo?.quotaAssignments ||
       [];
 
-    console.log("QUOTASDEBUG - Survey:", survey._id);
-    console.log(
-      "QUOTASDEBUG - quotaAssignments:",
-      JSON.stringify(quotaAssignments, null, 2),
-    );
-    console.log("QUOTASDEBUG - currentUser._id:", currentUser._id);
+
 
     if (!quotaAssignments || quotaAssignments.length === 0) {
-      console.log("QUOTASDEBUG - No quotaAssignments found");
       return null;
     }
 
@@ -463,13 +456,9 @@ export function PollsterSurveyList({
       (qa) => String(qa.pollsterId) === String(currentUser._id),
     );
 
-    console.log(
-      "QUOTASDEBUG - Found assignment:",
-      JSON.stringify(assignment, null, 2),
-    );
+
 
     if (!assignment || !assignment.quotas || assignment.quotas.length === 0) {
-      console.log("QUOTASDEBUG - No assignment or quotas for this pollster");
       return null;
     }
 
@@ -589,7 +578,7 @@ export function PollsterSurveyList({
           }
         }
       });
-      console.log("QUOTASDEBUG - Fallback progress calculated:", progress);
+
     }
 
     // Extraer todos los segmentos y agregar el progreso calculado
@@ -600,9 +589,7 @@ export function PollsterSurveyList({
           // Calcular el progreso real desde las respuestas
           const calculatedCurrent = Math.floor(progress[segment.name] || 0);
 
-          console.log(
-            `QUOTASDEBUG - Processing segment: ${segment.name}, calculated current: ${calculatedCurrent}, target: ${segment.target}`,
-          );
+
 
           // Detectar género y edad del nombre del segmento
           const nameParts = segment.name.split(" - ");
@@ -642,10 +629,7 @@ export function PollsterSurveyList({
       }
     });
 
-    console.log(
-      "QUOTASDEBUG - Returning segments:",
-      JSON.stringify(allSegments, null, 2),
-    );
+
     return allSegments.length > 0 ? allSegments : null;
   };
 

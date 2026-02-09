@@ -3,12 +3,7 @@
 import { useMemo } from "react";
 import { Target } from "lucide-react";
 
-const QuotaProgressTable = ({
-  survey,
-  answers,
-  pollsterId = null,
-  hideTitle = false,
-}) => {
+const QuotaProgressTable = ({ survey, answers, pollsterId = null, hideTitle = false }) => {
   // Calcular datos de cuotas
   const quotaData = useMemo(() => {
     console.log("QUOTA_TABLA_DEBUG - Component rendered");
@@ -419,9 +414,7 @@ const QuotaProgressTable = ({
           <>
             {genderOptions.map((genderOption, genderIdx) => (
               <div key={genderIdx} className="space-y-2">
-                {genderIdx > 0 && (
-                  <div className="h-px bg-[var(--card-border)]/20 my-4" />
-                )}
+                {genderIdx > 0 && <div className="h-px bg-[var(--card-border)]/20 my-4" />}
                 <div className="text-sm font-bold text-[var(--primary)] mb-2">
                   {genderOption}
                 </div>
@@ -565,10 +558,7 @@ const QuotaProgressTable = ({
                     : 0;
 
                 return (
-                  <tr
-                    key={genderIdx}
-                    className="border-b border-[var(--card-border)]/30"
-                  >
+                  <tr key={genderIdx} className="border-b border-[var(--card-border)]/30">
                     <td className="bg-[var(--card-background)] p-3 text-sm font-semibold text-[var(--text-primary)]">
                       {genderOption}
                     </td>
@@ -679,10 +669,7 @@ const QuotaProgressTable = ({
                 const isComplete = current >= target && target > 0;
 
                 return (
-                  <tr
-                    key={idx}
-                    className="border-b border-[var(--card-border)]/30"
-                  >
+                  <tr key={idx} className="border-b border-[var(--card-border)]/30">
                     <td className="bg-[var(--card-background)] p-3 text-sm font-semibold text-[var(--text-primary)]">
                       {option}
                     </td>

@@ -20,7 +20,11 @@ export function RefreshButton() {
 
   // Monitorear estado de conexión
   useEffect(() => {
-    const updateOnline = () => setIsOnline(navigator.onLine);
+    const updateOnline = () => {
+      const online = navigator.onLine;
+      console.log("🔄 RefreshButton - Estado de conexión:", online);
+      setIsOnline(online);
+    };
     window.addEventListener("online", updateOnline);
     window.addEventListener("offline", updateOnline);
     return () => {
@@ -57,6 +61,7 @@ export function RefreshButton() {
   }
 
   // Ocultar cuando está offline
+  console.log("🔄 RefreshButton - isOnline:", isOnline, "- Mostrando botón:", isOnline);
   if (!isOnline) {
     return null;
   }
