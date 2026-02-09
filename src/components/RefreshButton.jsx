@@ -14,6 +14,20 @@ export function RefreshButton() {
   const pathname = usePathname();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+
+  // Monitorear estado de conexión
+  useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
 
   // Escuchar eventos de edición de perfil
   useEffect(() => {
@@ -39,6 +53,11 @@ export function RefreshButton() {
 
   // Ocultar en página de perfil cuando se está editando
   if (pathname === "/dashboard/perfil" && isProfileEditing) {
+    return null;
+  }
+
+  // Ocultar cuando está offline
+  if (!isOnline) {
     return null;
   }
 
