@@ -73,27 +73,56 @@ export async function replaceAllSurveys(surveys) {
   const db = getSurveysDB();
 
   try {
-    // 1. Obtener todas las encuestas existentes
+    // 1. IDs de las encuestas nuevas del servidor
+    const newIds = new Set(
+      (surveys || []).map((s) => String(s?._id || s?.id || "unknown"))
+    );
+
+    // 2. Obtener TODOS los documentos existentes (índices + detalles)
     const existing = await db.allDocs({ include_docs: true });
+    
+    // 3. Separar índices y detalles
     const indexDocs = existing.rows
       .map((r) => r.doc)
       .filter((d) => typeof d._id === "string" && !d._id.startsWith("survey:"));
+    
+    const detailDocs = existing.rows
+      .map((r) => r.doc)
+      .filter((d) => typeof d._id === "string" && d._id.startsWith("survey:"));
 
-    // 3. Eliminar solo documentos de índice (preservar detalles existentes)
+    // 4. Eliminar índices viejos
     for (const doc of indexDocs) {
       try {
         await db.remove(doc);
       } catch (e) {
-        console.warn("[Pouch] remove old doc error", e);
+        console.warn("[Pouch] remove old index error", e);
       }
     }
 
-    // 4. Insertar las nuevas encuestas (solo índice)
+    // 5. Eliminar detalles que ya no están en el servidor
+    let cleanedCount = 0;
+    for (const detail of detailDocs) {
+      const detailId = detail._id.replace(/^survey:/, "");
+      if (!newIds.has(detailId)) {
+        try {
+          await db.remove(detail);
+          cleanedCount++;
+        } catch (e) {
+          console.warn("[Pouch] remove obsolete detail error", e);
+        }
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`🗑️ [Pouch] Eliminados ${cleanedCount} detalles obsoletos`);
+    }
+
+    // 6. Insertar las nuevas encuestas (solo índice)
     const results = [];
     for (const survey of surveys || []) {
       const surveyId = String(survey?._id || survey?.id || "unknown");
 
-      // 4a. Crear documento de índice (sin prefijo, para la lista)
+      // Crear documento de índice (sin prefijo, para la lista)
       const indexDoc = sanitizeTopLevel({
         _id: surveyId,
         ...survey,
@@ -170,11 +199,24 @@ export async function reconstructIndexesFromDetails() {
 export async function safeReplaceAllSurveys(surveys) {
   const db = getSurveysDB();
   try {
+    // 1. IDs de las encuestas nuevas del servidor
+    const newIds = new Set(
+      (surveys || []).map((s) => String(s?._id || s?.id || "unknown"))
+    );
+
+    // 2. Obtener TODOS los documentos existentes
     const existing = await db.allDocs({ include_docs: true });
+    
+    // 3. Separar índices y detalles
     const indexDocs = existing.rows
       .map((r) => r.doc)
       .filter((d) => typeof d._id === "string" && !d._id.startsWith("survey:"));
-    // Borrar sólo índices
+    
+    const detailDocs = existing.rows
+      .map((r) => r.doc)
+      .filter((d) => typeof d._id === "string" && d._id.startsWith("survey:"));
+
+    // 4. Borrar sólo índices
     for (const doc of indexDocs) {
       try {
         await db.remove(doc);
@@ -182,7 +224,26 @@ export async function safeReplaceAllSurveys(surveys) {
         console.warn("[Pouch] safe remove index error", e);
       }
     }
-    // Insertar índices nuevos
+
+    // 5. Eliminar detalles que ya no están en el servidor
+    let cleanedCount = 0;
+    for (const detail of detailDocs) {
+      const detailId = detail._id.replace(/^survey:/, "");
+      if (!newIds.has(detailId)) {
+        try {
+          await db.remove(detail);
+          cleanedCount++;
+        } catch (e) {
+          console.warn("[Pouch] safe remove obsolete detail error", e);
+        }
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`🗑️ [Pouch] Safe: Eliminados ${cleanedCount} detalles obsoletos`);
+    }
+
+    // 6. Insertar índices nuevos
     const results = [];
     for (const survey of surveys || []) {
       const surveyId = String(survey?._id || survey?.id || "unknown");
