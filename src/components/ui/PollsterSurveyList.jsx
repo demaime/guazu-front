@@ -27,6 +27,7 @@ export function PollsterSurveyList({
   isFinished = false,
   currentUser,
   refreshToken = 0,
+  downloadStatus = {},
 }) {
   const router = useRouter();
   const { shouldStartTutorial } = useTutorial();
@@ -916,6 +917,13 @@ export function PollsterSurveyList({
 
                   {/* Contenido principal */}
                   <div className="px-4 pb-4">
+                    {!isUniversal && downloadStatus[survey._id] === "pending" && (
+                      <div className="mb-3">
+                        <div className="h-1 bg-[var(--card-border)] rounded-full overflow-hidden">
+                          <div className="h-full bg-[var(--primary)] animate-pulse w-1/2" />
+                        </div>
+                      </div>
+                    )}
                     {/* Stats Grid - Estilo mockup */}
                     {!isUniversal && (
                       <div className="space-y-6 mb-6">

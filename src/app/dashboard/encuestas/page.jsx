@@ -101,6 +101,7 @@ export default function Encuestas() {
   const [locationStatus, setLocationStatus] = useState("unknown"); // granted | denied | prompt | unsupported | unknown
   // Flag para evitar toast duplicado en carga inicial
   const fallbackToastShownRef = useRef(false);
+  const [downloadStatus, setDownloadStatus] = useState({});
 
   // --- Estados existentes que se mantienen --- //
   const [openMenuId, setOpenMenuId] = useState(null); // Considerar si aún es necesario
@@ -189,7 +190,19 @@ export default function Encuestas() {
           // Registrar la hora de sync solo en la carga inicial
           await setLastSync(Date.now());
 
-
+          try {
+            setDownloadStatus({});
+            const activeIds = active.map((s) => s._id || s.id).filter(Boolean);
+            for (const id of activeIds) {
+              try {
+                setDownloadStatus((prev) => ({ ...prev, [id]: "pending" }));
+                await surveyService.getSurvey(id);
+                setDownloadStatus((prev) => ({ ...prev, [id]: "done" }));
+              } catch {
+                setDownloadStatus((prev) => ({ ...prev, [id]: "error" }));
+              }
+            }
+          } catch {}
         } catch {}
 
         // Reset flag si la carga fue exitosa
@@ -401,44 +414,28 @@ export default function Encuestas() {
           finished: finishedCount,
         }));
 
-        // Reemplazar completamente el cache EN POUCH SÓLO con ACTIVAS
         try {
-          await replaceAllSurveys(activeSurveys);
-          setSyncProgress((prev) => (prev < 60 ? 60 : prev));
-          // Prefetch: descargar detalle completo de encuestas activas para responder offline sin haberlas abierto
-          try {
-            const activeIds = activeSurveys
-              .map((s) => s._id || s.id)
-              .filter(Boolean);
-            const total = activeIds.length || 1;
-            let done = 0;
-            for (const id of activeIds) {
-              try {
-                await surveyService.getSurvey(id); // este método guarda el detalle en Pouch automáticamente
-              } catch (e) {
-                console.warn(
-                  "[Prefetch] detalle encuesta fallo",
-                  id,
-                  e?.message,
-                );
-              }
-              done += 1;
-              const next = 60 + Math.round((done / total) * 40);
-              setSyncProgress((prev) => (next > prev ? next : prev));
+          const activeIds = activeSurveys
+            .map((s) => s._id || s.id)
+            .filter(Boolean);
+          const total = activeIds.length || 1;
+          let done = 0;
+          for (const id of activeIds) {
+            try {
+              setDownloadStatus((prev) => ({ ...prev, [id]: "pending" }));
+              await surveyService.getSurvey(id);
+              setDownloadStatus((prev) => ({ ...prev, [id]: "done" }));
+            } catch {
+              setDownloadStatus((prev) => ({ ...prev, [id]: "error" }));
             }
-          } catch (e) {
-            console.warn("[Prefetch] no se pudo predescargar detalles", e);
+            done += 1;
+            const next = 60 + Math.round((done / total) * 40);
+            setSyncProgress((prev) => (next > prev ? next : prev));
           }
-          // Prefetch del RSC de la página estable de responder para primer uso offline
           try {
             router.prefetch("/dashboard/encuestas/responder");
           } catch {}
-          // Verificación inmediata de lectura
-          const verify = await getAllSurveysLocal();
-          console.log("[Pouch] verify local after upsert rows=", verify.length);
-        } catch (e) {
-          console.warn("[Pouch] save/verify failed", e);
-        }
+        } catch {}
 
         // Reset flag si la carga fue exitosa
         fallbackToastShownRef.current = false;
@@ -1299,6 +1296,7 @@ export default function Encuestas() {
                   isFinished={activeTab === "finished"}
                   currentUser={user}
                   refreshToken={progressRefreshToken}
+                  downloadStatus={downloadStatus}
                 />
               ) : (
                 <SurveyList
