@@ -65,13 +65,20 @@ const classifyStatus = (survey) => {
     : null;
 
   // 1. FINALIZADA: fecha de fin ya pasó
-  if (endDate && now > endDate) {
-    return {
-      lifecycle: "finalizada",
-      label: "Finalizada",
-      color: "gray",
-      isFinished: true,
-    };
+  // IMPORTANTE: Si la fecha viene sin hora (YYYY-MM-DD), consideramos que finaliza al final del día
+  if (endDate) {
+    // Crear una copia del endDate y establecer la hora al final del día (23:59:59.999)
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    if (now > endOfDay) {
+      return {
+        lifecycle: "finalizada",
+        label: "Finalizada",
+        color: "gray",
+        isFinished: true,
+      };
+    }
   }
 
   // 2. ACTIVA: todavía en fecha
@@ -163,7 +170,7 @@ const ActionButton = ({
     warning:
       "bg-[color:var(--warning-bg)] text-[color:var(--warning)] hover:bg-[color:var(--warning-bg)]/80 border border-[color:var(--warning-border)]/70",
     alert:
-      "bg-yellow-500/10 text-[color:var(--text-primary)] hover:bg-yellow-500/20 border border-yellow-500/40",
+      "bg-[color:var(--warning-bg)] text-[color:var(--warning)] hover:bg-[color:var(--warning-bg)]/80 border border-[color:var(--warning-border)]/70",
   };
 
   const finalVariant = hasAlert ? "alert" : variant;
@@ -1291,6 +1298,76 @@ export default function TemporalPage() {
                       ? "ring-2 ring-[color:var(--primary)]/30 bg-[color:var(--primary)]/5"
                       : ""
                   }`}
+                  onClick={(e) => {
+                    // DEBUG TEMPORAL - Log de fechas
+                    if (e.altKey) { // Solo si presionas Alt + Click
+                      e.stopPropagation();
+                      const now = new Date();
+                      const endDate = survey.endDate ? new Date(survey.endDate) : null;
+                      const startDate = survey.startDate ? new Date(survey.startDate) : null;
+                      
+                      console.log('═══════════════════════════════════════════════════════');
+                      console.log(`📊 DEBUG ENCUESTA: ${survey.title}`);
+                      console.log('═══════════════════════════════════════════════════════');
+                      console.log('⏰ AHORA (hora local del navegador):');
+                      console.log(`   ${now.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} (AR)`);
+                      console.log(`   ${now.toISOString()} (ISO/UTC)`);
+                      console.log(`   ${now.toString()}`);
+                      console.log('');
+                      console.log('📅 FECHA DE INICIO:');
+                      console.log(`   Raw del backend: ${survey.startDate}`);
+                      if (startDate) {
+                        console.log(`   Parseado: ${startDate.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} (AR)`);
+                        console.log(`   ISO/UTC: ${startDate.toISOString()}`);
+                      }
+                      console.log('');
+                      console.log('📅 FECHA DE FIN:');
+                      console.log(`   Raw del backend: ${survey.endDate}`);
+                      if (endDate) {
+                        console.log(`   Parseado: ${endDate.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} (AR)`);
+                        console.log(`   ISO/UTC: ${endDate.toISOString()}`);
+                        console.log(`   Timestamp: ${endDate.getTime()}`);
+                      }
+                      console.log('');
+                      console.log('⏱️ CÁLCULOS:');
+                      if (endDate) {
+                        // Comparación original (hora exacta que viene del backend)
+                        const diffMs = endDate - now;
+                        const diffHours = diffMs / (1000 * 60 * 60);
+                        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                        const diffDaysCeil = Math.ceil(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
+                        
+                        // Comparación con end of day (lo que usa classifyStatus)
+                        const endOfDay = new Date(endDate);
+                        endOfDay.setHours(23, 59, 59, 999);
+                        const diffMsEOD = endOfDay - now;
+                        const diffHoursEOD = diffMsEOD / (1000 * 60 * 60);
+                        const diffDaysEOD = Math.ceil(diffMsEOD / (1000 * 60 * 60 * 24));
+                        
+                        console.log('   🔹 Usando hora exacta del backend:');
+                        console.log(`      Diferencia en ms: ${diffMs}`);
+                        console.log(`      Diferencia en horas: ${diffHours.toFixed(2)} hs`);
+                        console.log(`      Diferencia en días (real): ${diffDays.toFixed(2)} días`);
+                        console.log(`      Diferencia en días (Math.abs + ceil): ${diffDaysCeil} días`);
+                        console.log(`      Ya finalizó? (now > endDate): ${now > endDate}`);
+                        console.log('');
+                        console.log('   🔹 Usando END OF DAY (23:59:59.999):');
+                        console.log(`      End of day: ${endOfDay.toISOString()}`);
+                        console.log(`      Diferencia en ms: ${diffMsEOD}`);
+                        console.log(`      Diferencia en horas: ${diffHoursEOD.toFixed(2)} hs`);
+                        console.log(`      Diferencia en días (ceil): ${diffDaysEOD} días`);
+                        console.log(`      Ya finalizó? (now > endOfDay): ${now > endOfDay}`);
+                      }
+                      console.log('');
+                      console.log('📌 ESTADO:');
+                      console.log(`   Status: ${survey.status}`);
+                      console.log(`   isFinished: ${survey.isFinished}`);
+                      console.log(`   isActive: ${survey.isActive}`);
+                      console.log(`   isPaused: ${survey.isPaused}`);
+                      console.log(`   isPending: ${survey.isPending}`);
+                      console.log('═══════════════════════════════════════════════════════');
+                    }
+                  }}
                 >
                   <div className="flex flex-col gap-2.5">
                     {/* Primera línea: Título (grande) + Tag (top-right, superpuesto) */}
@@ -1333,10 +1410,40 @@ export default function TemporalPage() {
                         (() => {
                           const now = new Date();
                           const end = new Date(survey.endDate);
-                          const diffTime = Math.abs(end - now);
-                          const diffDays = Math.ceil(
-                            diffTime / (1000 * 60 * 60 * 24),
-                          );
+                          // Establecer al final del día para consistencia con classifyStatus
+                          end.setHours(23, 59, 59, 999);
+                          
+                          const diffMs = end - now;
+                          const diffHours = diffMs / (1000 * 60 * 60);
+                          
+                          // Si quedan menos de 24 horas, mostrar horas
+                          if (Math.abs(diffHours) < 24) {
+                            const hours = Math.ceil(Math.abs(diffHours));
+                            if (diffMs < 0) {
+                              return (
+                                <span className="text-xs text-red-500 font-semibold">
+                                  (finalizó hace {hours}h)
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="text-xs text-[color:var(--text-secondary)] opacity-70">
+                                (quedan {hours}h)
+                              </span>
+                            );
+                          }
+                          
+                          // Si quedan más de 24 horas, mostrar días
+                          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                          
+                          if (diffDays < 0) {
+                            return (
+                              <span className="text-xs text-red-500 font-semibold">
+                                (finalizó hace {Math.abs(diffDays)} días)
+                              </span>
+                            );
+                          }
+                          
                           return (
                             <span className="text-xs text-[color:var(--text-secondary)] opacity-70">
                               (quedan {diffDays} días)

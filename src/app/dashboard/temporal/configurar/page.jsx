@@ -1214,7 +1214,11 @@ export default function ConfigurarEncuesta() {
                       
                       {/* Mensaje de advertencia si hay preguntas cuota */}
                       {tienePreguntasCuota && (
-                        <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1.5">
+                        <div className="mt-2 p-2 rounded text-xs flex items-center gap-1.5" style={{ 
+                          backgroundColor: 'var(--warning-bg)', 
+                          border: '1px solid var(--warning-border)', 
+                          color: 'var(--warning)' 
+                        }}>
                           <AlertCircle size={14} className="flex-shrink-0" />
                           <span>Tu encuesta tiene preguntas de tipo cuota</span>
                         </div>

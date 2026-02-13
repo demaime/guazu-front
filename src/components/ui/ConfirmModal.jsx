@@ -26,8 +26,8 @@ export function ConfirmModal({
       alert: "bg-[color:var(--primary-light)]/10 border-[color:var(--primary)]/20 text-[color:var(--text-primary)]",
     },
     warning: {
-      button: "bg-yellow-500 hover:bg-yellow-600 text-white",
-      alert: "bg-yellow-500/10 border-yellow-500/20 text-yellow-700 dark:text-yellow-300",
+      button: "text-white hover:opacity-90",
+      alert: "",
     },
   };
 
@@ -73,7 +73,14 @@ export function ConfirmModal({
             
             {/* Alert Message with theme support */}
             {alertMessage && (
-              <div className={`mt-3 p-3 rounded-lg border flex items-start gap-2 ${variants[variant].alert}`}>
+              <div 
+                className={`mt-3 p-3 rounded-lg border flex items-start gap-2 ${variants[variant].alert}`}
+                style={variant === 'warning' ? {
+                  backgroundColor: 'var(--warning-bg)',
+                  borderColor: 'var(--warning-border)',
+                  color: 'var(--warning)'
+                } : undefined}
+              >
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span className="text-xs text-left">
                   {alertMessage}
@@ -97,6 +104,7 @@ export function ConfirmModal({
               onClick={onConfirm}
               disabled={isLoading}
               className={`px-4 py-2 rounded-md transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed font-medium ${variants[variant].button}`}
+              style={variant === 'warning' ? { backgroundColor: 'var(--warning)' } : undefined}
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               {confirmText}
