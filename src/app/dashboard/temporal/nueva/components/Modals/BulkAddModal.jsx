@@ -12,6 +12,9 @@ export default function BulkAddModal({
   title = "Carga rápida de opciones",
   placeholder = "Ingresa una opción por línea...\n\nEjemplo:\nBuena\nMala\nRegular"
 }) {
+  // IMPORTANTE: Todos los hooks deben estar al inicio, antes de cualquier return condicional
+  const isMobile = useMobileDetect();
+  
   const [isAnimating, setIsAnimating] = useState(false);
   const [texto, setTexto] = useState('');
   const [showPreview, setShowPreview] = useState(false);
@@ -116,8 +119,6 @@ export default function BulkAddModal({
       i === index ? { ...op, text: newText } : op
     ));
   };
-
-  const isMobile = useMobileDetect();
 
   // Mobile: Full-screen vertical layout
   if (isMobile) {

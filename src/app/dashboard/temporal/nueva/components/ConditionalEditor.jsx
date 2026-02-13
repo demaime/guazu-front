@@ -24,11 +24,18 @@ export default function ConditionalEditor({
   const [modalOpen, setModalOpen] = useState(false);
   const [expandida, setExpandida] = useState(null);
 
-  // Operadores disponibles
-  const operadoresChoice = [
+  // Operadores disponibles para single choice (radiogroup, dropdown)
+  const operadoresSingleChoice = [
     { value: 'igual', label: 'es igual a' },
-    { value: 'diferente', label: 'es diferente de' },
-    { value: 'contiene', label: 'contiene' }
+    { value: 'diferente', label: 'es diferente de' }
+  ];
+
+  // Operadores para multiple choice (checkbox)
+  const operadoresMultipleChoice = [
+    { value: 'contiene-alguna', label: 'contiene alguna de estas' },
+    { value: 'contiene-todas', label: 'contiene todas estas' },
+    { value: 'no-contiene-ninguna', label: 'no contiene ninguna de estas' },
+    { value: 'igual', label: 'es exactamente igual a' }
   ];
 
   const operadoresNumericos = [
@@ -45,7 +52,7 @@ export default function ConditionalEditor({
   // Obtener operadores según tipo de pregunta
   const getOperadoresParaPregunta = (preguntaId) => {
     const pregunta = getPreguntaById(preguntaId);
-    if (!pregunta) return operadoresChoice;
+    if (!pregunta) return operadoresSingleChoice;
 
     // Tipos numéricos
     const tiposNumericos = ['number', 'rating'];
@@ -53,14 +60,19 @@ export default function ConditionalEditor({
       return operadoresNumericos;
     }
 
-    // Tipos con opciones (choice)
-    const tiposChoice = ['radiogroup', 'checkbox', 'dropdown', 'boolean', 'imagepicker'];
-    if (tiposChoice.includes(pregunta.type)) {
-      return operadoresChoice;
+    // Multiple choice (checkbox) - tiene operadores especiales
+    if (pregunta.type === 'checkbox' || pregunta.tipo === 'opcion-multiple') {
+      return operadoresMultipleChoice;
     }
 
-    // Por defecto, operadores de choice
-    return operadoresChoice;
+    // Single choice (radiogroup, dropdown, etc.)
+    const tiposSingleChoice = ['radiogroup', 'dropdown', 'boolean', 'imagepicker'];
+    if (tiposSingleChoice.includes(pregunta.type) || pregunta.tipo === 'opcion-unica' || pregunta.tipo === 'desplegable') {
+      return operadoresSingleChoice;
+    }
+
+    // Por defecto, operadores de single choice
+    return operadoresSingleChoice;
   };
 
   const toggleActiva = () => {
@@ -71,11 +83,21 @@ export default function ConditionalEditor({
   };
 
   const agregarCondicion = () => {
+    // Determinar operador por defecto según el tipo de pregunta
+    const primeraPregunta = preguntasDisponibles[0];
+    let operadorPorDefecto = 'igual';
+    
+    if (primeraPregunta) {
+      const operadoresDisponibles = getOperadoresParaPregunta(primeraPregunta.id);
+      // Usar el primer operador disponible como default
+      operadorPorDefecto = operadoresDisponibles[0]?.value || 'igual';
+    }
+    
     const nuevaCondicion = {
       id: Date.now(),
       tipo: 'mostrar',
-      preguntaId: preguntasDisponibles[0]?.id || null,
-      operador: 'igual',
+      preguntaId: primeraPregunta?.id || null,
+      operador: operadorPorDefecto,
       valores: [],
       valorMin: '',
       valorMax: ''
@@ -127,7 +149,8 @@ export default function ConditionalEditor({
     if (!pregunta) return 'Seleccionar pregunta...';
 
     const operadoresDisponibles = getOperadoresParaPregunta(condicion.preguntaId);
-    const operadorLabel = operadoresDisponibles.find(o => o.value === condicion.operador)?.label || condicion.operador;
+    const operadorObj = operadoresDisponibles.find(o => o.value === condicion.operador);
+    const operadorLabel = operadorObj?.label || condicion.operador;
     
     if (condicion.operador === 'entre') {
       return `"${pregunta.text?.substring(0, 25)}..." ${operadorLabel} ${condicion.valorMin} y ${condicion.valorMax}`;
@@ -138,7 +161,18 @@ export default function ConditionalEditor({
         const opcion = pregunta.opciones?.find(o => o.value === v);
         return opcion?.text?.substring(0, 12) || v;
       }).join(', ');
-      return `"${pregunta.text?.substring(0, 20)}..." ${operadorLabel} [${valoresTexto}]`;
+      
+      // Mostrar mejor resumen según el operador
+      let prefijo = '';
+      if (condicion.operador === 'contiene-todas') {
+        prefijo = 'TODAS: ';
+      } else if (condicion.operador === 'no-contiene-ninguna') {
+        prefijo = 'NINGUNA: ';
+      } else if (condicion.operador === 'contiene-alguna') {
+        prefijo = 'ALGUNA: ';
+      }
+      
+      return `"${pregunta.text?.substring(0, 20)}..." → ${prefijo}${valoresTexto}`;
     }
     
     return `"${pregunta.text?.substring(0, 25)}..." ${operadorLabel} ...`;
@@ -259,7 +293,7 @@ export default function ConditionalEditor({
                 const preguntaSeleccionada = getPreguntaById(condicion.preguntaId);
                 const esExpandida = expandida === condicion.id;
                 const necesitaRango = condicion.operador === 'entre';
-                const necesitaValores = ['igual', 'diferente', 'contiene'].includes(condicion.operador);
+                const necesitaValores = ['igual', 'diferente', 'contiene-alguna', 'contiene-todas', 'no-contiene-ninguna'].includes(condicion.operador);
 
 
 
@@ -320,7 +354,7 @@ export default function ConditionalEditor({
                               
                               actualizarCondicion(condicion.id, { 
                                 preguntaId: nuevaPreguntaId,
-                                operador: operadorActualValido ? condicion.operador : 'igual',
+                                operador: operadorActualValido ? condicion.operador : (operadoresDisponibles[0]?.value || 'igual'),
                                 valores: [],
                                 valorMin: '',
                                 valorMax: ''
@@ -365,7 +399,11 @@ export default function ConditionalEditor({
                          necesitaValores && (
                           <div>
                             <label className="block text-xs text-[color:var(--text-secondary)] mb-1.5 font-medium">
-                              Alguno de estos valores:
+                              {condicion.operador === 'contiene-todas' 
+                                ? 'Todas estas opciones:' 
+                                : condicion.operador === 'no-contiene-ninguna'
+                                ? 'Ninguna de estas opciones:'
+                                : 'Seleccione una o más opciones:'}
                             </label>
                             <div className="flex flex-wrap gap-2">
                               {preguntaSeleccionada.opciones.map((opcion, opcionIdx) => {

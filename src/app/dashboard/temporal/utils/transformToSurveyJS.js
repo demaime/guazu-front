@@ -162,30 +162,10 @@ function transformPregunta(pregunta, preguntaIdToValue = {}) {
 
   // Procesar condiciones si existen
   if (pregunta.condicionada?.activa && pregunta.condicionada.condiciones?.length > 0) {
-    // Generar expresión visibleIf usando el mapa de ID a value
-    const conditions = pregunta.condicionada.condiciones.map(cond => {
-      // Mapear el ID de la pregunta a su value
-      const preguntaValue = preguntaIdToValue[cond.preguntaId] || cond.preguntaId;
-      const preguntaRef = `{${preguntaValue}}`;
-      const operador = cond.operador === 'igual' ? '=' : '!=';
-      
-      if (Array.isArray(cond.valores) && cond.valores.length > 0) {
-        // Múltiples valores con OR
-        return `(${cond.valores.map(v => `${preguntaRef} ${operador} '${v}'`).join(' or ')})`;
-      } else if (cond.valorMin !== undefined && cond.valorMin !== '') {
-        // Condición numérica
-        if (cond.operador === 'entre') {
-          return `(${preguntaRef} >= ${cond.valorMin} and ${preguntaRef} <= ${cond.valorMax})`;
-        } else {
-          const op = cond.operador === 'mayor' ? '>' : cond.operador === 'menor' ? '<' : '=';
-          return `${preguntaRef} ${op} ${cond.valorMin}`;
-        }
-      }
-      return '';
-    }).filter(c => c);
-
-    if (conditions.length > 0) {
-      element.visibleIf = conditions.join(' and ');
+    // Usar la función generarVisibleIf para mantener consistencia
+    const visibleIfExpression = generarVisibleIf(pregunta.condicionada, preguntaIdToValue);
+    if (visibleIfExpression) {
+      element.visibleIf = visibleIfExpression;
     }
   }
 
@@ -209,31 +189,46 @@ function generarVisibleIf(condicionada, preguntaIdToValue = {}) {
     const preguntaValue = preguntaIdToValue[cond.preguntaId] || cond.preguntaId;
     const preguntaRef = `{${preguntaValue}}`;
     
-    // Mapear operadores
-    const operadorMap = {
-      'igual': '=',
-      'diferente': '!=',
-      'contiene': 'contains',
-      'mayor': '>',
-      'menor': '<'
-    };
-    
+    // Condición numérica entre
     if (cond.operador === 'entre' && cond.valorMin !== '' && cond.valorMax !== '') {
       return `(${preguntaRef} >= ${cond.valorMin} and ${preguntaRef} <= ${cond.valorMax})`;
     }
     
+    // Condiciones numéricas mayor/menor
     if (['mayor', 'menor'].includes(cond.operador) && cond.valorMin !== '') {
-      return `${preguntaRef} ${operadorMap[cond.operador]} ${cond.valorMin}`;
+      const op = cond.operador === 'mayor' ? '>' : '<';
+      return `${preguntaRef} ${op} ${cond.valorMin}`;
     }
     
+    // Condiciones con valores (opciones)
     if (Array.isArray(cond.valores) && cond.valores.length > 0) {
-      const operador = operadorMap[cond.operador] || '=';
-      if (operador === 'contains') {
-        // Para contains, cada valor es una condición OR
+      // Operador "contiene alguna" - para checkbox, al menos una opción debe estar seleccionada
+      if (cond.operador === 'contiene-alguna') {
         return `(${cond.valores.map(v => `${preguntaRef} contains '${v}'`).join(' or ')})`;
-      } else {
-        // Para = o !=, múltiples valores son OR
-        return `(${cond.valores.map(v => `${preguntaRef} ${operador} '${v}'`).join(' or ')})`;
+      }
+      
+      // Operador "contiene todas" - para checkbox, todas las opciones deben estar seleccionadas
+      if (cond.operador === 'contiene-todas') {
+        return `(${cond.valores.map(v => `${preguntaRef} contains '${v}'`).join(' and ')})`;
+      }
+      
+      // Operador "no contiene ninguna" - para checkbox, ninguna de las opciones debe estar seleccionada
+      // Usamos nocontains o negación con contains
+      if (cond.operador === 'no-contiene-ninguna') {
+        // Generar: NOT (contiene A OR contiene B OR contiene C)
+        const containsConditions = cond.valores.map(v => `${preguntaRef} contains '${v}'`).join(' or ');
+        return `!(${containsConditions})`;
+      }
+      
+      // Operador "igual" - para single choice o para checkbox con comparación exacta
+      if (cond.operador === 'igual') {
+        // Para single choice, comparar con cada valor usando OR
+        return `(${cond.valores.map(v => `${preguntaRef} = '${v}'`).join(' or ')})`;
+      }
+      
+      // Operador "diferente"
+      if (cond.operador === 'diferente') {
+        return `(${cond.valores.map(v => `${preguntaRef} != '${v}'`).join(' and ')})`;
       }
     }
     
