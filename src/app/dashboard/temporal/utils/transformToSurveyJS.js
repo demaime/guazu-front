@@ -280,6 +280,16 @@ export function transformModulosToSurveyJS(modulos) {
         elements: [pregunta]
       };
 
+      // Agregar título del módulo (se mostrará arriba de cada pregunta del módulo)
+      if (modulo.nombre) {
+        page.title = modulo.nombre;
+      }
+
+      // Agregar descripción del módulo (se mostrará debajo del título)
+      if (modulo.descripcion) {
+        page.description = modulo.descripcion;
+      }
+
       // Si el módulo tiene condiciones, aplicarlas a la página
       if (visibleIfModulo) {
         page.visibleIf = visibleIfModulo;

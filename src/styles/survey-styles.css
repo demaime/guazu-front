@@ -32,6 +32,35 @@
   margin-bottom: 32px !important; /* Aún más espacio debajo del progreso */
 }
 
+/* === TÍTULO Y DESCRIPCIÓN DE PÁGINA (MÓDULO) === */
+
+/* Título de la página/módulo - estilo de superíndice/encabezado */
+.sd-page__title {
+  display: block !important;
+  font-size: 0.875rem !important; /* 14px - más pequeño que la pregunta */
+  font-weight: 600 !important;
+  color: var(--sjs-primary-backcolor) !important; /* Color primario para destacar */
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  margin-top: 24px !important; /* Más espacio arriba para separar del "Respondido X/Y" */
+  margin-bottom: 8px !important;
+  padding: 6px 12px !important;
+  background: var(--sjs-primary-backcolor-semi) !important;
+  border-left: 3px solid var(--sjs-primary-backcolor) !important;
+  border-radius: 4px !important;
+}
+
+/* Descripción de la página/módulo */
+.sd-page__description {
+  display: block !important;
+  font-size: 0.875rem !important;
+  color: var(--sjs-general-forecolor-light) !important;
+  line-height: 1.5 !important;
+  margin-bottom: 16px !important;
+  padding-left: 15px !important; /* Alineado con el borde izquierdo del título */
+  font-style: italic !important;
+}
+
 /* === RESPONSIVIDAD PARA MATRICES === */
 
 /* Contenedor de tabla de matriz */
