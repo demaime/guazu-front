@@ -114,6 +114,7 @@ export default function FormBuilder() {
   const [valoresTempModal, setValoresTempModal] = useState([]);
 
   const [modalEditarPregunta, setModalEditarPregunta] = useState(null); // { moduloId, preguntaId }
+  const [isNewQuestion, setIsNewQuestion] = useState(false);
   const [modalConfirmEliminar, setModalConfirmEliminar] = useState(null); // { tipo: 'modulo'|'pregunta', data: {...} }
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [modalValidacion, setModalValidacion] = useState(null); // { title, message }
@@ -628,7 +629,6 @@ export default function FormBuilder() {
     );
     const nuevaPregunta = {
       ...crearPreguntaBase(),
-      value: generarValue(totalPreguntas + 1),
     };
     setModulos(
       modulos.map((m) =>
@@ -640,9 +640,10 @@ export default function FormBuilder() {
     setModuloCondicionandose(null);
     setModuloDinamizandose(null);
 
-    // Abrir modal de edición automáticamente
+    // Abrir modal de edición automáticamente marcando la pregunta como nueva
     setTimeout(() => {
       abrirModalEditarPregunta(moduloId, nuevaPregunta.id);
+      setIsNewQuestion(true);
     }, 100);
   };
 
@@ -667,6 +668,15 @@ export default function FormBuilder() {
 
   const cerrarModalEditarPregunta = () => {
     setModalEditarPregunta(null);
+    setIsNewQuestion(false);
+  };
+
+  const descartarNuevaPregunta = () => {
+    if (modalEditarPregunta) {
+      eliminarPregunta(modalEditarPregunta.moduloId, modalEditarPregunta.preguntaId);
+    }
+    setModalEditarPregunta(null);
+    setIsNewQuestion(false);
   };
 
   const guardarPreguntaDesdeModal = (updates) => {
@@ -677,6 +687,7 @@ export default function FormBuilder() {
         updates,
       );
     }
+    setIsNewQuestion(false);
   };
 
   const getPreguntaActual = () => {
@@ -1399,6 +1410,8 @@ export default function FormBuilder() {
         <QuestionEditorModal
           isOpen={modalEditarPregunta !== null}
           onClose={cerrarModalEditarPregunta}
+          isNew={isNewQuestion}
+          onDiscard={descartarNuevaPregunta}
           pregunta={getPreguntaActual()}
           moduloId={modalEditarPregunta?.moduloId}
           onSave={guardarPreguntaDesdeModal}

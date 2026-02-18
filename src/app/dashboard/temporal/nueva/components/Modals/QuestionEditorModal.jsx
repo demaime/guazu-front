@@ -14,6 +14,8 @@ import ConfirmModal from './ConfirmModal';
 export default function QuestionEditorModal({ 
   isOpen, 
   onClose, 
+  isNew = false,
+  onDiscard,
   pregunta,
   moduloId,
   onSave,
@@ -27,8 +29,12 @@ export default function QuestionEditorModal({
   const [bulkAddModalOpen, setBulkAddModalOpen] = useState(false);
   const [bulkAddTarget, setBulkAddTarget] = useState(null); // 'opciones' | 'filas' | 'columnas'
   const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationMessage, setValidationMessage] = useState('');
   const [showQuotaWarning, setShowQuotaWarning] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
   const isMobile = useMobileDetect();
+
+  const TIPOS_CON_OPCIONES = ['opcion-unica', 'opcion-multiple', 'desplegable', 'ordenar', 'cuota-genero', 'cuota-edad'];
 
   const renumerar = (ops = []) => ops.map((opt, i) => ({ ...opt, value: String(i + 1) }));
 
@@ -92,6 +98,7 @@ export default function QuestionEditorModal({
     } else {
       setIsAnimating(false);
       setEditedData({});
+      setValidationErrors({});
     }
   }, [isOpen, pregunta]);
 
@@ -121,18 +128,55 @@ export default function QuestionEditorModal({
   const Icon = tipoActual?.icon;
 
   const handleSave = () => {
-    // Validar que si está marcada como condicional, tenga al menos una condición
+    const errors = {};
+
+    if (!editedData.text?.trim()) {
+      errors.text = true;
+    }
+
+    if (!editedData.value?.trim()) {
+      errors.value = true;
+    }
+
+    if (TIPOS_CON_OPCIONES.includes(editedData.tipo)) {
+      const opcionesConTexto = (editedData.opciones || []).filter(o => o.text?.trim());
+      if (opcionesConTexto.length < 2) {
+        errors.opciones = true;
+      }
+    }
+
     if (editedData.condicionada?.activa && (!editedData.condicionada.condiciones || editedData.condicionada.condiciones.length === 0)) {
+      errors.condicionada = true;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+
+      let msg = '';
+      if (errors.text) msg = 'Debes ingresar el texto de la pregunta.';
+      else if (errors.value) msg = 'Debes ingresar el nombre de la variable de la pregunta.';
+      else if (errors.opciones) msg = 'Este tipo de pregunta requiere al menos 2 opciones con texto.';
+      else if (errors.condicionada) msg = 'Ha marcado esta pregunta como condicional pero no ha establecido ninguna condición. Por favor, indique al menos una condición o desactive la casilla.';
+
+      setValidationMessage(msg);
       setShowValidationModal(true);
       return;
     }
-    
+
+    setValidationErrors({});
     onSave(editedData);
     onClose();
   };
 
   const updateField = (field, value) => {
     setEditedData(prev => ({ ...prev, [field]: value }));
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   const handleBulkAdd = (target) => {
@@ -274,31 +318,37 @@ export default function QuestionEditorModal({
     <>
       {/* Variable name */}
       <div>
-        <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-          Variable (nombre interno)
+        <label className={`block text-xs font-semibold mb-2 uppercase tracking-wide ${validationErrors.value ? 'text-red-500' : 'text-[color:var(--text-secondary)]'}`}>
+          Variable (nombre interno) <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           value={editedData.value || ''}
           onChange={(e) => updateField('value', e.target.value)}
-          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-base font-mono transition-all"
-          placeholder="p1"
+          className={`w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border ${validationErrors.value ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-[color:var(--primary)]/20'} focus:ring-2 focus:outline-none text-base font-mono transition-all`}
+          placeholder="Ej: p1, edad, genero..."
         />
+        {validationErrors.value && (
+          <p className="text-xs text-red-500 mt-1">Este campo es obligatorio.</p>
+        )}
       </div>
 
       {/* Texto de la pregunta */}
       <div>
-        <label className="block text-xs font-semibold text-[color:var(--text-secondary)] mb-2 uppercase tracking-wide">
-          Texto de la pregunta
+        <label className={`block text-xs font-semibold mb-2 uppercase tracking-wide ${validationErrors.text ? 'text-red-500' : 'text-[color:var(--text-secondary)]'}`}>
+          Texto de la pregunta <span className="text-red-500">*</span>
         </label>
         <textarea
           value={editedData.text || ''}
           onChange={(e) => updateField('text', e.target.value)}
           placeholder="Escribe aquí la pregunta que verá el usuario..."
           rows={3}
-          className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-base transition-all resize-none"
+          className={`w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border ${validationErrors.text ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-[color:var(--primary)]/20'} focus:ring-2 focus:outline-none text-base transition-all resize-none`}
           autoFocus
         />
+        {validationErrors.text && (
+          <p className="text-xs text-red-500 mt-1">Este campo es obligatorio.</p>
+        )}
       </div>
 
       {/* Tipo de pregunta */}
@@ -356,7 +406,7 @@ export default function QuestionEditorModal({
           {/* Header */}
           <div className="flex items-center gap-3 p-4 border-b border-[color:var(--card-border)] bg-[color:var(--card-background)]">
             <button
-              onClick={onClose}
+              onClick={isNew && onDiscard ? onDiscard : onClose}
               className="p-2 -ml-2 text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)] rounded-lg transition-colors"
             >
               <ArrowLeft size={20} />
@@ -372,7 +422,7 @@ export default function QuestionEditorModal({
           {/* Footer */}
           <div className="p-4 border-t border-[color:var(--card-border)] bg-[color:var(--card-background)] flex gap-3">
             <button
-              onClick={onClose}
+              onClick={isNew && onDiscard ? onDiscard : onClose}
               className="flex-1 px-4 py-3 rounded-lg border-2 border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] hover:text-[color:var(--text-primary)] font-medium transition-colors"
             >
               Cancelar
@@ -411,8 +461,8 @@ export default function QuestionEditorModal({
           isOpen={showValidationModal}
           onClose={() => setShowValidationModal(false)}
           onConfirm={() => setShowValidationModal(false)}
-          title="Pregunta condicional sin condiciones"
-          message="Ha marcado esta pregunta como condicional pero no ha establecido ninguna condición. Por favor, indique al menos una condición o desactive la casilla."
+          title="Campos obligatorios incompletos"
+          message={validationMessage}
           confirmText="Entendido"
           cancelText={null}
         />
@@ -447,7 +497,7 @@ export default function QuestionEditorModal({
         <div className="p-4 border-b border-[color:var(--card-border)] flex items-center justify-between">
           <h3 className="text-lg font-semibold text-[color:var(--text-primary)]">Editar pregunta</h3>
           <button
-            onClick={onClose}
+            onClick={isNew && onDiscard ? onDiscard : onClose}
             className="p-2 text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)] rounded-lg transition-colors"
           >
             <X size={20} />
@@ -462,7 +512,7 @@ export default function QuestionEditorModal({
         {/* Footer */}
         <div className="p-4 border-t border-[color:var(--card-border)] flex gap-3">
           <button
-            onClick={onClose}
+            onClick={isNew && onDiscard ? onDiscard : onClose}
             className="flex-1 px-4 py-2.5 rounded-lg border-2 border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] hover:text-[color:var(--text-primary)] font-medium transition-colors text-sm"
           >
             Cancelar
@@ -502,8 +552,8 @@ export default function QuestionEditorModal({
         isOpen={showValidationModal}
         onClose={() => setShowValidationModal(false)}
         onConfirm={() => setShowValidationModal(false)}
-        title="Pregunta condicional sin condiciones"
-        message="Ha marcado esta pregunta como condicional pero no ha establecido ninguna condición. Por favor, indique al menos una condición o desactive la casilla."
+        title="Campos obligatorios incompletos"
+        message={validationMessage}
         confirmText="Entendido"
         cancelText={null}
       />
