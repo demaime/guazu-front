@@ -9,6 +9,7 @@ import MultiTextFieldsEditor from '../MultiTextFieldsEditor';
 import ScaleEditor from '../ScaleEditor';
 import BulkAddModal from './BulkAddModal';
 import ConditionalEditor from '../ConditionalEditor';
+import ValidatorsEditor from '../ValidatorsEditor';
 import ConfirmModal from './ConfirmModal';
 
 export default function QuestionEditorModal({ 
@@ -53,7 +54,8 @@ export default function QuestionEditorModal({
           columnas: pregunta.columnas || [],
           campos: pregunta.campos || [],
           configuracionEscala: pregunta.configuracionEscala || {},
-          condicionada: pregunta.condicionada || { activa: false, condiciones: [] }
+          condicionada: pregunta.condicionada || { activa: false, condiciones: [] },
+          validadores: pregunta.validadores || { activo: false, reglas: [] },
         };
 
         // Inicializar para cuota-genero
@@ -253,8 +255,20 @@ export default function QuestionEditorModal({
       );
     }
 
+    // Numérica: validadores
+    if (tipo === 'numerica') {
+      const preguntasNumericas = preguntasDisponibles.filter((p) => p.tipo === 'numerica');
+      return (
+        <ValidatorsEditor
+          validadores={editedData.validadores || { activo: false, reglas: [] }}
+          preguntasNumericas={preguntasNumericas}
+          onUpdate={(val) => updateField('validadores', val)}
+        />
+      );
+    }
+
     // Tipos sin configuración especial
-    if (['texto', 'numerica', 'fecha', 'foto', 'microfono'].includes(tipo)) {
+    if (['texto', 'fecha', 'foto', 'microfono'].includes(tipo)) {
       return (
         <div className="bg-[color:var(--hover-bg)] border border-[color:var(--card-border)] rounded-lg p-4">
           <p className="text-xs text-[color:var(--text-secondary)] text-center">

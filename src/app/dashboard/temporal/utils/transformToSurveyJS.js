@@ -51,14 +51,6 @@ function transformPregunta(pregunta, preguntaIdToValue = {}) {
 
     case 'numerica':
       element.inputType = 'number';
-      if (pregunta.validadores?.numerica) {
-        if (pregunta.validadores.numerica.min !== '') {
-          element.min = pregunta.validadores.numerica.min;
-        }
-        if (pregunta.validadores.numerica.max !== '') {
-          element.max = pregunta.validadores.numerica.max;
-        }
-      }
       break;
 
     case 'fecha':
@@ -158,6 +150,38 @@ function transformPregunta(pregunta, preguntaIdToValue = {}) {
       element.storeDataAsText = false;
       element.maxSize = 10485760; // 10MB
       break;
+  }
+
+  // Procesar validadores si existen
+  if (pregunta.validadores?.activo && pregunta.validadores.reglas?.length > 0) {
+    const validators = pregunta.validadores.reglas
+      .map((regla) => {
+        if (regla.tipo === 'rango') {
+          const v = { type: 'numeric' };
+          if (regla.min !== '' && regla.min !== undefined) v.minValue = Number(regla.min);
+          if (regla.max !== '' && regla.max !== undefined) v.maxValue = Number(regla.max);
+          if (regla.mensaje) v.text = regla.mensaje;
+          return v;
+        }
+        if (regla.tipo === 'comparacion') {
+          const otherRef =
+            regla.compararConTipo === 'pregunta'
+              ? `{${preguntaIdToValue[regla.compararConPreguntaId] || regla.compararConPreguntaId}}`
+              : regla.compararConValor;
+          if (!otherRef) return null;
+          return {
+            type: 'expression',
+            expression: `{${element.name}} ${regla.operador} ${otherRef}`,
+            text: regla.mensaje || undefined,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (validators.length > 0) {
+      element.validators = validators;
+    }
   }
 
   // Procesar condiciones si existen

@@ -555,11 +555,6 @@ export default function FormBuilder() {
     validadores: {
       activo: false,
       reglas: [],
-      numerica: {
-        min: "",
-        max: "",
-        soloEnteros: true,
-      },
     },
     condicionada: {
       activa: false,
