@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   FolderPlus,
@@ -43,6 +43,7 @@ export default function FormBuilder() {
   const [modulos, setModulos] = useState([]);
   const [isLoading, setIsLoading] = useState(!!surveyId);
   const [isSaving, setIsSaving] = useState(false);
+  const justSaved = useRef(false); // Evita recargar al introducir el ID en la URL tras la primera creación
 
   // Estado para preservar configuración de encuestadores/supervisores
   const [encuestadoresIds, setEncuestadoresIds] = useState([]);
@@ -50,9 +51,10 @@ export default function FormBuilder() {
 
   // Cargar encuesta existente si hay ID
   useEffect(() => {
-    if (surveyId) {
+    if (surveyId && !justSaved.current) {
       loadSurvey(surveyId);
     }
+    justSaved.current = false;
   }, [surveyId]);
 
   const loadSurvey = async (id) => {
@@ -1741,6 +1743,7 @@ export default function FormBuilder() {
                       : "Encuesta creada correctamente",
                   );
                   if (!surveyId && savedId) {
+                    justSaved.current = true;
                     router.replace(`/dashboard/temporal/nueva?id=${savedId}`);
                   }
                 } catch (error) {

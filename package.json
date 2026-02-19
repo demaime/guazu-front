@@ -29,8 +29,6 @@
     "react-toastify": "^11.0.5",
     "recharts": "^3.3.0",
     "survey-core": "^2.3.2",
-    "survey-creator-core": "^2.3.2",
-    "survey-creator-react": "^2.3.2",
     "survey-react-ui": "^2.3.2",
     "xlsx": "^0.18.5"
   },

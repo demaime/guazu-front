@@ -1,37 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Guazú — Plataforma de Gestión de Encuestas de Campo
 
-## Getting Started
+Guazú es una plataforma web para la gestión y ejecución de encuestas de campo. Permite a administradores diseñar encuestas, asignarlas a encuestadores con cuotas geográficas y demográficas, y hacer seguimiento del progreso en tiempo real. Funciona como **PWA** con soporte offline.
 
-First, run the development server:
+## Demo
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+🌐 [guazu.app](https://guazu.app)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Características principales
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Panel de administración** — creación y edición de encuestas con SurveyJS Creator, gestión de usuarios, asignación de cuotas por encuestador, seguimiento de respuestas y exportación a Excel y PDF
+- **Panel de supervisión** — vista agregada del progreso de encuestadores y cuotas en tiempo real
+- **Panel de encuestador** — interfaz optimizada para mobile para responder encuestas y ver el progreso individual de cuotas
+- **Sistema de cuotas** — definición de cuotas simples y combinadas (ej. género × rango etario) con validación automática al responder
+- **Geolocalización** — visualización de respuestas en mapa con Google Maps y Leaflet
+- **Modo offline** — con sincronización automática al recuperar conectividad (PouchDB + Serwist Service Worker)
+- **Exportación de datos** — descarga de respuestas en formato Excel (xlsx) y reportes en PDF
+- **Autenticación JWT** — con roles diferenciados (admin, supervisor, encuestador), activación por email y recuperación de contraseña
+- **Animaciones y UX** — transiciones con Framer Motion, tooltips con Tippy.js, notificaciones con React Toastify y onboarding guiado con Driver.js
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Stack tecnológico
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Frontend
+| Tecnología | Uso |
+|---|---|
+| [Next.js 15](https://nextjs.org) (App Router) | Framework principal |
+| [React 18](https://react.dev) | UI |
+| [Tailwind CSS 4](https://tailwindcss.com) | Estilos |
+| [SurveyJS](https://surveyjs.io) | Motor de encuestas (rendering y lógica) |
+| [Framer Motion](https://www.framer.com/motion/) | Animaciones |
+| [Recharts](https://recharts.org) | Gráficos de estadísticas |
+| [PouchDB](https://pouchdb.com) | Almacenamiento local para modo offline |
+| [Serwist](https://serwist.pages.dev) | Service Worker / PWA |
+| [Google Maps API](https://developers.google.com/maps) | Mapa de respuestas |
+| [Leaflet](https://leafletjs.com) | Mapas alternativos |
+| [React PDF](https://react-pdf.org) | Generación de reportes PDF |
+| [xlsx](https://sheetjs.com) | Exportación a Excel |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# guazu2.0
+### Backend
+> Repositorio separado — API REST construida con Node.js, Express y MongoDB (Mongoose). Desplegada en Heroku.
