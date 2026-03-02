@@ -1,2660 +1,1789 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { Model } from "survey-core";
-import { Survey } from "survey-react-ui";
-import { surveyService } from "@/services/survey.service";
-import { userService } from "@/services/user.service";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Save,
-  FilePenLine,
-  FileText,
+  FolderPlus,
+  Type,
+  Hash,
+  Radio,
+  CheckSquare,
+  Grid3x3,
+  AlignLeft,
+  User,
+  Calendar,
+  Mic,
+  Camera,
+  BarChart3,
+  ChevronDown,
+  GripVertical,
+  VenusAndMars,
+  ArrowDown01,
+  MessageCircleWarning,
 } from "lucide-react";
-import { Loader } from "@/components/ui/Loader";
-import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
-import "survey-core/survey-core.css";
-import { authService } from "@/services/auth.service";
-import { TransferModal } from "@/components/TransferModal";
-import QuestionEditor from "@/components/QuestionEditor";
-import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import { QuotaManager } from "@/components/QuotaManager";
+import FormHeader from "./components/FormHeader";
+import ModuleCard from "./components/ModuleCard";
+import NewModuleModal from "./components/Modals/NewModuleModal";
+import TypeSelectorModal from "./components/Modals/TypeSelectorModal";
+import QuestionEditorModal from "./components/Modals/QuestionEditorModal";
+import ConfirmModal from "./components/Modals/ConfirmModal";
+import { useSurveyCreation } from "../context/SurveyCreationContext";
+import { surveyService } from "@/services/survey.service";
 import { toast } from "react-toastify";
-import dynamic from "next/dynamic";
-import SurveyPDF from "@/components/SurveyPDF";
+import { LoaderWrapper } from "@/components/ui/LoaderWrapper";
 
-// Importar PDFDownloadLink de forma dinámica para que sea compatible con SSR
-const PDFDownloadLink = dynamic(
-  () => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
-  { ssr: false }
-);
-
-// Constants (Consider moving to a shared file)
-const QUESTION_TYPES = {
-  TEXT: "text",
-  MULTIPLE_CHOICE: "multiple_choice",
-  SINGLE_CHOICE: "single_choice",
-  DROPDOWN: "dropdown",
-  CHECKBOX: "checkbox",
-  RATING: "rating",
-  DATE: "date",
-  TIME: "time",
-  EMAIL: "email",
-  NUMBER: "number",
-  PHONE: "phone",
-  MATRIX: "matrix",
-  PANELDYNAMIC: "paneldynamic",
-};
-
-const QUESTION_TYPE_LABELS_ES = {
-  [QUESTION_TYPES.TEXT]: "Texto",
-  [QUESTION_TYPES.MULTIPLE_CHOICE]: "Opción Múltiple",
-  [QUESTION_TYPES.SINGLE_CHOICE]: "Opción Única",
-  [QUESTION_TYPES.DROPDOWN]: "Menú Desplegable",
-  [QUESTION_TYPES.CHECKBOX]: "Casilla Verificación",
-  [QUESTION_TYPES.RATING]: "Calificación",
-  [QUESTION_TYPES.DATE]: "Fecha",
-  [QUESTION_TYPES.TIME]: "Hora",
-  [QUESTION_TYPES.EMAIL]: "Correo Electrónico",
-  [QUESTION_TYPES.NUMBER]: "Número",
-  [QUESTION_TYPES.PHONE]: "Teléfono",
-  [QUESTION_TYPES.MATRIX]: "Matriz",
-  [QUESTION_TYPES.PANELDYNAMIC]: "Panel Dinámico",
-};
-
-// Pasos del wizard
-const STEPS = {
-  INFORMACION_BASICA: 0,
-  CUOTAS: 1,
-  PARTICIPANTES: 2,
-  PREGUNTAS: 3,
-  VISTA_PREVIA: 4,
-};
-
-const slideVariants = {
-  enter: (direction) => ({
-    x: direction > 0 ? 1000 : -1000,
-    opacity: 0,
-  }),
-  center: {
-    zIndex: 1,
-    x: 0,
-    opacity: 1,
-  },
-  exit: (direction) => ({
-    zIndex: 0,
-    x: direction < 0 ? 1000 : -1000,
-    opacity: 0,
-  }),
-};
-
-const useConfirmNavigation = (shouldConfirm) => {
-  const handleBeforeUnload = (e) => {
-    if (shouldConfirm) {
-      e.preventDefault();
-      e.returnValue = "";
-    }
-  };
-
-  useEffect(() => {
-    if (shouldConfirm) {
-      window.addEventListener("beforeunload", handleBeforeUnload);
-      return () =>
-        window.removeEventListener("beforeunload", handleBeforeUnload);
-    }
-  }, [shouldConfirm]);
-};
-
-// Helper para encontrar si una pregunta es hija y de quién (SOLO para visibilidad/showCondition)
-function findParentInfo(targetId, allQuestions) {
-  const targetQuestion = allQuestions.find((q) => q.id === targetId);
-  if (targetQuestion?.showCondition?.parentQuestionId) {
-    return {
-      parentId: targetQuestion.showCondition.parentQuestionId,
-      optionIndex: 0,
-    };
-  }
-  return null;
-}
-
-// ✅ Helper para encontrar padre de POSICIÓN (prioriza pathSourceQuestionId)
-function findPositionParentInfo(targetId, allQuestions) {
-  const targetQuestion = allQuestions.find((q) => q.id === targetId);
-  if (!targetQuestion) return null;
-
-  // Prioridad 1: pathSourceQuestionId define la posición explícita
-  if (targetQuestion.pathSourceQuestionId) {
-    return {
-      parentId: targetQuestion.pathSourceQuestionId,
-      optionIndex: 0,
-    };
-  }
-
-  // Prioridad 2: showCondition (visibilidad también afecta posición si no hay pathSourceQuestionId)
-  return findParentInfo(targetId, allQuestions);
-}
-
-// Función para calcular números jerárquicos
-function calculateQuestionNumbers(questions) {
-  const questionNumbers = {}; // { questionId: numberString }
-  let mainQuestionCounter = 0;
-
-  questions.forEach((q) => {
-    const parentInfo = findPositionParentInfo(q.id, questions); // ✅ CAMBIO: usar posición
-    if (!parentInfo) {
-      mainQuestionCounter++;
-      questionNumbers[q.id] = `${mainQuestionCounter}`;
-    }
-  });
-
-  questions.forEach((q) => {
-    const parentInfo = findPositionParentInfo(q.id, questions); // ✅ CAMBIO: usar posición
-    if (parentInfo) {
-      const parentNumber = questionNumbers[parentInfo.parentId];
-      const mainParentNumber = parentNumber ? parentNumber.split(".")[0] : "?";
-      questionNumbers[q.id] = `${mainParentNumber}.${
-        parentInfo.optionIndex + 1
-      }`;
-    }
-  });
-
-  mainQuestionCounter = 0;
-  questions.forEach((q) => {
-    if (!questionNumbers[q.id]) {
-      const parentInfo = findPositionParentInfo(q.id, questions); // ✅ CAMBIO: usar posición
-      if (!parentInfo) {
-        mainQuestionCounter++;
-        questionNumbers[q.id] = `${mainQuestionCounter}`;
-      } else {
-        const parentIndexFallback = questions.findIndex(
-          (pq) => pq.id === parentInfo.parentId
-        );
-        questionNumbers[q.id] = `${parentIndexFallback + 1}.${
-          parentInfo.optionIndex + 1
-        }`;
-      }
-    }
-  });
-
-  return questionNumbers;
-}
-
-// Función para mapear tipos de preguntas internas a SurveyJS
-const mapQuestionType = (type) => {
-  switch (type) {
-    case "multiple_choice":
-      return "checkbox";
-    case "single_choice":
-      return "radiogroup";
-    case "dropdown":
-      return "dropdown";
-    case "paneldynamic":
-      return "paneldynamic";
-    // Tipos que en SurveyJS se representan como text + inputType
-    case "date":
-    case "time":
-    case "email":
-    case "number":
-    case "phone":
-      return "text";
-    default:
-      return type;
-  }
-};
-
-// Función para aplanar el árbol en el orden correcto
-const flattenQuestionTree = (nodes, hierarchyMap) => {
-  let result = [];
-
-  for (const node of nodes) {
-    const hierarchyNode = hierarchyMap[node.id];
-    result.push(node);
-
-    // Si tiene hijos, procesar recursivamente
-    if (
-      hierarchyNode &&
-      hierarchyNode.children &&
-      hierarchyNode.children.length > 0
-    ) {
-      result = result.concat(
-        flattenQuestionTree(hierarchyNode.children, hierarchyMap)
-      );
-    }
-  }
-
-  return result;
-};
-
-// Función para crear una estructura jerárquica de preguntas
-const createHierarchicalStructure = (questions) => {
-  // Validación para evitar errores
-  if (!questions || !Array.isArray(questions) || questions.length === 0) {
-    return { orderedQuestions: [], numberMap: {} };
-  }
-
-  // Mapa para almacenar la jerarquía de preguntas
-  const hierarchyMap = {};
-
-  // Función helper para encontrar el padre de una pregunta (SOLO por showCondition)
-  const findParentForQuestion = (question) => {
-    // Verificar showCondition (formato nuevo)
-    if (question.showCondition) {
-      if (Array.isArray(question.showCondition.rules)) {
-        return question.showCondition.rules[0]?.parentQuestionId || null;
-      }
-      return question.showCondition.parentQuestionId || null;
-    }
-
-    return null;
-  };
-
-  // Función para obtener el padre de POSICIÓN (para ordenamiento)
-  const findPositionParent = (question) => {
-    // Si tiene pathSourceQuestionId, se posiciona después de esa pregunta
-    if (question.pathSourceQuestionId) {
-      const source = questions.find(
-        (q) => q.id === question.pathSourceQuestionId
-      );
-      if (source) {
-        return question.pathSourceQuestionId;
-      }
-    }
-    // Si no tiene pathSourceQuestionId, usar la jerarquía de showCondition
-    return findParentForQuestion(question);
-  };
-
-  // Primero identificamos las preguntas raíz (sin padre)
-  const rootQuestions = questions.filter((q) => {
-    return !findParentForQuestion(q);
-  });
-
-  // Si no hay preguntas raíz, devolver las preguntas originales
-  if (rootQuestions.length === 0) {
-    const defaultMap = {};
-    questions.forEach((q, idx) => {
-      defaultMap[q.id] = `${idx + 1}`;
-    });
-    return { orderedQuestions: questions, numberMap: defaultMap };
-  }
-
-  // Función recursiva para construir el árbol
-  const buildQuestionTree = (question, parentNumber = "") => {
-    if (!question || !question.id) return null;
-
-    // Asignar número basado en el padre
-    let currentNumber;
-
-    if (parentNumber && hierarchyMap[parentNumber]) {
-      currentNumber = `${parentNumber}.${
-        hierarchyMap[parentNumber].children.length + 1
-      }`;
-    } else {
-      const rootIndex = rootQuestions.findIndex((q) => q.id === question.id);
-      currentNumber = `${rootIndex !== -1 ? rootIndex + 1 : 1}`;
-    }
-
-    // Almacenar información jerárquica
-    hierarchyMap[question.id] = {
-      question,
-      children: [],
-      number: currentNumber,
-    };
-
-    // Buscar preguntas hijas que tienen este ID como padre de POSICIÓN
-    const childQuestions = questions.filter((q) => {
-      const parentIdForQ = findPositionParent(q);
-      return parentIdForQ === question.id;
-    });
-
-    childQuestions.forEach((childQuestion) => {
-      // Añadir a la lista de hijos
-      hierarchyMap[question.id].children.push(childQuestion);
-      // Construir subárbol recursivamente
-      buildQuestionTree(childQuestion, currentNumber);
-    });
-
-    return hierarchyMap[question.id];
-  };
-
-  // Construir el árbol para cada pregunta raíz
-  rootQuestions.forEach((q) => buildQuestionTree(q));
-
-  // Crear el mapa de numeración para todas las preguntas
-  const numberMap = {};
-  Object.entries(hierarchyMap).forEach(([id, data]) => {
-    numberMap[id] = data.number;
-  });
-
-  // Aplanar el árbol para obtener el orden correcto
-  const orderedQuestions = flattenQuestionTree(rootQuestions, hierarchyMap);
-
-  // Si no todas las preguntas están en el árbol, agregar las restantes al final
-  questions.forEach((q) => {
-    if (!orderedQuestions.find((oq) => oq.id === q.id)) {
-      orderedQuestions.push(q);
-      // Asignar un número si no tiene
-      if (!numberMap[q.id]) {
-        numberMap[q.id] = `${Object.keys(numberMap).length + 1}`;
-      }
-    }
-  });
-
-  return { orderedQuestions, numberMap };
-};
-
-// Función más simple para ordenar preguntas jerárquicamente - Compatible con ambos formatos
-const organizeQuestionsHierarchically = (questions) => {
-  if (!questions || !Array.isArray(questions) || questions.length === 0) {
-    return { orderedQuestions: [], numberMap: {} };
-  }
-
-  // Primero identificar preguntas raíz (sin padre)
-  const rootQuestions = [];
-  const childQuestions = new Map(); // mapa de preguntas hijas por padre
-
-  // Función helper para verificar si una pregunta es hija (SOLO por showCondition)
-  const findParentForQuestion = (question) => {
-    // Verificar showCondition (formato nuevo)
-    if (question.showCondition) {
-      if (Array.isArray(question.showCondition.rules)) {
-        return question.showCondition.rules[0]?.parentQuestionId || null;
-      }
-      return question.showCondition.parentQuestionId || null;
-    }
-
-    return null;
-  };
-
-  // Función para obtener el padre de POSICIÓN (para ordenamiento)
-  const findPositionParent = (question) => {
-    // Si tiene pathSourceQuestionId, se posiciona después de esa pregunta
-    if (question.pathSourceQuestionId) {
-      const source = questions.find(
-        (q) => q.id === question.pathSourceQuestionId
-      );
-      if (source) {
-        return question.pathSourceQuestionId;
-      }
-    }
-    // Si no tiene pathSourceQuestionId, usar la jerarquía de showCondition
-    return findParentForQuestion(question);
-  };
-
-  // Clasificar preguntas como raíces o hijas (por POSICIÓN)
-  questions.forEach((question) => {
-    const parentId = findPositionParent(question);
-
-    if (parentId) {
-      // Es hija - agregar a la lista de hijos de su padre
-      if (!childQuestions.has(parentId)) {
-        childQuestions.set(parentId, []);
-      }
-      childQuestions.get(parentId).push(question);
-    } else {
-      // Es raíz
-      rootQuestions.push(question);
-    }
-  });
-
-  // Función recursiva para crear lista ordenada
-  const buildOrderedList = (parentQuestion, prefix = "") => {
-    let result = [];
-
-    // Añadir pregunta actual
-    const displayNumber = prefix
-      ? `${prefix}`
-      : `${rootQuestions.indexOf(parentQuestion) + 1}`;
-    result.push({
-      ...parentQuestion,
-      displayNumber,
-    });
-
-    // Añadir hijos si existen
-    const children = childQuestions.get(parentQuestion.id) || [];
-    children.forEach((child, index) => {
-      const childPrefix = prefix
-        ? `${prefix}.${index + 1}`
-        : `${rootQuestions.indexOf(parentQuestion) + 1}.${index + 1}`;
-      result = result.concat(buildOrderedList(child, childPrefix));
-    });
-
-    return result;
-  };
-
-  // Construir lista completa ordenada
-  let orderedList = [];
-  rootQuestions.forEach((rootQuestion) => {
-    orderedList = orderedList.concat(buildOrderedList(rootQuestion));
-  });
-
-  // Crear mapa de numeración
-  const numberMap = {};
-  orderedList.forEach((q) => {
-    if (q.id && q.displayNumber) {
-      numberMap[q.id] = q.displayNumber;
-    }
-  });
-
-  return {
-    orderedQuestions: orderedList,
-    numberMap,
-  };
-};
-
-export default function NuevaEncuesta({
-  isEditing = false,
-  surveyId = null,
-  initialData = null,
-}) {
+export default function FormBuilder() {
   const router = useRouter();
-  const [[page, direction], setPage] = useState([0, 0]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [error, setError] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [supervisors, setSupervisors] = useState([]);
-  const [user, setUser] = useState(null);
-  const [surveyData, setSurveyData] = useState(
-    initialData || {
-      basicInfo: {
-        title: "",
-        description: "",
-        startDate: new Date().toISOString().split("T")[0],
-        endDate: new Date().toISOString().split("T")[0],
-        target: "",
-        requireGps: false,
-      },
-      participants: {
-        userIds: [],
-        supervisorsIds: [],
-        pollsterAssignments: [], // Array de { pollsterId, assignedCases }
-        quotaAssignments: [], // Array de { pollsterId, quotas: [{category, segments: [{name, target}]}] }
-      },
-      questions: [],
-      quotas: [],
-    }
-  );
-  const [showPollstersModal, setShowPollstersModal] = useState(false);
-  const [showSupervisorsModal, setShowSupervisorsModal] = useState(false);
-  const [showConfirmCancel, setShowConfirmCancel] = useState(false);
-  const [showValidationErrorModal, setShowValidationErrorModal] =
-    useState(false);
-  const [validationErrorMessage, setValidationErrorMessage] = useState("");
-  const [showQuotaAssignmentModal, setShowQuotaAssignmentModal] =
-    useState(false);
-  const [selectedPollsterForQuotas, setSelectedPollsterForQuotas] =
-    useState(null);
+  const searchParams = useSearchParams();
+  const surveyId = searchParams.get("id");
 
-  // Referencia para el input de la meta
-  const targetInputRef = useRef(null);
+  const { surveyData, updateSurveyData } = useSurveyCreation();
+  const [titulo, setTitulo] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [modulos, setModulos] = useState([]);
+  const [isLoading, setIsLoading] = useState(!!surveyId);
+  const [isSaving, setIsSaving] = useState(false);
+  const justSaved = useRef(false); // Evita recargar al introducir el ID en la URL tras la primera creación
 
-  // Calcular números jerárquicos para la vista previa
-  const questionNumberMap = useMemo(
-    () => calculateQuestionNumbers(surveyData.questions),
-    [surveyData.questions]
-  );
+  // Estado para preservar configuración de encuestadores/supervisores
+  const [encuestadoresIds, setEncuestadoresIds] = useState([]);
+  const [supervisoresIds, setSupervisoresIds] = useState([]);
 
-  // Function to show validation error modal
-  const showValidationError = (message) => {
-    setValidationErrorMessage(message);
-    setShowValidationErrorModal(true);
-  };
-
-  // Function to handle validation error modal confirmation
-  const handleValidationErrorConfirm = () => {
-    setShowValidationErrorModal(false);
-
-    // Si el error es sobre la meta, navegar al paso 1 y hacer focus
-    if (validationErrorMessage.includes("meta válida mayor a 0")) {
-      // Navegar al paso INFORMACION_BASICA
-      const targetStep = STEPS.INFORMACION_BASICA;
-      const direction = targetStep - page;
-      setPage([targetStep, direction]);
-
-      // Hacer focus al input después de un pequeño delay para que el DOM se actualice
-      setTimeout(() => {
-        if (targetInputRef.current) {
-          targetInputRef.current.focus();
-          targetInputRef.current.select(); // También seleccionar el texto si existe
-        }
-      }, 100);
-    }
-  };
-
-  // Mover el hook useConfirmNavigation aquí, antes de cualquier efecto condicional
-  useConfirmNavigation(
-    surveyData.basicInfo.title ||
-      surveyData.basicInfo.description ||
-      surveyData.participants.userIds.length > 0 ||
-      surveyData.questions.length > 0
-  );
-
-  // Normalizar estructura de participants para evitar errores
+  // Cargar encuesta existente si hay ID
   useEffect(() => {
-    setSurveyData((prev) => ({
-      ...prev,
-      participants: {
-        userIds: prev.participants?.userIds || [],
-        supervisorsIds: prev.participants?.supervisorsIds || [],
-        pollsterAssignments: prev.participants?.pollsterAssignments || [],
-      },
-    }));
-  }, []); // Solo se ejecuta una vez al montar el componente
-
-  // Verificar permisos al cargar el componente
-  useEffect(() => {
-    const checkPermissions = async () => {
-      try {
-        const userData = authService.getUser();
-        if (!userData) {
-          router.replace("/login");
-          return;
-        }
-
-        // Solo permitir acceso a admin
-        if (!(userData.role === "ROLE_ADMIN")) {
-          router.replace("/dashboard/encuestas");
-          return;
-        }
-
-        setUser(userData);
-
-        // Cargar usuarios y supervisores
-        try {
-          const [usersResponse, supervisorsResponse] = await Promise.all([
-            userService.getPollsters(),
-            userService.getSupervisors(),
-          ]);
-
-          setUsers(usersResponse.users || []);
-          setSupervisors(supervisorsResponse.supervisors || []);
-          setIsLoading(false);
-        } catch (err) {
-          console.error("Error loading users and supervisors:", err);
-          setError(
-            "Error al cargar usuarios y supervisores. Por favor, intente nuevamente."
-          );
-          setIsLoading(false);
-        }
-        setIsInitializing(false);
-      } catch (err) {
-        console.error("Error checking permissions:", err);
-        router.replace("/dashboard/encuestas");
-      }
-    };
-
-    checkPermissions();
-  }, []);
-
-  // Si está inicializando, mostrar pantalla de carga
-  if (isInitializing) {
-    return <LoaderWrapper size="xl" text="Verificando permisos..." />;
-  }
-
-  // Navegación entre pasos
-  const paginate = (newDirection) => {
-    if (page + newDirection >= 0 && page + newDirection <= 4) {
-      setPage([page + newDirection, newDirection]);
+    if (surveyId && !justSaved.current) {
+      loadSurvey(surveyId);
     }
-  };
+    justSaved.current = false;
+  }, [surveyId]);
 
-  // Validar si se puede avanzar al siguiente paso
-  const canProceed = () => {
-    // Validaciones según el paso actual
-    switch (page) {
-      case STEPS.INFORMACION_BASICA:
-        // Validar que los campos básicos estén completos
-        return (
-          surveyData.basicInfo.title.trim() !== "" &&
-          surveyData.basicInfo.startDate &&
-          surveyData.basicInfo.endDate &&
-          surveyData.basicInfo.target > 0
-        );
-
-      case STEPS.SISTEMA_CUOTAS:
-        // No hay requisitos obligatorios para pasar al siguiente paso
-        // Se puede continuar incluso sin definir cuotas
-        return true;
-
-      case STEPS.PARTICIPANTES:
-        // Validar que haya al menos un encuestador seleccionado
-        if (surveyData.participants.userIds.length === 0) {
-          return false;
-        }
-
-        // Validar que todos los pollsters tengan casos asignados
-        const hasAllAssignments = surveyData.participants.userIds.every(
-          (pollsterId) => getAssignedCases(pollsterId) > 0
-        );
-
-        // Validar que la suma de casos asignados no exceda la meta
-        const totalAssigned = getTotalAssignedCases();
-        const target = surveyData.basicInfo.target || 0;
-
-        return hasAllAssignments && totalAssigned <= target;
-
-      case STEPS.PREGUNTAS:
-        // Validar que haya al menos una pregunta
-        return surveyData.questions.length > 0;
-
-      case STEPS.VISTA_PREVIA:
-        // No hay restricción para finalizar
-        return true;
-
-      default:
-        return true;
-    }
-  };
-
-  // Guardar encuesta
-  const handleSave = async (saveAsDraft = false) => {
-    // Si es un borrador, permitir guardar sin todas las validaciones
-    if (!saveAsDraft) {
-      // Validation: Check if title is empty
-      if (!surveyData.basicInfo.title.trim()) {
-        showValidationError("No es posible crear una encuesta sin título.");
-        return; // Prevent saving
-      }
-
-      // Validation: Check if there is a target value
-      if (!surveyData.basicInfo.target || surveyData.basicInfo.target <= 0) {
-        showValidationError("Debe especificar una meta válida mayor a 0.");
-        return; // Prevent saving
-      }
-
-      // Validation: Check if there are any questions
-      if (surveyData.questions.length === 0) {
-        showValidationError("No es posible crear una encuesta sin preguntas.");
-        return; // Prevent saving
-      }
-    } else {
-      // Para borradores solo validamos que tenga título
-      if (!surveyData.basicInfo.title.trim()) {
-        showValidationError("Por favor, ingresa un título para el borrador.");
-        return;
-      }
-    }
-
+  const loadSurvey = async (id) => {
     try {
       setIsLoading(true);
-      setError(null);
+      const response = await surveyService.getSurvey(id);
 
-      // 1. Convertir preguntas a formato para SurveyJS
-      const surveyJSElements = [];
+      // Extraer datos de la encuesta
+      const surveyData = response?.survey?.survey || response?.survey;
+      const surveyInfo = response?.survey?.surveyInfo || {};
 
-      try {
-        // Ensure questions is an array before processing
-        const questionsToOrganize = Array.isArray(surveyData.questions)
-          ? surveyData.questions
-          : [];
+      if (surveyData) {
+        setTitulo(surveyData.title || "");
+        setDescripcion(surveyData.description || "");
 
-        // Obtener preguntas ordenadas jerárquicamente
-        console.log(
-          "🟡 [nueva/page - ANTES organizeQuestionsHierarchically]:",
-          questionsToOrganize.map((q) => ({
-            id: q.id,
-            title: q.title?.substring(0, 30),
-            pathSourceQuestionId: q.pathSourceQuestionId,
-            showCondition: q.showCondition?.rules?.[0]?.parentQuestionId,
-          }))
-        );
+        // Cargar IDs de encuestadores y supervisores
+        setEncuestadoresIds(surveyInfo.userIds || []);
+        setSupervisoresIds(surveyInfo.supervisorsIds || []);
 
-        const { orderedQuestions, numberMap } =
-          organizeQuestionsHierarchically(questionsToOrganize);
-
-        console.log(
-          "🟡 [nueva/page - DESPUÉS organizeQuestionsHierarchically]:",
-          orderedQuestions.map((q) => ({
-            id: q.id,
-            title: q.title?.substring(0, 30),
-            pathSourceQuestionId: q.pathSourceQuestionId,
-            showCondition: q.showCondition?.rules?.[0]?.parentQuestionId,
-          }))
-        );
-
-        // Guardar el mapa de numeración en surveyData para usar en la interfaz
-        surveyData.questionNumberMap = numberMap;
-
-        // Usar las preguntas ordenadas jerárquicamente
-        if (orderedQuestions && Array.isArray(orderedQuestions)) {
-          orderedQuestions.forEach((question, index) => {
-            if (!question) return; // Skip if question is undefined
-
-            const element = {
-              type: mapQuestionType(question.type),
-              name: question.id,
-              title: question.title,
-              description: question.description || "",
-              isRequired: question.required || false,
-              // Añadir número jerárquico al título visible
-              titleLocation: "top",
-              showNumber: true,
-              // ✅ AGREGAR: Preservar pathSourceQuestionId para que SurveyJS lo serialice
-              ...(question.pathSourceQuestionId && {
-                pathSourceQuestionId: question.pathSourceQuestionId,
-              }),
-            };
-
-            // Adaptar tipos y opciones (SIN lógica condicional aquí)
-            switch (question.type) {
-              case "multiple_choice":
-                element.type = "checkbox"; // SurveyJS usa checkbox para multiple choice
-                element.choices =
-                  question.options && Array.isArray(question.options)
-                    ? question.options.map((opt) => ({
-                        value: opt?.id || "", // Protect against undefined options
-                        text: { es: opt?.text || "" },
-                      }))
-                    : [];
-                break;
-              case "single_choice":
-                element.type = "radiogroup"; // SurveyJS usa radiogroup para single choice
-                element.choices =
-                  question.options && Array.isArray(question.options)
-                    ? question.options.map((opt) => ({
-                        value: opt?.id || "",
-                        text: { es: opt?.text || "" },
-                      }))
-                    : [];
-                break;
-              case "dropdown":
-                element.type = "dropdown"; // SurveyJS usa dropdown
-                element.choices =
-                  question.options && Array.isArray(question.options)
-                    ? question.options.map((opt) => ({
-                        value: opt?.id || "",
-                        text: { es: opt?.text || "" },
-                      }))
-                    : [];
-                break;
-              case "checkbox": // Nuestro tipo Checkbox (que es diferente de multiple_choice)
-                element.type = "checkbox"; // Mapea directamente
-                element.choices =
-                  question.options && Array.isArray(question.options)
-                    ? question.options.map((opt) => ({
-                        value: opt?.id || "",
-                        text: { es: opt?.text || "" },
-                      }))
-                    : [];
-                break;
-              case "paneldynamic":
-                element.type = "paneldynamic";
-                element.templateElements =
-                  question.panelQuestions &&
-                  Array.isArray(question.panelQuestions)
-                    ? question.panelQuestions.map((panelQ) => ({
-                        type: mapQuestionType(panelQ.type),
-                        name: panelQ.id,
-                        title: { es: panelQ.title || "" },
-                        isRequired: panelQ.required || false,
-                        ...(panelQ.options && Array.isArray(panelQ.options)
-                          ? {
-                              choices: panelQ.options.map((opt) => ({
-                                value: opt?.id || "",
-                                text: { es: opt?.text || "" },
-                              })),
-                            }
-                          : {}),
-                      }))
-                    : [];
-                element.panelCount = 0; // Comienza sin paneles, el usuario los agrega
-                element.minPanelCount = 0;
-                element.panelAddText = { es: "Agregar" };
-                element.panelRemoveText = { es: "Eliminar" };
-                break;
-              case "matrix":
-                element.rows =
-                  question.matrixRows && Array.isArray(question.matrixRows)
-                    ? question.matrixRows.map((row) => ({
-                        value: row?.id || "",
-                        text: { es: row?.text || "" },
-                      }))
-                    : [];
-                element.columns =
-                  question.matrixColumns &&
-                  Array.isArray(question.matrixColumns)
-                    ? question.matrixColumns.map((col) => ({
-                        value: col?.id || "",
-                        text: { es: col?.text || "" },
-                      }))
-                    : [];
-                // Validar que TODAS las filas sean respondidas si es required
-                if (question.required) {
-                  element.isAllRowRequired = true;
-                }
-                break;
-              case "rating":
-                element.rateMin =
-                  question.rateMin !== undefined ? question.rateMin : 1;
-                element.rateMax = question.rateMax || 5;
-                break;
-              case "date":
-                element.type = "text";
-                element.inputType = "date";
-                break;
-              case "time":
-                element.type = "text";
-                element.inputType = "time";
-                break;
-              case "email":
-                element.type = "text";
-                element.inputType = "email";
-                element.validators = [
-                  ...(Array.isArray(element.validators)
-                    ? element.validators
-                    : []),
-                  { type: "email" },
-                ];
-                break;
-              case "number":
-                element.type = "text";
-                element.inputType = "number";
-                element.validators = [
-                  ...(Array.isArray(element.validators)
-                    ? element.validators
-                    : []),
-                  { type: "numeric" },
-                ];
-                break;
-              case "phone":
-                element.type = "text";
-                element.inputType = "tel";
-                break;
-              default:
-                break;
-            }
-
-            surveyJSElements.push(element);
-          });
-        }
-      } catch (err) {
-        console.error("Error al ordenar preguntas jerárquicamente:", err);
-        // Fallback: usar el orden original
-        if (surveyData.questions && Array.isArray(surveyData.questions)) {
-          surveyData.questions.forEach((question, index) => {
-            if (!question) return; // Skip if question is undefined
-
-            const element = {
-              type: mapQuestionType(question.type),
-              name: question.id,
-              title: question.title,
-              description: question.description || "",
-              isRequired: question.required || false,
-              titleLocation: "top",
-              showNumber: true,
-              // ✅ AGREGAR: Preservar pathSourceQuestionId para que SurveyJS lo serialice
-              ...(question.pathSourceQuestionId && {
-                pathSourceQuestionId: question.pathSourceQuestionId,
-              }),
-            };
-
-            // Adapt types and options
-            switch (question.type) {
-              case "multiple_choice":
-                element.type = "checkbox";
-                element.choices =
-                  question.options && Array.isArray(question.options)
-                    ? question.options.map((opt) => ({
-                        value: opt?.id || "",
-                        text: { es: opt?.text || "" },
-                      }))
-                    : [];
-                break;
-              case "single_choice":
-                element.type = "radiogroup";
-                element.choices =
-                  question.options && Array.isArray(question.options)
-                    ? question.options.map((opt) => ({
-                        value: opt?.id || "",
-                        text: { es: opt?.text || "" },
-                      }))
-                    : [];
-                break;
-              case "dropdown":
-                element.type = "dropdown";
-                element.choices =
-                  question.options && Array.isArray(question.options)
-                    ? question.options.map((opt) => ({
-                        value: opt?.id || "",
-                        text: { es: opt?.text || "" },
-                      }))
-                    : [];
-                break;
-              case "checkbox":
-                element.type = "checkbox";
-                element.choices =
-                  question.options && Array.isArray(question.options)
-                    ? question.options.map((opt) => ({
-                        value: opt?.id || "",
-                        text: { es: opt?.text || "" },
-                      }))
-                    : [];
-                break;
-              case "paneldynamic":
-                element.type = "paneldynamic";
-                element.templateElements =
-                  question.panelQuestions &&
-                  Array.isArray(question.panelQuestions)
-                    ? question.panelQuestions.map((panelQ) => ({
-                        type: mapQuestionType(panelQ.type),
-                        name: panelQ.id,
-                        title: { es: panelQ.title || "" },
-                        isRequired: panelQ.required || false,
-                        ...(panelQ.options && Array.isArray(panelQ.options)
-                          ? {
-                              choices: panelQ.options.map((opt) => ({
-                                value: opt?.id || "",
-                                text: { es: opt?.text || "" },
-                              })),
-                            }
-                          : {}),
-                      }))
-                    : [];
-                element.panelCount = 0;
-                element.minPanelCount = 0;
-                element.panelAddText = { es: "Agregar" };
-                element.panelRemoveText = { es: "Eliminar" };
-                break;
-              case "matrix":
-                element.rows =
-                  question.matrixRows && Array.isArray(question.matrixRows)
-                    ? question.matrixRows.map((row) => ({
-                        value: row?.id || "",
-                        text: { es: row?.text || "" },
-                      }))
-                    : [];
-                element.columns =
-                  question.matrixColumns &&
-                  Array.isArray(question.matrixColumns)
-                    ? question.matrixColumns.map((col) => ({
-                        value: col?.id || "",
-                        text: { es: col?.text || "" },
-                      }))
-                    : [];
-                // Validar que TODAS las filas sean respondidas si es required
-                if (question.required) {
-                  element.isAllRowRequired = true;
-                }
-                break;
-              case "rating":
-                element.rateMin =
-                  question.rateMin !== undefined ? question.rateMin : 1;
-                element.rateMax = question.rateMax || 5;
-                break;
-              case "date":
-                element.type = "text";
-                element.inputType = "date";
-                break;
-              case "time":
-                element.type = "text";
-                element.inputType = "time";
-                break;
-              case "email":
-                element.type = "text";
-                element.inputType = "email";
-                element.validators = [
-                  ...(Array.isArray(element.validators)
-                    ? element.validators
-                    : []),
-                  { type: "email" },
-                ];
-                break;
-              case "number":
-                element.type = "text";
-                element.inputType = "number";
-                element.validators = [
-                  ...(Array.isArray(element.validators)
-                    ? element.validators
-                    : []),
-                  { type: "numeric" },
-                ];
-                break;
-              case "phone":
-                element.type = "text";
-                element.inputType = "tel";
-                break;
-              default:
-                break;
-            }
-
-            surveyJSElements.push(element);
-          });
+        // 1) Si viene surveyDefinition (módulos del nuevo editor), usarlo
+        const definition = response?.survey?.surveyDefinition;
+        if (definition?.modulos && Array.isArray(definition.modulos)) {
+          setModulos(definition.modulos);
+        } else {
+          // 2) Fallback: reconstruir módulos desde SurveyJS (encuestas viejas)
+          const { transformSurveyJSToModulos } =
+            await import("../utils/transformToSurveyJS");
+          const recovered = transformSurveyJSToModulos(surveyData);
+          setModulos(recovered);
         }
       }
-
-      // Establecer las condiciones de visibilidad
-      if (surveyJSElements && Array.isArray(surveyJSElements)) {
-        surveyJSElements.forEach((element, index) => {
-          if (!element) return; // Skip if element is undefined
-
-          const originalQuestionId = element.name;
-          let builtVisibleIf = "";
-
-          if (surveyData.questions && Array.isArray(surveyData.questions)) {
-            const currentQuestion = surveyData.questions.find(
-              (q) => q.id === originalQuestionId
-            );
-
-            const escapeValue = (val) => String(val).replace(/'/g, "\\'");
-            const isNumeric = (val) =>
-              typeof val === "number" ||
-              (typeof val === "string" &&
-                val.trim() !== "" &&
-                !isNaN(Number(val)));
-
-            if (currentQuestion) {
-              const sc = currentQuestion.showCondition;
-              // Nuevo formato con rules
-              if (sc && Array.isArray(sc.rules) && sc.rules.length > 0) {
-                const groupLogic =
-                  (sc.logic || "or").toLowerCase() === "and" ? "and" : "or";
-                const ruleExpressions = sc.rules
-                  .map((rule) => {
-                    if (!rule || !rule.parentQuestionId) return null;
-                    const parentId = rule.parentQuestionId;
-                    const parentQuestion = surveyData.questions.find(
-                      (q) => q.id === parentId
-                    );
-                    const operatorMap = {
-                      equals: "=",
-                      not_equals: "!=",
-                      gt: ">",
-                      gte: ">=",
-                      lt: "<",
-                      lte: "<=",
-                      contains: "contains",
-                      not_contains: "notcontains",
-                    };
-                    let op =
-                      operatorMap[rule.operator] ||
-                      (parentQuestion &&
-                      (parentQuestion.type === "multiple_choice" ||
-                        parentQuestion.type === "checkbox")
-                        ? "contains"
-                        : "=");
-                    const values = Array.isArray(rule.values)
-                      ? rule.values
-                      : [rule.values];
-
-                    const isNumericOp =
-                      op === ">" || op === ">=" || op === "<" || op === "<=";
-                    const parentHasOptions =
-                      Array.isArray(parentQuestion?.options) &&
-                      parentQuestion.options.length > 0;
-                    const parentOptionsAreNumeric = parentHasOptions
-                      ? parentQuestion.options.every(
-                          (opt) => !isNaN(Number(opt?.text))
-                        )
-                      : false;
-                    const parentIsMultiple =
-                      parentQuestion &&
-                      (parentQuestion.type === "multiple_choice" ||
-                        parentQuestion.type === "checkbox");
-                    const parentIsSingle =
-                      parentQuestion && parentQuestion.type === "single_choice";
-
-                    let valueExprs = [];
-                    if (
-                      isNumericOp &&
-                      parentHasOptions &&
-                      parentOptionsAreNumeric &&
-                      (parentIsMultiple || parentIsSingle)
-                    ) {
-                      const thresholdRaw = values.find(
-                        (v) => v !== undefined && v !== null && v !== ""
-                      );
-                      const threshold = Number(thresholdRaw);
-                      if (!isNaN(threshold)) {
-                        const qualifies = parentQuestion.options.filter(
-                          (opt) => {
-                            const n = Number(opt.text);
-                            switch (op) {
-                              case ">":
-                                return n > threshold;
-                              case ">=":
-                                return n >= threshold;
-                              case "<":
-                                return n < threshold;
-                              case "<=":
-                                return n <= threshold;
-                              default:
-                                return false;
-                            }
-                          }
-                        );
-                        valueExprs = qualifies.map(
-                          (opt) =>
-                            `\{${parentId}\} ${
-                              parentIsMultiple ? "contains" : "="
-                            } '${escapeValue(opt.id)}'`
-                        );
-                      }
-                    } else {
-                      valueExprs = values
-                        .filter(
-                          (v) => v !== undefined && v !== null && v !== ""
-                        )
-                        .map((v) => {
-                          if (op === "contains")
-                            return `\{${parentId}\} contains '${escapeValue(
-                              v
-                            )}'`;
-                          if (op === "notcontains")
-                            return `\{${parentId}\} notcontains '${escapeValue(
-                              v
-                            )}'`;
-                          const literal = isNumeric(v)
-                            ? String(Number(v))
-                            : `'${escapeValue(v)}'`;
-                          return `\{${parentId}\} ${op} ${literal}`;
-                        });
-                    }
-                    if (valueExprs.length === 0) return null;
-                    return valueExprs.length > 1
-                      ? `(${valueExprs.join(" or ")})`
-                      : `(${valueExprs[0]})`;
-                  })
-                  .filter(Boolean);
-                if (ruleExpressions.length > 0)
-                  builtVisibleIf = ruleExpressions.join(` ${groupLogic} `);
-              } else if (sc && sc.parentQuestionId) {
-                // Formato antiguo
-                const parentId = sc.parentQuestionId;
-                const parentQuestion = surveyData.questions.find(
-                  (q) => q.id === parentId
-                );
-                let operator = "=";
-                if (
-                  parentQuestion &&
-                  (parentQuestion.type === "multiple_choice" ||
-                    parentQuestion.type === "checkbox")
-                )
-                  operator = "contains";
-                const literal = isNumeric(sc.requiredValue)
-                  ? String(Number(sc.requiredValue))
-                  : `'${escapeValue(sc.requiredValue)}'`;
-                builtVisibleIf = `\{${parentId}\} ${operator} ${literal}`;
-              }
-
-              // Herencia de camino si no hay reglas propias
-              if (!builtVisibleIf && currentQuestion.pathSourceQuestionId) {
-                const sourceId = currentQuestion.pathSourceQuestionId;
-                const srcElement = surveyJSElements.find(
-                  (el) => el && el.name === sourceId
-                );
-                if (srcElement && srcElement.visibleIf) {
-                  builtVisibleIf = srcElement.visibleIf;
-                } else {
-                  const srcQ = surveyData.questions.find(
-                    (q) => q.id === sourceId
-                  );
-                  const sc2 = srcQ?.showCondition;
-                  if (sc2 && Array.isArray(sc2.rules) && sc2.rules.length > 0) {
-                    const groupLogic2 =
-                      (sc2.logic || "or").toLowerCase() === "and"
-                        ? "and"
-                        : "or";
-                    const exprs2 = sc2.rules
-                      .map((rule) => {
-                        if (!rule || !rule.parentQuestionId) return null;
-                        const parentId = rule.parentQuestionId;
-                        const parentQuestion = surveyData.questions.find(
-                          (q) => q.id === parentId
-                        );
-                        const operatorMap = {
-                          equals: "=",
-                          not_equals: "!=",
-                          gt: ">",
-                          gte: ">=",
-                          lt: "<",
-                          lte: "<=",
-                          contains: "contains",
-                          not_contains: "notcontains",
-                        };
-                        let op =
-                          operatorMap[rule.operator] ||
-                          (parentQuestion &&
-                          (parentQuestion.type === "multiple_choice" ||
-                            parentQuestion.type === "checkbox")
-                            ? "contains"
-                            : "=");
-                        const values = Array.isArray(rule.values)
-                          ? rule.values
-                          : [rule.values];
-                        const parts = values
-                          .filter(
-                            (v) => v !== undefined && v !== null && v !== ""
-                          )
-                          .map((v) => {
-                            if (op === "contains")
-                              return `\{${parentId}\} contains '${escapeValue(
-                                v
-                              )}'`;
-                            if (op === "notcontains")
-                              return `\{${parentId}\} notcontains '${escapeValue(
-                                v
-                              )}'`;
-                            const literal = isNumeric(v)
-                              ? String(Number(v))
-                              : `'${escapeValue(v)}'`;
-                            return `\{${parentId}\} ${op} ${literal}`;
-                          });
-                        if (parts.length === 0) return null;
-                        return parts.length > 1
-                          ? `(${parts.join(" or ")})`
-                          : `(${parts[0]})`;
-                      })
-                      .filter(Boolean);
-                    if (exprs2.length > 0)
-                      builtVisibleIf = exprs2.join(` ${groupLogic2} `);
-                  }
-                }
-                // Guardar metadato de camino
-                element.pathSourceQuestionId = sourceId;
-              }
-            }
-          }
-
-          if (builtVisibleIf) {
-            element.visibleIf = builtVisibleIf;
-          }
-        });
-      }
-
-      // 3. Crear el objeto final para SurveyJS con configuración para jerarquía
-      const surveyJSFormat = {
-        locale: "es",
-        title: surveyData.basicInfo.title,
-        description: surveyData.basicInfo.description,
-        pages: [
-          {
-            name: "page1",
-            elements: surveyJSElements,
-          },
-        ],
-        showProgressBar: "top",
-        progressBarType: "questions",
-        showPrevButton: true,
-        showQuestionNumbers: "on",
-        completeText: "Finalizar",
-        pageNextText: "Siguiente",
-        pagePrevText: "Anterior",
-        requiredText: "(*) Pregunta obligatoria.",
-        requiredErrorText: "Por favor responda la pregunta.",
-        questionsOrder: "initial", // Mantener el orden inicial que hemos establecido
-        questionsOnPageMode: "questionPerPage",
-        clearInvisibleValues: "onHidden",
-        checkErrorsMode: "onNextPage",
-      };
-
-      // 4. Crear objeto para guardar en BD (incluye info extra)
-      const dataToSave = {
-        survey: surveyJSFormat,
-        surveyDefinition: surveyData,
-        surveyInfo: {
-          startDate: surveyData.basicInfo.startDate,
-          endDate: surveyData.basicInfo.endDate,
-          target: surveyData.basicInfo.target,
-          userIds: surveyData.participants.userIds || [],
-          supervisorsIds: surveyData.participants.supervisorsIds || [],
-          quotas: surveyData.quotas || [],
-          pollsterAssignments:
-            surveyData.participants.pollsterAssignments || [], // ✅ AGREGADO: asignaciones de casos por pollster
-          quotaAssignments: surveyData.participants.quotaAssignments || [], // ✅ AGREGADO: asignaciones de cuotas por pollster
-          requireGps: surveyData.basicInfo.requireGps ?? false,
-        },
-        participants: {
-          userIds: surveyData.participants.userIds || [],
-          supervisorsIds: surveyData.participants.supervisorsIds || [],
-          pollsterAssignments:
-            surveyData.participants.pollsterAssignments || [], // ✅ TAMBIÉN en participants para el backend
-          quotaAssignments: surveyData.participants.quotaAssignments || [], // ✅ TAMBIÉN en participants para el backend
-        },
-      };
-
-      console.log(
-        "🔴 [nueva/page - GUARDANDO EN BD] surveyJSElements:",
-        surveyJSElements.map((el) => ({
-          name: el.name,
-          title: el.title?.substring(0, 30),
-          pathSourceQuestionId: el.pathSourceQuestionId,
-          visibleIf: el.visibleIf?.substring(0, 50),
-        }))
-      );
-
-      await surveyService.createOrUpdateSurvey(
-        dataToSave,
-        surveyId,
-        saveAsDraft
-      );
-
-      if (saveAsDraft) {
-        toast.success("Borrador guardado exitosamente");
-      }
-      router.push("/dashboard/encuestas");
-    } catch (err) {
-      console.error("Error saving survey:", err);
-      setError(err.message || "Error al guardar la encuesta");
+    } catch (error) {
+      console.error("Error al cargar encuesta:", error);
+      toast.error(`Error al cargar la encuesta: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
+  const [expandida, setExpandida] = useState(null);
+  const [expandidaModulos, setExpandidaModulos] = useState({});
+  const [arrastrando, setArrastrando] = useState(null);
+  const [modalNuevoModulo, setModalNuevoModulo] = useState(false);
+  const [nombreModulo, setNombreModulo] = useState("");
+  const [tituloFocused, setTituloFocused] = useState(true);
+  const [moduloCondicionandose, setModuloCondicionandose] = useState(null);
+  const [moduloDinamizandose, setModuloDinamizandose] = useState(null);
+  const [condicionExpandida, setCondicionExpandida] = useState(null);
+  const [condicionModuloExpandida, setCondicionModuloExpandida] =
+    useState(null);
+  const [modalCargaRapida, setModalCargaRapida] = useState(null);
+  const [textoCargaRapida, setTextoCargaRapida] = useState("");
 
-  // Función para manejar la cancelación
-  const handleCancel = () => {
-    const hasChanges =
-      surveyData.basicInfo.title ||
-      surveyData.basicInfo.description ||
-      surveyData.participants.userIds.length > 0 ||
-      surveyData.questions.length > 0;
+  const [modalSelectorPregunta, setModalSelectorPregunta] = useState(null);
+  const [modalSelectorValores, setModalSelectorValores] = useState(null);
+  const [modalSelectorTipo, setModalSelectorTipo] = useState(null);
+  const [busquedaModalPregunta, setBusquedaModalPregunta] = useState("");
+  const [busquedaModalValores, setBusquedaModalValores] = useState("");
+  const [busquedaModalTipo, setBusquedaModalTipo] = useState("");
+  const [valoresTempModal, setValoresTempModal] = useState([]);
 
-    if (hasChanges) {
-      setShowConfirmCancel(true);
+  const [modalEditarPregunta, setModalEditarPregunta] = useState(null); // { moduloId, preguntaId }
+  const [isNewQuestion, setIsNewQuestion] = useState(false);
+  const [modalConfirmEliminar, setModalConfirmEliminar] = useState(null); // { tipo: 'modulo'|'pregunta', data: {...} }
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [modalValidacion, setModalValidacion] = useState(null); // { title, message }
+  const [modalCloneQuotaWarning, setModalCloneQuotaWarning] = useState(false); // Advertencia al clonar módulos con cuotas
+  const [externalUpdateForQuestion, setExternalUpdateForQuestion] =
+    useState(null);
+
+  const [historial, setHistorial] = useState([]);
+  const [indiceHistorial, setIndiceHistorial] = useState(-1);
+  const [aplicandoHistorial, setAplicandoHistorial] = useState(false);
+
+  const [indiceAbierto, setIndiceAbierto] = useState(false);
+  const [busquedaIndice, setBusquedaIndice] = useState("");
+
+  const [busquedaOpciones, setBusquedaOpciones] = useState("");
+  const [busquedaPregunta, setBusquedaPregunta] = useState("");
+
+  React.useEffect(() => {
+    const tituloTextarea = document.querySelector("[data-titulo-encuesta]");
+    if (tituloTextarea && tituloFocused) {
+      tituloTextarea.focus();
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (expandida) {
+      setTimeout(() => {
+        const elemento = document.querySelector(
+          `[data-pregunta-card="${expandida}"]`,
+        );
+        if (elemento) {
+          elemento.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
+    }
+  }, [expandida]);
+
+  React.useEffect(() => {
+    const elementos = document.querySelectorAll('[data-auto-scroll="true"]');
+    if (elementos.length > 0) {
+      const ultimoElemento = elementos[elementos.length - 1];
+      setTimeout(() => {
+        ultimoElemento.scrollIntoView({ behavior: "smooth", block: "center" });
+        ultimoElemento.removeAttribute("data-auto-scroll");
+      }, 150);
+    }
+  });
+
+  React.useEffect(() => {
+    if (aplicandoHistorial) return;
+
+    const estadoActual = { titulo, descripcion, modulos };
+
+    if (
+      historial.length === 0 ||
+      JSON.stringify(historial[indiceHistorial]) !==
+        JSON.stringify(estadoActual)
+    ) {
+      const nuevoHistorial = historial.slice(0, indiceHistorial + 1);
+      nuevoHistorial.push(estadoActual);
+
+      if (nuevoHistorial.length > 50) {
+        nuevoHistorial.shift();
+        setHistorial(nuevoHistorial);
+      } else {
+        setHistorial(nuevoHistorial);
+        setIndiceHistorial(indiceHistorial + 1);
+      }
+    }
+  }, [modulos, titulo, descripcion, aplicandoHistorial]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        deshacer();
+      }
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "y" || (e.key === "z" && e.shiftKey))
+      ) {
+        e.preventDefault();
+        rehacer();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [indiceHistorial, historial]);
+
+  // Limpiar estado de arrastre en caso de que el drag termine inesperadamente
+  React.useEffect(() => {
+    const handleDragEnd = () => {
+      setArrastrando(null);
+    };
+
+    const handleMouseUp = () => {
+      // Pequeño delay para asegurar que otros handlers se ejecuten primero
+      setTimeout(() => setArrastrando(null), 100);
+    };
+
+    document.addEventListener("dragend", handleDragEnd);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("dragend", handleDragEnd);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (modalSelectorValores) {
+      setValoresTempModal(modalSelectorValores.valoresSeleccionados || []);
+    }
+  }, [modalSelectorValores]);
+
+  const guardarEnHistorial = (nuevoEstado) => {
+    const nuevoHistorial = historial.slice(0, indiceHistorial + 1);
+    nuevoHistorial.push(nuevoEstado);
+    if (nuevoHistorial.length > 50) {
+      nuevoHistorial.shift();
     } else {
-      router.back();
+      setIndiceHistorial(indiceHistorial + 1);
+    }
+    setHistorial(nuevoHistorial);
+  };
+
+  const deshacer = () => {
+    if (indiceHistorial > 0) {
+      setAplicandoHistorial(true);
+      const nuevoIndice = indiceHistorial - 1;
+      setIndiceHistorial(nuevoIndice);
+      const estadoAnterior = historial[nuevoIndice];
+      setTitulo(estadoAnterior.titulo);
+      setDescripcion(estadoAnterior.descripcion);
+      setModulos(estadoAnterior.modulos);
+      setTimeout(() => setAplicandoHistorial(false), 100);
     }
   };
 
-  const handleConfirmCancel = () => {
-    setShowConfirmCancel(false);
-    router.back();
+  const rehacer = () => {
+    if (indiceHistorial < historial.length - 1) {
+      setAplicandoHistorial(true);
+      const nuevoIndice = indiceHistorial + 1;
+      setIndiceHistorial(nuevoIndice);
+      const estadoSiguiente = historial[nuevoIndice];
+      setTitulo(estadoSiguiente.titulo);
+      setDescripcion(estadoSiguiente.descripcion);
+      setModulos(estadoSiguiente.modulos);
+      setTimeout(() => setAplicandoHistorial(false), 100);
+    }
   };
 
-  // Función para actualizar las cuotas
-  const handleQuotasChange = (quotas) => {
-    // Ya no actualizamos automáticamente la meta total basada en las cuotas
-    setSurveyData((prev) => ({
-      ...prev,
-      quotas,
+  const setModulosConHistorial = (nuevosModulos) => {
+    const nuevoEstado = {
+      titulo,
+      descripcion,
+      modulos:
+        typeof nuevosModulos === "function"
+          ? nuevosModulos(modulos)
+          : nuevosModulos,
+    };
+    guardarEnHistorial(nuevoEstado);
+    setModulos(nuevoEstado.modulos);
+  };
+
+  const detectarPreguntasCuota = (modulosArray) => {
+    const todasLasPreguntas = modulosArray.flatMap((m) => m.preguntas);
+    return todasLasPreguntas.some(
+      (p) => p.tipo === "cuota-genero" || p.tipo === "cuota-edad",
+    );
+  };
+
+  const obtenerTodasLasPreguntas = () => {
+    const todasLasPreguntas = [];
+    let numeroGlobal = 1;
+
+    modulos.forEach((modulo) => {
+      modulo.preguntas.forEach((pregunta) => {
+        todasLasPreguntas.push({
+          id: pregunta.id,
+          numero: numeroGlobal,
+          text: pregunta.text || "Sin texto",
+          value: pregunta.value,
+          moduloId: modulo.id,
+          moduloNombre: modulo.nombre,
+          tieneCondiciones: pregunta.condicionada?.activa || false,
+          tipo: pregunta.tipo,
+        });
+        numeroGlobal++;
+      });
+    });
+
+    return todasLasPreguntas;
+  };
+
+  const tiposPreguntas = [
+    { value: "texto", label: "Texto", icon: Type },
+    {
+      value: "texto-multiple",
+      label: "Múltiples campos de texto",
+      icon: AlignLeft,
+    },
+    { value: "numerica", label: "Numérica", icon: Hash },
+    { value: "opcion-unica", label: "Opción única", icon: Radio },
+    { value: "opcion-multiple", label: "Opción múltiple", icon: CheckSquare },
+    { value: "matriz", label: "Matriz", icon: Grid3x3 },
+    {
+      value: "matriz-multiple",
+      label: "Matriz con opción múltiple",
+      icon: Grid3x3,
+    },
+    {
+      value: "matriz-dinamica",
+      label: "Matriz con fila dinámica",
+      icon: Grid3x3,
+    },
+    {
+      value: "desplegable",
+      label: "Desplegable con buscador",
+      icon: ChevronDown,
+    },
+    { value: "escala", label: "Escala", icon: BarChart3 },
+    { value: "ordenar", label: "Ordenar opciones", icon: GripVertical },
+    { value: "fecha", label: "Fecha", icon: Calendar },
+    { value: "foto", label: "Foto", icon: Camera },
+    { value: "microfono", label: "Micrófono", icon: Mic },
+    { value: "cuota-genero", label: "Cuota Género", icon: VenusAndMars },
+    { value: "cuota-edad", label: "Cuota Edad", icon: ArrowDown01 },
+  ];
+
+  const validarValueUnico = (value, preguntaId) => {
+    const todasLasPreguntas = modulos.flatMap((m) => m.preguntas);
+
+    return !todasLasPreguntas.some(
+      (p) => p.id !== preguntaId && p.value === value,
+    );
+  };
+
+  const validarTipoCuotaUnico = (nuevoTipo, preguntaActualId) => {
+    // Solo validar para tipos de cuota
+    if (nuevoTipo !== "cuota-genero" && nuevoTipo !== "cuota-edad") {
+      return { valido: true };
+    }
+
+    // Buscar si ya existe otra pregunta con este tipo
+    const todasLasPreguntas = modulos.flatMap((m) => m.preguntas);
+    const yaExiste = todasLasPreguntas.some(
+      (p) => p.tipo === nuevoTipo && p.id !== preguntaActualId,
+    );
+
+    if (yaExiste) {
+      const tipoNombre =
+        nuevoTipo === "cuota-genero" ? "Cuota Género" : "Cuota Edad";
+      return {
+        valido: false,
+        mensaje: `Ya existe una pregunta de tipo "${tipoNombre}" en esta encuesta. Solo puede haber una pregunta de cada tipo de cuota.`,
+      };
+    }
+
+    return { valido: true };
+  };
+
+  const getIndicacionesPorDefecto = (tipo) => {
+    switch (tipo) {
+      case "texto":
+        return "Ingrese su respuesta";
+      case "texto-multiple":
+        return "Complete los siguientes campos";
+      case "numerica":
+        return "Ingrese un número";
+      case "opcion-unica":
+        return "Seleccione una opción";
+      case "opcion-multiple":
+        return "Seleccione una o más opciones";
+      case "matriz":
+        return "Seleccione una opción para cada fila";
+      case "matriz-multiple":
+        return "Seleccione una o más opciones para cada fila";
+      case "desplegable":
+        return "Busque y seleccione una opción";
+      case "cuota-genero":
+        return "Seleccione su género";
+      case "cuota-edad":
+        return "Seleccione su rango de edad";
+      case "escala":
+        return "Evalúe según la escala";
+      case "ordenar":
+        return "Ordene las opciones según su preferencia";
+      case "foto":
+        return "Suba una foto";
+      case "microfono":
+        return "Grabe un audio";
+      default:
+        return "";
+    }
+  };
+
+  const generarValue = (numeroPreg) => {
+    return `p${numeroPreg}`;
+  };
+
+  const getIconoTipo = (tipo) => {
+    const iconProps = { size: 14 };
+    switch (tipo) {
+      case "texto":
+        return <Type {...iconProps} />;
+      case "texto-multiple":
+        return <AlignLeft {...iconProps} />;
+      case "numerica":
+        return <Hash {...iconProps} />;
+      case "opcion-unica":
+        return <Radio {...iconProps} />;
+      case "opcion-multiple":
+        return <CheckSquare {...iconProps} />;
+      case "matriz":
+        return <Grid3x3 {...iconProps} />;
+      case "matriz-multiple":
+        return <Grid3x3 {...iconProps} />;
+      case "cuota-genero":
+        return <VenusAndMars {...iconProps} />;
+      case "cuota-edad":
+        return <ArrowDown01 {...iconProps} />;
+      case "escala":
+        return <BarChart3 {...iconProps} />;
+      case "foto":
+        return <Camera {...iconProps} />;
+      case "microfono":
+        return <Mic {...iconProps} />;
+      default:
+        return <Type {...iconProps} />;
+    }
+  };
+
+  const getPreguntasConOpciones = (preguntaActualId) => {
+    const todasLasPreguntas = [];
+    modulos.forEach((modulo) => {
+      modulo.preguntas.forEach((pregunta, index) => {
+        if (pregunta.id !== preguntaActualId) {
+          const tieneOpciones = [
+            "opcion-unica",
+            "opcion-multiple",
+            "desplegable",
+            "cuota-genero",
+            "cuota-edad",
+            "escala",
+            "ordenar",
+            "texto-multiple",
+          ].includes(pregunta.tipo);
+          const esNumerica = pregunta.tipo === "numerica";
+
+          if (tieneOpciones || esNumerica) {
+            const numeroTotal =
+              modulos.reduce((acc, m) => {
+                const idx = modulos.indexOf(m);
+                const idxActual = modulos.indexOf(modulo);
+                return acc + (idx < idxActual ? m.preguntas.length : 0);
+              }, 0) +
+              index +
+              1;
+
+            todasLasPreguntas.push({
+              ...pregunta,
+              numeroDisplay: numeroTotal,
+              moduloNombre: modulo.nombre,
+            });
+          }
+        }
+      });
+    });
+    return todasLasPreguntas;
+  };
+
+  const obtenerResumenCondicion = (condicion, preguntasDisponibles) => {
+    const pregunta = preguntasDisponibles.find(
+      (p) => p.id === condicion.preguntaId,
+    );
+    if (!pregunta) return "Configurar condición";
+
+    const tipo = condicion.tipo === "mostrar" ? "Mostrar si" : "Ocultar si";
+    const preguntaTexto = pregunta.text || "Sin texto";
+
+    let operadorTexto = "";
+    let valorTexto = "";
+
+    if (pregunta.tipo === "numerica") {
+      switch (condicion.operador) {
+        case "igual":
+          operadorTexto = "=";
+          break;
+        case "diferente":
+          operadorTexto = "≠";
+          break;
+        case "mayor":
+          operadorTexto = ">";
+          break;
+        case "menor":
+          operadorTexto = "<";
+          break;
+        case "entre":
+          operadorTexto = "⊂";
+          break;
+      }
+
+      if (condicion.operador === "entre") {
+        valorTexto = `${condicion.valorMin || "?"} - ${condicion.valorMax || "?"}`;
+      } else {
+        valorTexto = condicion.valorMin || "?";
+      }
+    } else {
+      operadorTexto = condicion.operador === "igual" ? "=" : "≠";
+      if (condicion.valores && condicion.valores.length > 0) {
+        const opciones = condicion.valores.map((v) => {
+          const opcion = pregunta.opciones.find(
+            (o, i) => (o.value || String(i + 1)) === v,
+          );
+          return opcion?.text || v;
+        });
+        valorTexto =
+          opciones.length > 2
+            ? `${opciones.slice(0, 2).join(", ")}... (+${opciones.length - 2})`
+            : opciones.join(", ");
+      } else {
+        valorTexto = "?";
+      }
+    }
+
+    return `${tipo} P${pregunta.numeroDisplay} ${operadorTexto} ${valorTexto}`;
+  };
+
+  const crearPreguntaBase = () => ({
+    id: Date.now(),
+    value: "",
+    text: "",
+    tipo: "opcion-unica",
+    indicaciones: "Seleccione una opción",
+    requerida: true,
+    validadores: {
+      activo: false,
+      reglas: [],
+    },
+    condicionada: {
+      activa: false,
+      condiciones: [],
+    },
+    opciones: [],
+    filas: [
+      { value: "1", text: "" },
+      { value: "2", text: "" },
+    ],
+    columnas: [
+      { value: "1", text: "" },
+      { value: "2", text: "" },
+      { value: "3", text: "" },
+    ],
+    campos: [],
+    configuracionEscala: {},
+    matrizDinamica: {
+      columnas: [
+        { value: "col1", text: "", cellType: "text" },
+        { value: "col2", text: "", cellType: "text" },
+      ],
+      rowCount: 2,
+      minRowCount: 1,
+      maxRowCount: 10,
+      addRowText: "Agregar fila",
+      removeRowText: "Eliminar",
+    },
+  });
+
+  const agregarModulo = () => {
+    const nombre = nombreModulo.trim() || `Módulo ${modulos.length + 1}`;
+    const nuevoModulo = {
+      id: Date.now(),
+      nombre: nombre,
+      descripcion: "",
+      preguntas: [],
+      condicionada: {
+        activa: false,
+        condiciones: [],
+      },
+      dinamico: {
+        activo: false,
+        panelCount: 1,
+        minPanelCount: 0,
+        maxPanelCount: 10,
+        panelAddText: "Agregar",
+        panelRemoveText: "Eliminar",
+      },
+      autoScroll: true,
+    };
+    setModulos([...modulos, nuevoModulo]);
+    setExpandidaModulos({ ...expandidaModulos, [nuevoModulo.id]: true });
+    setExpandida(null);
+    setModuloCondicionandose(null);
+    setModuloDinamizandose(null);
+    setCondicionExpandida(null);
+    setCondicionModuloExpandida(null);
+    setNombreModulo("");
+    setModalNuevoModulo(false);
+  };
+
+  const agregarPregunta = (moduloId) => {
+    const totalPreguntas = modulos.reduce(
+      (acc, m) => acc + m.preguntas.length,
+      0,
+    );
+    const nuevaPregunta = {
+      ...crearPreguntaBase(),
+    };
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? { ...m, preguntas: [...m.preguntas, nuevaPregunta] }
+          : m,
+      ),
+    );
+    setModuloCondicionandose(null);
+    setModuloDinamizandose(null);
+
+    // Abrir modal de edición automáticamente marcando la pregunta como nueva
+    setTimeout(() => {
+      abrirModalEditarPregunta(moduloId, nuevaPregunta.id);
+      setIsNewQuestion(true);
+    }, 100);
+  };
+
+  const actualizarPregunta = (moduloId, preguntaId, updates) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId ? { ...p, ...updates } : p,
+              ),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const abrirModalEditarPregunta = (moduloId, preguntaId) => {
+    setModalEditarPregunta({ moduloId, preguntaId });
+  };
+
+  const cerrarModalEditarPregunta = () => {
+    setModalEditarPregunta(null);
+    setIsNewQuestion(false);
+  };
+
+  const descartarNuevaPregunta = () => {
+    if (modalEditarPregunta) {
+      eliminarPregunta(
+        modalEditarPregunta.moduloId,
+        modalEditarPregunta.preguntaId,
+      );
+    }
+    setModalEditarPregunta(null);
+    setIsNewQuestion(false);
+  };
+
+  const guardarPreguntaDesdeModal = (updates) => {
+    if (modalEditarPregunta) {
+      actualizarPregunta(
+        modalEditarPregunta.moduloId,
+        modalEditarPregunta.preguntaId,
+        updates,
+      );
+    }
+    setIsNewQuestion(false);
+  };
+
+  const getPreguntaActual = () => {
+    if (!modalEditarPregunta) return null;
+    const modulo = modulos.find((m) => m.id === modalEditarPregunta.moduloId);
+    if (!modulo) return null;
+    return modulo.preguntas.find(
+      (p) => p.id === modalEditarPregunta.preguntaId,
+    );
+  };
+
+  const actualizarOpcion = (moduloId, preguntaId, index, campo, valor) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? {
+                      ...p,
+                      opciones: p.opciones.map((o, i) =>
+                        i === index ? { ...o, [campo]: valor } : o,
+                      ),
+                    }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const actualizarFila = (moduloId, preguntaId, index, campo, valor) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? {
+                      ...p,
+                      filas: p.filas.map((f, i) =>
+                        i === index ? { ...f, [campo]: valor } : f,
+                      ),
+                    }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const actualizarColumna = (moduloId, preguntaId, index, campo, valor) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? {
+                      ...p,
+                      columnas: p.columnas.map((c, i) =>
+                        i === index ? { ...c, [campo]: valor } : c,
+                      ),
+                    }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const agregarFila = (moduloId, preguntaId) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? { ...p, filas: [...p.filas, { value: "", text: "" }] }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+
+    setTimeout(() => {
+      const pregunta = modulos
+        .find((m) => m.id === moduloId)
+        ?.preguntas.find((p) => p.id === preguntaId);
+      if (pregunta) {
+        const nuevoIndex = pregunta.filas.length;
+        const input = document.querySelector(
+          `input[data-fila-id="${preguntaId}-${nuevoIndex}"]`,
+        );
+        if (input) input.focus();
+      }
+    }, 50);
+  };
+
+  const agregarColumna = (moduloId, preguntaId) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? { ...p, columnas: [...p.columnas, { value: "", text: "" }] }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+
+    setTimeout(() => {
+      const pregunta = modulos
+        .find((m) => m.id === moduloId)
+        ?.preguntas.find((p) => p.id === preguntaId);
+      if (pregunta) {
+        const nuevoIndex = pregunta.columnas.length;
+        const input = document.querySelector(
+          `input[data-columna-id="${preguntaId}-${nuevoIndex}"]`,
+        );
+        if (input) input.focus();
+      }
+    }, 50);
+  };
+
+  const eliminarFila = (moduloId, preguntaId, index) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? { ...p, filas: p.filas.filter((_, i) => i !== index) }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const eliminarColumna = (moduloId, preguntaId, index) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? { ...p, columnas: p.columnas.filter((_, i) => i !== index) }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const agregarOpcion = (moduloId, preguntaId) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? { ...p, opciones: [...p.opciones, { value: "", text: "" }] }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+
+    setTimeout(() => {
+      const pregunta = modulos
+        .find((m) => m.id === moduloId)
+        ?.preguntas.find((p) => p.id === preguntaId);
+      if (pregunta) {
+        const nuevoIndex = pregunta.opciones.length;
+        const input = document.querySelector(
+          `input[data-opcion-id="${preguntaId}-${nuevoIndex}"]`,
+        );
+        if (input) input.focus();
+      }
+    }, 50);
+  };
+
+  const eliminarOpcion = (moduloId, preguntaId, index) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? {
+              ...m,
+              preguntas: m.preguntas.map((p) =>
+                p.id === preguntaId
+                  ? { ...p, opciones: p.opciones.filter((_, i) => i !== index) }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    );
+  };
+
+  const procesarCargaRapida = () => {
+    if (!modalCargaRapida || !textoCargaRapida.trim()) return;
+
+    const { moduloId, preguntaId, tipo } = modalCargaRapida;
+
+    const lineas = textoCargaRapida
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    const nuevosItems = lineas.map((texto, idx) => ({
+      text: texto,
+      value: String(idx + 1),
     }));
+
+    const nuevosItemsDinamica = lineas.map((texto, idx) => ({
+      text: texto,
+      value: `col${idx + 1}`,
+      cellType: "text",
+    }));
+
+    if (tipo === "columnas-dinamica") {
+      setModulos(
+        modulos.map((m) =>
+          m.id === moduloId
+            ? {
+                ...m,
+                preguntas: m.preguntas.map((p) =>
+                  p.id === preguntaId
+                    ? {
+                        ...p,
+                        matrizDinamica: {
+                          ...(p.matrizDinamica || {}),
+                          columnas: nuevosItemsDinamica,
+                        },
+                      }
+                    : p,
+                ),
+              }
+            : m,
+        ),
+      );
+    } else {
+      setModulos(
+        modulos.map((m) =>
+          m.id === moduloId
+            ? {
+                ...m,
+                preguntas: m.preguntas.map((p) =>
+                  p.id === preguntaId
+                    ? {
+                        ...p,
+                        [tipo === "filas"
+                          ? "filas"
+                          : tipo === "columnas"
+                            ? "columnas"
+                            : "opciones"]: nuevosItems,
+                      }
+                    : p,
+                ),
+              }
+            : m,
+        ),
+      );
+    }
+
+    setModalCargaRapida(null);
+    setTextoCargaRapida("");
   };
 
-  // Función para manejar cambios en asignaciones de casos por pollster
-  const handlePollsterAssignmentChange = (pollsterId, assignedCases) => {
-    setSurveyData((prev) => {
-      // Verificación defensiva para evitar errores cuando participants no está definido
-      const currentAssignments = prev.participants?.pollsterAssignments || [];
-      const updatedAssignments = [...currentAssignments];
-      const existingIndex = updatedAssignments.findIndex(
-        (assignment) => assignment.pollsterId === pollsterId
-      );
-
-      if (existingIndex >= 0) {
-        // Actualizar asignación existente
-        updatedAssignments[existingIndex] = { pollsterId, assignedCases };
-      } else {
-        // Agregar nueva asignación
-        updatedAssignments.push({ pollsterId, assignedCases });
-      }
-
-      return {
-        ...prev,
-        participants: {
-          ...prev.participants,
-          pollsterAssignments: updatedAssignments,
-        },
-      };
+  const confirmarEliminarPregunta = (moduloId, preguntaId) => {
+    const modulo = modulos.find((m) => m.id === moduloId);
+    const pregunta = modulo?.preguntas.find((p) => p.id === preguntaId);
+    setModalConfirmEliminar({
+      tipo: "pregunta",
+      data: { moduloId, preguntaId, texto: pregunta?.text },
     });
   };
 
-  // Función para calcular el total de casos asignados
-  const getTotalAssignedCases = () => {
-    // Verificación defensiva para evitar errores cuando participants no está definido
-    if (
-      !surveyData.participants ||
-      !surveyData.participants.pollsterAssignments
-    ) {
-      return 0;
-    }
-
-    return surveyData.participants.pollsterAssignments.reduce(
-      (total, assignment) => total + (assignment.assignedCases || 0),
-      0
+  const eliminarPregunta = (moduloId, preguntaId) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId
+          ? { ...m, preguntas: m.preguntas.filter((p) => p.id !== preguntaId) }
+          : m,
+      ),
     );
   };
 
-  // Función para obtener casos asignados a un pollster específico
-  const getAssignedCases = (pollsterId) => {
-    // Verificación defensiva para evitar errores cuando participants no está definido
-    if (
-      !surveyData.participants ||
-      !surveyData.participants.pollsterAssignments
-    ) {
-      return 0;
-    }
-
-    const assignment = surveyData.participants.pollsterAssignments.find(
-      (assignment) => assignment.pollsterId === pollsterId
-    );
-    return assignment ? assignment.assignedCases || 0 : 0;
-  };
-
-  // Función para obtener asignación de cuotas de un pollster
-  const getPollsterQuotaAssignment = (pollsterId) => {
-    if (!surveyData.participants?.quotaAssignments) {
-      return null;
-    }
-    return surveyData.participants.quotaAssignments.find(
-      (assignment) => assignment.pollsterId === pollsterId
-    );
-  };
-
-  // Función para guardar asignación de cuotas de un pollster
-  const handleSaveQuotaAssignment = (pollsterId, quotas) => {
-    setSurveyData((prev) => {
-      const currentAssignments = prev.participants?.quotaAssignments || [];
-      const updatedAssignments = [...currentAssignments];
-      const existingIndex = updatedAssignments.findIndex(
-        (assignment) => assignment.pollsterId === pollsterId
-      );
-
-      if (existingIndex >= 0) {
-        // Actualizar asignación existente
-        updatedAssignments[existingIndex] = { pollsterId, quotas };
-      } else {
-        // Agregar nueva asignación
-        updatedAssignments.push({ pollsterId, quotas });
-      }
-
-      return {
-        ...prev,
-        participants: {
-          ...prev.participants,
-          quotaAssignments: updatedAssignments,
-        },
-      };
+  const confirmarEliminarModulo = (moduloId) => {
+    const modulo = modulos.find((m) => m.id === moduloId);
+    setModalConfirmEliminar({
+      tipo: "modulo",
+      data: { moduloId, nombre: modulo?.nombre },
     });
   };
 
-  // Función para distribución automática de cuotas entre encuestadores
-  const handleAutoDistributeQuotas = () => {
-    const pollsters = surveyData.participants.userIds;
-    if (
-      !pollsters ||
-      pollsters.length === 0 ||
-      !surveyData.quotas ||
-      surveyData.quotas.length === 0
-    ) {
+  const eliminarModulo = (moduloId) => {
+    setModulos(modulos.filter((m) => m.id !== moduloId));
+  };
+
+  const renombrarModulo = (moduloId, nuevoNombre) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId ? { ...m, nombre: nuevoNombre } : m,
+      ),
+    );
+  };
+
+  const actualizarDescripcionModulo = (moduloId, nuevaDescripcion) => {
+    setModulos(
+      modulos.map((m) =>
+        m.id === moduloId ? { ...m, descripcion: nuevaDescripcion } : m,
+      ),
+    );
+  };
+
+  const actualizarModulo = (moduloId, updates) => {
+    setModulos(
+      modulos.map((m) => (m.id === moduloId ? { ...m, ...updates } : m)),
+    );
+  };
+
+  const agregarCondicion = (moduloId, preguntaId) => {
+    const pregunta = modulos
+      .find((m) => m.id === moduloId)
+      ?.preguntas.find((p) => p.id === preguntaId);
+    const nuevaCondicion = {
+      id: Date.now(),
+      tipo: "mostrar",
+      preguntaId: null,
+      operador: "igual",
+      valores: [],
+      valorMin: "",
+      valorMax: "",
+    };
+
+    const newCondicionada = {
+      ...pregunta.condicionada,
+      condiciones: [
+        ...(pregunta.condicionada.condiciones || []),
+        nuevaCondicion,
+      ],
+    };
+
+    actualizarPregunta(moduloId, preguntaId, { condicionada: newCondicionada });
+    setCondicionExpandida(nuevaCondicion.id);
+  };
+
+  const actualizarCondicion = (moduloId, preguntaId, condicionId, updates) => {
+    const pregunta = modulos
+      .find((m) => m.id === moduloId)
+      ?.preguntas.find((p) => p.id === preguntaId);
+    const newCondiciones = pregunta.condicionada.condiciones.map((c) =>
+      c.id === condicionId ? { ...c, ...updates } : c,
+    );
+
+    const newCondicionada = {
+      ...pregunta.condicionada,
+      condiciones: newCondiciones,
+    };
+
+    actualizarPregunta(moduloId, preguntaId, { condicionada: newCondicionada });
+  };
+
+  const eliminarCondicion = (moduloId, preguntaId, condicionId) => {
+    const pregunta = modulos
+      .find((m) => m.id === moduloId)
+      ?.preguntas.find((p) => p.id === preguntaId);
+    const newCondiciones = pregunta.condicionada.condiciones.filter(
+      (c) => c.id !== condicionId,
+    );
+
+    const newCondicionada = {
+      ...pregunta.condicionada,
+      condiciones: newCondiciones,
+    };
+
+    actualizarPregunta(moduloId, preguntaId, { condicionada: newCondicionada });
+  };
+
+  const agregarCondicionModulo = (moduloId) => {
+    const modulo = modulos.find((m) => m.id === moduloId);
+    const nuevaCondicion = {
+      id: Date.now(),
+      tipo: "mostrar",
+      preguntaId: null,
+      operador: "igual",
+      valores: [],
+      valorMin: "",
+      valorMax: "",
+    };
+
+    const newCondicionada = {
+      ...modulo.condicionada,
+      condiciones: [...(modulo.condicionada.condiciones || []), nuevaCondicion],
+    };
+
+    actualizarModulo(moduloId, { condicionada: newCondicionada });
+    setCondicionModuloExpandida(nuevaCondicion.id);
+  };
+
+  const actualizarCondicionModulo = (moduloId, condicionId, updates) => {
+    const modulo = modulos.find((m) => m.id === moduloId);
+    const newCondiciones = modulo.condicionada.condiciones.map((c) =>
+      c.id === condicionId ? { ...c, ...updates } : c,
+    );
+
+    const newCondicionada = {
+      ...modulo.condicionada,
+      condiciones: newCondiciones,
+    };
+
+    actualizarModulo(moduloId, { condicionada: newCondicionada });
+  };
+
+  const eliminarCondicionModulo = (moduloId, condicionId) => {
+    const modulo = modulos.find((m) => m.id === moduloId);
+    const newCondiciones = modulo.condicionada.condiciones.filter(
+      (c) => c.id !== condicionId,
+    );
+
+    const newCondicionada = {
+      ...modulo.condicionada,
+      condiciones: newCondiciones,
+    };
+
+    actualizarModulo(moduloId, { condicionada: newCondicionada });
+  };
+
+  const handleDragStart = (e, tipo, datos) => {
+    setArrastrando({ tipo, datos });
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDropModulo = (e, index) => {
+    e.preventDefault();
+    if (!arrastrando || arrastrando.tipo !== "modulo") return;
+    const modulosNuevos = [...modulos];
+    const [moduloMovido] = modulosNuevos.splice(arrastrando.datos.index, 1);
+    modulosNuevos.splice(index, 0, moduloMovido);
+    setModulos(modulosNuevos);
+    setArrastrando(null);
+  };
+
+  const handleDropPregunta = (e, moduloId, indexPregunta) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!arrastrando || arrastrando.tipo !== "pregunta") return;
+
+    const { moduloId: moduloOrigen, index } = arrastrando.datos;
+
+    if (moduloOrigen === moduloId) {
+      const moduloActual = modulos.find((m) => m.id === moduloId);
+      const preguntasNuevas = [...moduloActual.preguntas];
+      const [preguntaMovida] = preguntasNuevas.splice(index, 1);
+      preguntasNuevas.splice(indexPregunta, 0, preguntaMovida);
+      setModulos(
+        modulos.map((m) =>
+          m.id === moduloId ? { ...m, preguntas: preguntasNuevas } : m,
+        ),
+      );
+    } else {
+      const moduloOrigenObj = modulos.find((m) => m.id === moduloOrigen);
+      const preguntaMovida = moduloOrigenObj.preguntas[index];
+
+      setModulos(
+        modulos.map((m) => {
+          if (m.id === moduloOrigen) {
+            return {
+              ...m,
+              preguntas: m.preguntas.filter((_, i) => i !== index),
+            };
+          }
+          if (m.id === moduloId) {
+            const nuevasPreguntas = [...m.preguntas];
+            nuevasPreguntas.splice(indexPregunta, 0, preguntaMovida);
+            return { ...m, preguntas: nuevasPreguntas };
+          }
+          return m;
+        }),
+      );
+    }
+    setArrastrando(null);
+  };
+
+  // Continuará con renderPregunta y el resto del componente...
+  // Debido al límite de caracteres, necesito dividir esto
+
+  const handleQuestionClick = (pregunta) => {
+    setExpandida(`pregunta-${pregunta.id}`);
+    setExpandidaModulos({ ...expandidaModulos, [pregunta.moduloId]: true });
+    setIndiceAbierto(false);
+    setBusquedaIndice("");
+    setTimeout(() => {
+      const elemento = document.querySelector(
+        `[data-pregunta-card="pregunta-${pregunta.id}"]`,
+      );
+      if (elemento) {
+        elemento.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
+  };
+
+  const handleOpenTypeSelector = (moduloId, preguntaId) => {
+    const pregunta = modulos
+      .find((m) => m.id === moduloId)
+      ?.preguntas.find((p) => p.id === preguntaId);
+    setModalSelectorTipo({
+      moduloId,
+      preguntaId,
+      tipoActual: pregunta?.tipo,
+      pregunta,
+    });
+  };
+
+  const handleSelectType = (tipo) => {
+    if (!modalSelectorTipo) return;
+
+    // Validar si el tipo de cuota ya existe
+    const preguntaId = modalSelectorTipo.preguntaId;
+    const validacion = validarTipoCuotaUnico(tipo.value, preguntaId);
+
+    if (!validacion.valido) {
+      setModalValidacion({
+        title: "Tipo de pregunta no permitido",
+        message: validacion.mensaje,
+      });
+      setModalSelectorTipo(null);
       return;
     }
 
-    pollsters.forEach((pollsterId) => {
-      // Copiar estructura de cuotas y dividir targets equitativamente
-      const pollsterQuotas = surveyData.quotas.map((quota) => ({
-        category: quota.category,
-        segments: quota.segments.map((segment) => {
-          const targetPerPollster = Math.floor(
-            segment.target / pollsters.length
-          );
-          return {
-            name: segment.name,
-            target: targetPerPollster,
-          };
-        }),
-      }));
+    const nuevasIndicaciones = getIndicacionesPorDefecto(tipo.value);
 
-      handleSaveQuotaAssignment(pollsterId, pollsterQuotas);
-    });
-  };
+    // Preparar actualizaciones base
+    const updates = {
+      tipo: tipo.value,
+      indicaciones: nuevasIndicaciones,
+    };
 
-  // Renderizar paso actual
-  const renderStep = () => {
-    switch (page) {
-      case STEPS.INFORMACION_BASICA:
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold">Información Básica</h2>
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Título de la Encuesta
-                </label>
-                <input
-                  type="text"
-                  value={surveyData.basicInfo.title}
-                  onChange={(e) =>
-                    setSurveyData((prev) => ({
-                      ...prev,
-                      basicInfo: {
-                        ...prev.basicInfo,
-                        title: e.target.value,
-                      },
-                    }))
-                  }
-                  className="w-full p-3 border rounded-md"
-                  placeholder="Ej: Encuesta de Satisfacción 2024"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Descripción
-                </label>
-                <textarea
-                  value={surveyData.basicInfo.description}
-                  onChange={(e) =>
-                    setSurveyData((prev) => ({
-                      ...prev,
-                      basicInfo: {
-                        ...prev.basicInfo,
-                        description: e.target.value,
-                      },
-                    }))
-                  }
-                  className="w-full p-3 border rounded-md"
-                  rows={1}
-                  placeholder="Describe el propósito de la encuesta"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Fecha de inicio
-                  </label>
-                  <input
-                    type="date"
-                    value={surveyData.basicInfo.startDate}
-                    onChange={(e) =>
-                      setSurveyData((prev) => ({
-                        ...prev,
-                        basicInfo: {
-                          ...prev.basicInfo,
-                          startDate: e.target.value,
-                        },
-                      }))
-                    }
-                    className="w-full p-3 border rounded-md"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Fecha de fin
-                  </label>
-                  <input
-                    type="date"
-                    value={surveyData.basicInfo.endDate}
-                    onChange={(e) =>
-                      setSurveyData((prev) => ({
-                        ...prev,
-                        basicInfo: {
-                          ...prev.basicInfo,
-                          endDate: e.target.value,
-                        },
-                      }))
-                    }
-                    className="w-full p-3 border rounded-md"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Meta (total de encuestas){" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    ref={targetInputRef}
-                    type="number"
-                    min="1"
-                    value={surveyData.basicInfo.target}
-                    onChange={(e) =>
-                      setSurveyData((prev) => ({
-                        ...prev,
-                        basicInfo: {
-                          ...prev.basicInfo,
-                          target: parseInt(e.target.value) || "",
-                        },
-                      }))
-                    }
-                    className="w-full p-3 border rounded-md"
-                    placeholder="Ingrese la meta"
-                    required
-                  />
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">
-                    Este valor es obligatorio y se utilizará para las cuotas.
-                  </p>
-                </div>
-              </div>
-
-              {/* GPS Obligatorio */}
-              <div className="bg-[var(--background-secondary)] p-4 rounded-lg border border-[var(--border)]">
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    id="requireGps"
-                    checked={surveyData.basicInfo.requireGps}
-                    onChange={(e) =>
-                      setSurveyData((prev) => ({
-                        ...prev,
-                        basicInfo: {
-                          ...prev.basicInfo,
-                          requireGps: e.target.checked,
-                        },
-                      }))
-                    }
-                    className="mt-1 w-4 h-4 text-primary bg-white border-gray-300 rounded focus:ring-primary"
-                  />
-                  <div className="flex-1">
-                    <label
-                      htmlFor="requireGps"
-                      className="block text-sm font-medium cursor-pointer"
-                    >
-                      Ubicación GPS Obligatoria
-                    </label>
-                    <p className="text-xs text-[var(--text-secondary)] mt-1">
-                      Si está activado, los encuestadores no podrán enviar
-                      respuestas sin coordenadas GPS. Si está desactivado
-                      (predeterminado), se intentará obtener la ubicación pero
-                      se permitirá enviar sin coordenadas en caso de error.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case STEPS.CUOTAS:
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold">Sistema de Cuotas</h2>
-            <p className="text-[var(--text-secondary)]">
-              Define las categorías y segmentos para tu sistema de cuotas. Las
-              cuotas te permiten establecer cuántas encuestas necesitas de cada
-              segmento de la población.
-            </p>
-
-            <div className="mt-4">
-              <QuotaManager
-                value={surveyData.quotas}
-                onChange={handleQuotasChange}
-                totalTarget={surveyData.basicInfo.target || 0}
-              />
-            </div>
-          </div>
-        );
-
-      case STEPS.PARTICIPANTES:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Participantes</h2>
-
-            {/* Encuestadores */}
-            <div className="card p-4 space-y-3">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-base font-medium mb-1">Encuestadores</h3>
-                  <p className="text-text-secondary text-sm">
-                    Selecciona los encuestadores que participarán en esta
-                    encuesta.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowPollstersModal(true)}
-                  className="btn-primary text-sm whitespace-nowrap"
-                >
-                  Seleccionar Encuestadores
-                </button>
-              </div>
-
-              {/* Lista de encuestadores seleccionados y asignación de casos */}
-              {surveyData.participants.userIds.length > 0 && (
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium">
-                    Asignación de Casos por Encuestador:
-                  </h4>
-
-                  {/* Indicador de progreso de asignación */}
-                  <div className="bg-card-background p-3 rounded-lg">
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Casos asignados:</span>
-                      <span
-                        className={`font-medium ${
-                          getTotalAssignedCases() >
-                          (surveyData.basicInfo.target || 0)
-                            ? "text-red-600"
-                            : getTotalAssignedCases() ===
-                              (surveyData.basicInfo.target || 0)
-                            ? "text-green-600"
-                            : "text-orange-600"
-                        }`}
-                      >
-                        {getTotalAssignedCases()} /{" "}
-                        {surveyData.basicInfo.target || 0}
-                      </span>
-                    </div>
-                    {getTotalAssignedCases() >
-                      (surveyData.basicInfo.target || 0) && (
-                      <p className="text-xs text-red-600 mt-1">
-                        ⚠️ Los casos asignados exceden la meta total
-                      </p>
-                    )}
-                    {getTotalAssignedCases() <
-                      (surveyData.basicInfo.target || 0) && (
-                      <p className="text-xs text-orange-600 mt-1">
-                        Faltan{" "}
-                        {(surveyData.basicInfo.target || 0) -
-                          getTotalAssignedCases()}{" "}
-                        casos por asignar
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Lista de encuestadores con inputs de asignación */}
-                  <div className="space-y-3">
-                    {users
-                      .filter((user) =>
-                        surveyData.participants.userIds.includes(user._id)
-                      )
-                      .map((user) => (
-                        <div
-                          key={user._id}
-                          className="flex items-center justify-between bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg p-3"
-                        >
-                          <div className="flex-1">
-                            <span className="font-medium text-[var(--text-primary)]">
-                              {user.name} {user.lastName}
-                            </span>
-                            <p className="text-xs text-[var(--text-secondary)]">
-                              {user.email}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium">
-                              Casos:
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max={surveyData.basicInfo.target || 100}
-                              value={getAssignedCases(user._id)}
-                              onChange={(e) =>
-                                handlePollsterAssignmentChange(
-                                  user._id,
-                                  parseInt(e.target.value) || 0
-                                )
-                              }
-                              className="w-20 px-2 py-1 border border-[var(--card-border)] rounded text-center text-sm bg-[var(--input-background)] text-[var(--text-primary)]"
-                              placeholder="0"
-                            />
-                            {surveyData.quotas &&
-                              surveyData.quotas.length > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedPollsterForQuotas(user);
-                                    setShowQuotaAssignmentModal(true);
-                                  }}
-                                  className="text-xs px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded border border-[var(--primary)]/30 transition-colors"
-                                >
-                                  Configurar cuotas
-                                </button>
-                              )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-
-                  {/* Botones de distribución automática */}
-                  <div className="flex justify-end gap-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const pollsters = surveyData.participants.userIds;
-                        const totalTarget = surveyData.basicInfo.target || 0;
-                        const casesPerPollster = Math.floor(
-                          totalTarget / pollsters.length
-                        );
-                        const remainder = totalTarget % pollsters.length;
-
-                        pollsters.forEach((pollsterId, index) => {
-                          // Los primeros 'remainder' pollsters reciben un caso extra
-                          const assignedCases =
-                            casesPerPollster + (index < remainder ? 1 : 0);
-                          handlePollsterAssignmentChange(
-                            pollsterId,
-                            assignedCases
-                          );
-                        });
-                      }}
-                      className="text-sm text-[var(--primary)] hover:text-[var(--primary-dark)] font-medium"
-                    >
-                      Distribuir casos automáticamente
-                    </button>
-                    {surveyData.quotas && surveyData.quotas.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleAutoDistributeQuotas}
-                        className="text-sm text-[var(--primary)] hover:text-[var(--primary-dark)] font-medium"
-                      >
-                        Distribuir cuotas automáticamente
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Supervisores */}
-            <div className="card p-4 space-y-3">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-base font-medium mb-1">Supervisores</h3>
-                  <p className="text-text-secondary text-sm">
-                    Asigna supervisores para monitorear el progreso.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowSupervisorsModal(true)}
-                  className="btn-primary text-sm whitespace-nowrap"
-                >
-                  Seleccionar Supervisores
-                </button>
-              </div>
-
-              {/* Lista de supervisores seleccionados */}
-              {surveyData.participants.supervisorsIds.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium mb-1">
-                    Supervisores seleccionados:
-                  </h4>
-                  <div className="space-y-1">
-                    {supervisors
-                      .filter((supervisor) =>
-                        surveyData.participants.supervisorsIds.includes(
-                          supervisor._id
-                        )
-                      )
-                      .map((supervisor) => (
-                        <div
-                          key={supervisor._id}
-                          className="flex items-center text-sm"
-                        >
-                          <span>
-                            {supervisor.name} {supervisor.lastName}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case STEPS.PREGUNTAS:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Preguntas</h2>
-            <div>
-              <QuestionEditor
-                questions={surveyData.questions}
-                onValidationError={showValidationError}
-                onChange={(questions) =>
-                  setSurveyData((prev) => ({
-                    ...prev,
-                    questions,
-                  }))
-                }
-              />
-            </div>
-          </div>
-        );
-
-      case STEPS.VISTA_PREVIA:
-        return (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Vista Previa</h2>
-            <div className="card p-4">
-              {/* Información básica */}
-              <div className="mb-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-1">
-                      {surveyData.basicInfo.title}
-                    </h3>
-                    <p className="text-text-secondary text-sm">
-                      {surveyData.basicInfo.description}
-                    </p>
-                  </div>
-                  <PDFDownloadLink
-                    document={<SurveyPDF surveyData={surveyData} />}
-                    fileName={`encuesta-${surveyData.basicInfo.title
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")}.pdf`}
-                    className="bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-md flex items-center gap-2 transition-colors"
-                  >
-                    {({ blob, url, loading, error }) => (
-                      <>
-                        <FileText className="w-4 h-4" />
-                        <span>
-                          {loading ? "Generando PDF..." : "Descargar PDF"}
-                        </span>
-                      </>
-                    )}
-                  </PDFDownloadLink>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                  <div className="card p-3">
-                    <span className="font-medium block mb-0.5">
-                      Periodo de la encuesta
-                    </span>
-                    <div className="text-text-secondary">
-                      {new Date(
-                        surveyData.basicInfo.startDate
-                      ).toLocaleDateString()}{" "}
-                      -{" "}
-                      {new Date(
-                        surveyData.basicInfo.endDate
-                      ).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="card p-3">
-                    <span className="font-medium block mb-0.5">
-                      Meta de respuestas
-                    </span>
-                    <div className="text-text-secondary">
-                      {surveyData.basicInfo.target} respuestas
-                    </div>
-                  </div>
-                  <div className="card p-3">
-                    <span className="font-medium block mb-0.5">
-                      Participantes
-                    </span>
-                    <div className="text-text-secondary">
-                      {surveyData.participants.userIds.length} encuestadores
-                      {surveyData.participants.supervisorsIds.length > 0 &&
-                        `, ${surveyData.participants.supervisorsIds.length} supervisores`}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Lista de preguntas */}
-              <div className="space-y-3">
-                <h4 className="text-base font-medium">
-                  Preguntas de la encuesta
-                </h4>
-                <div className="space-y-2">
-                  {(() => {
-                    try {
-                      // Ensure questions is an array before processing
-                      const questionsToOrganize = Array.isArray(
-                        surveyData.questions
-                      )
-                        ? surveyData.questions
-                        : [];
-
-                      // Obtener preguntas ordenadas jerárquicamente
-                      const { orderedQuestions, numberMap } =
-                        organizeQuestionsHierarchically(questionsToOrganize);
-
-                      // Usar el mapa de numeración para la visualización
-                      surveyData.questionNumberMap = numberMap;
-
-                      // Use optional chaining for safety
-                      return orderedQuestions?.map((question, index) => {
-                        // Obtener el número jerárquico
-                        const questionNumber =
-                          question.displayNumber ||
-                          (surveyData.questionNumberMap &&
-                            surveyData.questionNumberMap[question.id]) ||
-                          `${index + 1}`;
-
-                        // Información del padre si es hijo condicional
-                        let parentInfoText = "";
-                        let parentQuestion = null;
-
-                        // Verificar showCondition
-                        if (
-                          question.showCondition &&
-                          question.showCondition.parentQuestionId
-                        ) {
-                          parentQuestion = surveyData.questions.find(
-                            (q) =>
-                              q.id === question.showCondition.parentQuestionId
-                          );
-                          if (parentQuestion) {
-                            // Buscar el texto de la opción requerida
-                            const requiredOption = parentQuestion.options?.find(
-                              (opt) =>
-                                opt.id === question.showCondition.requiredValue
-                            );
-
-                            const optionText =
-                              requiredOption?.text ||
-                              question.showCondition.requiredValue ||
-                              "valor desconocido";
-
-                            parentInfoText = `↳ Se muestra si en pregunta ${
-                              numberMap[parentQuestion.id] || "?"
-                            } se elige "${optionText}"`;
-                          }
-                        }
-
-                        // Renderizar la pregunta
-                        return (
-                          <div key={question.id} className="card p-3">
-                            <div className="flex items-start gap-3">
-                              <div className="bg-[var(--primary)] text-white px-2 py-0.5 rounded-md flex-shrink-0 text-sm font-medium min-w-[30px] text-center">
-                                {questionNumber}
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div>
-                                    <h5 className="font-medium text-sm">
-                                      {question.title}
-                                    </h5>
-                                    {parentInfoText && (
-                                      <p className="text-xs text-blue-600 mt-0.5">
-                                        {parentInfoText}
-                                      </p>
-                                    )}
-                                    {question.description && (
-                                      <p className="text-text-secondary text-xs mt-0.5">
-                                        {question.description}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-xs text-text-secondary">
-                                      {QUESTION_TYPE_LABELS_ES[question.type] ||
-                                        question.type}
-                                    </span>
-                                    {question.required && (
-                                      <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                                        Obligatoria
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Opciones específicas según el tipo de pregunta */}
-                                {(question.type === "multiple_choice" ||
-                                  question.type === "single_choice" ||
-                                  question.type === "checkbox") &&
-                                  question.options &&
-                                  question.options.length > 0 && (
-                                    <div className="mt-2">
-                                      <span className="text-xs text-text-secondary block mb-1">
-                                        Opciones:
-                                      </span>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                                        {question.options.map((option) => {
-                                          // Determinar si esta opción lleva a una pregunta específica
-                                          let conditionInfo = null;
-
-                                          // Buscar si alguna pregunta hace referencia a esta opción
-                                          const childQuestion =
-                                            surveyData.questions.find(
-                                              (q) =>
-                                                q.showCondition
-                                                  ?.parentQuestionId ===
-                                                  question.id &&
-                                                q.showCondition
-                                                  ?.requiredValue === option.id
-                                            );
-                                          if (childQuestion) {
-                                            conditionInfo = {
-                                              questionNumber:
-                                                numberMap[childQuestion.id] ||
-                                                "?",
-                                              questionTitle:
-                                                childQuestion.title,
-                                            };
-                                          }
-
-                                          return (
-                                            <div
-                                              key={option.id}
-                                              className="flex items-center gap-1.5"
-                                            >
-                                              <div className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" />
-                                              <span className="text-xs">
-                                                {option.text}
-                                              </span>
-                                              {conditionInfo && (
-                                                <span className="text-xs font-medium text-green-600">
-                                                  → P
-                                                  {conditionInfo.questionNumber}
-                                                </span>
-                                              )}
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                {question.type === "matrix" && (
-                                  <div className="mt-2">
-                                    <div className="space-y-2">
-                                      {question.matrixRows.length > 0 && (
-                                        <div>
-                                          <span className="text-xs text-text-secondary block mb-1">
-                                            Filas:
-                                          </span>
-                                          <div className="space-y-0.5">
-                                            {question.matrixRows.map((row) => (
-                                              <div
-                                                key={row.id}
-                                                className="text-xs"
-                                              >
-                                                {row.text}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                      {question.matrixColumns.length > 0 && (
-                                        <div>
-                                          <span className="text-xs text-text-secondary block mb-1">
-                                            Columnas:
-                                          </span>
-                                          <div className="space-y-0.5">
-                                            {question.matrixColumns.map(
-                                              (col) => (
-                                                <div
-                                                  key={col.id}
-                                                  className="text-xs"
-                                                >
-                                                  {col.text}
-                                                </div>
-                                              )
-                                            )}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {question.type === "rating" && (
-                                  <div className="mt-2">
-                                    <span className="text-xs text-text-secondary block">
-                                      Escala de 0 a 5 estrellas
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      });
-                    } catch (err) {
-                      console.error("Error al organizar preguntas:", err);
-                      // Fallback: mostrar las preguntas en el orden original, ensuring it's an array
-                      const questionsToMapFallback = Array.isArray(
-                        surveyData.questions
-                      )
-                        ? surveyData.questions
-                        : [];
-                      return questionsToMapFallback?.map((question, index) => (
-                        <div key={question.id} className="card p-3">
-                          <div className="flex items-start gap-3">
-                            <div className="bg-[var(--primary)] text-white px-2 py-0.5 rounded-md flex-shrink-0 text-sm font-medium min-w-[30px] text-center">
-                              {index + 1}
-                            </div>
-                            <div className="flex-1">
-                              <h5 className="font-medium text-sm">
-                                {question.title}
-                              </h5>
-                              {/* Contenido mínimo para mostrar */}
-                            </div>
-                          </div>
-                        </div>
-                      ));
-                    }
-                  })()}
-                </div>
-
-                {/* Diagrama de flujo condicional */}
-                {(() => {
-                  // Función helper para determinar si una pregunta es padre condicional
-                  const isConditionalParent = (question) => {
-                    // Verificar si otras preguntas hacen referencia a esta
-                    const hasChildren = surveyData.questions.some(
-                      (q) => q.showCondition?.parentQuestionId === question.id
-                    );
-                    return hasChildren;
-                  };
-
-                  // Función helper para obtener preguntas hijas
-                  const getChildQuestions = (parentQuestion) => {
-                    const children = [];
-
-                    // Buscar preguntas con showCondition que referencian esta
-                    surveyData.questions.forEach((q) => {
-                      if (
-                        q.showCondition?.parentQuestionId === parentQuestion.id
-                      ) {
-                        const parentOption = parentQuestion.options?.find(
-                          (opt) => opt.id === q.showCondition.requiredValue
-                        );
-                        children.push({
-                          question: q,
-                          option: parentOption || {
-                            text: q.showCondition.requiredValue,
-                          },
-                        });
-                      }
-                    });
-
-                    return children;
-                  };
-
-                  // Obtener todas las preguntas padre (que tienen hijos)
-                  const parentQuestions =
-                    surveyData.questions.filter(isConditionalParent);
-
-                  if (parentQuestions.length === 0) {
-                    return null;
-                  }
-
-                  return (
-                    <div className="mt-6 p-4 card">
-                      <h5 className="text-base font-medium mb-3">
-                        Flujo condicional de la encuesta
-                      </h5>
-                      <div className="text-sm text-text-secondary space-y-4">
-                        {parentQuestions.map((parentQ) => {
-                          const questionNumber =
-                            surveyData.questionNumberMap[parentQ.id] || "?";
-                          const childQuestions = getChildQuestions(parentQ);
-
-                          if (childQuestions.length === 0) return null;
-
-                          return (
-                            <div
-                              key={parentQ.id}
-                              className="p-3 rounded-lg border-l-4 border-green-400 bg-[var(--card-background)] border border-[var(--card-border)]"
-                            >
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="px-2 py-1 rounded text-xs font-medium bg-green-500 text-white">
-                                  P{questionNumber}
-                                </span>
-                                <p className="font-medium text-[var(--text-primary)]">
-                                  {parentQ.title}
-                                </p>
-                              </div>
-
-                              <div className="ml-6 space-y-1">
-                                {childQuestions.map((child, idx) => {
-                                  const childNumber =
-                                    surveyData.questionNumberMap[
-                                      child.question.id
-                                    ] || "?";
-
-                                  return (
-                                    <div
-                                      key={idx}
-                                      className="flex items-center gap-2 text-sm"
-                                    >
-                                      <span className="text-[var(--text-secondary)]">
-                                        • Si elige "{child.option.text}":
-                                      </span>
-                                      <span className="font-medium text-green-600">
-                                        → P{childNumber} ({child.question.title}
-                                        )
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          </div>
-        );
+    // Inicializar valores predeterminados para cuota-genero
+    if (tipo.value === "cuota-genero") {
+      updates.value = "cuota_genero";
+      updates.opciones = [
+        { id: Date.now() + "_1", value: "masculino", text: "Masculino" },
+        { id: Date.now() + "_2", value: "femenino", text: "Femenino" },
+      ];
     }
+
+    // Inicializar valores predeterminados para cuota-edad
+    if (tipo.value === "cuota-edad") {
+      updates.value = "cuota_edad";
+      updates.opciones = [
+        { id: Date.now() + "_1", value: "18-35", text: "18-35" },
+        { id: Date.now() + "_2", value: "36-55", text: "36-55" },
+        { id: Date.now() + "_3", value: "56+", text: "56+" },
+      ];
+    }
+
+    // Si estamos editando desde el modal de pregunta, actualizar el estado externo
+    if (modalEditarPregunta) {
+      setExternalUpdateForQuestion(updates);
+      // Limpiar después de un breve delay para que el efecto se ejecute
+      setTimeout(() => setExternalUpdateForQuestion(null), 100);
+    } else {
+      // Actualización directa (no debería ocurrir en el flujo actual, pero por si acaso)
+      const { moduloId, preguntaId } = modalSelectorTipo;
+      actualizarPregunta(moduloId, preguntaId, updates);
+    }
+
+    setModalSelectorTipo(null);
+    setBusquedaModalTipo("");
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-full bg-[color:var(--background)] flex flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <LoaderWrapper text="Cargando encuesta..." size="lg" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-full relative flex flex-col">
-      {/* Header con pasos y botones de acción */}
-      <div className="bg-background border-b sticky top-0 z-10">
-        <div className="flex items-center justify-between p-2">
-          <div className="flex items-center gap-4">
-            {Object.entries(STEPS).map(([key, value]) => (
-              <button
-                key={value}
-                onClick={() => paginate(value - page)}
-                className={`flex items-center gap-1.5 cursor-pointer ${
-                  value === page
-                    ? "text-primary"
-                    : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <div
-                  className={`flex items-center justify-center w-6 h-6 rounded-full border-2 ${
-                    value === page
-                      ? "border-primary text-primary"
-                      : "border-text-secondary text-text-secondary"
-                  }`}
-                >
-                  {value + 1}
-                </div>
-                <span className="font-medium text-sm">
-                  {key.replace("_", " ")}
-                </span>
-              </button>
-            ))}
-          </div>
+    <div className="min-h-full bg-[color:var(--background)] text-[color:var(--text-primary)] p-3 md:p-8 pb-24 md:pb-28">
+      <div className="max-w-3xl mx-auto w-full">
+        <FormHeader
+          titulo={titulo}
+          setTitulo={setTitulo}
+          descripcion={descripcion}
+          setDescripcion={setDescripcion}
+          tituloFocused={tituloFocused}
+          setTituloFocused={setTituloFocused}
+          indiceHistorial={indiceHistorial}
+          historial={historial}
+          deshacer={deshacer}
+          rehacer={rehacer}
+          modulos={modulos}
+          indiceAbierto={indiceAbierto}
+          setIndiceAbierto={setIndiceAbierto}
+          busquedaIndice={busquedaIndice}
+          setBusquedaIndice={setBusquedaIndice}
+          obtenerTodasLasPreguntas={obtenerTodasLasPreguntas}
+          onQuestionClick={handleQuestionClick}
+        />
 
-          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-between">
-            <div>
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="w-full md:w-auto mb-2 md:mb-0 px-4 py-2 border border-[var(--card-border)] text-[var(--text-primary)] bg-[var(--card-background)] rounded-md hover:bg-[var(--hover-bg)] transition-colors"
-              >
-                Cancelar
-              </button>
+        {modulos.length === 0 && (
+          <div
+            className={`bg-[color:var(--card-background)] rounded-lg p-4 md:p-6 shadow-lg mb-6 border border-[color:var(--card-border)] transition-opacity ${indiceAbierto ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+          >
+            <button
+              onClick={() => setModalNuevoModulo(true)}
+              className="w-full py-3 rounded border-2 border-dashed border-[color:var(--primary)] text-[color:var(--primary)] hover:bg-[color:var(--primary)] hover:text-white font-medium transition-all flex items-center justify-center gap-2 text-sm"
+            >
+              <FolderPlus size={16} /> Crear primer módulo
+            </button>
+          </div>
+        )}
+
+        {modulos.length > 0 && (
+          <div
+            className={`bg-[color:var(--card-background)] rounded-lg p-4 md:p-6 shadow-lg border border-[color:var(--card-border)] mb-6 transition-opacity ${indiceAbierto ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+          >
+            <div className="mb-4">
+              <span className="text-xs text-[color:var(--text-secondary)]">
+                {modulos.length} módulo{modulos.length !== 1 ? "s" : ""}
+              </span>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2">
-              {user?.role === "ROLE_ADMIN" && (
-                <button
-                  type="button"
-                  onClick={() => handleSave(true)}
-                  disabled={isLoading}
-                  className="w-full sm:w-auto px-4 py-2 border border-blue-500 text-blue-500 bg-transparent rounded-md hover:bg-blue-50 transition-colors flex items-center justify-center gap-1"
-                >
-                  <FilePenLine className="w-4 h-4" />
-                  {isLoading ? "Guardando..." : "Guardar como borrador"}
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => handleSave(false)}
-                disabled={isLoading || !canProceed()}
-                className="w-full sm:w-auto px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-              >
-                <Save className="w-4 h-4" />
-                {isLoading ? "Guardando..." : "Guardar y publicar"}
-              </button>
+            <div className="space-y-3 mb-4">
+              {modulos.map((modulo, moduloIdx) => (
+                <ModuleCard
+                  key={modulo.id}
+                  modulo={modulo}
+                  moduloIdx={moduloIdx}
+                  expandidaModulos={expandidaModulos}
+                  arrastrando={arrastrando}
+                  handleDragStart={handleDragStart}
+                  handleDragOver={handleDragOver}
+                  handleDropModulo={handleDropModulo}
+                  handleDropPregunta={handleDropPregunta}
+                  renombrarModulo={renombrarModulo}
+                  actualizarDescripcionModulo={actualizarDescripcionModulo}
+                  setExpandidaModulos={setExpandidaModulos}
+                  setModuloDinamizandose={setModuloDinamizandose}
+                  setModuloCondicionandose={setModuloCondicionandose}
+                  eliminarModulo={confirmarEliminarModulo}
+                  setModulos={setModulos}
+                  modulos={modulos}
+                  agregarPregunta={agregarPregunta}
+                  tiposPreguntas={tiposPreguntas}
+                  generarValue={generarValue}
+                  actualizarPregunta={actualizarPregunta}
+                  eliminarPregunta={confirmarEliminarPregunta}
+                  setArrastrando={setArrastrando}
+                  onEditQuestion={abrirModalEditarPregunta}
+                  actualizarModulo={actualizarModulo}
+                  preguntasDisponiblesModulo={getPreguntasConOpciones(null)}
+                  setModalCloneQuotaWarning={setModalCloneQuotaWarning}
+                />
+              ))}
             </div>
+
+            <button
+              onClick={() => setModalNuevoModulo(true)}
+              className="w-full py-2 rounded-lg border-2 border-dashed border-[color:var(--primary)] text-[color:var(--primary)] hover:bg-[color:var(--primary)] hover:text-white font-medium transition-all flex items-center justify-center gap-2 text-sm"
+            >
+              <FolderPlus size={16} /> Nuevo módulo
+            </button>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Contenido principal con scroll */}
-      <div className="flex-1 overflow-y-auto py-4 pb-24">
-        <div className="container mx-auto max-w-5xl px-4">
-          {page === STEPS.INFORMACION_BASICA && renderStep()}
-          {page === STEPS.CUOTAS && renderStep()}
-          {page === STEPS.PARTICIPANTES && renderStep()}
-          {page === STEPS.PREGUNTAS && renderStep()}
-          {page === STEPS.VISTA_PREVIA && renderStep()}
-        </div>
-      </div>
+        <NewModuleModal
+          isOpen={modalNuevoModulo}
+          onClose={() => {
+            setModalNuevoModulo(false);
+            setNombreModulo("");
+          }}
+          onConfirm={agregarModulo}
+          moduleName={nombreModulo}
+          setModuleName={setNombreModulo}
+          modulosLength={modulos.length}
+        />
 
-      {/* Footer con botones de navegación - fijo en la parte inferior */}
-      <div className="bg-background border-t py-3 fixed bottom-0 left-0 right-0 z-10 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
-        <div className="container mx-auto max-w-5xl flex justify-between items-center px-4">
-          <button
-            onClick={() => paginate(-1)}
-            disabled={page === 0}
-            className={`px-3 py-1.5 text-sm ${
-              page === 0
-                ? "disabled-button"
-                : "bg-primary text-white rounded-md hover:bg-primary/90 transition-colors cursor-pointer"
-            }`}
-          >
-            Anterior
-          </button>
+        <TypeSelectorModal
+          isOpen={modalSelectorTipo !== null}
+          onClose={() => {
+            setModalSelectorTipo(null);
+            setBusquedaModalTipo("");
+          }}
+          onSelect={handleSelectType}
+          tiposPreguntas={tiposPreguntas}
+          tipoActual={modalSelectorTipo?.tipoActual}
+          busqueda={busquedaModalTipo}
+          setBusqueda={setBusquedaModalTipo}
+        />
 
-          <button
-            onClick={() => paginate(1)}
-            disabled={page === 4 || !canProceed()}
-            className={`px-3 py-1.5 text-sm ${
-              page === 4 || !canProceed()
-                ? "disabled-button"
-                : "bg-primary text-white rounded-md hover:bg-primary/90 transition-colors cursor-pointer"
-            }`}
-          >
-            Siguiente
-          </button>
-        </div>
-      </div>
+        <QuestionEditorModal
+          isOpen={modalEditarPregunta !== null}
+          onClose={cerrarModalEditarPregunta}
+          isNew={isNewQuestion}
+          onDiscard={descartarNuevaPregunta}
+          pregunta={getPreguntaActual()}
+          moduloId={modalEditarPregunta?.moduloId}
+          onSave={guardarPreguntaDesdeModal}
+          tiposPreguntas={tiposPreguntas}
+          externalUpdate={externalUpdateForQuestion}
+          preguntasDisponibles={
+            modalEditarPregunta
+              ? getPreguntasConOpciones(modalEditarPregunta.preguntaId)
+              : []
+          }
+          onOpenTypeSelector={(tipoActualEditado) => {
+            if (modalEditarPregunta) {
+              setModalSelectorTipo({
+                moduloId: modalEditarPregunta.moduloId,
+                preguntaId: modalEditarPregunta.preguntaId,
+                tipoActual: tipoActualEditado || getPreguntaActual()?.tipo,
+              });
+            }
+          }}
+        />
 
-      {/* Modal de confirmación para cancelar */}
-      {showConfirmCancel && (
         <ConfirmModal
-          isOpen={showConfirmCancel}
-          onClose={() => setShowConfirmCancel(false)}
-          onConfirm={handleConfirmCancel}
-          title="Confirmar cancelación"
-          confirmText="Salir sin guardar"
-          cancelText="Permanecer"
-        >
-          <p>
-            ¿Estás seguro que deseas salir? Los cambios no guardados se
-            perderán.
-          </p>
-        </ConfirmModal>
-      )}
-
-      {/* Modal de selección de encuestadores */}
-      <TransferModal
-        isOpen={showPollstersModal}
-        onClose={() => setShowPollstersModal(false)}
-        title="Seleccionar Encuestadores"
-        availableItems={users}
-        selectedItems={users.filter((user) =>
-          surveyData.participants.userIds.includes(user._id)
-        )}
-        onSave={(selectedPollsters) => {
-          const newUserIds = selectedPollsters.map((pollster) => pollster._id);
-
-          setSurveyData((prev) => {
-            // Limpiar asignaciones de pollsters que ya no están seleccionados
-            // Verificación defensiva para evitar errores cuando participants no está definido
-            const currentAssignments =
-              prev.participants?.pollsterAssignments || [];
-            const updatedAssignments = currentAssignments.filter((assignment) =>
-              newUserIds.includes(assignment.pollsterId)
-            );
-
-            // Agregar asignaciones iniciales para nuevos pollsters (con 0 casos)
-            newUserIds.forEach((pollsterId) => {
-              const existingAssignment = updatedAssignments.find(
-                (assignment) => assignment.pollsterId === pollsterId
+          isOpen={modalConfirmEliminar !== null}
+          onClose={() => setModalConfirmEliminar(null)}
+          onConfirm={() => {
+            if (modalConfirmEliminar?.tipo === "modulo") {
+              eliminarModulo(modalConfirmEliminar.data.moduloId);
+            } else if (modalConfirmEliminar?.tipo === "pregunta") {
+              eliminarPregunta(
+                modalConfirmEliminar.data.moduloId,
+                modalConfirmEliminar.data.preguntaId,
               );
-              if (!existingAssignment) {
-                updatedAssignments.push({ pollsterId, assignedCases: 0 });
-              }
-            });
+            }
+          }}
+          title={
+            modalConfirmEliminar?.tipo === "modulo"
+              ? "¿Eliminar módulo?"
+              : "¿Eliminar pregunta?"
+          }
+          message={
+            modalConfirmEliminar?.tipo === "modulo"
+              ? `Se eliminará el módulo "${modalConfirmEliminar?.data.nombre}" y todas sus preguntas. Esta acción no se puede deshacer.`
+              : `Se eliminará la pregunta "${modalConfirmEliminar?.data.texto || "sin texto"}". Esta acción no se puede deshacer.`
+          }
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+        />
 
-            return {
-              ...prev,
-              participants: {
-                ...prev.participants,
-                userIds: newUserIds,
-                pollsterAssignments: updatedAssignments,
-              },
-            };
-          });
-          setShowPollstersModal(false);
-        }}
-      />
+        <ConfirmModal
+          isOpen={showCancelConfirm}
+          onClose={() => setShowCancelConfirm(false)}
+          onConfirm={() => {
+            setShowCancelConfirm(false);
+            router.push("/dashboard/encuestas");
+          }}
+          title="¿Descartar cambios?"
+          message="Se perderá el trabajo realizado si sales sin guardar. ¿Estás seguro de que deseas salir?"
+          confirmText="Salir sin guardar"
+          cancelText="Seguir editando"
+        />
 
-      {/* Modal de selección de supervisores */}
-      <TransferModal
-        isOpen={showSupervisorsModal}
-        onClose={() => setShowSupervisorsModal(false)}
-        title="Seleccionar Supervisores"
-        availableItems={supervisors}
-        selectedItems={supervisors.filter((supervisor) =>
-          surveyData.participants.supervisorsIds.includes(supervisor._id)
-        )}
-        onSave={(selectedSupervisors) => {
-          setSurveyData((prev) => ({
-            ...prev,
-            participants: {
-              ...prev.participants,
-              supervisorsIds: selectedSupervisors.map(
-                (supervisor) => supervisor._id
-              ),
-            },
-          }));
-          setShowSupervisorsModal(false);
-        }}
-      />
+        <ConfirmModal
+          isOpen={modalValidacion !== null}
+          onClose={() => setModalValidacion(null)}
+          onConfirm={() => setModalValidacion(null)}
+          title={modalValidacion?.title || ""}
+          message={modalValidacion?.message || ""}
+          confirmText="Entendido"
+          cancelText={null}
+        />
 
-      {/* Modal de asignación de cuotas por encuestador */}
-      {showQuotaAssignmentModal && selectedPollsterForQuotas && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-[var(--card-background)] rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-[var(--card-background)] border-b border-[var(--card-border)] p-6 z-10">
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
-                Asignar Cuotas - {selectedPollsterForQuotas.name}{" "}
-                {selectedPollsterForQuotas.lastName}
-              </h2>
-              <div className="mt-3 mb-2 px-4 py-2 bg-[var(--primary)]/10 border-l-4 border-[var(--primary)] rounded">
-                <p className="text-sm font-bold text-[var(--primary-light)]">
-                  Este encuestador tiene{" "}
-                  {getAssignedCases(selectedPollsterForQuotas._id)} casos
-                  asignados
-                </p>
-              </div>
-              <p className="text-sm text-[var(--text-secondary)] mt-1">
-                Define cuántos casos de cada cuota debe completar este
-                encuestador. Puedes sobreasignar si es necesario.
-              </p>
-            </div>
+        <div className="sticky bottom-0 z-20 bg-[color:var(--background)]">
+          <div className="w-full px-3 md:px-8 py-3 flex gap-3">
+            <button
+              onClick={() => {
+                if (
+                  modulos.some((m) => m.preguntas && m.preguntas.length > 0)
+                ) {
+                  setShowCancelConfirm(true);
+                  return;
+                }
+                router.push("/dashboard/encuestas");
+              }}
+              className="flex-1 px-6 py-2 rounded-lg border-2 border-[color:var(--card-border)] text-[color:var(--text-secondary)] hover:border-[color:var(--primary)] hover:text-[color:var(--text-primary)] font-medium transition-colors text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={async () => {
+                // Validar que tenga título
+                if (!titulo.trim()) {
+                  toast.error("Debes ingresar un título para la encuesta");
+                  return;
+                }
 
-            <div className="p-6 space-y-6">
-              {surveyData.quotas.map((quota, quotaIndex) => {
-                const currentAssignment = getPollsterQuotaAssignment(
-                  selectedPollsterForQuotas._id
+                // Validar que tenga al menos una pregunta
+                const tienePreguntas = modulos.some(
+                  (m) => m.preguntas && m.preguntas.length > 0,
                 );
-                const quotaAssignment = currentAssignment?.quotas?.find(
-                  (q) => q.category === quota.category
+                if (!tienePreguntas) {
+                  toast.error("Debes crear al menos una pregunta");
+                  return;
+                }
+
+                // Validar módulos condicionales sin condiciones
+                const modulosCondicionales = modulos.filter(
+                  (m) =>
+                    m.condicionada?.activa &&
+                    (!m.condicionada.condiciones ||
+                      m.condicionada.condiciones.length === 0),
                 );
+                if (modulosCondicionales.length > 0) {
+                  const nombres = modulosCondicionales
+                    .map((m) => `"${m.nombre}"`)
+                    .join(", ");
+                  setModalValidacion({
+                    title: "Módulos condicionales sin condiciones",
+                    message: `Los siguientes módulos están marcados como condicionales pero no tienen condiciones definidas:\n\n${nombres}\n\nPor favor, indique al menos una condición para cada módulo o desactive la casilla.`,
+                  });
+                  return;
+                }
 
-                return (
-                  <div key={quotaIndex} className="space-y-3">
-                    <h3 className="font-medium text-[var(--text-primary)]">
-                      {quota.category}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {quota.segments.map((segment, segmentIndex) => {
-                        const assignedTarget =
-                          quotaAssignment?.segments?.find(
-                            (s) => s.name === segment.name
-                          )?.target || 0;
+                // Validar preguntas condicionales sin condiciones
+                const preguntasCondicionales = [];
+                modulos.forEach((m) => {
+                  m.preguntas?.forEach((p) => {
+                    if (
+                      p.condicionada?.activa &&
+                      (!p.condicionada.condiciones ||
+                        p.condicionada.condiciones.length === 0)
+                    ) {
+                      preguntasCondicionales.push({
+                        modulo: m.nombre,
+                        pregunta: p.text || "sin texto",
+                      });
+                    }
+                  });
+                });
+                if (preguntasCondicionales.length > 0) {
+                  const lista = preguntasCondicionales
+                    .map((item) => `• ${item.modulo}: "${item.pregunta}"`)
+                    .join("\n");
+                  setModalValidacion({
+                    title: "Preguntas condicionales sin condiciones",
+                    message: `Las siguientes preguntas están marcadas como condicionales pero no tienen condiciones definidas:\n\n${lista}\n\nPor favor, indique al menos una condición para cada pregunta o desactive la casilla.`,
+                  });
+                  return;
+                }
 
-                        return (
-                          <div
-                            key={segmentIndex}
-                            className="flex items-center justify-between bg-[var(--input-background)] border border-[var(--card-border)] rounded-lg p-3"
-                          >
-                            <span className="text-sm font-medium text-[var(--text-primary)]">
-                              {segment.name}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-[var(--text-secondary)]">
-                                Meta:
-                              </span>
-                              <input
-                                type="number"
-                                min="0"
-                                value={assignedTarget}
-                                onChange={(e) => {
-                                  const newTarget =
-                                    parseInt(e.target.value) || 0;
+                try {
+                  setIsSaving(true);
 
-                                  // Obtener o crear asignación actual
-                                  let updatedQuotas = currentAssignment?.quotas
-                                    ? [...currentAssignment.quotas]
-                                    : surveyData.quotas.map((q) => ({
-                                        category: q.category,
-                                        segments: q.segments.map((s) => ({
-                                          name: s.name,
-                                          target: 0,
-                                        })),
-                                      }));
+                  // Importar funciones necesarias
+                  const { prepareDataForBackend } =
+                    await import("../utils/transformToSurveyJS");
 
-                                  // Encontrar y actualizar la categoría y segmento correspondiente
-                                  const categoryIndex = updatedQuotas.findIndex(
-                                    (q) => q.category === quota.category
-                                  );
-                                  if (categoryIndex >= 0) {
-                                    const segIndex = updatedQuotas[
-                                      categoryIndex
-                                    ].segments.findIndex(
-                                      (s) => s.name === segment.name
-                                    );
-                                    if (segIndex >= 0) {
-                                      updatedQuotas[categoryIndex].segments[
-                                        segIndex
-                                      ].target = newTarget;
-                                    }
-                                  }
+                  // Si estamos editando, cargar configuración existente y preservar participantes
+                  if (surveyId) {
+                    try {
+                      const existing = await surveyService.getSurvey(surveyId);
+                      const existingInfo = existing?.survey?.surveyInfo || {};
+                      const existingSurvey =
+                        existing?.survey?.survey || existing?.survey;
+                      const existingDefinition =
+                        existing?.survey?.surveyDefinition;
 
-                                  handleSaveQuotaAssignment(
-                                    selectedPollsterForQuotas._id,
-                                    updatedQuotas
-                                  );
-                                }}
-                                className="w-16 px-2 py-1 border border-[var(--card-border)] rounded text-center text-sm bg-[var(--card-background)] text-[var(--text-primary)]"
-                              />
-                              <span className="text-xs text-[var(--text-secondary)]">
-                                / {segment.target}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                      // Preparar datos del formulario (solo preguntas)
+                      const formData = prepareDataForBackend({
+                        titulo,
+                        descripcion,
+                        modulos,
+                        fechaInicio: "",
+                        fechaFin: "",
+                        metaTotal: 0,
+                        gpsObligatorio: false,
+                        encuestadoresIds: [],
+                        supervisoresIds: [],
+                        categorias: [],
+                      });
 
-            <div className="sticky bottom-0 bg-[var(--card-background)] border-t border-[var(--card-border)] p-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowQuotaAssignmentModal(false);
-                  setSelectedPollsterForQuotas(null);
-                }}
-                className="px-4 py-2 border border-[var(--card-border)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors"
-              >
-                Cerrar
-              </button>
-            </div>
+                      // Construir datos completos preservando configuración y participantes
+                      const dataToSave = {
+                        survey: formData.survey, // Preguntas actualizadas
+                        surveyDefinition: {
+                          titulo,
+                          descripcion,
+                          modulos,
+                        },
+                        surveyInfo: {
+                          ...existingInfo,
+                          // CRÍTICO: Preservar participantes existentes
+                          userIds:
+                            existingInfo.userIds ||
+                            existing?.survey?.userIds ||
+                            encuestadoresIds ||
+                            [],
+                          supervisorsIds:
+                            existingInfo.supervisorsIds ||
+                            existing?.survey?.supervisorsIds ||
+                            supervisoresIds ||
+                            [],
+                        },
+                        participants: {
+                          userIds:
+                            existingInfo.userIds ||
+                            existing?.survey?.userIds ||
+                            encuestadoresIds ||
+                            [],
+                          supervisorsIds:
+                            existingInfo.supervisorsIds ||
+                            existing?.survey?.supervisorsIds ||
+                            supervisoresIds ||
+                            [],
+                          pollsterAssignments:
+                            existing?.survey?.participants
+                              ?.pollsterAssignments ||
+                            existing?.survey?.pollsterAssignments ||
+                            [],
+                          quotaAssignments:
+                            existing?.survey?.participants?.quotaAssignments ||
+                            existing?.survey?.quotaAssignments ||
+                            [],
+                        },
+                      };
+
+                      console.log("📤 Datos a guardar (EDICIÓN):", dataToSave);
+                      console.log("📤 Participantes preservados:", {
+                        userIds: dataToSave.surveyInfo.userIds,
+                        supervisorsIds: dataToSave.surveyInfo.supervisorsIds,
+                      });
+
+                      // Guardar en backend
+                      const response = await surveyService.createOrUpdateSurvey(
+                        dataToSave,
+                        surveyId,
+                        false, // isDraft = false
+                      );
+
+                      console.log("✅ Respuesta del backend:", response);
+
+                      toast.success("Encuesta actualizada correctamente");
+                    } catch (error) {
+                      console.error("❌ Error al guardar:", error);
+                      toast.error(
+                        `Error al guardar la encuesta: ${error.message}`,
+                      );
+                    } finally {
+                      setIsSaving(false);
+                    }
+                    return;
+                  }
+
+                  // Para encuestas NUEVAS, usar el flujo normal
+                  const dataToSave = prepareDataForBackend({
+                    titulo,
+                    descripcion,
+                    modulos,
+                    fechaInicio: "",
+                    fechaFin: "",
+                    metaTotal: 0,
+                    gpsObligatorio: false,
+                    encuestadoresIds: [],
+                    supervisoresIds: [],
+                    categorias: [],
+                  });
+
+                  console.log("📤 Datos a guardar:", dataToSave);
+                  console.log("📤 Estructura de survey:", dataToSave.survey);
+                  console.log(
+                    "📤 Estructura de surveyInfo:",
+                    dataToSave.surveyInfo,
+                  );
+
+                  // Guardar en backend (crear o actualizar) - PUBLISHED, no draft
+                  const response = await surveyService.createOrUpdateSurvey(
+                    dataToSave,
+                    surveyId || null,
+                    false, // isDraft = false
+                  );
+
+                  console.log("✅ Respuesta COMPLETA del backend:", response);
+                  console.log("✅ Estructura de response:", {
+                    survey: response?.survey,
+                    srv: response?.srv,
+                    _id: response?._id,
+                    id: response?.id,
+                    message: response?.message,
+                    error: response?.error,
+                  });
+
+                  // El backend devuelve el ID en response.srv._id
+                  const savedId =
+                    response?.srv?._id ||
+                    response?.survey?._id ||
+                    response?._id;
+                  console.log("🆔 ID de encuesta guardada:", savedId);
+                  console.log(
+                    "📋 Status de encuesta guardada:",
+                    response?.srv?.status ||
+                      response?.survey?.status ||
+                      response?.status,
+                  );
+
+                  // Verificar inmediatamente si la encuesta está en el backend
+                  try {
+                    const user = JSON.parse(localStorage.getItem("user"));
+                    console.log("👤 Usuario actual:", user._id);
+
+                    // Esperar un momento para que el backend procese
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+
+                    // Traer todas las encuestas del usuario
+                    const allSurveys = await surveyService.getAllSurveys(
+                      1,
+                      100,
+                    );
+                    console.log(
+                      "🔍 Total de encuestas después de guardar:",
+                      allSurveys?.surveys?.length,
+                    );
+                    console.log(
+                      "🔍 IDs de encuestas:",
+                      allSurveys?.surveys?.map((s) => s._id || s.id),
+                    );
+                  } catch (e) {
+                    console.error("Error verificando encuestas:", e);
+                  }
+
+                  toast.success(
+                    surveyId
+                      ? "Encuesta actualizada correctamente"
+                      : "Encuesta creada correctamente",
+                  );
+                  if (!surveyId && savedId) {
+                    justSaved.current = true;
+                    router.replace(`/dashboard/encuestas/nueva?id=${savedId}`);
+                  }
+                } catch (error) {
+                  console.error("❌ Error completo al guardar:", error);
+                  console.error("❌ Tipo de error:", error.constructor.name);
+                  console.error("❌ Message:", error.message);
+                  console.error("❌ Stack:", error.stack);
+
+                  // Mostrar error más detallado
+                  let errorMessage = error.message || "Error desconocido";
+
+                  toast.error(`Error al guardar la encuesta: ${errorMessage}`);
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+              disabled={isSaving}
+              className="flex-1 px-6 py-2 rounded-lg bg-[color:var(--primary)] hover:opacity-90 text-white font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? "Guardando..." : "Guardar"}
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Validation Error Modal - Using modified ConfirmModal */}
+      {/* Modal de advertencia al clonar módulos con preguntas de cuota */}
       <ConfirmModal
-        isOpen={showValidationErrorModal}
-        onClose={() => setShowValidationErrorModal(false)}
-        onConfirm={handleValidationErrorConfirm}
-        title="Error de Validación"
-        confirmText="Aceptar"
-        showCancelButton={false}
-      >
-        <p>{validationErrorMessage}</p>
-      </ConfirmModal>
+        isOpen={modalCloneQuotaWarning}
+        onClose={() => setModalCloneQuotaWarning(false)}
+        onConfirm={() => setModalCloneQuotaWarning(false)}
+        title="Módulo clonado con conversión de preguntas"
+        message="El módulo se ha clonado exitosamente. Las preguntas de tipo cuota (Cuota Género / Cuota Edad) no pueden duplicarse y han sido convertidas automáticamente a preguntas de tipo 'Opción única', manteniendo todas sus opciones y configuración."
+        confirmText="Entendido"
+        cancelText={null}
+        icon={MessageCircleWarning}
+        iconColor="primary"
+      />
     </div>
   );
 }

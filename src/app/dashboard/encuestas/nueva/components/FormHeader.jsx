@@ -54,7 +54,7 @@ export default function FormHeader({
       {/* Header con botón de retorno */}
       <div className="mb-4 flex items-center gap-4">
         <button
-          onClick={() => router.push("/dashboard/temporal")}
+          onClick={() => router.push("/dashboard/encuestas")}
           className="p-2 rounded-lg bg-[color:var(--card-background)] border border-[color:var(--card-border)] text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)] transition-colors"
           title="Volver"
         >

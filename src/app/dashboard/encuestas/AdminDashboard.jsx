@@ -70,7 +70,7 @@ const classifyStatus = (survey) => {
     // Crear una copia del endDate y establecer la hora al final del día (23:59:59.999)
     const endOfDay = new Date(endDate);
     endOfDay.setHours(23, 59, 59, 999);
-    
+
     if (now > endOfDay) {
       return {
         lifecycle: "finalizada",
@@ -209,7 +209,7 @@ const ActionButton = ({
   );
 };
 
-export default function TemporalPage() {
+export default function AdminDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -831,14 +831,16 @@ export default function TemporalPage() {
                 {getRoleName(user?.role)}
               </span>
             </div>
-            <button
-              onClick={() => router.push("/dashboard/temporal/nueva")}
-              className="bg-[color:var(--primary)] hover:opacity-90 px-4 md:px-6 py-2.5 md:py-3 rounded-xl flex items-center gap-2 font-semibold transition-all shadow-lg text-white text-sm md:text-base"
-            >
-              <Plus size={20} />
-              <span className="hidden sm:inline">Nueva encuesta</span>
-              <span className="sm:hidden">Nueva</span>
-            </button>
+            {user?.role !== "SUPERVISOR" && (
+              <button
+                onClick={() => router.push("/dashboard/encuestas/nueva")}
+                className="bg-[color:var(--primary)] hover:opacity-90 px-4 md:px-6 py-2.5 md:py-3 rounded-xl flex items-center gap-2 font-semibold transition-all shadow-lg text-white text-sm md:text-base"
+              >
+                <Plus size={20} />
+                <span className="hidden sm:inline">Nueva encuesta</span>
+                <span className="sm:hidden">Nueva</span>
+              </button>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -1300,72 +1302,109 @@ export default function TemporalPage() {
                   }`}
                   onClick={(e) => {
                     // DEBUG TEMPORAL - Log de fechas
-                    if (e.altKey) { // Solo si presionas Alt + Click
+                    if (e.altKey) {
+                      // Solo si presionas Alt + Click
                       e.stopPropagation();
                       const now = new Date();
-                      const endDate = survey.endDate ? new Date(survey.endDate) : null;
-                      const startDate = survey.startDate ? new Date(survey.startDate) : null;
-                      
-                      console.log('═══════════════════════════════════════════════════════');
+                      const endDate = survey.endDate
+                        ? new Date(survey.endDate)
+                        : null;
+                      const startDate = survey.startDate
+                        ? new Date(survey.startDate)
+                        : null;
+
+                      console.log(
+                        "═══════════════════════════════════════════════════════",
+                      );
                       console.log(`📊 DEBUG ENCUESTA: ${survey.title}`);
-                      console.log('═══════════════════════════════════════════════════════');
-                      console.log('⏰ AHORA (hora local del navegador):');
-                      console.log(`   ${now.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} (AR)`);
+                      console.log(
+                        "═══════════════════════════════════════════════════════",
+                      );
+                      console.log("⏰ AHORA (hora local del navegador):");
+                      console.log(
+                        `   ${now.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })} (AR)`,
+                      );
                       console.log(`   ${now.toISOString()} (ISO/UTC)`);
                       console.log(`   ${now.toString()}`);
-                      console.log('');
-                      console.log('📅 FECHA DE INICIO:');
+                      console.log("");
+                      console.log("📅 FECHA DE INICIO:");
                       console.log(`   Raw del backend: ${survey.startDate}`);
                       if (startDate) {
-                        console.log(`   Parseado: ${startDate.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} (AR)`);
+                        console.log(
+                          `   Parseado: ${startDate.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })} (AR)`,
+                        );
                         console.log(`   ISO/UTC: ${startDate.toISOString()}`);
                       }
-                      console.log('');
-                      console.log('📅 FECHA DE FIN:');
+                      console.log("");
+                      console.log("📅 FECHA DE FIN:");
                       console.log(`   Raw del backend: ${survey.endDate}`);
                       if (endDate) {
-                        console.log(`   Parseado: ${endDate.toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} (AR)`);
+                        console.log(
+                          `   Parseado: ${endDate.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })} (AR)`,
+                        );
                         console.log(`   ISO/UTC: ${endDate.toISOString()}`);
                         console.log(`   Timestamp: ${endDate.getTime()}`);
                       }
-                      console.log('');
-                      console.log('⏱️ CÁLCULOS:');
+                      console.log("");
+                      console.log("⏱️ CÁLCULOS:");
                       if (endDate) {
                         // Comparación original (hora exacta que viene del backend)
                         const diffMs = endDate - now;
                         const diffHours = diffMs / (1000 * 60 * 60);
                         const diffDays = diffMs / (1000 * 60 * 60 * 24);
-                        const diffDaysCeil = Math.ceil(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
-                        
+                        const diffDaysCeil = Math.ceil(
+                          Math.abs(diffMs) / (1000 * 60 * 60 * 24),
+                        );
+
                         // Comparación con end of day (lo que usa classifyStatus)
                         const endOfDay = new Date(endDate);
                         endOfDay.setHours(23, 59, 59, 999);
                         const diffMsEOD = endOfDay - now;
                         const diffHoursEOD = diffMsEOD / (1000 * 60 * 60);
-                        const diffDaysEOD = Math.ceil(diffMsEOD / (1000 * 60 * 60 * 24));
-                        
-                        console.log('   🔹 Usando hora exacta del backend:');
+                        const diffDaysEOD = Math.ceil(
+                          diffMsEOD / (1000 * 60 * 60 * 24),
+                        );
+
+                        console.log("   🔹 Usando hora exacta del backend:");
                         console.log(`      Diferencia en ms: ${diffMs}`);
-                        console.log(`      Diferencia en horas: ${diffHours.toFixed(2)} hs`);
-                        console.log(`      Diferencia en días (real): ${diffDays.toFixed(2)} días`);
-                        console.log(`      Diferencia en días (Math.abs + ceil): ${diffDaysCeil} días`);
-                        console.log(`      Ya finalizó? (now > endDate): ${now > endDate}`);
-                        console.log('');
-                        console.log('   🔹 Usando END OF DAY (23:59:59.999):');
-                        console.log(`      End of day: ${endOfDay.toISOString()}`);
+                        console.log(
+                          `      Diferencia en horas: ${diffHours.toFixed(2)} hs`,
+                        );
+                        console.log(
+                          `      Diferencia en días (real): ${diffDays.toFixed(2)} días`,
+                        );
+                        console.log(
+                          `      Diferencia en días (Math.abs + ceil): ${diffDaysCeil} días`,
+                        );
+                        console.log(
+                          `      Ya finalizó? (now > endDate): ${now > endDate}`,
+                        );
+                        console.log("");
+                        console.log("   🔹 Usando END OF DAY (23:59:59.999):");
+                        console.log(
+                          `      End of day: ${endOfDay.toISOString()}`,
+                        );
                         console.log(`      Diferencia en ms: ${diffMsEOD}`);
-                        console.log(`      Diferencia en horas: ${diffHoursEOD.toFixed(2)} hs`);
-                        console.log(`      Diferencia en días (ceil): ${diffDaysEOD} días`);
-                        console.log(`      Ya finalizó? (now > endOfDay): ${now > endOfDay}`);
+                        console.log(
+                          `      Diferencia en horas: ${diffHoursEOD.toFixed(2)} hs`,
+                        );
+                        console.log(
+                          `      Diferencia en días (ceil): ${diffDaysEOD} días`,
+                        );
+                        console.log(
+                          `      Ya finalizó? (now > endOfDay): ${now > endOfDay}`,
+                        );
                       }
-                      console.log('');
-                      console.log('📌 ESTADO:');
+                      console.log("");
+                      console.log("📌 ESTADO:");
                       console.log(`   Status: ${survey.status}`);
                       console.log(`   isFinished: ${survey.isFinished}`);
                       console.log(`   isActive: ${survey.isActive}`);
                       console.log(`   isPaused: ${survey.isPaused}`);
                       console.log(`   isPending: ${survey.isPending}`);
-                      console.log('═══════════════════════════════════════════════════════');
+                      console.log(
+                        "═══════════════════════════════════════════════════════",
+                      );
                     }
                   }}
                 >
@@ -1412,10 +1451,10 @@ export default function TemporalPage() {
                           const end = new Date(survey.endDate);
                           // Establecer al final del día para consistencia con classifyStatus
                           end.setHours(23, 59, 59, 999);
-                          
+
                           const diffMs = end - now;
                           const diffHours = diffMs / (1000 * 60 * 60);
-                          
+
                           // Si quedan menos de 24 horas, mostrar horas
                           if (Math.abs(diffHours) < 24) {
                             const hours = Math.ceil(Math.abs(diffHours));
@@ -1432,10 +1471,12 @@ export default function TemporalPage() {
                               </span>
                             );
                           }
-                          
+
                           // Si quedan más de 24 horas, mostrar días
-                          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-                          
+                          const diffDays = Math.ceil(
+                            diffMs / (1000 * 60 * 60 * 24),
+                          );
+
                           if (diffDays < 0) {
                             return (
                               <span className="text-xs text-red-500 font-semibold">
@@ -1443,7 +1484,7 @@ export default function TemporalPage() {
                               </span>
                             );
                           }
-                          
+
                           return (
                             <span className="text-xs text-[color:var(--text-secondary)] opacity-70">
                               (quedan {diffDays} días)
@@ -1473,18 +1514,20 @@ export default function TemporalPage() {
 
                     <div className="flex flex-wrap justify-between items-center gap-1.5 pt-2 border-t border-[color:var(--card-border)]">
                       <div className="hidden md:flex items-center flex-nowrap gap-1.5">
-                        <ActionButton
-                          icon={ClipboardList}
-                          label="Preguntas"
-                          className="px-3 py-1.5 text-xs"
-                          iconSize={14}
-                          onClick={() =>
-                            router.push(
-                              `/dashboard/temporal/nueva?id=${survey.id}`,
-                            )
-                          }
-                          hasAlert={!survey.hasForm}
-                        />
+                        {user?.role !== "SUPERVISOR" && (
+                          <ActionButton
+                            icon={ClipboardList}
+                            label="Preguntas"
+                            className="px-3 py-1.5 text-xs"
+                            iconSize={14}
+                            onClick={() =>
+                              router.push(
+                                `/dashboard/encuestas/nueva?id=${survey.id}`,
+                              )
+                            }
+                            hasAlert={!survey.hasForm}
+                          />
+                        )}
                         <ActionButton
                           icon={BarChart3}
                           label="Supervisar"
@@ -1496,35 +1539,57 @@ export default function TemporalPage() {
                             )
                           }
                         />
-                        <ActionButton
-                          icon={Settings}
-                          label="Configurar"
-                          className="px-3 py-1.5 text-xs"
-                          iconSize={14}
-                          onClick={() =>
-                            router.push(
-                              `/dashboard/temporal/configurar?id=${survey.id}`,
-                            )
-                          }
-                          hasAlert={!survey.hasConfig}
-                        />
-                      </div>
-                      <div className="hidden md:flex gap-1.5 ml-auto">
-                        {survey.status !== "finalizada" && (
+                        {user?.role === "SUPERVISOR" && (
                           <ActionButton
-                            icon={survey.isActive ? Pause : Play}
-                            label={survey.isActive ? "Pausar" : "Activar"}
-                            iconOnly
-                            tooltip={
-                              survey.isActive
-                                ? "Pausar encuesta"
-                                : "Activar encuesta"
-                            }
-                            onClick={() => handleToggleSurvey(survey)}
-                            isLoading={isToggling === survey.id}
+                            icon={TestTube2}
+                            label="Prueba local"
+                            className="px-3 py-1.5 text-xs"
+                            iconSize={14}
+                            onClick={() => {
+                              if (typeof window !== "undefined") {
+                                window.sessionStorage.setItem(
+                                  "responder:surveyId",
+                                  survey.id,
+                                );
+                              }
+                              router.push(
+                                `/dashboard/encuestas/responder?mode=test`,
+                              );
+                            }}
                           />
                         )}
-                        {survey.cases > 0 && (
+                        {user?.role !== "SUPERVISOR" && (
+                          <ActionButton
+                            icon={Settings}
+                            label="Configurar"
+                            className="px-3 py-1.5 text-xs"
+                            iconSize={14}
+                            onClick={() =>
+                              router.push(
+                                `/dashboard/encuestas/configurar?id=${survey.id}`,
+                              )
+                            }
+                            hasAlert={!survey.hasConfig}
+                          />
+                        )}
+                      </div>
+                      <div className="hidden md:flex gap-1.5 ml-auto">
+                        {user?.role !== "SUPERVISOR" &&
+                          survey.status !== "finalizada" && (
+                            <ActionButton
+                              icon={survey.isActive ? Pause : Play}
+                              label={survey.isActive ? "Pausar" : "Activar"}
+                              iconOnly
+                              tooltip={
+                                survey.isActive
+                                  ? "Pausar encuesta"
+                                  : "Activar encuesta"
+                              }
+                              onClick={() => handleToggleSurvey(survey)}
+                              isLoading={isToggling === survey.id}
+                            />
+                          )}
+                        {user?.role !== "SUPERVISOR" && survey.cases > 0 && (
                           <ActionButton
                             icon={Eraser}
                             label="Borrar respuestas"
@@ -1533,57 +1598,69 @@ export default function TemporalPage() {
                             onClick={() => handleDeleteAnswers(survey)}
                           />
                         )}
-                        <ActionButton
-                          icon={TestTube2}
-                          label="Prueba local"
-                          iconOnly
-                          tooltip="Prueba local"
-                          onClick={() => {
-                            if (typeof window !== "undefined") {
-                              window.sessionStorage.setItem(
-                                "responder:surveyId",
-                                survey.id,
+                        {user?.role !== "SUPERVISOR" && (
+                          <ActionButton
+                            icon={TestTube2}
+                            label="Prueba local"
+                            iconOnly
+                            tooltip="Prueba local"
+                            onClick={() => {
+                              if (typeof window !== "undefined") {
+                                window.sessionStorage.setItem(
+                                  "responder:surveyId",
+                                  survey.id,
+                                );
+                              }
+                              router.push(
+                                `/dashboard/encuestas/responder?mode=test`,
                               );
-                            }
-                            router.push(
-                              `/dashboard/encuestas/responder?mode=test`,
-                            );
-                          }}
-                        />
-                        <ActionButton
-                          icon={Copy}
-                          label="Clonar"
-                          iconOnly
-                          tooltip="Clonar encuesta"
-                          onClick={() => handleClone(survey)}
-                        />
-                        <ActionButton
-                          icon={Trash2}
-                          label="Eliminar"
-                          variant="danger"
-                          iconOnly
-                          tooltip="Eliminar encuesta"
-                          onClick={() => handleDelete(survey.id)}
-                        />
+                            }}
+                          />
+                        )}
+                        {user?.role !== "SUPERVISOR" && (
+                          <ActionButton
+                            icon={Copy}
+                            label="Clonar"
+                            iconOnly
+                            tooltip="Clonar encuesta"
+                            onClick={() => handleClone(survey)}
+                          />
+                        )}
+                        {user?.role !== "SUPERVISOR" && (
+                          <ActionButton
+                            icon={Trash2}
+                            label="Eliminar"
+                            variant="danger"
+                            iconOnly
+                            tooltip="Eliminar encuesta"
+                            onClick={() => handleDelete(survey.id)}
+                          />
+                        )}
                       </div>
                       <div className="flex md:hidden items-center gap-1.5 w-full">
                         <div className="flex flex-1 flex-nowrap gap-1.5">
-                          <ActionButton
-                            icon={ClipboardList}
-                            label="Preguntas"
-                            className="px-2 py-1.5 text-[11px]"
-                            iconSize={14}
-                            onClick={() =>
-                              router.push(
-                                `/dashboard/temporal/nueva?id=${survey.id}`,
-                              )
-                            }
-                            hasAlert={!survey.hasForm}
-                          />
+                          {user?.role !== "SUPERVISOR" && (
+                            <ActionButton
+                              icon={ClipboardList}
+                              label="Preguntas"
+                              className="px-2 py-1.5 text-[11px]"
+                              iconSize={14}
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/encuestas/nueva?id=${survey.id}`,
+                                )
+                              }
+                              hasAlert={!survey.hasForm}
+                            />
+                          )}
                           <ActionButton
                             icon={BarChart3}
                             label="Supervisar"
-                            className="px-2 py-1.5 text-[11px]"
+                            className={`px-2 py-1.5 text-[11px] ${
+                              user?.role === "SUPERVISOR"
+                                ? "flex-1 justify-center"
+                                : ""
+                            }`}
                             iconSize={14}
                             onClick={() =>
                               router.push(
@@ -1591,135 +1668,164 @@ export default function TemporalPage() {
                               )
                             }
                           />
-                        </div>
-                        <div className="relative">
-                          <button
-                            onClick={() =>
-                              setOpenMenuId((prev) =>
-                                prev === survey.id ? null : survey.id,
-                              )
-                            }
-                            className="px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all border-[color:var(--card-border)] bg-[color:var(--card-background)] text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)]"
-                          >
-                            <span className="flex items-center gap-1.5">
-                              <MoreVertical size={14} />
-                              <span>Más</span>
-                            </span>
-                          </button>
-                          {openMenuId === survey.id && (
-                            <>
-                              {/* Backdrop */}
-                              <div
-                                className="fixed inset-0 bg-[color:var(--primary)]/5 z-10"
-                                onClick={() => setOpenMenuId(null)}
-                              />
-                              {/* Botones flotantes reorganizados según nuevos requisitos */}
-                              <div className="absolute bottom-full right-0 mb-1.5 w-56 bg-[color:var(--background)] border-2 border-[color:var(--card-border)] rounded-lg shadow-xl p-1.5 z-20">
-                                <div className="flex flex-col gap-1.5">
-                                  {/* 1. PAUSAR - todo el ancho */}
-                                  {survey.status !== "finalizada" && (
-                                    <button
-                                      onClick={() => {
-                                        handleToggleSurvey(survey);
-                                        setOpenMenuId(null);
-                                      }}
-                                      className="w-full px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
-                                    >
-                                      {survey.isActive ? (
-                                        <Pause size={12} />
-                                      ) : (
-                                        <Play size={12} />
-                                      )}
-                                      {survey.isActive ? "Pausar" : "Activar"}
-                                    </button>
-                                  )}
-
-                                  {/* 2. AJUSTES / CLONAR - dos columnas */}
-                                  <div className="grid grid-cols-2 gap-1.5">
-                                    <button
-                                      onClick={() => {
-                                        router.push(
-                                          `/dashboard/temporal/configurar?id=${survey.id}`,
-                                        );
-                                        setOpenMenuId(null);
-                                      }}
-                                      className="relative px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
-                                    >
-                                      {!survey.hasConfig && (
-                                        <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
-                                          <AlertCircle
-                                            size={8}
-                                            className="text-white"
-                                            strokeWidth={3}
-                                          />
-                                        </div>
-                                      )}
-                                      <Settings size={12} />
-                                      <span>Ajustes</span>
-                                    </button>
-
-                                    <button
-                                      onClick={() => {
-                                        handleClone(survey);
-                                        setOpenMenuId(null);
-                                      }}
-                                      className="px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
-                                    >
-                                      <Copy size={12} />
-                                      Clonar
-                                    </button>
-                                  </div>
-
-                                  {/* 3. PRUEBA - todo el ancho con icono Eye */}
-                                  <button
-                                    onClick={() => {
-                                      if (typeof window !== "undefined") {
-                                        window.sessionStorage.setItem(
-                                          "responder:surveyId",
-                                          survey.id,
-                                        );
-                                      }
-                                      router.push(
-                                        `/dashboard/encuestas/responder?mode=test`,
-                                      );
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
-                                  >
-                                    <Eye size={12} />
-                                    Prueba
-                                  </button>
-
-                                  {/* 4. BORRAR RESPUESTAS - todo el ancho, sin color */}
-                                  {survey.cases > 0 && (
-                                    <button
-                                      onClick={() => {
-                                        handleDeleteAnswers(survey);
-                                        setOpenMenuId(null);
-                                      }}
-                                      className="w-full px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
-                                    >
-                                      <Eraser size={12} />
-                                      Borrar respuestas
-                                    </button>
-                                  )}
-
-                                  {/* 5. ELIMINAR ENCUESTA - todo el ancho con color rojo */}
-                                  <button
-                                    onClick={() => {
-                                      handleDelete(survey.id);
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--error-text)] border border-[color:var(--error-border)]/60 hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
-                                  >
-                                    <Trash2 size={12} />
-                                    Eliminar encuesta
-                                  </button>
-                                </div>
-                              </div>
-                            </>
+                          {user?.role === "SUPERVISOR" && (
+                            <ActionButton
+                              icon={Eye}
+                              label="Prueba"
+                              className="px-2 py-1.5 text-[11px] flex-1 justify-center"
+                              iconSize={14}
+                              onClick={() => {
+                                if (typeof window !== "undefined") {
+                                  window.sessionStorage.setItem(
+                                    "responder:surveyId",
+                                    survey.id,
+                                  );
+                                }
+                                router.push(
+                                  `/dashboard/encuestas/responder?mode=test`,
+                                );
+                              }}
+                            />
                           )}
                         </div>
+                        {user?.role !== "SUPERVISOR" && (
+                          <div className="relative">
+                            <button
+                              onClick={() =>
+                                setOpenMenuId((prev) =>
+                                  prev === survey.id ? null : survey.id,
+                                )
+                              }
+                              className="px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all border-[color:var(--card-border)] bg-[color:var(--card-background)] text-[color:var(--text-primary)] hover:bg-[color:var(--hover-bg)]"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <MoreVertical size={14} />
+                                <span>Más</span>
+                              </span>
+                            </button>
+                            {openMenuId === survey.id && (
+                              <>
+                                {/* Backdrop */}
+                                <div
+                                  className="fixed inset-0 bg-[color:var(--primary)]/5 z-10"
+                                  onClick={() => setOpenMenuId(null)}
+                                />
+                                {/* Botones flotantes reorganizados según nuevos requisitos */}
+                                <div className="absolute bottom-full right-0 mb-1.5 w-56 bg-[color:var(--background)] border-2 border-[color:var(--card-border)] rounded-lg shadow-xl p-1.5 z-20">
+                                  <div className="flex flex-col gap-1.5">
+                                    {/* 1. PAUSAR - todo el ancho */}
+                                    {user?.role !== "SUPERVISOR" &&
+                                      survey.status !== "finalizada" && (
+                                        <button
+                                          onClick={() => {
+                                            handleToggleSurvey(survey);
+                                            setOpenMenuId(null);
+                                          }}
+                                          className="w-full px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
+                                        >
+                                          {survey.isActive ? (
+                                            <Pause size={12} />
+                                          ) : (
+                                            <Play size={12} />
+                                          )}
+                                          {survey.isActive
+                                            ? "Pausar"
+                                            : "Activar"}
+                                        </button>
+                                      )}
+
+                                    {/* 2. AJUSTES / CLONAR - dos columnas */}
+                                    {user?.role !== "SUPERVISOR" && (
+                                      <div className="grid grid-cols-2 gap-1.5">
+                                        <button
+                                          onClick={() => {
+                                            router.push(
+                                              `/dashboard/encuestas/configurar?id=${survey.id}`,
+                                            );
+                                            setOpenMenuId(null);
+                                          }}
+                                          className="relative px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1 font-medium text-[11px]"
+                                        >
+                                          {!survey.hasConfig && (
+                                            <div className="absolute -top-0.5 -right-0.5 bg-yellow-500 rounded-full w-3 h-3 flex items-center justify-center shadow-sm">
+                                              <AlertCircle
+                                                size={8}
+                                                className="text-white"
+                                                strokeWidth={3}
+                                              />
+                                            </div>
+                                          )}
+                                          <Settings size={12} />
+                                          <span>Ajustes</span>
+                                        </button>
+
+                                        <button
+                                          onClick={() => {
+                                            handleClone(survey);
+                                            setOpenMenuId(null);
+                                          }}
+                                          className="px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
+                                        >
+                                          <Copy size={12} />
+                                          Clonar
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    {/* 3. PRUEBA - todo el ancho con icono Eye */}
+                                    <button
+                                      onClick={() => {
+                                        if (typeof window !== "undefined") {
+                                          window.sessionStorage.setItem(
+                                            "responder:surveyId",
+                                            survey.id,
+                                          );
+                                        }
+                                        router.push(
+                                          `/dashboard/encuestas/responder?mode=test`,
+                                        );
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="w-full px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
+                                    >
+                                      <Eye size={12} />
+                                      Prueba
+                                    </button>
+
+                                    {/* 4. BORRAR RESPUESTAS - todo el ancho, sin color */}
+                                    {user?.role !== "SUPERVISOR" &&
+                                      survey.cases > 0 && (
+                                        <button
+                                          onClick={() => {
+                                            handleDeleteAnswers(survey);
+                                            setOpenMenuId(null);
+                                          }}
+                                          className="w-full px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--text-primary)] border border-[color:var(--card-border)] hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
+                                        >
+                                          <Eraser size={12} />
+                                          Borrar respuestas
+                                        </button>
+                                      )}
+
+                                    {/* 5. ELIMINAR ENCUESTA - todo el ancho con color rojo */}
+                                    {user?.role !== "SUPERVISOR" && (
+                                      <button
+                                        onClick={() => {
+                                          handleDelete(survey.id);
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-2 py-1.5 rounded-md bg-[color:var(--card-background)] text-[color:var(--error-text)] border border-[color:var(--error-border)]/60 hover:bg-[color:var(--hover-bg)] transition-all flex items-center justify-center gap-1.5 font-medium text-[11px]"
+                                      >
+                                        <Trash2 size={12} />
+                                        Eliminar encuesta
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -11,13 +11,11 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Home,
   ClipboardList,
   Users,
   LogOut,
   LayoutGrid,
   Settings,
-  Sparkles,
   GraduationCap,
   RefreshCw,
 } from "lucide-react";
@@ -40,7 +38,7 @@ function DashboardLayoutContent({ children }) {
   const [isTutorialModalOpen, setIsTutorialModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOnline, setIsOnline] = useState(
-    typeof navigator === "undefined" ? true : navigator.onLine
+    typeof navigator === "undefined" ? true : navigator.onLine,
   );
 
   useEffect(() => {
@@ -229,17 +227,10 @@ function DashboardLayoutContent({ children }) {
       ];
     } else {
       // Otros roles tienen el menú completo
-      items = [
-        { path: "", label: "Inicio", icon: Home },
-        { path: "encuestas", label: "Encuestas", icon: ClipboardList },
-      ];
+      items = [{ path: "encuestas", label: "Encuestas", icon: ClipboardList }];
 
       if (userRole === "ROLE_ADMIN") {
-        items.push(
-          { path: "usuarios", label: "Usuarios", icon: Users },
-          { path: "temporal", label: "Nuevo Creador", icon: Sparkles }
-          // { path: "encuestadores", label: "Encuestadores", icon: UserRoundPen }
-        );
+        items.push({ path: "usuarios", label: "Usuarios", icon: Users });
       } else if (userRole === "SUPERVISOR") {
         // Ocultar temporalmente el ítem "Encuestadores" para supervisores
         // items.push({
@@ -381,7 +372,9 @@ function DashboardLayoutContent({ children }) {
               }`}
               onClick={handleProfileClick}
             >
-              <div className={`flex items-center gap-3 ${isSidebarCollapsed ? "flex-col" : ""}`}>
+              <div
+                className={`flex items-center gap-3 ${isSidebarCollapsed ? "flex-col" : ""}`}
+              >
                 <div
                   className={`w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-lg flex-shrink-0 overflow-hidden ${
                     isSidebarCollapsed ? "mx-auto" : ""
@@ -426,10 +419,10 @@ function DashboardLayoutContent({ children }) {
                       {user?.role === "ROLE_ADMIN"
                         ? "Administrador"
                         : user?.role === "SUPERVISOR"
-                        ? "Supervisor"
-                        : user?.role === "POLLSTER"
-                        ? "Encuestador"
-                        : "Usuario"}
+                          ? "Supervisor"
+                          : user?.role === "POLLSTER"
+                            ? "Encuestador"
+                            : "Usuario"}
                     </p>
                     <p className="text-xs text-[var(--primary)] absolute top-0 left-0 w-full transition-all duration-200 opacity-0 group-hover:opacity-100">
                       Mi perfil
@@ -596,7 +589,7 @@ function DashboardLayoutContent({ children }) {
                     <button
                       onClick={() => {
                         console.log(
-                          "🎯 [Layout] Iniciando tutorial de Responder Encuesta"
+                          "🎯 [Layout] Iniciando tutorial de Responder Encuesta",
                         );
                         setIsTutorialModalOpen(false);
                         // Pequeño delay para que el modal se cierre antes

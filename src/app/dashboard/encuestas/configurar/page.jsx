@@ -73,43 +73,49 @@ export default function ConfigurarEncuesta() {
   // Función helper para detectar preguntas cuota
   const detectarPreguntasCuota = (surveyDefinition) => {
     if (!surveyDefinition?.modulos) return false;
-    const todasLasPreguntas = surveyDefinition.modulos.flatMap(m => m.preguntas || []);
-    return todasLasPreguntas.some(p => 
-      p.tipo === 'cuota-genero' || p.tipo === 'cuota-edad'
+    const todasLasPreguntas = surveyDefinition.modulos.flatMap(
+      (m) => m.preguntas || [],
+    );
+    return todasLasPreguntas.some(
+      (p) => p.tipo === "cuota-genero" || p.tipo === "cuota-edad",
     );
   };
 
   // Función para detectar estructura de cuotas y extraer opciones
   const detectQuotaStructure = (surveyDefinition) => {
     if (!surveyDefinition?.modulos) return null;
-    
-    const todasLasPreguntas = surveyDefinition.modulos.flatMap(m => m.preguntas || []);
-    const genderQuestion = todasLasPreguntas.find(p => p.tipo === 'cuota-genero');
-    const ageQuestion = todasLasPreguntas.find(p => p.tipo === 'cuota-edad');
-    
+
+    const todasLasPreguntas = surveyDefinition.modulos.flatMap(
+      (m) => m.preguntas || [],
+    );
+    const genderQuestion = todasLasPreguntas.find(
+      (p) => p.tipo === "cuota-genero",
+    );
+    const ageQuestion = todasLasPreguntas.find((p) => p.tipo === "cuota-edad");
+
     if (!genderQuestion && !ageQuestion) return null;
-    
+
     // Extraer solo el texto de las opciones (las opciones son objetos {id, value, text})
     const extractOptionTexts = (options) => {
       if (!options || !Array.isArray(options)) return [];
-      return options.map(opt => {
+      return options.map((opt) => {
         // Si es un objeto, extraer el texto
-        if (typeof opt === 'object' && opt !== null) {
+        if (typeof opt === "object" && opt !== null) {
           return opt.text || opt.value || opt.label || String(opt);
         }
         // Si ya es un string, usarlo directamente
         return String(opt);
       });
     };
-    
+
     const structure = {
       hasGender: !!genderQuestion,
       hasAge: !!ageQuestion,
       genderOptions: extractOptionTexts(genderQuestion?.opciones),
       ageOptions: extractOptionTexts(ageQuestion?.opciones),
-      isCrossTable: !!genderQuestion && !!ageQuestion
+      isCrossTable: !!genderQuestion && !!ageQuestion,
     };
-    
+
     return structure;
   };
 
@@ -161,7 +167,7 @@ export default function ConfigurarEncuesta() {
 
       // Determinar goalType basado en los datos existentes
       let goalType = "cases"; // default
-      
+
       // Si hay preguntas cuota, FORZAR a 'quotas'
       if (hasCuotas) {
         goalType = "quotas";
@@ -179,18 +185,26 @@ export default function ConfigurarEncuesta() {
         goalType: goalType,
         categorias: (surveyInfo.quotas || []).map((q, catIdx) => {
           // Calcular el total de objetivos de esta categoría para poder calcular porcentajes
-          const totalObjetivos = q.segments.reduce((sum, s) => sum + (s.target || 0), 0);
+          const totalObjetivos = q.segments.reduce(
+            (sum, s) => sum + (s.target || 0),
+            0,
+          );
           return {
             id: Date.now() + Math.random(),
             nombre: q.category,
             segmentos: q.segments.map((s, segIdx) => ({
               id: Date.now() + Math.random(),
               // Preservar segmentId si existe, o generar uno nuevo para datos legacy
-              segmentId: s.segmentId || `seg_legacy_${catIdx}_${segIdx}_${Math.random().toString(36).substr(2, 9)}`,
+              segmentId:
+                s.segmentId ||
+                `seg_legacy_${catIdx}_${segIdx}_${Math.random().toString(36).substr(2, 9)}`,
               nombre: s.name,
               objetivo: s.target,
               // Calcular porcentaje basado en el objetivo del segmento respecto al total
-              porcentaje: totalObjetivos > 0 ? Math.round((s.target / totalObjetivos) * 100) : 0,
+              porcentaje:
+                totalObjetivos > 0
+                  ? Math.round((s.target / totalObjetivos) * 100)
+                  : 0,
               icon: "User",
             })),
           };
@@ -201,64 +215,68 @@ export default function ConfigurarEncuesta() {
       // quotaAssignments está en surveyInfo, pollsterAssignments en participants
       const surveyInfoData = response?.survey?.surveyInfo;
       const participantsData = response?.survey?.participants;
-      if (surveyInfoData?.quotaAssignments?.length > 0 || participantsData?.pollsterAssignments?.length > 0) {
+      if (
+        surveyInfoData?.quotaAssignments?.length > 0 ||
+        participantsData?.pollsterAssignments?.length > 0
+      ) {
         setCurrentDistribution({
           quotaAssignments: surveyInfoData?.quotaAssignments || [],
           pollsterAssignments: participantsData?.pollsterAssignments || [],
         });
       }
-      
+
       // Cargar asignaciones de casos por encuestador
       if (participantsData?.pollsterAssignments?.length > 0) {
         setPollsterAssignments(participantsData.pollsterAssignments);
       }
-      
+
       // Cargar participantes asignados - buscar en múltiples ubicaciones posibles
-      const userIds = 
+      const userIds =
         response?.survey?.surveyInfo?.userIds ||
         response?.survey?.participants?.userIds ||
         response?.survey?.userIds ||
         surveyInfo.userIds ||
         participantsData?.userIds ||
         [];
-        
-      const supervisorsIds = 
+
+      const supervisorsIds =
         response?.survey?.surveyInfo?.supervisorsIds ||
         response?.survey?.participants?.supervisorsIds ||
         response?.survey?.supervisorsIds ||
         surveyInfo.supervisorsIds ||
         participantsData?.supervisorsIds ||
         [];
-        
 
-        
       setAssignedPollsters((userIds || []).map(String));
       setAssignedSupervisors((supervisorsIds || []).map(String));
-      
+
       // Cargar detalles de encuestadores
       if (userIds && userIds.length > 0) {
         await loadPollsterDetails(userIds.map(String));
       }
-      
+
       // Cargar distribución de cuotas existente
 
-      const quotaAssignments = participantsData?.quotaAssignments || surveyInfoData?.quotaAssignments || [];
+      const quotaAssignments =
+        participantsData?.quotaAssignments ||
+        surveyInfoData?.quotaAssignments ||
+        [];
       if (quotaAssignments.length > 0) {
         const loadedQuotaData = {};
-        
-        quotaAssignments.forEach(assignment => {
+
+        quotaAssignments.forEach((assignment) => {
           const pollsterId = String(assignment.pollsterId);
           loadedQuotaData[pollsterId] = {};
-          
+
           // Reconstruir los datos de distribución desde quotas/segments
           if (assignment.quotas && Array.isArray(assignment.quotas)) {
-            assignment.quotas.forEach(quota => {
+            assignment.quotas.forEach((quota) => {
               // Cada quota tiene category y segments
               if (quota.segments && Array.isArray(quota.segments)) {
-                quota.segments.forEach(segment => {
+                quota.segments.forEach((segment) => {
                   // Detectar si es tabla cruzada o simple basándose en el nombre del segmento
-                  const nameParts = segment.name.split(' - ');
-                  
+                  const nameParts = segment.name.split(" - ");
+
                   if (nameParts.length === 2) {
                     // Tabla cruzada: "Masculino - 18-35"
                     const [gender, age] = nameParts;
@@ -266,14 +284,14 @@ export default function ConfigurarEncuesta() {
                     loadedQuotaData[pollsterId][key] = segment.target || 0;
                   } else {
                     // Tabla simple: solo género o edad
-                    loadedQuotaData[pollsterId][segment.name] = segment.target || 0;
+                    loadedQuotaData[pollsterId][segment.name] =
+                      segment.target || 0;
                   }
                 });
               }
             });
           }
         });
-        
 
         setQuotaDistributionData(loadedQuotaData);
       }
@@ -326,40 +344,40 @@ export default function ConfigurarEncuesta() {
       setPollsterDetails({});
       return;
     }
-    
+
     try {
       // Cargar todos los encuestadores del backend
       const pollstersResponse = await userService.getPollsters();
       const allPollsters = pollstersResponse.users || [];
-      
+
       const details = {};
       pollsterIds.forEach((id) => {
         // Buscar el encuestador en la lista cargada
-        const pollster = allPollsters.find(p => String(p._id) === String(id));
+        const pollster = allPollsters.find((p) => String(p._id) === String(id));
         if (pollster) {
           details[id] = {
-            nombre: pollster.nombre || pollster.name || '',
-            apellido: pollster.apellido || pollster.lastName || '',
-            foto: pollster.foto || pollster.photo || pollster.avatar || null
+            nombre: pollster.nombre || pollster.name || "",
+            apellido: pollster.apellido || pollster.lastName || "",
+            foto: pollster.foto || pollster.photo || pollster.avatar || null,
           };
         } else {
           details[id] = {
-            nombre: 'Encuestador',
-            apellido: '',
-            foto: null
+            nombre: "Encuestador",
+            apellido: "",
+            foto: null,
           };
         }
       });
       setPollsterDetails(details);
     } catch (error) {
-      console.error('Error loading pollster details:', error);
+      console.error("Error loading pollster details:", error);
       // Fallback a placeholders en caso de error
       const details = {};
       pollsterIds.forEach((id, index) => {
         details[id] = {
           nombre: `Encuestador ${index + 1}`,
-          apellido: '',
-          foto: null
+          apellido: "",
+          foto: null,
         };
       });
       setPollsterDetails(details);
@@ -380,7 +398,7 @@ export default function ConfigurarEncuesta() {
   const calcularTotalAsignado = (categoria) => {
     return categoria.segmentos.reduce(
       (sum, seg) => sum + (seg.objetivo || 0),
-      0
+      0,
     );
   };
 
@@ -412,10 +430,10 @@ export default function ConfigurarEncuesta() {
           if (field === "porcentaje") {
             const newPorcentaje = Math.min(
               100,
-              Math.max(0, parseInt(value) || 0)
+              Math.max(0, parseInt(value) || 0),
             );
             const newObjetivo = Math.round(
-              (newPorcentaje / 100) * metaEfectiva
+              (newPorcentaje / 100) * metaEfectiva,
             );
             newSegmentos[segmentoIndex] = {
               ...newSegmentos[segmentoIndex],
@@ -465,7 +483,7 @@ export default function ConfigurarEncuesta() {
               porcentaje: Math.round(
                 ((objetivoPorSegmento + (idx === 0 ? resto : 0)) /
                   metaEfectiva) *
-                  100
+                  100,
               ),
             })),
           };
@@ -480,10 +498,10 @@ export default function ConfigurarEncuesta() {
       ...prev,
       segmentos: [
         ...prev.segmentos,
-        { 
-          nombre: "", 
-          objetivo: 0, 
-          porcentaje: 0, 
+        {
+          nombre: "",
+          objetivo: 0,
+          porcentaje: 0,
           icon: "User",
           segmentId: `seg_${Date.now()}_${prev.segmentos.length}_${Math.random().toString(36).substr(2, 9)}`,
         },
@@ -502,7 +520,7 @@ export default function ConfigurarEncuesta() {
     setNuevaCategoria((prev) => ({
       ...prev,
       segmentos: prev.segmentos.map((seg, i) =>
-        i === index ? { ...seg, [field]: value } : seg
+        i === index ? { ...seg, [field]: value } : seg,
       ),
     }));
   };
@@ -570,11 +588,11 @@ export default function ConfigurarEncuesta() {
     }
 
     const segmentosValidos = nuevaCategoria.segmentos.filter((s) =>
-      s.nombre.trim()
+      s.nombre.trim(),
     );
     if (segmentosValidos.length < 2) {
       setValidationMessage(
-        "Debes agregar al menos 2 segmentos para crear una cuota. Una categoría con un solo segmento no tiene sentido para distribuir cuotas."
+        "Debes agregar al menos 2 segmentos para crear una cuota. Una categoría con un solo segmento no tiene sentido para distribuir cuotas.",
       );
       setShowValidationModal(true);
       return;
@@ -583,7 +601,9 @@ export default function ConfigurarEncuesta() {
     // Generar segmentId único para cada segmento
     const segmentosConId = segmentosValidos.map((s, idx) => ({
       ...s,
-      segmentId: s.segmentId || `seg_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+      segmentId:
+        s.segmentId ||
+        `seg_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
     }));
 
     const nuevaCat = {
@@ -599,7 +619,7 @@ export default function ConfigurarEncuesta() {
     }));
 
     cerrarModalCategoria();
-    
+
     // Distribuir automáticamente de manera equitativa
     setTimeout(() => {
       distribuirEquitativamente(nuevaCat.id);
@@ -634,7 +654,7 @@ export default function ConfigurarEncuesta() {
 
       if (userIds.length === 0) {
         setValidationMessage(
-          "Debes asignar participantes antes de poder distribuir las cuotas"
+          "Debes asignar participantes antes de poder distribuir las cuotas",
         );
         setShowGoToParticipantsOption(true);
         setShowValidationModal(true);
@@ -647,12 +667,12 @@ export default function ConfigurarEncuesta() {
 
       // Filtrar solo los encuestadores que están asignados a esta encuesta
       const encuestadoresData = allPollsters.filter((pollster) =>
-        userIds.includes(pollster._id)
+        userIds.includes(pollster._id),
       );
 
       if (encuestadoresData.length === 0) {
         setValidationMessage(
-          "Debes asignar participantes antes de poder distribuir las cuotas"
+          "Debes asignar participantes antes de poder distribuir las cuotas",
         );
         setShowGoToParticipantsOption(true);
         setShowValidationModal(true);
@@ -787,7 +807,6 @@ export default function ConfigurarEncuesta() {
       await surveyService.createOrUpdateSurvey(dataToSave, surveyId, false);
 
       toast.success("Configuración guardada exitosamente");
-
     } catch (error) {
       console.error("Error al guardar configuración:", error);
       toast.error("Error al guardar: " + error.message);
@@ -813,16 +832,21 @@ export default function ConfigurarEncuesta() {
 
   // Funciones para distribución de casos
   const handleCaseAssignment = (pollsterId, cases) => {
-    setPollsterAssignments(prev => {
+    setPollsterAssignments((prev) => {
       const updated = [...prev];
-      const existingIndex = updated.findIndex(a => a.pollsterId === pollsterId);
-      
+      const existingIndex = updated.findIndex(
+        (a) => a.pollsterId === pollsterId,
+      );
+
       if (existingIndex >= 0) {
-        updated[existingIndex] = { pollsterId, assignedCases: parseInt(cases) || 0 };
+        updated[existingIndex] = {
+          pollsterId,
+          assignedCases: parseInt(cases) || 0,
+        };
       } else {
         updated.push({ pollsterId, assignedCases: parseInt(cases) || 0 });
       }
-      
+
       return updated;
     });
   };
@@ -830,23 +854,23 @@ export default function ConfigurarEncuesta() {
   const getTotalAssignedCases = () => {
     return pollsterAssignments.reduce(
       (total, assignment) => total + (assignment.assignedCases || 0),
-      0
+      0,
     );
   };
 
   const getAssignedCases = (pollsterId) => {
-    const assignment = pollsterAssignments.find(a => a.pollsterId === pollsterId);
+    const assignment = pollsterAssignments.find(
+      (a) => a.pollsterId === pollsterId,
+    );
     return assignment ? assignment.assignedCases || 0 : 0;
   };
 
   const updatePollsterCases = (pollsterId, cases) => {
-    setPollsterAssignments(prev => {
-      const existing = prev.find(a => a.pollsterId === pollsterId);
+    setPollsterAssignments((prev) => {
+      const existing = prev.find((a) => a.pollsterId === pollsterId);
       if (existing) {
-        return prev.map(a => 
-          a.pollsterId === pollsterId 
-            ? { ...a, assignedCases: cases }
-            : a
+        return prev.map((a) =>
+          a.pollsterId === pollsterId ? { ...a, assignedCases: cases } : a,
         );
       } else {
         return [...prev, { pollsterId, assignedCases: cases }];
@@ -857,23 +881,25 @@ export default function ConfigurarEncuesta() {
   const distributeEqually = () => {
     const metaEfectiva = obtenerMetaEfectiva();
     if (!metaEfectiva || assignedPollsters.length === 0) return;
-    
-    const casesPerPollster = Math.floor(metaEfectiva / assignedPollsters.length);
+
+    const casesPerPollster = Math.floor(
+      metaEfectiva / assignedPollsters.length,
+    );
     const remainder = metaEfectiva % assignedPollsters.length;
-    
+
     const newAssignments = assignedPollsters.map((pollsterId, index) => ({
       pollsterId,
       assignedCases: casesPerPollster + (index === 0 ? remainder : 0),
     }));
-    
+
     setPollsterAssignments(newAssignments);
-    toast.success('Casos distribuidos equitativamente');
+    toast.success("Casos distribuidos equitativamente");
   };
 
   const saveCaseDistribution = async () => {
     try {
       setIsSaving(true);
-      
+
       const existing = await surveyService.getSurvey(surveyId);
       const surveyData = existing?.survey?.survey || existing?.survey;
       const surveyInfo = existing?.survey?.surveyInfo || {};
@@ -884,21 +910,22 @@ export default function ConfigurarEncuesta() {
         surveyDefinition: definition,
         surveyInfo: {
           ...surveyInfo,
-          metaMode: config.goalType === 'cases' ? 'casos' : 'cuotas', // Guardar metaMode
+          metaMode: config.goalType === "cases" ? "casos" : "cuotas", // Guardar metaMode
         },
         participants: {
           userIds: assignedPollsters,
           supervisorsIds: assignedSupervisors,
           pollsterAssignments: pollsterAssignments,
-          quotaAssignments: existing?.survey?.participants?.quotaAssignments || []
-        }
+          quotaAssignments:
+            existing?.survey?.participants?.quotaAssignments || [],
+        },
       };
 
       await surveyService.createOrUpdateSurvey(dataToSave, surveyId, false);
-      toast.success('Distribución de casos guardada exitosamente');
+      toast.success("Distribución de casos guardada exitosamente");
     } catch (error) {
-      console.error('Error al guardar distribución de casos:', error);
-      toast.error('Error al guardar distribución: ' + error.message);
+      console.error("Error al guardar distribución de casos:", error);
+      toast.error("Error al guardar distribución: " + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -911,12 +938,12 @@ export default function ConfigurarEncuesta() {
 
   // Funciones para distribución de cuotas
   const updateQuotaValue = (pollsterId, segmentKey, value) => {
-    setQuotaDistributionData(prev => ({
+    setQuotaDistributionData((prev) => ({
       ...prev,
       [pollsterId]: {
         ...(prev[pollsterId] || {}),
-        [segmentKey]: parseInt(value) || 0
-      }
+        [segmentKey]: parseInt(value) || 0,
+      },
     }));
   };
 
@@ -945,18 +972,23 @@ export default function ConfigurarEncuesta() {
   // Calcular total general de un pollster
   const getPollsterQuotaTotal = (pollsterId) => {
     if (!quotaStructure) return 0;
-    
+
     if (quotaStructure.isCrossTable) {
       // Tabla cruzada: sumar todas las celdas
       return quotaStructure.genderOptions.reduce((total, genderOption) => {
-        return total + quotaStructure.ageOptions.reduce((sum, ageOption) => {
-          const key = `${genderOption}_${ageOption}`;
-          return sum + getQuotaValue(pollsterId, key);
-        }, 0);
+        return (
+          total +
+          quotaStructure.ageOptions.reduce((sum, ageOption) => {
+            const key = `${genderOption}_${ageOption}`;
+            return sum + getQuotaValue(pollsterId, key);
+          }, 0)
+        );
       }, 0);
     } else {
       // Tabla simple: sumar todos los segmentos
-      const options = quotaStructure.hasGender ? quotaStructure.genderOptions : quotaStructure.ageOptions;
+      const options = quotaStructure.hasGender
+        ? quotaStructure.genderOptions
+        : quotaStructure.ageOptions;
       return options.reduce((sum, option) => {
         return sum + getQuotaValue(pollsterId, option);
       }, 0);
@@ -974,72 +1006,72 @@ export default function ConfigurarEncuesta() {
   const prepareQuotaAssignments = () => {
     if (!quotaStructure || assignedPollsters.length === 0) return [];
 
-    return assignedPollsters.map(pollsterId => {
-      const pollsterData = quotaDistributionData[pollsterId] || {};
+    return assignedPollsters
+      .map((pollsterId) => {
+        const pollsterData = quotaDistributionData[pollsterId] || {};
 
-      const quotas = [];
+        const quotas = [];
 
-      if (quotaStructure.isCrossTable) {
-        // Tabla cruzada: crear UNA cuota con categoría "Género y Edad" y todos los segmentos
-        const segments = [];
-        
-        quotaStructure.genderOptions.forEach(genderOption => {
-          quotaStructure.ageOptions.forEach(ageOption => {
-            const key = `${genderOption}_${ageOption}`;
-            const value = pollsterData[key] || 0;
-            
+        if (quotaStructure.isCrossTable) {
+          // Tabla cruzada: crear UNA cuota con categoría "Género y Edad" y todos los segmentos
+          const segments = [];
+
+          quotaStructure.genderOptions.forEach((genderOption) => {
+            quotaStructure.ageOptions.forEach((ageOption) => {
+              const key = `${genderOption}_${ageOption}`;
+              const value = pollsterData[key] || 0;
+
+              if (value > 0) {
+                segments.push({
+                  name: `${genderOption} - ${ageOption}`,
+                  target: value,
+                  current: 0,
+                });
+              }
+            });
+          });
+
+          if (segments.length > 0) {
+            quotas.push({
+              category: "Género y Edad",
+              segments: segments,
+            });
+          }
+        } else {
+          // Tabla simple: crear UNA cuota con la categoría correspondiente
+          const category = quotaStructure.hasGender ? "Género" : "Edad";
+          const options = quotaStructure.hasGender
+            ? quotaStructure.genderOptions
+            : quotaStructure.ageOptions;
+
+          const segments = [];
+          options.forEach((option) => {
+            const value = pollsterData[option] || 0;
+
             if (value > 0) {
               segments.push({
-                name: `${genderOption} - ${ageOption}`,
+                name: option,
                 target: value,
-                current: 0
+                current: 0,
               });
             }
           });
-        });
 
-        if (segments.length > 0) {
-          quotas.push({
-            category: "Género y Edad",
-            segments: segments
-          });
-        }
-      } else {
-        // Tabla simple: crear UNA cuota con la categoría correspondiente
-        const category = quotaStructure.hasGender ? "Género" : "Edad";
-        const options = quotaStructure.hasGender 
-          ? quotaStructure.genderOptions 
-          : quotaStructure.ageOptions;
-        
-        const segments = [];
-        options.forEach(option => {
-          const value = pollsterData[option] || 0;
-          
-          if (value > 0) {
-            segments.push({
-              name: option,
-              target: value,
-              current: 0
+          if (segments.length > 0) {
+            quotas.push({
+              category: category,
+              segments: segments,
             });
           }
-        });
-
-        if (segments.length > 0) {
-          quotas.push({
-            category: category,
-            segments: segments
-          });
         }
-      }
 
-      return {
-        pollsterId,
-        quotas: quotas
-      };
-    }).filter(assignment => assignment.quotas.length > 0);
+        return {
+          pollsterId,
+          quotas: quotas,
+        };
+      })
+      .filter((assignment) => assignment.quotas.length > 0);
   };
-
-
 
   const duracion = calcularDuracion();
 
@@ -1145,7 +1177,9 @@ export default function ConfigurarEncuesta() {
                 >
                   <div
                     className={`absolute top-1 left-1 w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full shadow-sm transition-transform ${
-                      config.gpsObligatorio ? "transform translate-x-5 sm:translate-x-6" : ""
+                      config.gpsObligatorio
+                        ? "transform translate-x-5 sm:translate-x-6"
+                        : ""
                     }`}
                   />
                 </button>
@@ -1166,36 +1200,49 @@ export default function ConfigurarEncuesta() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Opción: Objetivo de Casos */}
                 <button
-                  onClick={() => !tienePreguntasCuota && updateConfig("goalType", "cases")}
+                  onClick={() =>
+                    !tienePreguntasCuota && updateConfig("goalType", "cases")
+                  }
                   disabled={tienePreguntasCuota}
                   className={`relative p-4 rounded-lg border-2 transition-all text-left ${
                     config.goalType === "cases"
                       ? "border-[var(--primary)] bg-[var(--primary)]/5 shadow-sm"
                       : tienePreguntasCuota
-                      ? "border-[var(--card-border)] bg-[var(--card-background)] opacity-60 cursor-not-allowed"
-                      : "border-[var(--card-border)] bg-[var(--card-background)] opacity-50 hover:opacity-100 hover:border-[var(--primary)]/50"
+                        ? "border-[var(--card-border)] bg-[var(--card-background)] opacity-60 cursor-not-allowed"
+                        : "border-[var(--card-border)] bg-[var(--card-background)] opacity-50 hover:opacity-100 hover:border-[var(--primary)]/50"
                   }`}
-                  title={tienePreguntasCuota ? "Tu encuesta tiene preguntas de tipo cuota, no es posible seleccionar meta por casos" : ""}
+                  title={
+                    tienePreguntasCuota
+                      ? "Tu encuesta tiene preguntas de tipo cuota, no es posible seleccionar meta por casos"
+                      : ""
+                  }
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg flex-shrink-0 transition-all ${
-                      config.goalType === "cases"
-                        ? "bg-[var(--primary)] shadow-sm"
-                        : "bg-[var(--card-border)]"
-                    }`}>
-                      <Target size={20} className={
+                    <div
+                      className={`p-2 rounded-lg flex-shrink-0 transition-all ${
                         config.goalType === "cases"
-                          ? "text-white"
-                          : "text-[var(--text-secondary)]"
-                      } />
+                          ? "bg-[var(--primary)] shadow-sm"
+                          : "bg-[var(--card-border)]"
+                      }`}
+                    >
+                      <Target
+                        size={20}
+                        className={
+                          config.goalType === "cases"
+                            ? "text-white"
+                            : "text-[var(--text-secondary)]"
+                        }
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className={`font-semibold text-sm sm:text-base ${
-                          config.goalType === "cases"
-                            ? "text-[var(--text-primary)]"
-                            : "text-[var(--text-secondary)]"
-                        }`}>
+                        <h4
+                          className={`font-semibold text-sm sm:text-base ${
+                            config.goalType === "cases"
+                              ? "text-[var(--text-primary)]"
+                              : "text-[var(--text-secondary)]"
+                          }`}
+                        >
                           Objetivo de Casos
                         </h4>
                         {config.goalType === "cases" && (
@@ -1204,21 +1251,26 @@ export default function ConfigurarEncuesta() {
                           </div>
                         )}
                       </div>
-                      <p className={`text-xs sm:text-sm ${
-                        config.goalType === "cases"
-                          ? "text-[var(--text-secondary)]"
-                          : "text-[var(--text-secondary)]/70"
-                      }`}>
+                      <p
+                        className={`text-xs sm:text-sm ${
+                          config.goalType === "cases"
+                            ? "text-[var(--text-secondary)]"
+                            : "text-[var(--text-secondary)]/70"
+                        }`}
+                      >
                         Define una meta numérica para tu encuesta
                       </p>
-                      
+
                       {/* Mensaje de advertencia si hay preguntas cuota */}
                       {tienePreguntasCuota && (
-                        <div className="mt-2 p-2 rounded text-xs flex items-center gap-1.5" style={{ 
-                          backgroundColor: 'var(--warning-bg)', 
-                          border: '1px solid var(--warning-border)', 
-                          color: 'var(--warning)' 
-                        }}>
+                        <div
+                          className="mt-2 p-2 rounded text-xs flex items-center gap-1.5"
+                          style={{
+                            backgroundColor: "var(--warning-bg)",
+                            border: "1px solid var(--warning-border)",
+                            color: "var(--warning)",
+                          }}
+                        >
                           <AlertCircle size={14} className="flex-shrink-0" />
                           <span>Tu encuesta tiene preguntas de tipo cuota</span>
                         </div>
@@ -1237,24 +1289,31 @@ export default function ConfigurarEncuesta() {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg flex-shrink-0 transition-all ${
-                      config.goalType === "quotas"
-                        ? "bg-[var(--primary)] shadow-sm"
-                        : "bg-[var(--card-border)]"
-                    }`}>
-                      <PieChart size={20} className={
+                    <div
+                      className={`p-2 rounded-lg flex-shrink-0 transition-all ${
                         config.goalType === "quotas"
-                          ? "text-white"
-                          : "text-[var(--text-secondary)]"
-                      } />
+                          ? "bg-[var(--primary)] shadow-sm"
+                          : "bg-[var(--card-border)]"
+                      }`}
+                    >
+                      <PieChart
+                        size={20}
+                        className={
+                          config.goalType === "quotas"
+                            ? "text-white"
+                            : "text-[var(--text-secondary)]"
+                        }
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className={`font-semibold text-sm sm:text-base ${
-                          config.goalType === "quotas"
-                            ? "text-[var(--text-primary)]"
-                            : "text-[var(--text-secondary)]"
-                        }`}>
+                        <h4
+                          className={`font-semibold text-sm sm:text-base ${
+                            config.goalType === "quotas"
+                              ? "text-[var(--text-primary)]"
+                              : "text-[var(--text-secondary)]"
+                          }`}
+                        >
                           Sistema de Cuotas
                         </h4>
                         {config.goalType === "quotas" && (
@@ -1263,11 +1322,13 @@ export default function ConfigurarEncuesta() {
                           </div>
                         )}
                       </div>
-                      <p className={`text-xs sm:text-sm ${
-                        config.goalType === "quotas"
-                          ? "text-[var(--text-secondary)]"
-                          : "text-[var(--text-secondary)]/70"
-                      }`}>
+                      <p
+                        className={`text-xs sm:text-sm ${
+                          config.goalType === "quotas"
+                            ? "text-[var(--text-secondary)]"
+                            : "text-[var(--text-secondary)]/70"
+                        }`}
+                      >
                         Balancea tu muestra por segmentos
                       </p>
                     </div>
@@ -1280,14 +1341,18 @@ export default function ConfigurarEncuesta() {
                 <div className="mt-6 pt-6 border-t border-[var(--card-border)]">
                   <div className="max-w-md mx-auto">
                     <label className="block text-center text-sm font-medium text-[var(--text-secondary)] mb-3">
-                      Meta total de encuestas <span className="text-red-500">*</span>
+                      Meta total de encuestas{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <input
                         type="number"
-                        value={config.metaTotal || ''}
+                        value={config.metaTotal || ""}
                         onChange={(e) =>
-                          updateConfig("metaTotal", parseInt(e.target.value) || 0)
+                          updateConfig(
+                            "metaTotal",
+                            parseInt(e.target.value) || 0,
+                          )
                         }
                         onFocus={(e) => e.target.select()}
                         className="w-full bg-gradient-to-br from-[var(--primary)]/5 to-[var(--primary)]/10 border-2 border-[var(--primary)]/30 rounded-xl px-6 py-5 text-[var(--primary)] text-center text-4xl font-bold focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -1301,9 +1366,7 @@ export default function ConfigurarEncuesta() {
                   </div>
                 </div>
               )}
-
             </div>
-
 
             {/* 5. Asignación de Participantes */}
             <div className="bg-[var(--card-background)] rounded-lg border-2 border-[var(--card-border)] hover:border-[var(--primary)] transition-all p-4 sm:p-6">
@@ -1363,17 +1426,23 @@ export default function ConfigurarEncuesta() {
                     <BarChart3 size={20} className="text-[var(--primary)]" />
                   </div>
                   <h3 className="font-semibold text-base sm:text-lg text-[var(--text-primary)]">
-                    {config.goalType === 'cases' ? 'Distribución de Casos' : 'Distribución de Cuotas'}
+                    {config.goalType === "cases"
+                      ? "Distribución de Casos"
+                      : "Distribución de Cuotas"}
                   </h3>
                 </div>
 
                 {/* Distribución por Casos */}
-                {config.goalType === 'cases' && (
-                  assignedPollsters.length === 0 ? (
+                {config.goalType === "cases" &&
+                  (assignedPollsters.length === 0 ? (
                     <div className="flex items-center gap-3 p-4 bg-[var(--primary)]/5 border border-[var(--card-border)] rounded-lg">
-                      <AlertCircle size={20} className="flex-shrink-0 text-[var(--text-secondary)]" />
+                      <AlertCircle
+                        size={20}
+                        className="flex-shrink-0 text-[var(--text-secondary)]"
+                      />
                       <p className="text-[var(--text-secondary)]">
-                        Es necesario seleccionar los participantes antes de distribuir los casos
+                        Es necesario seleccionar los participantes antes de
+                        distribuir los casos
                       </p>
                     </div>
                   ) : (
@@ -1394,12 +1463,15 @@ export default function ConfigurarEncuesta() {
                         {assignedPollsters.map((pollsterId) => {
                           const details = pollsterDetails[pollsterId];
                           return (
-                            <div key={pollsterId} className="flex items-center gap-3 p-3 bg-[var(--hover-bg)] rounded-lg border border-[var(--card-border)]">
+                            <div
+                              key={pollsterId}
+                              className="flex items-center gap-3 p-3 bg-[var(--hover-bg)] rounded-lg border border-[var(--card-border)]"
+                            >
                               <div className="flex-1 flex items-center gap-3">
                                 {/* Foto del encuestador */}
                                 {details?.foto ? (
-                                  <img 
-                                    src={details.foto} 
+                                  <img
+                                    src={details.foto}
                                     alt={`${details.nombre} ${details.apellido}`}
                                     className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                                   />
@@ -1409,18 +1481,25 @@ export default function ConfigurarEncuesta() {
                                   </div>
                                 )}
                                 <span className="font-medium text-[var(--text-primary)] text-sm">
-                                  {details 
-                                    ? `${details.nombre} ${details.apellido}`.trim() || 'Encuestador'
-                                    : 'Encuestador'
-                                  }
+                                  {details
+                                    ? `${details.nombre} ${details.apellido}`.trim() ||
+                                      "Encuestador"
+                                    : "Encuestador"}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <label className="text-sm text-[var(--text-secondary)]">Casos:</label>
+                                <label className="text-sm text-[var(--text-secondary)]">
+                                  Casos:
+                                </label>
                                 <input
                                   type="number"
-                                  value={getAssignedCases(pollsterId) || ''}
-                                  onChange={(e) => updatePollsterCases(pollsterId, parseInt(e.target.value) || 0)}
+                                  value={getAssignedCases(pollsterId) || ""}
+                                  onChange={(e) =>
+                                    updatePollsterCases(
+                                      pollsterId,
+                                      parseInt(e.target.value) || 0,
+                                    )
+                                  }
                                   onFocus={(e) => e.target.select()}
                                   className="w-20 px-3 py-2 bg-[var(--primary)]/5 border border-[var(--primary)]/30 rounded-lg text-[var(--primary)] text-center font-semibold focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   placeholder="0"
@@ -1435,66 +1514,88 @@ export default function ConfigurarEncuesta() {
 
                       {/* Total asignado */}
                       <div className="flex items-center justify-between p-4 bg-[var(--primary)]/5 border-2 border-[var(--primary)]/30 rounded-lg">
-                        <span className="font-semibold text-[var(--text-primary)]">Total Asignado:</span>
+                        <span className="font-semibold text-[var(--text-primary)]">
+                          Total Asignado:
+                        </span>
                         <div className="flex items-center gap-2">
-                          <span className={`text-2xl font-bold ${
-                            getTotalAssignedCases() > config.metaTotal 
-                              ? 'text-[var(--error-text)]' 
-                              : 'text-[var(--primary)]'
-                          }`}>
+                          <span
+                            className={`text-2xl font-bold ${
+                              getTotalAssignedCases() > config.metaTotal
+                                ? "text-[var(--error-text)]"
+                                : "text-[var(--primary)]"
+                            }`}
+                          >
                             {getTotalAssignedCases()}
                           </span>
-                          <span className="text-[var(--text-secondary)]">/ {config.metaTotal}</span>
+                          <span className="text-[var(--text-secondary)]">
+                            / {config.metaTotal}
+                          </span>
                         </div>
                       </div>
 
                       {getTotalAssignedCases() > config.metaTotal && (
                         <div className="flex items-center gap-2 p-3 bg-[var(--error-bg)] border border-[var(--error-border)] rounded-lg text-[var(--error-text)] text-sm">
                           <AlertCircle size={16} className="flex-shrink-0" />
-                          <span>El total asignado excede la meta. Ajusta los valores antes de guardar.</span>
+                          <span>
+                            El total asignado excede la meta. Ajusta los valores
+                            antes de guardar.
+                          </span>
                         </div>
                       )}
                     </div>
-                  )
-                )}
+                  ))}
 
                 {/* Distribución por Cuotas */}
-                {config.goalType === 'quotas' && (
+                {config.goalType === "quotas" && (
                   <div>
                     {!quotaStructure ? (
                       <div className="flex items-center gap-3 p-4 bg-[var(--primary)]/5 border border-[var(--warning-border)] rounded-lg">
-                        <AlertCircle size={20} className="flex-shrink-0 text-[var(--warning)]" />
+                        <AlertCircle
+                          size={20}
+                          className="flex-shrink-0 text-[var(--warning)]"
+                        />
                         <div className="flex-1">
-                          <p className="font-medium text-[var(--text-primary)]">Es necesario crear las preguntas de tipo cuota en el formulario para poder configurar la distribución</p>
+                          <p className="font-medium text-[var(--text-primary)]">
+                            Es necesario crear las preguntas de tipo cuota en el
+                            formulario para poder configurar la distribución
+                          </p>
                           <p className="text-sm mt-1 text-[var(--text-secondary)]">
-                            Ve a la sección de creación de formulario y agrega preguntas de tipo "Cuota Género" o "Cuota Edad"
+                            Ve a la sección de creación de formulario y agrega
+                            preguntas de tipo "Cuota Género" o "Cuota Edad"
                           </p>
                         </div>
                       </div>
                     ) : assignedPollsters.length === 0 ? (
                       <div className="flex items-center gap-3 p-4 bg-[var(--primary)]/5 border border-[var(--card-border)] rounded-lg">
-                        <AlertCircle size={20} className="flex-shrink-0 text-[var(--text-secondary)]" />
+                        <AlertCircle
+                          size={20}
+                          className="flex-shrink-0 text-[var(--text-secondary)]"
+                        />
                         <p className="text-[var(--text-secondary)]">
-                          Es necesario seleccionar los participantes antes de distribuir las cuotas
+                          Es necesario seleccionar los participantes antes de
+                          distribuir las cuotas
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-6">
-
                         {/* Tablas por encuestador */}
                         {assignedPollsters.map((pollsterId, pollsterIndex) => {
                           const details = pollsterDetails[pollsterId];
-                          const pollsterName = details 
-                            ? `${details.nombre} ${details.apellido}`.trim() || 'Encuestador'
-                            : 'Encuestador';
+                          const pollsterName = details
+                            ? `${details.nombre} ${details.apellido}`.trim() ||
+                              "Encuestador"
+                            : "Encuestador";
 
                           return (
-                            <div key={pollsterId} className="border-2 border-[var(--card-border)] rounded-lg p-4">
+                            <div
+                              key={pollsterId}
+                              className="border-2 border-[var(--card-border)] rounded-lg p-4"
+                            >
                               {/* Header del encuestador */}
                               <div className="flex items-center gap-3 mb-4 pb-3">
                                 {details?.foto ? (
-                                  <img 
-                                    src={details.foto} 
+                                  <img
+                                    src={details.foto}
                                     alt={pollsterName}
                                     className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                                   />
@@ -1504,11 +1605,15 @@ export default function ConfigurarEncuesta() {
                                   </div>
                                 )}
                                 <div className="flex-1">
-                                  <h4 className="font-bold text-[var(--text-primary)]">{pollsterName}</h4>
+                                  <h4 className="font-bold text-[var(--text-primary)]">
+                                    {pollsterName}
+                                  </h4>
                                   <p className="text-sm text-[var(--text-secondary)]">
-                                    Total: <span className="font-semibold text-[var(--primary)]">
+                                    Total:{" "}
+                                    <span className="font-semibold text-[var(--primary)]">
                                       {getAssignedCases(pollsterId) || 0}
-                                    </span> casos
+                                    </span>{" "}
+                                    casos
                                   </p>
                                 </div>
                               </div>
@@ -1523,53 +1628,89 @@ export default function ConfigurarEncuesta() {
                                         <th className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-left text-sm font-semibold text-[var(--text-primary)]">
                                           {/* Esquina superior izquierda vacía */}
                                         </th>
-                                        {quotaStructure.ageOptions.map((ageOption, idx) => (
-                                          <th key={idx} className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-center text-sm font-semibold text-[var(--text-primary)]">
-                                            {ageOption}
-                                          </th>
-                                        ))}
+                                        {quotaStructure.ageOptions.map(
+                                          (ageOption, idx) => (
+                                            <th
+                                              key={idx}
+                                              className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-center text-sm font-semibold text-[var(--text-primary)]"
+                                            >
+                                              {ageOption}
+                                            </th>
+                                          ),
+                                        )}
                                         <th className="border border-[var(--card-border)] bg-[var(--primary)]/10 p-2 text-center text-sm font-bold text-[var(--primary)]">
                                           TOTAL
                                         </th>
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {quotaStructure.genderOptions.map((genderOption, genderIdx) => (
-                                        <tr key={genderIdx}>
-                                          <td className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-sm font-semibold text-[var(--text-primary)]">
-                                            {genderOption}
-                                          </td>
-                                          {quotaStructure.ageOptions.map((ageOption, ageIdx) => {
-                                            const cellKey = `${genderOption}_${ageOption}`;
-                                            return (
-                                              <td key={ageIdx} className="border border-[var(--card-border)] bg-[var(--card-background)] p-1">
-                                                <input
-                                                  type="number"
-                                                  min="0"
-                                                  placeholder="0"
-                                                  value={getQuotaValue(pollsterId, cellKey) || ''}
-                                                  onChange={(e) => updateQuotaValue(pollsterId, cellKey, e.target.value)}
-                                                  className="w-full px-2 py-1.5 bg-[var(--input-background)] border border-[var(--card-border)] rounded text-center text-sm font-medium text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                  onFocus={(e) => e.target.select()}
-                                                />
-                                              </td>
-                                            );
-                                          })}
-                                          <td className="border border-[var(--card-border)] bg-[var(--primary)]/5 p-2 text-center text-sm font-bold text-[var(--primary)]">
-                                            {getRowTotal(pollsterId, genderOption)}
-                                          </td>
-                                        </tr>
-                                      ))}
+                                      {quotaStructure.genderOptions.map(
+                                        (genderOption, genderIdx) => (
+                                          <tr key={genderIdx}>
+                                            <td className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-sm font-semibold text-[var(--text-primary)]">
+                                              {genderOption}
+                                            </td>
+                                            {quotaStructure.ageOptions.map(
+                                              (ageOption, ageIdx) => {
+                                                const cellKey = `${genderOption}_${ageOption}`;
+                                                return (
+                                                  <td
+                                                    key={ageIdx}
+                                                    className="border border-[var(--card-border)] bg-[var(--card-background)] p-1"
+                                                  >
+                                                    <input
+                                                      type="number"
+                                                      min="0"
+                                                      placeholder="0"
+                                                      value={
+                                                        getQuotaValue(
+                                                          pollsterId,
+                                                          cellKey,
+                                                        ) || ""
+                                                      }
+                                                      onChange={(e) =>
+                                                        updateQuotaValue(
+                                                          pollsterId,
+                                                          cellKey,
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="w-full px-2 py-1.5 bg-[var(--input-background)] border border-[var(--card-border)] rounded text-center text-sm font-medium text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                      onFocus={(e) =>
+                                                        e.target.select()
+                                                      }
+                                                    />
+                                                  </td>
+                                                );
+                                              },
+                                            )}
+                                            <td className="border border-[var(--card-border)] bg-[var(--primary)]/5 p-2 text-center text-sm font-bold text-[var(--primary)]">
+                                              {getRowTotal(
+                                                pollsterId,
+                                                genderOption,
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ),
+                                      )}
                                       {/* Fila de totales */}
                                       <tr>
                                         <td className="border border-[var(--card-border)] bg-[var(--primary)]/10 p-2 text-sm font-bold text-[var(--primary)]">
                                           Total
                                         </td>
-                                        {quotaStructure.ageOptions.map((ageOption, idx) => (
-                                          <td key={idx} className="border border-[var(--card-border)] bg-[var(--primary)]/5 p-2 text-center text-sm font-bold text-[var(--primary)]">
-                                            {getColumnTotal(pollsterId, ageOption)}
-                                          </td>
-                                        ))}
+                                        {quotaStructure.ageOptions.map(
+                                          (ageOption, idx) => (
+                                            <td
+                                              key={idx}
+                                              className="border border-[var(--card-border)] bg-[var(--primary)]/5 p-2 text-center text-sm font-bold text-[var(--primary)]"
+                                            >
+                                              {getColumnTotal(
+                                                pollsterId,
+                                                ageOption,
+                                              )}
+                                            </td>
+                                          ),
+                                        )}
                                         <td className="border border-[var(--card-border)] bg-[var(--primary)]/10 p-2 text-center text-sm font-bold text-[var(--primary)]">
                                           {getPollsterQuotaTotal(pollsterId)}
                                         </td>
@@ -1584,7 +1725,9 @@ export default function ConfigurarEncuesta() {
                                     <thead>
                                       <tr>
                                         <th className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-left text-sm font-semibold text-[var(--text-primary)]">
-                                          {quotaStructure.hasGender ? 'Género' : 'Edad'}
+                                          {quotaStructure.hasGender
+                                            ? "Género"
+                                            : "Edad"}
                                         </th>
                                         <th className="border border-[var(--card-border)] bg-[var(--card-background)] p-2 text-center text-sm font-semibold text-[var(--text-primary)]">
                                           Casos
@@ -1592,7 +1735,10 @@ export default function ConfigurarEncuesta() {
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {(quotaStructure.hasGender ? quotaStructure.genderOptions : quotaStructure.ageOptions).map((option, idx) => {
+                                      {(quotaStructure.hasGender
+                                        ? quotaStructure.genderOptions
+                                        : quotaStructure.ageOptions
+                                      ).map((option, idx) => {
                                         const cellKey = `${pollsterId}_${option}`;
                                         return (
                                           <tr key={idx}>
@@ -1604,10 +1750,23 @@ export default function ConfigurarEncuesta() {
                                                 type="number"
                                                 min="0"
                                                 placeholder="0"
-                                                value={getQuotaValue(pollsterId, option) || ''}
-                                                onChange={(e) => updateQuotaValue(pollsterId, option, e.target.value)}
+                                                value={
+                                                  getQuotaValue(
+                                                    pollsterId,
+                                                    option,
+                                                  ) || ""
+                                                }
+                                                onChange={(e) =>
+                                                  updateQuotaValue(
+                                                    pollsterId,
+                                                    option,
+                                                    e.target.value,
+                                                  )
+                                                }
                                                 className="w-full px-2 py-1.5 bg-[var(--input-background)] border border-[var(--card-border)] rounded text-center text-sm font-medium text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                onFocus={(e) => e.target.select()}
+                                                onFocus={(e) =>
+                                                  e.target.select()
+                                                }
                                               />
                                             </td>
                                           </tr>
@@ -1632,12 +1791,16 @@ export default function ConfigurarEncuesta() {
 
                         {/* Resumen global */}
                         <div className="flex items-center justify-between p-4 bg-[var(--primary)]/5 border-2 border-[var(--primary)]/30 rounded-lg">
-                          <span className="font-semibold text-[var(--text-primary)]">Total General Asignado:</span>
+                          <span className="font-semibold text-[var(--text-primary)]">
+                            Total General Asignado:
+                          </span>
                           <div className="flex items-center gap-2">
                             <span className="text-2xl font-bold text-[var(--primary)]">
                               {getTotalQuotaDistribution()}
                             </span>
-                            <span className="text-[var(--text-secondary)]">casos</span>
+                            <span className="text-[var(--text-secondary)]">
+                              casos
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1647,7 +1810,6 @@ export default function ConfigurarEncuesta() {
               </div>
             )}
           </div>
-
         </div>
       </div>
 
@@ -1655,7 +1817,7 @@ export default function ConfigurarEncuesta() {
       <div className="sticky bottom-0 bg-[var(--card-background)] border-t border-[var(--card-border)] px-4 py-3 z-20 shadow-xl">
         <div className="max-w-5xl mx-auto flex gap-2 sm:gap-3">
           <button
-            onClick={() => router.push("/dashboard/temporal")}
+            onClick={() => router.push("/dashboard/encuestas")}
             className="flex-1 px-6 py-3 text-[var(--error-text)] hover:bg-[var(--error-bg)]/80 border border-[var(--error-border)] rounded-lg transition-colors font-medium"
           >
             Cancelar
@@ -1665,7 +1827,7 @@ export default function ConfigurarEncuesta() {
               // Validar que haya ID
               if (!surveyId) {
                 setValidationMessage(
-                  "No se puede guardar configuración sin una encuesta seleccionada"
+                  "No se puede guardar configuración sin una encuesta seleccionada",
                 );
                 setShowValidationModal(true);
                 return;
@@ -1674,7 +1836,7 @@ export default function ConfigurarEncuesta() {
               // Validar fechas
               if (!config.fechaInicio || !config.fechaFin) {
                 setValidationMessage(
-                  "Debes seleccionar fechas de inicio y fin"
+                  "Debes seleccionar fechas de inicio y fin",
                 );
                 setShowValidationModal(true);
                 return;
@@ -1683,7 +1845,7 @@ export default function ConfigurarEncuesta() {
               // Validar que la fecha de fin sea posterior a la de inicio
               if (new Date(config.fechaFin) < new Date(config.fechaInicio)) {
                 setValidationMessage(
-                  "La fecha de fin debe ser posterior a la fecha de inicio"
+                  "La fecha de fin debe ser posterior a la fecha de inicio",
                 );
                 setShowValidationModal(true);
                 return;
@@ -1703,7 +1865,7 @@ export default function ConfigurarEncuesta() {
               if (config.cuotasActivas) {
                 if (config.categorias.length === 0) {
                   setValidationMessage(
-                    "Debes agregar al menos una categoría de cuota"
+                    "Debes agregar al menos una categoría de cuota",
                   );
                   setShowValidationModal(true);
                   return;
@@ -1715,7 +1877,7 @@ export default function ConfigurarEncuesta() {
                   const totalAsignado = calcularTotalAsignado(categoria);
                   if (totalAsignado !== metaEfectiva) {
                     setValidationMessage(
-                      `La categoría "${categoria.nombre}" debe tener un total de ${metaEfectiva} (actualmente: ${totalAsignado})`
+                      `La categoría "${categoria.nombre}" debe tener un total de ${metaEfectiva} (actualmente: ${totalAsignado})`,
                     );
                     setShowValidationModal(true);
                     return;
@@ -1733,9 +1895,8 @@ export default function ConfigurarEncuesta() {
                 const definition = existing?.survey?.surveyDefinition;
 
                 // Importar transformador
-                const { prepareDataForBackend } = await import(
-                  "../utils/transformToSurveyJS"
-                );
+                const { prepareDataForBackend } =
+                  await import("../utils/transformToSurveyJS");
 
                 // Preparar cuotas en formato del backend
                 const quotas = config.categorias.map((cat) => ({
@@ -1755,17 +1916,18 @@ export default function ConfigurarEncuesta() {
                     ...surveyInfo,
                     startDate: config.fechaInicio,
                     endDate: config.fechaFin,
-                    target: tienePreguntasCuota 
-                      ? getTotalQuotaDistribution() 
-                      : (config.tieneObjetivo ? config.metaTotal : 0),
+                    target: tienePreguntasCuota
+                      ? getTotalQuotaDistribution()
+                      : config.tieneObjetivo
+                        ? config.metaTotal
+                        : 0,
                     requireGps: config.gpsObligatorio,
                     quotas: config.cuotasActivas ? quotas : [],
-                    quotaAssignments:
-                      tienePreguntasCuota 
-                        ? prepareQuotaAssignments()
-                        : (existing?.survey?.surveyInfo?.quotaAssignments ||
-                           existing?.survey?.participants?.quotaAssignments ||
-                           []),
+                    quotaAssignments: tienePreguntasCuota
+                      ? prepareQuotaAssignments()
+                      : existing?.survey?.surveyInfo?.quotaAssignments ||
+                        existing?.survey?.participants?.quotaAssignments ||
+                        [],
                     // CRÍTICO: Preservar participantes existentes
                     userIds:
                       existing?.survey?.surveyInfo?.userIds ||
@@ -1792,17 +1954,15 @@ export default function ConfigurarEncuesta() {
                   },
                 };
 
-
-
                 // Actualizar en el backend - PUBLISHED, no draft
                 await surveyService.createOrUpdateSurvey(
                   dataToSave,
                   surveyId,
-                  false
+                  false,
                 );
 
                 toast.success("Configuración guardada exitosamente");
-                router.push("/dashboard/temporal");
+                router.push("/dashboard/encuestas");
               } catch (error) {
                 console.error("Error al guardar configuración:", error);
                 setValidationMessage("Error al guardar: " + error.message);
@@ -1857,8 +2017,13 @@ export default function ConfigurarEncuesta() {
                         : "border border-[var(--card-border)]"
                     }`}
                   >
-                    <VenusAndMars size={16} className="text-[var(--primary)] sm:w-5 sm:h-5" />
-                    <span className="text-[var(--text-primary)] text-[10px] sm:text-sm">Género</span>
+                    <VenusAndMars
+                      size={16}
+                      className="text-[var(--primary)] sm:w-5 sm:h-5"
+                    />
+                    <span className="text-[var(--text-primary)] text-[10px] sm:text-sm">
+                      Género
+                    </span>
                   </button>
                   <button
                     onClick={() => aplicarPlantilla("edad")}
@@ -1868,8 +2033,13 @@ export default function ConfigurarEncuesta() {
                         : "border border-[var(--card-border)]"
                     }`}
                   >
-                    <Calendar size={16} className="text-[var(--primary)] sm:w-5 sm:h-5" />
-                    <span className="text-[var(--text-primary)] text-[10px] sm:text-sm">Edad</span>
+                    <Calendar
+                      size={16}
+                      className="text-[var(--primary)] sm:w-5 sm:h-5"
+                    />
+                    <span className="text-[var(--text-primary)] text-[10px] sm:text-sm">
+                      Edad
+                    </span>
                   </button>
                   <button
                     onClick={() => aplicarPlantilla("educacion")}
@@ -1879,7 +2049,10 @@ export default function ConfigurarEncuesta() {
                         : "border border-[var(--card-border)]"
                     }`}
                   >
-                    <University size={16} className="text-[var(--primary)] sm:w-5 sm:h-5" />
+                    <University
+                      size={16}
+                      className="text-[var(--primary)] sm:w-5 sm:h-5"
+                    />
                     <span className="text-[var(--text-primary)] text-[10px] sm:text-sm leading-tight">
                       Educación
                     </span>
@@ -1912,8 +2085,13 @@ export default function ConfigurarEncuesta() {
                         : "border border-[var(--card-border)]"
                     }`}
                   >
-                    <BadgePlus size={16} className="text-yellow-500 sm:w-5 sm:h-5" />
-                    <span className="text-[var(--text-primary)] text-[10px] sm:text-sm">NUEVA</span>
+                    <BadgePlus
+                      size={16}
+                      className="text-yellow-500 sm:w-5 sm:h-5"
+                    />
+                    <span className="text-[var(--text-primary)] text-[10px] sm:text-sm">
+                      NUEVA
+                    </span>
                   </button>
                 </div>
                 <p className="text-xs text-[var(--text-secondary)] mt-2">
