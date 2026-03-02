@@ -23,7 +23,6 @@ import DailyResponsesChart from "@/components/dashboard/DailyResponsesChart";
 import PollsterAverageTime from "@/components/dashboard/PollsterAverageTime";
 import QuotaProgressTable from "@/components/dashboard/QuotaProgressTable";
 import ExportControls from "@/components/ExportControls/ExportControls";
- 
 
 // Colores para los encuestadores - Paleta ampliada con colores bien distinguibles
 const markerColors = [
@@ -217,51 +216,55 @@ export default function PanelDeSupervision() {
 
   useEffect(() => {
     const updateActiveSection = () => {
-      const scrollContainer = document.querySelector('.main-content');
+      const scrollContainer = document.querySelector(".main-content");
       if (!scrollContainer) return;
-      
+
       const scrollY = scrollContainer.scrollTop;
-      
+
       // Skip if this is a programmatic scroll from clicking navbar
       if (isClickScrolling.current) {
-        console.log('SCROLL_DEBUG: Skipping - programmatic scroll from click');
+        console.log("SCROLL_DEBUG: Skipping - programmatic scroll from click");
         lastScrollY.current = scrollY;
         return;
       }
-      
+
       // Only update if user actually scrolled (not just a tiny browser adjustment)
       if (Math.abs(scrollY - lastScrollY.current) < 5) {
         return;
       }
-      
-      console.log('SCROLL_DEBUG: updateActiveSection, scrollY:', scrollY);
+
+      console.log("SCROLL_DEBUG: updateActiveSection, scrollY:", scrollY);
       lastScrollY.current = scrollY;
-      
+
       const ids = sectionItems.map((s) => s.id);
       let current = ids[0];
-      
+
       // Find which section we've scrolled past
       for (let i = ids.length - 1; i >= 0; i--) {
         const el = document.getElementById(ids[i]);
         if (!el) continue;
-        
+
         if (scrollY >= el.offsetTop - 150) {
           current = ids[i];
-          console.log(`SCROLL_DEBUG: Active section: ${current} (offsetTop: ${el.offsetTop})`);
+          console.log(
+            `SCROLL_DEBUG: Active section: ${current} (offsetTop: ${el.offsetTop})`,
+          );
           break;
         }
       }
-      
+
       setActiveSection(current);
     };
-    
-    const scrollContainer = document.querySelector('.main-content');
+
+    const scrollContainer = document.querySelector(".main-content");
     if (scrollContainer) {
-      scrollContainer.addEventListener("scroll", updateActiveSection, { passive: true });
+      scrollContainer.addEventListener("scroll", updateActiveSection, {
+        passive: true,
+      });
     }
     window.addEventListener("resize", updateActiveSection);
     updateActiveSection();
-    
+
     return () => {
       if (scrollContainer) {
         scrollContainer.removeEventListener("scroll", updateActiveSection);
@@ -271,43 +274,41 @@ export default function PanelDeSupervision() {
   }, [sectionItems]);
 
   const scrollToSection = (id) => {
-    console.log('SCROLL_DEBUG: scrollToSection called with id:', id);
-    
+    console.log("SCROLL_DEBUG: scrollToSection called with id:", id);
+
     const el = document.getElementById(id);
     if (!el) {
       console.log("SCROLL_DEBUG: Element not found:", id);
       return;
     }
-    
-    const scrollContainer = document.querySelector('.main-content');
+
+    const scrollContainer = document.querySelector(".main-content");
     if (!scrollContainer) {
-      console.log('SCROLL_DEBUG: Scroll container not found!');
+      console.log("SCROLL_DEBUG: Scroll container not found!");
       return;
     }
-    
+
     // Mark that we're doing a programmatic scroll
     isClickScrolling.current = true;
-    
+
     // Set active section immediately
     setActiveSection(id);
-    console.log('SCROLL_DEBUG: Active section set to:', id);
-    
+    console.log("SCROLL_DEBUG: Active section set to:", id);
+
     // Scroll to position
     const targetY = el.offsetTop - 150;
-    console.log('SCROLL_DEBUG: Scrolling to:', targetY);
+    console.log("SCROLL_DEBUG: Scrolling to:", targetY);
     scrollContainer.scrollTo({ top: targetY, behavior: "smooth" });
-    
+
     // Re-enable scroll detection after animation completes
     setTimeout(() => {
       isClickScrolling.current = false;
       lastScrollY.current = scrollContainer.scrollTop;
-      console.log('SCROLL_DEBUG: Re-enabled scroll detection');
+      console.log("SCROLL_DEBUG: Re-enabled scroll detection");
     }, 1000);
-    
+
     setNavOpen(false);
   };
-
- 
 
   const togglePollsterExpand = (pollsterId) => {
     setExpandedPollsters((prev) => ({
@@ -756,6 +757,7 @@ export default function PanelDeSupervision() {
                 answers={answers}
                 titleSurvey={survey?.survey?.title}
                 surveyId={params.id}
+                surveyData={survey}
               />
             </div>
           </div>
@@ -790,6 +792,7 @@ export default function PanelDeSupervision() {
                 answers={answers}
                 titleSurvey={survey?.survey?.title}
                 surveyId={params.id}
+                surveyData={survey}
               />
             </div>
           </div>
@@ -959,7 +962,9 @@ export default function PanelDeSupervision() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-sm font-medium text-[var(--text-primary)] truncate">
-                              {p.pollsterName || p.pollsterEmail || p.pollsterId}
+                              {p.pollsterName ||
+                                p.pollsterEmail ||
+                                p.pollsterId}
                             </span>
                             <span className="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">
                               {p.completedAnswers}

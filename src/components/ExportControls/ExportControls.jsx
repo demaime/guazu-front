@@ -4,17 +4,83 @@ import FileSaver from "file-saver";
 import { nestedJSONtoJson } from "../../utils/flatterJSON";
 import { FileSpreadsheet, FileDown, ChevronDown } from "lucide-react";
 
-const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFiltered = false }) => {
+const ExportControls = ({
+  answers,
+  titleSurvey = "guazu-datos",
+  surveyId,
+  preFiltered = false,
+  surveyData,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [excludedCases, setExcludedCases] = useState([]);
   const [exportFormat, setExportFormat] = useState("text"); // 'text' | 'numeric'
   const dropdownRef = useRef(null);
   const fileExtension = ".xlsx";
 
+  // Mapa de preguntas para buscar valores configurados
+  const questionsMap = useMemo(() => {
+    // Detectar dónde están las páginas (puede ser surveyData.pages o surveyData.survey.pages)
+    const pages = surveyData?.pages || surveyData?.survey?.pages;
+
+    console.log("📊 ExportControls - surveyData structure:", {
+      hasDirectPages: !!surveyData?.pages,
+      hasNestedPages: !!surveyData?.survey?.pages,
+      pagesLength: pages?.length,
+    });
+
+    if (!pages) return {};
+    const map = {};
+
+    const processElements = (elements) => {
+      if (!elements) return;
+      elements.forEach((element) => {
+        // Si es un panel, procesar sus elementos recursivamente
+        if (element.type === "panel" || element.type === "paneldynamic") {
+          processElements(element.elements);
+          if (element.templateElements)
+            processElements(element.templateElements);
+        } else {
+          // Si es una pregunta, agregar al mapa
+          map[element.name] = element;
+          // También mapear por valueName si existe
+          if (element.valueName) {
+            map[element.valueName] = element;
+          }
+
+          // También mapear por title (texto de la pregunta) para manejar casos donde las respuestas usan el título como key
+          if (element.title) {
+            if (typeof element.title === "string") {
+              map[element.title] = element;
+            } else if (typeof element.title === "object") {
+              // Mapear todos los valores localizados
+              Object.values(element.title).forEach((t) => {
+                if (t && typeof t === "string") map[t] = element;
+              });
+            }
+          }
+        }
+      });
+    };
+
+    try {
+      pages.forEach((page) => {
+        processElements(page.elements);
+      });
+      console.log(
+        "✅ ExportControls - questions map built:",
+        Object.keys(map).length,
+        "questions",
+      );
+    } catch (e) {
+      console.error("Error building questions map:", e);
+    }
+    return map;
+  }, [surveyData]);
+
   // Cargar casos excluidos desde localStorage (solo si no viene preFiltered)
   useEffect(() => {
     if (!surveyId || preFiltered) return;
-    
+
     try {
       const key = `survey:${surveyId}:excluded-cases`;
       const stored = localStorage.getItem(key);
@@ -64,28 +130,98 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
     return answers.filter((item) => !excludedCases.includes(item._id));
   }, [answers, excludedCases, preFiltered]);
 
-  // Función para convertir valores a numéricos
-  const convertToNumeric = (value) => {
+  // Función para convertir valores a numéricos usando la configuración de la encuesta
+  const convertToNumeric = (value, questionName) => {
+    // 1. Intentar buscar en la definición de la encuesta
+    if (questionName && questionsMap[questionName]) {
+      const question = questionsMap[questionName];
+
+      const findValueForOption = (optionText) => {
+        if (!question.choices) return null;
+
+        // Función helper para limpiar texto (quitar "1. " del inicio)
+        const cleanString = (str) => {
+          if (typeof str !== "string") return str;
+          const match = str.match(/^\d+\.\s*(.+)$/);
+          return match ? match[1].trim() : str.trim();
+        };
+
+        // Limpiar el texto de entrada (por si viene como "1. Opción")
+        const cleanInput = cleanString(optionText);
+
+        const choice = question.choices.find((c) => {
+          // Manejar opciones que son objetos (ej: {value: 1, text: "Opción"})
+          if (typeof c === "object") {
+            // Chequear text (puede ser string o objeto localizado)
+            if (c.text) {
+              if (typeof c.text === "object") {
+                // Chequear default y es
+                const textValues = Object.values(c.text).map((t) =>
+                  cleanString(t),
+                );
+                if (
+                  textValues.includes(cleanInput) ||
+                  textValues.includes(optionText)
+                )
+                  return true;
+              } else {
+                const cleanChoiceText = cleanString(c.text);
+                if (cleanChoiceText === cleanInput || c.text === optionText) {
+                  return true;
+                }
+              }
+            }
+            // Chequear value si es string y coincide con el texto
+            // Usar comparación laxa (==) para manejar "1" vs 1
+            if (c.value == cleanInput || c.value == optionText) return true;
+            return false;
+          }
+
+          // Manejar opciones simples (ej: "Opción")
+          const cleanChoice = cleanString(c);
+          return cleanChoice === cleanInput || c === optionText;
+        });
+
+        if (choice) {
+          return typeof choice === "object" ? choice.value : choice;
+        }
+        return null;
+      };
+
+      if (Array.isArray(value)) {
+        const mapped = value.map((v) => {
+          const found = findValueForOption(v);
+          return found !== null ? found : v;
+        });
+        return mapped.join(", ");
+      }
+
+      const found = findValueForOption(value);
+      if (found !== null) return found;
+    }
+
+    // 2. Fallback: lógica original de extracción de prefijo
     // Manejar strings: extraer número de formato "1. Texto"
     if (typeof value === "string") {
       const match = value.match(/^(\d+)\./);
       return match ? parseInt(match[1]) : value;
     }
-    
+
     // Manejar arrays (multiple choice): convertir cada elemento
     if (Array.isArray(value)) {
-      const numbers = value.map(v => {
+      const numbers = value.map((v) => {
         const match = v.match(/^(\d+)\./);
         return match ? match[1] : v;
       });
       return numbers.join(", ");
     }
-    
+
     // Manejar objetos (matrix): convertir cada valor del objeto
     if (typeof value === "object" && value !== null) {
       const converted = {};
-      Object.keys(value).forEach(key => {
+      Object.keys(value).forEach((key) => {
         const cellValue = value[key];
+        // Intentar buscar valor para matrix si es posible, o usar fallback
         if (typeof cellValue === "string") {
           const match = cellValue.match(/^(\d+)\./);
           converted[key] = match ? parseInt(match[1]) : cellValue;
@@ -95,7 +231,7 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
       });
       return converted;
     }
-    
+
     return value;
   };
 
@@ -111,20 +247,34 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
             ? new Date(item.createdAt).toLocaleTimeString()
             : "";
 
-          // Convertir respuestas si se seleccionó formato numérico
-          const answerData = format === "numeric" 
-            ? Object.keys(item.answer).reduce((acc, key) => {
-                acc[key] = convertToNumeric(item.answer[key]);
-                return acc;
-              }, {})
-            : item.answer;
+          // Procesar respuestas y normalizar encabezados
+          const answerData = Object.keys(item.answer).reduce((acc, key) => {
+            // Intentar encontrar la pregunta para normalizar el nombre de la columna (variable)
+            // Esto arregla el caso donde las respuestas se guardaron con el Título como key
+            const question = questionsMap[key];
+            const outputKey = question
+              ? question.valueName || question.name
+              : key;
+
+            let outputValue = item.answer[key];
+
+            if (format === "numeric") {
+              // Si es numérico, intentar convertir el valor
+              // convertToNumeric buscará la pregunta usando 'key' (que ahora puede ser título)
+              outputValue = convertToNumeric(outputValue, key);
+            }
+
+            acc[outputKey] = outputValue;
+            return acc;
+          }, {});
 
           // Incluir respuestas de cuotas si existen
           // Las cuotas se guardan en un campo separado quotaAnswers
           // Ejemplo: quotaAnswers = { "Género": "Masculino", "Edad": "18-29" }
-          const quotaData = item.quotaAnswers && typeof item.quotaAnswers === "object"
-            ? item.quotaAnswers
-            : {};
+          const quotaData =
+            item.quotaAnswers && typeof item.quotaAnswers === "object"
+              ? item.quotaAnswers
+              : {};
 
           // Combinar answerData con quotaData para exportar todo como columnas
           // Las cuotas van después de "time" y antes de las preguntas
@@ -138,7 +288,7 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
               time: item.time,
               ...quotaData, // Incluye todas las respuestas de cuotas como columnas (después de time)
               ...answerData, // Incluye todas las respuestas de preguntas (después de las cuotas)
-            })
+            }),
           );
         }
       });
@@ -228,22 +378,22 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
 
       {/* Dropdown Menu */}
       {isOpen && hasAnswers && (
-        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-64 sm:w-80 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-64 sm:w-80 bg-[var(--card-background)] border border-[var(--card-border)] rounded-lg shadow-xl z-[2000] overflow-hidden">
           {/* Contador de casos */}
           {(preFiltered || excludedCount > 0) && (
             <div className="px-4 py-2 bg-blue-50 border-b border-[var(--card-border)] text-xs">
               <p className="text-blue-900 font-medium">
-                Se exportarán {includedCases} caso{includedCases !== 1 ? "s" : ""}
+                Se exportarán {includedCases} caso
+                {includedCases !== 1 ? "s" : ""}
               </p>
               {!preFiltered && excludedCount > 0 && (
                 <p className="text-blue-700 mt-0.5">
-                  {excludedCount} caso{excludedCount !== 1 ? "s" : ""} excluido{excludedCount !== 1 ? "s" : ""} en Editar Base
+                  {excludedCount} caso{excludedCount !== 1 ? "s" : ""} excluido
+                  {excludedCount !== 1 ? "s" : ""} en Editar Base
                 </p>
               )}
               {preFiltered && (
-                <p className="text-blue-700 mt-0.5">
-                  Según filtros aplicados
-                </p>
+                <p className="text-blue-700 mt-0.5">Según filtros aplicados</p>
               )}
             </div>
           )}
@@ -276,8 +426,8 @@ const ExportControls = ({ answers, titleSurvey = "guazu-datos", surveyId, preFil
               </button>
             </div>
             <p className="text-[10px] text-[var(--text-secondary)] mt-2">
-              {exportFormat === "text" 
-                ? "Etiquetas legibles (ej: \"1. Muy buena\")"
+              {exportFormat === "text"
+                ? 'Etiquetas legibles (ej: "1. Muy buena")'
                 : "Números consecutivos (ej: 1, 2, 3...)"}
             </p>
           </div>
