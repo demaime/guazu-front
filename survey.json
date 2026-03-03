@@ -1,0 +1,3943 @@
+{
+  "_id": "412e2a70-084b-11f1-bbc2-31c70620e67c",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2026-02-12T19:44:33.558Z"
+  },
+  "isConfigurationComplete": true,
+  "isPaused": false,
+  "lastEdited": {
+    "$date": "2026-03-03T00:55:06.506Z"
+  },
+  "pollsterAssignments": [],
+  "status": "published",
+  "supervisorsIds": [
+    "68e4037e596382dc948c8130",
+    "68eced0581f697c559cb1ada"
+  ],
+  "survey": {
+    "locale": "es",
+    "title": "Pilay Santa Fe",
+    "description": "Consultora Ferz",
+    "pages": [
+      {
+        "name": "page_1772406018098_0",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p0_filtro",
+            "title": "¡Hola! Buenos días/tardes. Mi nombre es …………….. y pertenezco a FERZ CONSULTORA, estamos realizando un breve estudio para conocer la opinión de los vecinos sobre el sector de desarrollos inmobiliarios y construcción en nuestra ciudad. \n¿Tendría 5 minutos para conversar? Sus respuestas son totalmente anónimas.",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Ok"
+              },
+              {
+                "value": "2",
+                "text": "No"
+              }
+            ]
+          }
+        ],
+        "title": "Filtro"
+      },
+      {
+        "name": "page_1770924873020_0",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "cuota_genero",
+            "title": "Género",
+            "description": "Seleccione su género",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Masculino"
+              },
+              {
+                "value": "2",
+                "text": "Femenino"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 1",
+        "description": "Reconocimiento de empresas y pregunta filtro",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770924873020_1",
+        "elements": [
+          {
+            "type": "text",
+            "name": "edad",
+            "title": "Edad",
+            "description": "Ingrese un número",
+            "isRequired": true,
+            "inputType": "number",
+            "validators": [
+              {
+                "type": "numeric",
+                "minValue": 24,
+                "text": "No encuestar a menores de 24"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 1",
+        "description": "Reconocimiento de empresas y pregunta filtro",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770924873020_2",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "cuota_edad",
+            "title": "Rango de edad",
+            "description": "Seleccione su rango de edad",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "24-40"
+              },
+              {
+                "value": "2",
+                "text": "41-55"
+              },
+              {
+                "value": "3",
+                "text": "56+"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 1",
+        "description": "Reconocimiento de empresas y pregunta filtro",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770924873020_3",
+        "elements": [
+          {
+            "type": "paneldynamic",
+            "name": "p1",
+            "title": "¿Qué empresas recuerda o reconoce de la ciudad que se dediquen a la construcción de desarrollos inmobiliarios? ",
+            "description": "Aclarar que no nos referimos a las inmobiliarias de venta y alquiler (Mencione todas las que recuerde)",
+            "isRequired": true,
+            "templateElements": [
+              {
+                "type": "text",
+                "name": "campo1",
+                "title": "Empresa",
+                "inputType": "text"
+              }
+            ],
+            "panelCount": 1,
+            "minPanelCount": 1,
+            "panelAddText": "Agregar",
+            "panelRemoveText": "Eliminar"
+          }
+        ],
+        "title": "Módulo 1",
+        "description": "Reconocimiento de empresas y pregunta filtro",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770924873020_4",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p2",
+            "title": "¿Ha escuchado hablar de la empresa PILAY?",
+            "description": "Si ya mencionó Pilay, seleccionar \"Sí\" y continuar",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Si"
+              },
+              {
+                "value": "2",
+                "text": "No"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 1",
+        "description": "Reconocimiento de empresas y pregunta filtro",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925039531_0",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p3",
+            "title": "¿Es usted, o ha sido en algún momento, cliente de PILAY?",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Si"
+              },
+              {
+                "value": "2",
+                "text": "No"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 2",
+        "description": "Conocimiento de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925039531_1",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p4",
+            "title": "¿Podría decirme qué producto tiene o en qué proyecto invirtió?",
+            "description": "Ejemplos: planes, lotes, housing, Santomás, etc.",
+            "isRequired": true,
+            "visibleIf": "({p3} = '1')"
+          }
+        ],
+        "title": "Módulo 2",
+        "description": "Conocimiento de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925039531_2",
+        "elements": [
+          {
+            "type": "checkbox",
+            "name": "p5",
+            "title": "Si tuviera que explicarle a alguien qué hace PILAY, ¿cómo lo describiría?",
+            "description": "No leer opciones. Puede seleccionar una o más",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Sistema de capitalización en inmuebles / Fideicomiso Financiero"
+              },
+              {
+                "value": "2",
+                "text": "Sistema de ahorro de departamento / inmueble"
+              },
+              {
+                "value": "3",
+                "text": "Venden inmuebles en cuotas"
+              },
+              {
+                "value": "4",
+                "text": "Inmobiliaria"
+              },
+              {
+                "value": "5",
+                "text": "Construye departamentos / Empresa constructora"
+              },
+              {
+                "value": "6",
+                "text": "Otros productos"
+              },
+              {
+                "value": "7",
+                "text": "No puede explicar los productos"
+              },
+              {
+                "value": "8",
+                "text": "No sabe"
+              }
+            ],
+            "visibleIf": "({p3} = '2')"
+          }
+        ],
+        "title": "Módulo 2",
+        "description": "Conocimiento de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925039531_3",
+        "elements": [
+          {
+            "type": "checkbox",
+            "name": "p6",
+            "title": "¿Qué productos conoce que ofrezca Pilay?",
+            "description": "Seleccionar los mencionados sin leer opciones. Si dice un nombre similar, marcar igual.",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Santomás | Lotes - Barrio Privado"
+              },
+              {
+                "value": "2",
+                "text": "Santomás | Housing - Duplex"
+              },
+              {
+                "value": "3",
+                "text": "Santomás | Condominios"
+              },
+              {
+                "value": "4",
+                "text": "Los domingos | Lotes en Sauce Viejo | Barrio Sauce Viejo"
+              },
+              {
+                "value": "5",
+                "text": "Atenea edificio /Atenea duo"
+              },
+              {
+                "value": "6",
+                "text": "Paseo del Molino"
+              },
+              {
+                "value": "7",
+                "text": "Aurora loteo / barrio privado"
+              },
+              {
+                "value": "8",
+                "text": "Altos de la redonda - parque federal"
+              },
+              {
+                "value": "9",
+                "text": "Otros productos"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 2",
+        "description": "Conocimiento de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925039531_4",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p6_otro",
+            "title": "Otro ¿cuál?",
+            "description": "Ingrese su respuesta",
+            "isRequired": true,
+            "visibleIf": "({p6} = '6' or {p6} = '9')"
+          }
+        ],
+        "title": "Módulo 2",
+        "description": "Conocimiento de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925039531_5",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p7",
+            "title": "¿Qué atributo o característica representa mejor su opinión sobre PILAY?",
+            "description": "Una sola palabra. Si no dice, escribir \"No tiene opinión\"",
+            "isRequired": true
+          }
+        ],
+        "title": "Módulo 2",
+        "description": "Conocimiento de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_0",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p8",
+            "title": " ¿Qué valoración tiene de la empresa PILAY?",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Excelente"
+              },
+              {
+                "value": "2",
+                "text": "Muy buena"
+              },
+              {
+                "value": "3",
+                "text": "Buena"
+              },
+              {
+                "value": "4",
+                "text": "Regular"
+              },
+              {
+                "value": "5",
+                "text": "Mala"
+              },
+              {
+                "value": "6",
+                "text": "Muy mala"
+              },
+              {
+                "value": "7",
+                "text": "No sabe / No tiene opinión formada"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_1",
+        "elements": [
+          {
+            "type": "checkbox",
+            "name": "p9",
+            "title": "¿Por qué tiene una opinión regular / mala?",
+            "description": " La pasamos a opciones, sin leerlas.Que encasillen las respuestas. Es decir se marca la que más se relaciona con la respuesta del entrevistado.",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Adjudicaciones fuera del centro"
+              },
+              {
+                "value": "2",
+                "text": "Demoras en entrega"
+              },
+              {
+                "value": "3",
+                "text": "Aumentos de cuota"
+              },
+              {
+                "value": "4",
+                "text": "Mala comunicación"
+              },
+              {
+                "value": "5",
+                "text": "Incumplimiento"
+              },
+              {
+                "value": "6",
+                "text": "Precios caros"
+              },
+              {
+                "value": "7",
+                "text": "Otras razones"
+              }
+            ],
+            "visibleIf": "({p8} = '4' or {p8} = '5' or {p8} = '6')"
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_2",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p9_otra",
+            "title": "Otra razón, ¿cuál?",
+            "description": "Ingrese su respuesta",
+            "isRequired": true,
+            "visibleIf": "({p9} = '7')"
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_3",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p10",
+            "title": "En los últimos meses, ¿recuerda haber leído, escuchado o visto noticias de Pilay?",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Si"
+              },
+              {
+                "value": "2",
+                "text": "No"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_4",
+        "elements": [
+          {
+            "type": "checkbox",
+            "name": "p11",
+            "title": "¿Dónde vió esa noticia, en qué medios?",
+            "description": "Seleccione una o más opciones",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "TV/Radio"
+              },
+              {
+                "value": "2",
+                "text": "Diario"
+              },
+              {
+                "value": "3",
+                "text": "Redes sociales"
+              },
+              {
+                "value": "4",
+                "text": "Mensajes de whatsapp"
+              },
+              {
+                "value": "5",
+                "text": "Comentarios de un amigo/conocidos"
+              },
+              {
+                "value": "6",
+                "text": "Cartelería o vía pública"
+              },
+              {
+                "value": "7",
+                "text": "Otro"
+              }
+            ],
+            "visibleIf": "({p10} = '1')"
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_5",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p11_otro",
+            "title": "Otro, ¿cuál?",
+            "description": "Ingrese su respuesta",
+            "isRequired": true,
+            "visibleIf": "({p11} = '7')"
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_6",
+        "elements": [
+          {
+            "type": "checkbox",
+            "name": "p12",
+            "title": "¿De qué era esa noticia?",
+            "description": "Seleccione una o más opciones",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Publicidad"
+              },
+              {
+                "value": "2",
+                "text": "Inauguración de edificios"
+              },
+              {
+                "value": "3",
+                "text": "Sponsoreo de actividades"
+              },
+              {
+                "value": "4",
+                "text": "Conflicto de clientes"
+              },
+              {
+                "value": "5",
+                "text": "Otro contenido"
+              }
+            ],
+            "visibleIf": "({p10} = '1')"
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_7",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p12_otra",
+            "title": "Otro contenido, ¿cuál?",
+            "description": "Ingrese su respuesta",
+            "isRequired": true,
+            "visibleIf": "({p12} = '5')"
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770925734346_8",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p13",
+            "title": "¿Qué es lo último que recuerda haber escuchado, visto o leído como publicidad de Pilay?",
+            "description": "Ingrese su respuesta",
+            "isRequired": true,
+            "visibleIf": "({p10} = '1')"
+          }
+        ],
+        "title": "Módulo 3",
+        "description": "Imagen de Pilay",
+        "visibleIf": "({p2} = '1') and ({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770926839679_0",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p14",
+            "title": "Cambiando un poco de tema, nos interesa saber cómo ven los ciudadanos el\ncontexto actual de ahorro. Si hoy tuviera un excedente de dinero al mes, ¿en qué preferiría invertirlo?",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "No me sobra nada"
+              },
+              {
+                "value": "2",
+                "text": "Me sobra pero lo \"gasto\" en gustos personales: viajes, deporte, ropa., joyas, etc"
+              },
+              {
+                "value": "3",
+                "text": "Ahorro/inversión"
+              },
+              {
+                "value": "4",
+                "text": "Otro"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 4",
+        "description": "Nuevo producto \"Ahorro\"",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770926839679_1",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p15",
+            "title": "Si ahorra, ¿en qué o cómo lo hace?",
+            "description": "No leer opciones, elegir la que se asemeja más a la respuesta.",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Hago plazo fijo"
+              },
+              {
+                "value": "2",
+                "text": "Compro dólares"
+              },
+              {
+                "value": "3",
+                "text": "Invierto en fondo común de inversión"
+              },
+              {
+                "value": "4",
+                "text": "Otras opciones de mercado de valores: bonos, obligaciones negociables, \"invierto en la bolsa\", etc"
+              },
+              {
+                "value": "5",
+                "text": "Cuotas para plan de ahorro vivienda/auto"
+              },
+              {
+                "value": "6",
+                "text": "Otras"
+              }
+            ],
+            "visibleIf": "({p14} = '5' or {p14} = '3')"
+          }
+        ],
+        "title": "Módulo 4",
+        "description": "Nuevo producto \"Ahorro\"",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770926839679_2",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p16",
+            "title": "Otras formas, ¿cuáles?",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [],
+            "visibleIf": "({p15} = '6')"
+          }
+        ],
+        "title": "Módulo 4",
+        "description": "Nuevo producto \"Ahorro\"",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770926839679_3",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p17",
+            "title": "Le resultaría atractivo una forma de ahorro, similar al plan/sistema Pilay, en\nla que se abona una cuota entre $300.000 y $500.000 mensuales durante\nunos períodos que puede ir de 15 a 20 años, a través del cual podría acceder a un bien inmueble luego del 7° (septimo) año?\n",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Muy atractivo"
+              },
+              {
+                "value": "2",
+                "text": "Nada atractivo"
+              },
+              {
+                "value": "3",
+                "text": "Depende"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 4",
+        "description": "Nuevo producto \"Ahorro\"",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770926839679_4",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p18",
+            "title": "¿De qué depende?",
+            "description": "Ingrese su respuesta",
+            "isRequired": true,
+            "visibleIf": "({p17} = '3')"
+          }
+        ],
+        "title": "Módulo 4",
+        "description": "Nuevo producto \"Ahorro\"",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770926839679_5",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p19",
+            "title": "¿Por qué no le resulta atractivo?",
+            "description": "Ingrese su respuesta",
+            "isRequired": true,
+            "visibleIf": "({p17} = '2')"
+          }
+        ],
+        "title": "Módulo 4",
+        "description": "Nuevo producto \"Ahorro\"",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770927316179_0",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p22",
+            "title": "¿Cuántas personas viven actualmente en este hogar?",
+            "description": "Ingrese un número",
+            "isRequired": true,
+            "inputType": "number"
+          }
+        ],
+        "title": "Módulo 5",
+        "description": "Sociodemográficas",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770927316179_1",
+        "elements": [
+          {
+            "type": "text",
+            "name": "p23",
+            "title": "¿Cuántas personas aportan ingresos actualmente al hogar?",
+            "description": "Se considera aportante a quien: ● Trabaja. ● Recibe jubilación o pensión. ● Tiene ingresos propios. ● Contribuye regularmente al hogar",
+            "isRequired": true,
+            "inputType": "number"
+          }
+        ],
+        "title": "Módulo 5",
+        "description": "Sociodemográficas",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770927316179_2",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p24",
+            "title": "En relación al Principal Sostén del Hogar, ¿cuál es el máximo nivel educativo alcanzado?",
+            "description": "El Principal Sostén del Hogar (PSH) es la persona que aporta la mayor parte de los ingresos al hogar o, en caso de ingresos similares, quien toma las principales decisiones de gasto. Si el encuestado tiene dudas, el encuestador debe ayudar a identificar a esta persona.",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Sin estudios"
+              },
+              {
+                "value": "2",
+                "text": "Primario incompleto"
+              },
+              {
+                "value": "3",
+                "text": "Primario completo"
+              },
+              {
+                "value": "4",
+                "text": "Secundario incompleto"
+              },
+              {
+                "value": "5",
+                "text": "Secundario completo"
+              },
+              {
+                "value": "6",
+                "text": "Terciario incompleto"
+              },
+              {
+                "value": "7",
+                "text": "Terciario completo"
+              },
+              {
+                "value": "8",
+                "text": "Universitario incompleto"
+              },
+              {
+                "value": "9",
+                "text": "Universitario completo"
+              },
+              {
+                "value": "10",
+                "text": "Posgrado incompleto"
+              },
+              {
+                "value": "11",
+                "text": "Posgrado completo"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 5",
+        "description": "Sociodemográficas",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770927316179_3",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p25",
+            "title": "El Principal Sostén del Hogar, ¿trabaja de manera independiente o dependiente?",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Independiente"
+              },
+              {
+                "value": "2",
+                "text": "Dependiente"
+              }
+            ]
+          }
+        ],
+        "title": "Módulo 5",
+        "description": "Sociodemográficas",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770927316179_4",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p26",
+            "title": "Si trabaja en relación de dependencia ¿Cuál es su cargo principal?",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Operario o tareas manuales"
+              },
+              {
+                "value": "2",
+                "text": "Administrativo o técnico"
+              },
+              {
+                "value": "3",
+                "text": "Jefe o supervisor"
+              },
+              {
+                "value": "4",
+                "text": "Gerente o director"
+              },
+              {
+                "value": "5",
+                "text": "Prefiere no responder"
+              }
+            ],
+            "visibleIf": "({p25} = '2')"
+          }
+        ],
+        "title": "Módulo 5",
+        "description": "Sociodemográficas",
+        "visibleIf": "({p0_filtro} = '1')"
+      },
+      {
+        "name": "page_1770927316179_5",
+        "elements": [
+          {
+            "type": "radiogroup",
+            "name": "p27",
+            "title": "Si trabaja de manera independiente ¿Cómo está registrado?",
+            "description": "Seleccione una opción",
+            "isRequired": true,
+            "choices": [
+              {
+                "value": "1",
+                "text": "Monotributista"
+              },
+              {
+                "value": "2",
+                "text": "Responsable inscripto"
+              },
+              {
+                "value": "3",
+                "text": "Prefiere no responder"
+              }
+            ],
+            "visibleIf": "({p25} = '1')"
+          }
+        ],
+        "title": "Módulo 5",
+        "description": "Sociodemográficas",
+        "visibleIf": "({p0_filtro} = '1')"
+      }
+    ],
+    "showProgressBar": "top",
+    "progressBarType": "questions",
+    "showPrevButton": true,
+    "showQuestionNumbers": "on",
+    "completeText": "Finalizar",
+    "pageNextText": "Siguiente",
+    "pagePrevText": "Anterior",
+    "requiredText": "(*) Pregunta obligatoria.",
+    "requiredErrorText": "Por favor responda la pregunta.",
+    "questionsOrder": "initial",
+    "clearInvisibleValues": "onHidden",
+    "checkErrorsMode": "onNextPage"
+  },
+  "surveyDefinition": {
+    "titulo": "Pilay Santa Fe",
+    "descripcion": "Consultora Ferz",
+    "modulos": [
+      {
+        "id": 1772406018098,
+        "nombre": "Filtro",
+        "descripcion": "",
+        "preguntas": [
+          {
+            "id": 1772406029891,
+            "value": "p0_filtro",
+            "text": "¡Hola! Buenos días/tardes. Mi nombre es …………….. y pertenezco a FERZ CONSULTORA, estamos realizando un breve estudio para conocer la opinión de los vecinos sobre el sector de desarrollos inmobiliarios y construcción en nuestra ciudad. \n¿Tendría 5 minutos para conversar? Sus respuestas son totalmente anónimas.",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": []
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Ok"
+              },
+              {
+                "value": "2",
+                "text": "No"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          }
+        ],
+        "condicionada": {
+          "activa": false,
+          "condiciones": []
+        },
+        "dinamico": {
+          "activo": false,
+          "panelCount": 1,
+          "minPanelCount": 0,
+          "maxPanelCount": 10,
+          "panelAddText": "Agregar",
+          "panelRemoveText": "Eliminar"
+        },
+        "autoScroll": true
+      },
+      {
+        "id": 1770924873020,
+        "nombre": "Módulo 1",
+        "descripcion": "Reconocimiento de empresas y pregunta filtro",
+        "preguntas": [
+          {
+            "id": 1772405360119,
+            "value": "cuota_genero",
+            "text": "Género",
+            "tipo": "cuota-genero",
+            "indicaciones": "Seleccione su género",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": []
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "id": "1772405372835_1",
+                "value": "1",
+                "text": "Masculino"
+              },
+              {
+                "id": "1772405372835_2",
+                "value": "2",
+                "text": "Femenino"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1772405486865,
+            "value": "edad",
+            "text": "Edad",
+            "tipo": "numerica",
+            "indicaciones": "Ingrese un número",
+            "requerida": true,
+            "validadores": {
+              "activo": true,
+              "reglas": [
+                {
+                  "id": 1772405520965.8464,
+                  "tipo": "rango",
+                  "min": "24",
+                  "max": "",
+                  "operador": "<=",
+                  "compararConTipo": "valor",
+                  "compararConValor": "",
+                  "compararConPreguntaId": "",
+                  "mensaje": "No encuestar a menores de 24"
+                }
+              ]
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1772405397020,
+            "value": "cuota_edad",
+            "text": "Rango de edad",
+            "tipo": "cuota-edad",
+            "indicaciones": "Seleccione su rango de edad",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": []
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "id": "1772405411108_1",
+                "value": "1",
+                "text": "24-40"
+              },
+              {
+                "id": "1772405411108_2",
+                "value": "2",
+                "text": "41-55"
+              },
+              {
+                "id": "1772405411108_3",
+                "value": "3",
+                "text": "56+"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770924887260,
+            "value": "p1",
+            "text": "¿Qué empresas recuerda o reconoce de la ciudad que se dediquen a la construcción de desarrollos inmobiliarios? ",
+            "tipo": "texto-multiple",
+            "indicaciones": "Aclarar que no nos referimos a las inmobiliarias de venta y alquiler (Mencione todas las que recuerde)",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [
+              {
+                "value": "campo1",
+                "label": "Empresa",
+                "tipo": "text"
+              }
+            ],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770924978052,
+            "value": "p2",
+            "text": "¿Ha escuchado hablar de la empresa PILAY?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Si ya mencionó Pilay, seleccionar \"Sí\" y continuar",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Si"
+              },
+              {
+                "value": "2",
+                "text": "No"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          }
+        ],
+        "condicionada": {
+          "activa": true,
+          "condiciones": [
+            {
+              "id": 1772406073089,
+              "tipo": "mostrar",
+              "preguntaId": 1772406029891,
+              "operador": "igual",
+              "valores": [
+                "1"
+              ],
+              "valorMin": "",
+              "valorMax": ""
+            }
+          ]
+        },
+        "dinamico": {
+          "activo": false,
+          "panelCount": 1,
+          "minPanelCount": 0,
+          "maxPanelCount": 10,
+          "panelAddText": "Agregar",
+          "panelRemoveText": "Eliminar"
+        },
+        "autoScroll": true
+      },
+      {
+        "id": 1770925039531,
+        "nombre": "Módulo 2",
+        "descripcion": "Conocimiento de Pilay",
+        "preguntas": [
+          {
+            "id": 1770925058564,
+            "value": "p3",
+            "text": "¿Es usted, o ha sido en algún momento, cliente de PILAY?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Si"
+              },
+              {
+                "value": "2",
+                "text": "No"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770925091443,
+            "value": "p4",
+            "text": "¿Podría decirme qué producto tiene o en qué proyecto invirtió?",
+            "tipo": "texto",
+            "indicaciones": "Ejemplos: planes, lotes, housing, Santomás, etc.",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770925158299,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925058564,
+                  "operador": "igual",
+                  "valores": [
+                    "1"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770925173892,
+            "value": "p5",
+            "text": "Si tuviera que explicarle a alguien qué hace PILAY, ¿cómo lo describiría?",
+            "tipo": "opcion-multiple",
+            "indicaciones": "No leer opciones. Puede seleccionar una o más",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770925548378,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925058564,
+                  "operador": "igual",
+                  "valores": [
+                    "2"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Sistema de capitalización en inmuebles / Fideicomiso Financiero"
+              },
+              {
+                "value": "2",
+                "text": "Sistema de ahorro de departamento / inmueble"
+              },
+              {
+                "value": "3",
+                "text": "Venden inmuebles en cuotas"
+              },
+              {
+                "value": "4",
+                "text": "Inmobiliaria"
+              },
+              {
+                "value": "5",
+                "text": "Construye departamentos / Empresa constructora"
+              },
+              {
+                "value": "6",
+                "text": "Otros productos"
+              },
+              {
+                "value": "7",
+                "text": "No puede explicar los productos"
+              },
+              {
+                "value": "8",
+                "text": "No sabe"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770925331884,
+            "value": "p6",
+            "text": "¿Qué productos conoce que ofrezca Pilay?",
+            "tipo": "opcion-multiple",
+            "indicaciones": "Seleccionar los mencionados sin leer opciones. Si dice un nombre similar, marcar igual.",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Santomás | Lotes - Barrio Privado"
+              },
+              {
+                "value": "2",
+                "text": "Santomás | Housing - Duplex"
+              },
+              {
+                "value": "3",
+                "text": "Santomás | Condominios"
+              },
+              {
+                "value": "4",
+                "text": "Los domingos | Lotes en Sauce Viejo | Barrio Sauce Viejo"
+              },
+              {
+                "value": "5",
+                "text": "Atenea edificio /Atenea duo"
+              },
+              {
+                "value": "6",
+                "text": "Paseo del Molino"
+              },
+              {
+                "value": "7",
+                "text": "Aurora loteo / barrio privado"
+              },
+              {
+                "value": "8",
+                "text": "Altos de la redonda - parque federal"
+              },
+              {
+                "value": "9",
+                "text": "Otros productos"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1772311604887,
+            "value": "p6_otro",
+            "text": "Otro ¿cuál?",
+            "tipo": "texto",
+            "indicaciones": "Ingrese su respuesta",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": []
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1772311637466,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925331884,
+                  "operador": "igual",
+                  "valores": [
+                    "6",
+                    "9"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                },
+                {
+                  "id": 1772469889269,
+                  "tipo": "mostrar",
+                  "preguntaId": 1772406029891,
+                  "operador": "igual",
+                  "valores": [],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770925430003,
+            "value": "p7",
+            "text": "¿Qué atributo o característica representa mejor su opinión sobre PILAY?",
+            "tipo": "texto",
+            "indicaciones": "Una sola palabra. Si no dice, escribir \"No tiene opinión\"",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          }
+        ],
+        "condicionada": {
+          "activa": true,
+          "condiciones": [
+            {
+              "id": 1770925052318,
+              "tipo": "mostrar",
+              "preguntaId": 1770924978052,
+              "operador": "igual",
+              "valores": [
+                "1"
+              ],
+              "valorMin": "",
+              "valorMax": ""
+            },
+            {
+              "id": 1772406084366,
+              "tipo": "mostrar",
+              "preguntaId": 1772406029891,
+              "operador": "igual",
+              "valores": [
+                "1"
+              ],
+              "valorMin": "",
+              "valorMax": ""
+            }
+          ]
+        },
+        "dinamico": {
+          "activo": false,
+          "panelCount": 1,
+          "minPanelCount": 0,
+          "maxPanelCount": 10,
+          "panelAddText": "Agregar",
+          "panelRemoveText": "Eliminar"
+        },
+        "autoScroll": true
+      },
+      {
+        "id": 1770925734346,
+        "nombre": "Módulo 3",
+        "descripcion": "Imagen de Pilay",
+        "preguntas": [
+          {
+            "id": 1770925753441,
+            "value": "p8",
+            "text": " ¿Qué valoración tiene de la empresa PILAY?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Excelente"
+              },
+              {
+                "value": "2",
+                "text": "Muy buena"
+              },
+              {
+                "value": "3",
+                "text": "Buena"
+              },
+              {
+                "value": "4",
+                "text": "Regular"
+              },
+              {
+                "value": "5",
+                "text": "Mala"
+              },
+              {
+                "value": "6",
+                "text": "Muy mala"
+              },
+              {
+                "value": "7",
+                "text": "No sabe / No tiene opinión formada"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770925802497,
+            "value": "p9",
+            "text": "¿Por qué tiene una opinión regular / mala?",
+            "tipo": "opcion-multiple",
+            "indicaciones": " La pasamos a opciones, sin leerlas.Que encasillen las respuestas. Es decir se marca la que más se relaciona con la respuesta del entrevistado.",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770926362911,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925753441,
+                  "operador": "igual",
+                  "valores": [
+                    "4",
+                    "5",
+                    "6"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Adjudicaciones fuera del centro"
+              },
+              {
+                "value": "2",
+                "text": "Demoras en entrega"
+              },
+              {
+                "value": "3",
+                "text": "Aumentos de cuota"
+              },
+              {
+                "value": "4",
+                "text": "Mala comunicación"
+              },
+              {
+                "value": "5",
+                "text": "Incumplimiento"
+              },
+              {
+                "value": "6",
+                "text": "Precios caros"
+              },
+              {
+                "value": "7",
+                "text": "Otras razones"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1772311732571,
+            "value": "p9_otra",
+            "text": "Otra razón, ¿cuál?",
+            "tipo": "texto",
+            "indicaciones": "Ingrese su respuesta",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": []
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1772311766007,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925802497,
+                  "operador": "igual",
+                  "valores": [
+                    "7"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770925922377,
+            "value": "p10",
+            "text": "En los últimos meses, ¿recuerda haber leído, escuchado o visto noticias de Pilay?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Si"
+              },
+              {
+                "value": "2",
+                "text": "No"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770925996040,
+            "value": "p11",
+            "text": "¿Dónde vió esa noticia, en qué medios?",
+            "tipo": "opcion-multiple",
+            "indicaciones": "Seleccione una o más opciones",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770926013787,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925922377,
+                  "operador": "igual",
+                  "valores": [
+                    "1"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "TV/Radio"
+              },
+              {
+                "value": "2",
+                "text": "Diario"
+              },
+              {
+                "value": "3",
+                "text": "Redes sociales"
+              },
+              {
+                "value": "4",
+                "text": "Mensajes de whatsapp"
+              },
+              {
+                "value": "5",
+                "text": "Comentarios de un amigo/conocidos"
+              },
+              {
+                "value": "6",
+                "text": "Cartelería o vía pública"
+              },
+              {
+                "value": "7",
+                "text": "Otro"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1772312005421,
+            "value": "p11_otro",
+            "text": "Otro, ¿cuál?",
+            "tipo": "texto",
+            "indicaciones": "Ingrese su respuesta",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": []
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1772312029989,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925996040,
+                  "operador": "igual",
+                  "valores": [
+                    "7"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770926140496,
+            "value": "p12",
+            "text": "¿De qué era esa noticia?",
+            "tipo": "opcion-multiple",
+            "indicaciones": "Seleccione una o más opciones",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770926156361,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925922377,
+                  "operador": "igual",
+                  "valores": [
+                    "1"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Publicidad"
+              },
+              {
+                "value": "2",
+                "text": "Inauguración de edificios"
+              },
+              {
+                "value": "3",
+                "text": "Sponsoreo de actividades"
+              },
+              {
+                "value": "4",
+                "text": "Conflicto de clientes"
+              },
+              {
+                "value": "5",
+                "text": "Otro contenido"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1772312066577,
+            "value": "p12_otra",
+            "text": "Otro contenido, ¿cuál?",
+            "tipo": "texto",
+            "indicaciones": "Ingrese su respuesta",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": []
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1772312092988,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770926140496,
+                  "operador": "igual",
+                  "valores": [
+                    "5"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770926206416,
+            "value": "p13",
+            "text": "¿Qué es lo último que recuerda haber escuchado, visto o leído como publicidad de Pilay?",
+            "tipo": "texto",
+            "indicaciones": "Ingrese su respuesta",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770926232433,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770925922377,
+                  "operador": "igual",
+                  "valores": [
+                    "1"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          }
+        ],
+        "condicionada": {
+          "activa": true,
+          "condiciones": [
+            {
+              "id": 1770925742353,
+              "tipo": "mostrar",
+              "preguntaId": 1770924978052,
+              "operador": "igual",
+              "valores": [
+                "1"
+              ],
+              "valorMin": "",
+              "valorMax": ""
+            },
+            {
+              "id": 1772406104198,
+              "tipo": "mostrar",
+              "preguntaId": 1772406029891,
+              "operador": "igual",
+              "valores": [
+                "1"
+              ],
+              "valorMin": "",
+              "valorMax": ""
+            }
+          ]
+        },
+        "dinamico": {
+          "activo": false,
+          "panelCount": 1,
+          "minPanelCount": 0,
+          "maxPanelCount": 10,
+          "panelAddText": "Agregar",
+          "panelRemoveText": "Eliminar"
+        },
+        "autoScroll": true
+      },
+      {
+        "id": 1770926839679,
+        "nombre": "Módulo 4",
+        "descripcion": "Nuevo producto \"Ahorro\"",
+        "preguntas": [
+          {
+            "id": 1770926872102,
+            "value": "p14",
+            "text": "Cambiando un poco de tema, nos interesa saber cómo ven los ciudadanos el\ncontexto actual de ahorro. Si hoy tuviera un excedente de dinero al mes, ¿en qué preferiría invertirlo?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "No me sobra nada"
+              },
+              {
+                "value": "2",
+                "text": "Me sobra pero lo \"gasto\" en gustos personales: viajes, deporte, ropa., joyas, etc"
+              },
+              {
+                "value": "3",
+                "text": "Ahorro/inversión"
+              },
+              {
+                "value": "4",
+                "text": "Otro"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770926946517,
+            "value": "p15",
+            "text": "Si ahorra, ¿en qué o cómo lo hace?",
+            "tipo": "opcion-unica",
+            "indicaciones": "No leer opciones, elegir la que se asemeja más a la respuesta.",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770926959397,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770926872102,
+                  "operador": "igual",
+                  "valores": [
+                    "5",
+                    "3"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Hago plazo fijo"
+              },
+              {
+                "value": "2",
+                "text": "Compro dólares"
+              },
+              {
+                "value": "3",
+                "text": "Invierto en fondo común de inversión"
+              },
+              {
+                "value": "4",
+                "text": "Otras opciones de mercado de valores: bonos, obligaciones negociables, \"invierto en la bolsa\", etc"
+              },
+              {
+                "value": "5",
+                "text": "Cuotas para plan de ahorro vivienda/auto"
+              },
+              {
+                "value": "6",
+                "text": "Otras"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927053789,
+            "value": "p16",
+            "text": "Otras formas, ¿cuáles?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770927067548,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770926946517,
+                  "operador": "igual",
+                  "valores": [
+                    "6"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927106941,
+            "value": "p17",
+            "text": "Le resultaría atractivo una forma de ahorro, similar al plan/sistema Pilay, en\nla que se abona una cuota entre $300.000 y $500.000 mensuales durante\nunos períodos que puede ir de 15 a 20 años, a través del cual podría acceder a un bien inmueble luego del 7° (septimo) año?\n",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Muy atractivo"
+              },
+              {
+                "value": "2",
+                "text": "Nada atractivo"
+              },
+              {
+                "value": "3",
+                "text": "Depende"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927205492,
+            "value": "p18",
+            "text": "¿De qué depende?",
+            "tipo": "texto",
+            "indicaciones": "Ingrese su respuesta",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770927213924,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770927106941,
+                  "operador": "igual",
+                  "valores": [
+                    "3"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927233429,
+            "value": "p19",
+            "text": "¿Por qué no le resulta atractivo?",
+            "tipo": "texto",
+            "indicaciones": "Ingrese su respuesta",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770929013374,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770927106941,
+                  "operador": "igual",
+                  "valores": [
+                    "2"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          }
+        ],
+        "condicionada": {
+          "activa": true,
+          "condiciones": [
+            {
+              "id": 1772406111622,
+              "tipo": "mostrar",
+              "preguntaId": 1772406029891,
+              "operador": "igual",
+              "valores": [
+                "1"
+              ],
+              "valorMin": "",
+              "valorMax": ""
+            }
+          ]
+        },
+        "dinamico": {
+          "activo": false,
+          "panelCount": 1,
+          "minPanelCount": 0,
+          "maxPanelCount": 10,
+          "panelAddText": "Agregar",
+          "panelRemoveText": "Eliminar"
+        },
+        "autoScroll": true
+      },
+      {
+        "id": 1770927316179,
+        "nombre": "Módulo 5",
+        "descripcion": "Sociodemográficas",
+        "preguntas": [
+          {
+            "id": 1770927434899,
+            "value": "p22",
+            "text": "¿Cuántas personas viven actualmente en este hogar?",
+            "tipo": "numerica",
+            "indicaciones": "Ingrese un número",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927458108,
+            "value": "p23",
+            "text": "¿Cuántas personas aportan ingresos actualmente al hogar?",
+            "tipo": "numerica",
+            "indicaciones": "Se considera aportante a quien: ● Trabaja. ● Recibe jubilación o pensión. ● Tiene ingresos propios. ● Contribuye regularmente al hogar",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927482171,
+            "value": "p24",
+            "text": "En relación al Principal Sostén del Hogar, ¿cuál es el máximo nivel educativo alcanzado?",
+            "tipo": "opcion-unica",
+            "indicaciones": "El Principal Sostén del Hogar (PSH) es la persona que aporta la mayor parte de los ingresos al hogar o, en caso de ingresos similares, quien toma las principales decisiones de gasto. Si el encuestado tiene dudas, el encuestador debe ayudar a identificar a esta persona.",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Sin estudios"
+              },
+              {
+                "value": "2",
+                "text": "Primario incompleto"
+              },
+              {
+                "value": "3",
+                "text": "Primario completo"
+              },
+              {
+                "value": "4",
+                "text": "Secundario incompleto"
+              },
+              {
+                "value": "5",
+                "text": "Secundario completo"
+              },
+              {
+                "value": "6",
+                "text": "Terciario incompleto"
+              },
+              {
+                "value": "7",
+                "text": "Terciario completo"
+              },
+              {
+                "value": "8",
+                "text": "Universitario incompleto"
+              },
+              {
+                "value": "9",
+                "text": "Universitario completo"
+              },
+              {
+                "value": "10",
+                "text": "Posgrado incompleto"
+              },
+              {
+                "value": "11",
+                "text": "Posgrado completo"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927568034,
+            "value": "p25",
+            "text": "El Principal Sostén del Hogar, ¿trabaja de manera independiente o dependiente?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": false,
+              "condiciones": []
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Independiente"
+              },
+              {
+                "value": "2",
+                "text": "Dependiente"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927606979,
+            "value": "p26",
+            "text": "Si trabaja en relación de dependencia ¿Cuál es su cargo principal?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770927638315,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770927568034,
+                  "operador": "igual",
+                  "valores": [
+                    "2"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Operario o tareas manuales"
+              },
+              {
+                "value": "2",
+                "text": "Administrativo o técnico"
+              },
+              {
+                "value": "3",
+                "text": "Jefe o supervisor"
+              },
+              {
+                "value": "4",
+                "text": "Gerente o director"
+              },
+              {
+                "value": "5",
+                "text": "Prefiere no responder"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          },
+          {
+            "id": 1770927655155,
+            "value": "p27",
+            "text": "Si trabaja de manera independiente ¿Cómo está registrado?",
+            "tipo": "opcion-unica",
+            "indicaciones": "Seleccione una opción",
+            "requerida": true,
+            "validadores": {
+              "activo": false,
+              "reglas": [],
+              "numerica": {
+                "min": "",
+                "max": "",
+                "soloEnteros": true
+              }
+            },
+            "condicionada": {
+              "activa": true,
+              "condiciones": [
+                {
+                  "id": 1770927668098,
+                  "tipo": "mostrar",
+                  "preguntaId": 1770927568034,
+                  "operador": "igual",
+                  "valores": [
+                    "1"
+                  ],
+                  "valorMin": "",
+                  "valorMax": ""
+                }
+              ]
+            },
+            "opciones": [
+              {
+                "value": "1",
+                "text": "Monotributista"
+              },
+              {
+                "value": "2",
+                "text": "Responsable inscripto"
+              },
+              {
+                "value": "3",
+                "text": "Prefiere no responder"
+              }
+            ],
+            "filas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              }
+            ],
+            "columnas": [
+              {
+                "value": "1",
+                "text": ""
+              },
+              {
+                "value": "2",
+                "text": ""
+              },
+              {
+                "value": "3",
+                "text": ""
+              }
+            ],
+            "campos": [],
+            "matrizDinamica": {
+              "columnas": [
+                {
+                  "value": "col1",
+                  "text": "",
+                  "cellType": "text"
+                },
+                {
+                  "value": "col2",
+                  "text": "",
+                  "cellType": "text"
+                }
+              ],
+              "rowCount": 2,
+              "minRowCount": 1,
+              "maxRowCount": 10,
+              "addRowText": "Agregar fila",
+              "removeRowText": "Eliminar"
+            }
+          }
+        ],
+        "condicionada": {
+          "activa": true,
+          "condiciones": [
+            {
+              "id": 1772406119390,
+              "tipo": "mostrar",
+              "preguntaId": 1772406029891,
+              "operador": "igual",
+              "valores": [
+                "1"
+              ],
+              "valorMin": "",
+              "valorMax": ""
+            }
+          ]
+        },
+        "dinamico": {
+          "activo": false,
+          "panelCount": 1,
+          "minPanelCount": 0,
+          "maxPanelCount": 10,
+          "panelAddText": "Agregar",
+          "panelRemoveText": "Eliminar"
+        },
+        "autoScroll": true
+      }
+    ]
+  },
+  "surveyInfo": {
+    "quotaMetadata": null,
+    "startDate": {
+      "$date": "2026-03-02T00:00:00.000Z"
+    },
+    "endDate": {
+      "$date": "2026-03-09T23:59:59.999Z"
+    },
+    "target": 0,
+    "requireGps": false,
+    "metaMode": "casos",
+    "quotaAssignments": [],
+    "quotas": []
+  },
+  "totalAnswers": 0,
+  "updatedAt": {
+    "$date": "2026-03-03T00:55:06.887Z"
+  },
+  "userId": "68e58d4b196b95c37fa67f5f",
+  "userIds": [
+    "69a5de6acc6f56d101ed862a",
+    "68ed192381f697c559cb1d4e"
+  ]
+}

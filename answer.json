@@ -1,0 +1,56 @@
+{
+  "_id": "survey_4bc1cd20-170a-11f1-b0f8-21f6e82098ce_68df1a783e9bb9529b41ef60_1772549301194_dd6iwqohy",
+  "userId": "68df1a783e9bb9529b41ef60",
+  "surveyId": "4bc1cd20-170a-11f1-b0f8-21f6e82098ce",
+  "lat": -34.5983171565893,
+  "lng": -58.40768653894226,
+  "createdAt": {
+    "$date": "2026-03-03T14:48:21.194Z"
+  },
+  "time": 53,
+  "fullName": "Demian Aime",
+  "offline": false,
+  "location": {
+    "city": "Comuna 3",
+    "state": "CABA",
+    "country": "Argentina"
+  },
+  "answer": {
+    "¡Hola! Buenos días/tardes- Mi nombre es ……………-- y pertenezco a FERZ CONSULTORA, estamos realizando un breve estudio para conocer la opinión de los vecinos sobre el sector de desarrollos inmobiliarios y construcción en nuestra ciudad- \n¿Tendría 5 minutos para conversar? Sus respuestas son totalmente anónimas-": "Ok",
+    "Género": "Masculino",
+    "Edad": 33,
+    "Rango de edad": "41-55",
+    "¿Qué empresas recuerda o reconoce de la ciudad que se dediquen a la construcción de desarrollos inmobiliarios? ": [
+      {
+        "campo1": "Remax"
+      },
+      {
+        "campo1": "Huevo"
+      }
+    ],
+    "¿Ha escuchado hablar de la empresa PILAY?": "Si",
+    "¿Es usted, o ha sido en algún momento, cliente de PILAY?": "Si",
+    "¿Podría decirme qué producto tiene o en qué proyecto invirtió?": "Jj",
+    "¿Qué productos conoce que ofrezca Pilay?": [
+      "Santomás | Lotes - Barrio Privado"
+    ],
+    "¿Qué atributo o característica representa mejor su opinión sobre PILAY?": "E",
+    " ¿Qué valoración tiene de la empresa PILAY?": "Excelente",
+    "En los últimos meses, ¿recuerda haber leído, escuchado o visto noticias de Pilay?": "Si",
+    "¿Dónde vió esa noticia, en qué medios?": ["Diario"],
+    "¿De qué era esa noticia?": ["Publicidad"],
+    "¿Qué es lo último que recuerda haber escuchado, visto o leído como publicidad de Pilay?": "Po",
+    "Cambiando un poco de tema, nos interesa saber cómo ven los ciudadanos el\ncontexto actual de ahorro- Si hoy tuviera un excedente de dinero al mes, ¿en qué preferiría invertirlo?": "Me sobra pero lo \"gasto\" en gustos personales: viajes, deporte, ropa., joyas, etc",
+    "Le resultaría atractivo una forma de ahorro, similar al plan/sistema Pilay, en\nla que se abona una cuota entre $300-000 y $500-000 mensuales durante\nunos períodos que puede ir de 15 a 20 años, a través del cual podría acceder a un bien inmueble luego del 7° (septimo) año?\n": "Muy atractivo",
+    "¿Cuántas personas viven actualmente en este hogar?": 8,
+    "¿Cuántas personas aportan ingresos actualmente al hogar?": 8,
+    "En relación al Principal Sostén del Hogar, ¿cuál es el máximo nivel educativo alcanzado?": "Sin estudios",
+    "El Principal Sostén del Hogar, ¿trabaja de manera independiente o dependiente?": "Independiente",
+    "Si trabaja de manera independiente ¿Cómo está registrado?": "Prefiere no responder"
+  },
+  "observation": null,
+  "updatedAt": {
+    "$date": "2026-03-03T14:48:21.194Z"
+  },
+  "__v": 0
+}

@@ -17,6 +17,12 @@ const ExportControls = ({
   const dropdownRef = useRef(null);
   const fileExtension = ".xlsx";
 
+  // Función helper para generar "fingerprint" de un texto (solo alfanuméricos minúsculas)
+  const getFingerprint = (text) => {
+    if (typeof text !== "string") return "";
+    return text.toLowerCase().replace(/[^a-z0-9]/g, ""); // Eliminar todo lo que no sea letra o número
+  };
+
   // Mapa de preguntas para buscar valores configurados
   const questionsMap = useMemo(() => {
     // Detectar dónde están las páginas (puede ser surveyData.pages o surveyData.survey.pages)
@@ -39,24 +45,36 @@ const ExportControls = ({
           processElements(element.elements);
           if (element.templateElements)
             processElements(element.templateElements);
-        } else {
-          // Si es una pregunta, agregar al mapa
-          map[element.name] = element;
-          // También mapear por valueName si existe
-          if (element.valueName) {
-            map[element.valueName] = element;
-          }
+        }
 
-          // También mapear por title (texto de la pregunta) para manejar casos donde las respuestas usan el título como key
-          if (element.title) {
-            if (typeof element.title === "string") {
-              map[element.title] = element;
-            } else if (typeof element.title === "object") {
-              // Mapear todos los valores localizados
-              Object.values(element.title).forEach((t) => {
-                if (t && typeof t === "string") map[t] = element;
-              });
+        // Agregar al mapa (siempre, incluso si es panel, para tener la referencia)
+        map[element.name] = element;
+        // También mapear por valueName si existe
+        if (element.valueName) {
+          map[element.valueName] = element;
+        }
+
+        // También mapear por title (texto de la pregunta)
+        if (element.title) {
+          if (typeof element.title === "string") {
+            map[element.title] = element;
+            // Agregar fingerprint para búsquedas robustas
+            const fingerprint = getFingerprint(element.title);
+            if (fingerprint) {
+              map[fingerprint] = element;
             }
+          } else if (typeof element.title === "object") {
+            // Mapear todos los valores localizados
+            Object.values(element.title).forEach((t) => {
+              if (t && typeof t === "string") {
+                map[t] = element;
+                // Agregar fingerprint
+                const fingerprint = getFingerprint(t);
+                if (fingerprint) {
+                  map[fingerprint] = element;
+                }
+              }
+            });
           }
         }
       });
@@ -131,11 +149,13 @@ const ExportControls = ({
   }, [answers, excludedCases, preFiltered]);
 
   // Función para convertir valores a numéricos usando la configuración de la encuesta
-  const convertToNumeric = (value, questionName) => {
+  const convertToNumeric = (value, questionName, preFoundQuestion = null) => {
     // 1. Intentar buscar en la definición de la encuesta
-    if (questionName && questionsMap[questionName]) {
-      const question = questionsMap[questionName];
+    // Usar la pregunta ya encontrada o buscarla
+    const question =
+      preFoundQuestion || (questionName ? questionsMap[questionName] : null);
 
+    if (question) {
       const findValueForOption = (optionText) => {
         if (!question.choices) return null;
 
@@ -143,7 +163,8 @@ const ExportControls = ({
         const cleanString = (str) => {
           if (typeof str !== "string") return str;
           const match = str.match(/^\d+\.\s*(.+)$/);
-          return match ? match[1].trim() : str.trim();
+          const clean = match ? match[1] : str;
+          return clean.replace(/\s+/g, " ").trim();
         };
 
         // Limpiar el texto de entrada (por si viene como "1. Opción")
@@ -190,6 +211,18 @@ const ExportControls = ({
 
       if (Array.isArray(value)) {
         const mapped = value.map((v) => {
+          // Si el elemento es un objeto (ej: paneldynamic), extraer sus valores aunque la pregunta esté mapeada
+          if (typeof v === "object" && v !== null) {
+            return Object.values(v)
+              .map((val) => {
+                if (typeof val === "string") {
+                  const match = val.match(/^(\d+)\./);
+                  return match ? match[1] : val;
+                }
+                return val;
+              })
+              .join(" - ");
+          }
           const found = findValueForOption(v);
           return found !== null ? found : v;
         });
@@ -207,11 +240,29 @@ const ExportControls = ({
       return match ? parseInt(match[1]) : value;
     }
 
-    // Manejar arrays (multiple choice): convertir cada elemento
+    // Manejar arrays (multiple choice o paneldynamic): convertir cada elemento
     if (Array.isArray(value)) {
       const numbers = value.map((v) => {
-        const match = v.match(/^(\d+)\./);
-        return match ? match[1] : v;
+        // Si el elemento es un objeto (ej: paneldynamic {campo1: "Valor"}), extraer sus valores
+        if (typeof v === "object" && v !== null) {
+          // Extraer valores de todas las propiedades del objeto
+          return Object.values(v)
+            .map((val) => {
+              // Intentar limpiar/convertir cada valor individual si es string
+              if (typeof val === "string") {
+                // Si es formato "1. Texto", sacar número
+                const match = val.match(/^(\d+)\./);
+                return match ? match[1] : val;
+              }
+              return val;
+            })
+            .join(" - ");
+        }
+        if (typeof v === "string") {
+          const match = v.match(/^(\d+)\./);
+          return match ? parseInt(match[1]) : v;
+        }
+        return v;
       });
       return numbers.join(", ");
     }
@@ -251,7 +302,25 @@ const ExportControls = ({
           const answerData = Object.keys(item.answer).reduce((acc, key) => {
             // Intentar encontrar la pregunta para normalizar el nombre de la columna (variable)
             // Esto arregla el caso donde las respuestas se guardaron con el Título como key
-            const question = questionsMap[key];
+
+            // Helper para normalizar keys
+            const normalizeKey = (k) =>
+              k ? String(k).replace(/\s+/g, " ").trim() : "";
+
+            // Helper local para fingerprint (por si cambia el scope)
+            const getLocalFingerprint = (k) =>
+              k
+                ? String(k)
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]/g, "")
+                : "";
+
+            // Intentar match directo, normalizado o fingerprint
+            const question =
+              questionsMap[key] ||
+              questionsMap[normalizeKey(key)] ||
+              questionsMap[getLocalFingerprint(key)];
+
             const outputKey = question
               ? question.valueName || question.name
               : key;
@@ -261,7 +330,39 @@ const ExportControls = ({
             if (format === "numeric") {
               // Si es numérico, intentar convertir el valor
               // convertToNumeric buscará la pregunta usando 'key' (que ahora puede ser título)
-              outputValue = convertToNumeric(outputValue, key);
+              // Pasamos la question encontrada para evitar re-búsqueda fallida
+              outputValue = convertToNumeric(outputValue, key, question);
+            }
+
+            // Si outputValue sigue siendo objeto/array (y no fue manejado por convertToNumeric), aplanarlo
+            // Esto evita [object Object] en exportaciones de texto o casos no cubiertos
+            if (typeof outputValue === "object" && outputValue !== null) {
+              if (Array.isArray(outputValue)) {
+                outputValue = outputValue
+                  .map((v) => {
+                    if (typeof v === "object" && v !== null) {
+                      // Extraer todos los valores de las propiedades del objeto
+                      return Object.values(v)
+                        .map((val) =>
+                          typeof val === "object" && val !== null
+                            ? JSON.stringify(val)
+                            : val,
+                        ) // Manejar objetos anidados
+                        .join(" - ");
+                    }
+                    return v;
+                  })
+                  .join(", ");
+              } else {
+                // Si es objeto simple (no array), intentar mostrar sus valores
+                outputValue = Object.values(outputValue)
+                  .map((val) =>
+                    typeof val === "object" && val !== null
+                      ? JSON.stringify(val)
+                      : val,
+                  )
+                  .join(", ");
+              }
             }
 
             acc[outputKey] = outputValue;
