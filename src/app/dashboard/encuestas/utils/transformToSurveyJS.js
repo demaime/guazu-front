@@ -109,6 +109,7 @@ function transformPregunta(pregunta, preguntaIdToValue = {}) {
         text: fila.text
       }));
       element.cellType = pregunta.tipo === 'matriz-multiple' ? 'checkbox' : 'radiogroup';
+      element.isAllRowRequired = true;
       break;
 
     case 'matriz-dinamica':

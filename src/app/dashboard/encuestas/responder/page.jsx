@@ -80,6 +80,7 @@ export default function SurveyResponderStable() {
   const [error, setError] = useState(null);
   const redirectTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
+  const surveyContainerRef = useRef(null);
   const [surveyCompletedSuccessfully, setSurveyCompletedSuccessfully] =
     useState(false);
   const INITIAL_COUNTDOWN = 5;
@@ -101,6 +102,10 @@ export default function SurveyResponderStable() {
 
   // Estados para cuotas
   const [quotas, setQuotas] = useState([]);
+
+  // Estado para modal de errores de validación (ej: matriz incompleta)
+  const [showValidationErrorModal, setShowValidationErrorModal] = useState(false);
+  const [validationErrorMessages, setValidationErrorMessages] = useState([]);
 
   // Leave-blocking state
   const [isBlocking, setIsBlocking] = useState(false);
@@ -239,6 +244,16 @@ export default function SurveyResponderStable() {
           }
         }
 
+        // Forzar isAllRowRequired en todas las preguntas tipo matrix (cubre encuestas existentes)
+        surveyData.pages.forEach((page) => {
+          if (!page.elements) return;
+          page.elements.forEach((el) => {
+            if (el.type === "matrix") {
+              el.isAllRowRequired = true;
+            }
+          });
+        });
+
         const model = new Model(surveyData);
         modelInstance = model;
 
@@ -368,6 +383,39 @@ export default function SurveyResponderStable() {
     document.addEventListener("click", onCaptureClick, true);
     return () => document.removeEventListener("click", onCaptureClick, true);
   }, []);
+
+  // Detectar errores de validación al tocar Siguiente/Finalizar y mostrar modal
+  useEffect(() => {
+    const container = surveyContainerRef.current;
+    if (!surveyModel || !container) return;
+
+    const handleNavClick = (e) => {
+      const btn = e.target.closest(
+        ".sd-navigation__next-btn, .sd-navigation__complete-btn, .sd-btn--action"
+      );
+      if (!btn) return;
+
+      setTimeout(() => {
+        const page = surveyModel.currentPage;
+        if (!page) return;
+        let matrixHasErrors = false;
+        page.questions.forEach((q) => {
+          if (q.getType() === "matrix" && q.errors && q.errors.length > 0) {
+            matrixHasErrors = true;
+          }
+        });
+        if (matrixHasErrors) {
+          setValidationErrorMessages([
+            "Es necesario responder todas las filas para continuar.",
+          ]);
+          setShowValidationErrorModal(true);
+        }
+      }, 150);
+    };
+
+    container.addEventListener("click", handleNavClick);
+    return () => container.removeEventListener("click", handleNavClick);
+  }, [surveyModel]);
 
   // Función para enviar la encuesta con o sin coordenadas
   // NUEVO FLUJO ROBUSTO: Guardar SIEMPRE primero, intentar enviar después
@@ -1173,7 +1221,7 @@ export default function SurveyResponderStable() {
   }
 
   return (
-    <div className="survey-container">
+    <div className="survey-container" ref={surveyContainerRef}>
       <Survey model={surveyModel} onComplete={handleComplete} />
 
       <ConfirmModal
@@ -1223,6 +1271,27 @@ export default function SurveyResponderStable() {
         cancelText="Seguir contestando"
       >
         <p>Si abandonas ahora, perderás el progreso de esta encuesta.</p>
+      </ConfirmModal>
+
+      {/* Modal de errores de validación */}
+      <ConfirmModal
+        isOpen={showValidationErrorModal}
+        onClose={() => setShowValidationErrorModal(false)}
+        onConfirm={() => setShowValidationErrorModal(false)}
+        title="Respuesta incompleta"
+        confirmText="Entendido"
+        cancelText={null}
+        showCancelButton={false}
+        variant="warning"
+      >
+        <div className="space-y-2">
+          {validationErrorMessages.map((msg, idx) => (
+            <div key={idx} className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <span className="text-sm">{msg}</span>
+            </div>
+          ))}
+        </div>
       </ConfirmModal>
 
       {/* Modal para enviar sin coordenadas GPS */}
