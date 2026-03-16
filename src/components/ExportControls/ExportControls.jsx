@@ -148,8 +148,8 @@ const ExportControls = ({
     return answers.filter((item) => !excludedCases.includes(item._id));
   }, [answers, excludedCases, preFiltered]);
 
-  // Función para convertir valores a numéricos usando la configuración de la encuesta
-  const convertToNumeric = (value, questionName, preFoundQuestion = null) => {
+  // Resolver texto visible al valor/código definido en la encuesta
+  const resolveToValue = (value, questionName, preFoundQuestion = null) => {
     // 1. Intentar buscar en la definición de la encuesta
     // Usar la pregunta ya encontrada o buscarla
     const question =
@@ -233,52 +233,33 @@ const ExportControls = ({
       if (found !== null) return found;
     }
 
-    // 2. Fallback: lógica original de extracción de prefijo
-    // Manejar strings: extraer número de formato "1. Texto"
+    // 2. Fallback: intentar extraer prefijo de formato "X. Texto"
+    const extractPrefix = (str) => {
+      if (typeof str !== "string") return str;
+      const match = str.match(/^([^.]+)\.\s/);
+      return match ? match[1].trim() : str;
+    };
+
     if (typeof value === "string") {
-      const match = value.match(/^(\d+)\./);
-      return match ? parseInt(match[1]) : value;
+      return extractPrefix(value);
     }
 
-    // Manejar arrays (multiple choice o paneldynamic): convertir cada elemento
     if (Array.isArray(value)) {
-      const numbers = value.map((v) => {
-        // Si el elemento es un objeto (ej: paneldynamic {campo1: "Valor"}), extraer sus valores
+      const mapped = value.map((v) => {
         if (typeof v === "object" && v !== null) {
-          // Extraer valores de todas las propiedades del objeto
           return Object.values(v)
-            .map((val) => {
-              // Intentar limpiar/convertir cada valor individual si es string
-              if (typeof val === "string") {
-                // Si es formato "1. Texto", sacar número
-                const match = val.match(/^(\d+)\./);
-                return match ? match[1] : val;
-              }
-              return val;
-            })
+            .map((val) => extractPrefix(val))
             .join(" - ");
         }
-        if (typeof v === "string") {
-          const match = v.match(/^(\d+)\./);
-          return match ? parseInt(match[1]) : v;
-        }
-        return v;
+        return extractPrefix(v);
       });
-      return numbers.join(", ");
+      return mapped.join(", ");
     }
 
-    // Manejar objetos (matrix): convertir cada valor del objeto
     if (typeof value === "object" && value !== null) {
       const converted = {};
       Object.keys(value).forEach((key) => {
-        const cellValue = value[key];
-        // Intentar buscar valor para matrix si es posible, o usar fallback
-        if (typeof cellValue === "string") {
-          const match = cellValue.match(/^(\d+)\./);
-          converted[key] = match ? parseInt(match[1]) : cellValue;
-        } else {
-          converted[key] = cellValue;
-        }
+        converted[key] = extractPrefix(value[key]);
       });
       return converted;
     }
@@ -352,19 +333,32 @@ const ExportControls = ({
       let outputValue = answer[key];
 
       if (format === "numeric") {
-        outputValue = convertToNumeric(outputValue, key, question);
+        outputValue = resolveToValue(outputValue, key, question);
       }
 
       // Matriz (objeto no-array): intentar expandir en columnas separadas
       if (typeof outputValue === "object" && outputValue !== null && !Array.isArray(outputValue)) {
         if (question?.rows) {
           Object.entries(outputValue).forEach(([rowText, colVal]) => {
+            const rowLower = rowText.toLowerCase().trim();
             const row = question.rows.find((r) => {
               const rText = extractText(r.text);
-              return rText === rowText || String(r.value) === String(rowText);
+              return (rText && rText.toLowerCase().trim() === rowLower)
+                || String(r.value).toLowerCase().trim() === rowLower;
             });
             const rowVar = row ? row.value : rowText;
-            data[`${outputKey}_${rowVar}`] = typeof colVal === "object" ? JSON.stringify(colVal) : colVal;
+            let cellValue = typeof colVal === "object" ? JSON.stringify(colVal) : colVal;
+            // En formato numérico, resolver texto de columna a su valor
+            if (format === "numeric" && question.columns && typeof cellValue === "string") {
+              const cellLower = cellValue.toLowerCase().trim();
+              const col = question.columns.find((c) => {
+                const cText = extractText(c.text);
+                return (cText && cText.toLowerCase().trim() === cellLower)
+                  || String(c.value).toLowerCase().trim() === cellLower;
+              });
+              if (col) cellValue = col.value;
+            }
+            data[`${outputKey}_${rowVar}`] = cellValue;
           });
         } else {
           data[outputKey] = Object.values(outputValue)
