@@ -286,114 +286,145 @@ const ExportControls = ({
     return value;
   };
 
-  const processDataForExport = (answers, format = "text") => {
-    let processedAnswers = [];
-    if (answers) {
-      answers.forEach((item) => {
-        if (item.answer) {
-          const fecha = item.createdAt
-            ? new Date(item.createdAt).toLocaleDateString()
-            : "";
-          const hora = item.createdAt
-            ? new Date(item.createdAt).toLocaleTimeString()
-            : "";
+  // Helper para extraer texto de campos que pueden ser string u objeto localizado
+  const extractText = (val) => {
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    if (typeof val === "object") return val.default || val.es || Object.values(val)[0] || "";
+    return String(val);
+  };
 
-          // Procesar respuestas y normalizar encabezados
-          const answerData = Object.keys(item.answer).reduce((acc, key) => {
-            // Intentar encontrar la pregunta para normalizar el nombre de la columna (variable)
-            // Esto arregla el caso donde las respuestas se guardaron con el Título como key
+  // Procesar respuesta usando answerRaw (formato nuevo con variables + codes)
+  const processWithRaw = (answerRaw, format) => {
+    const data = {};
+    Object.entries(answerRaw).forEach(([varName, rawValue]) => {
+      const question = questionsMap[varName];
 
-            // Helper para normalizar keys
-            const normalizeKey = (k) =>
-              k ? String(k).replace(/\s+/g, " ").trim() : "";
-
-            // Helper local para fingerprint (por si cambia el scope)
-            const getLocalFingerprint = (k) =>
-              k
-                ? String(k)
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]/g, "")
-                : "";
-
-            // Intentar match directo, normalizado o fingerprint
-            const question =
-              questionsMap[key] ||
-              questionsMap[normalizeKey(key)] ||
-              questionsMap[getLocalFingerprint(key)];
-
-            const outputKey = question
-              ? question.valueName || question.name
-              : key;
-
-            let outputValue = item.answer[key];
-
-            if (format === "numeric") {
-              // Si es numérico, intentar convertir el valor
-              // convertToNumeric buscará la pregunta usando 'key' (que ahora puede ser título)
-              // Pasamos la question encontrada para evitar re-búsqueda fallida
-              outputValue = convertToNumeric(outputValue, key, question);
-            }
-
-            // Si outputValue sigue siendo objeto/array (y no fue manejado por convertToNumeric), aplanarlo
-            // Esto evita [object Object] en exportaciones de texto o casos no cubiertos
-            if (typeof outputValue === "object" && outputValue !== null) {
-              if (Array.isArray(outputValue)) {
-                outputValue = outputValue
-                  .map((v) => {
-                    if (typeof v === "object" && v !== null) {
-                      // Extraer todos los valores de las propiedades del objeto
-                      return Object.values(v)
-                        .map((val) =>
-                          typeof val === "object" && val !== null
-                            ? JSON.stringify(val)
-                            : val,
-                        ) // Manejar objetos anidados
-                        .join(" - ");
-                    }
-                    return v;
-                  })
-                  .join(", ");
-              } else {
-                // Si es objeto simple (no array), intentar mostrar sus valores
-                outputValue = Object.values(outputValue)
-                  .map((val) =>
-                    typeof val === "object" && val !== null
-                      ? JSON.stringify(val)
-                      : val,
-                  )
-                  .join(", ");
-              }
-            }
-
-            acc[outputKey] = outputValue;
-            return acc;
-          }, {});
-
-          // Incluir respuestas de cuotas si existen
-          // Las cuotas se guardan en un campo separado quotaAnswers
-          // Ejemplo: quotaAnswers = { "Género": "Masculino", "Edad": "18-29" }
-          const quotaData =
-            item.quotaAnswers && typeof item.quotaAnswers === "object"
-              ? item.quotaAnswers
-              : {};
-
-          // Combinar answerData con quotaData para exportar todo como columnas
-          // Las cuotas van después de "time" y antes de las preguntas
-          processedAnswers.push(
-            nestedJSONtoJson({
-              creado: `${fecha}-${hora}`,
-              encuestador: item.fullName,
-              latitud: item.lat,
-              longitud: item.lng,
-              caso: item._id,
-              time: item.time,
-              ...quotaData, // Incluye todas las respuestas de cuotas como columnas (después de time)
-              ...answerData, // Incluye todas las respuestas de preguntas (después de las cuotas)
-            }),
-          );
+      if (typeof rawValue === "object" && rawValue !== null && !Array.isArray(rawValue)) {
+        // Matriz: expandir cada fila como columna separada (variable_filaVariable)
+        Object.entries(rawValue).forEach(([rowVar, colVal]) => {
+          const colKey = `${varName}_${rowVar}`;
+          if (format === "text" && question) {
+            const colText = question.columns?.find((c) => String(c.value) === String(colVal));
+            data[colKey] = colText ? extractText(colText.text) || colVal : colVal;
+          } else {
+            data[colKey] = colVal;
+          }
+        });
+      } else if (Array.isArray(rawValue)) {
+        // Opción múltiple
+        if (format === "text" && question?.choices) {
+          data[varName] = rawValue
+            .map((v) => {
+              const ch = question.choices.find((c) => String(c.value) === String(v));
+              return ch ? extractText(ch.text) || v : v;
+            })
+            .join(", ");
+        } else {
+          data[varName] = rawValue.join(", ");
         }
-      });
-    }
+      } else {
+        // Valor simple (texto libre, opción única, numérica, fecha)
+        if (format === "text" && question?.choices) {
+          const ch = question.choices.find((c) => String(c.value) === String(rawValue));
+          data[varName] = ch ? extractText(ch.text) || rawValue : rawValue;
+        } else {
+          data[varName] = rawValue;
+        }
+      }
+    });
+    return data;
+  };
+
+  // Procesar respuesta usando answer (formato viejo, texto plano) — fallback
+  const processWithAnswer = (answer, format) => {
+    const data = {};
+    const normalizeKey = (k) => k ? String(k).replace(/\s+/g, " ").trim() : "";
+    const getLocalFingerprint = (k) => k ? String(k).toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+
+    Object.keys(answer).forEach((key) => {
+      const question =
+        questionsMap[key] ||
+        questionsMap[normalizeKey(key)] ||
+        questionsMap[getLocalFingerprint(key)];
+
+      const outputKey = question ? (question.valueName || question.name) : key;
+      let outputValue = answer[key];
+
+      if (format === "numeric") {
+        outputValue = convertToNumeric(outputValue, key, question);
+      }
+
+      // Matriz (objeto no-array): intentar expandir en columnas separadas
+      if (typeof outputValue === "object" && outputValue !== null && !Array.isArray(outputValue)) {
+        if (question?.rows) {
+          Object.entries(outputValue).forEach(([rowText, colVal]) => {
+            const row = question.rows.find((r) => {
+              const rText = extractText(r.text);
+              return rText === rowText || String(r.value) === String(rowText);
+            });
+            const rowVar = row ? row.value : rowText;
+            data[`${outputKey}_${rowVar}`] = typeof colVal === "object" ? JSON.stringify(colVal) : colVal;
+          });
+        } else {
+          data[outputKey] = Object.values(outputValue)
+            .map((val) => (typeof val === "object" && val !== null ? JSON.stringify(val) : val))
+            .join(", ");
+        }
+        return;
+      }
+
+      // Array: aplanar a string
+      if (Array.isArray(outputValue)) {
+        outputValue = outputValue
+          .map((v) => {
+            if (typeof v === "object" && v !== null) {
+              return Object.values(v)
+                .map((val) => (typeof val === "object" && val !== null ? JSON.stringify(val) : val))
+                .join(" - ");
+            }
+            return v;
+          })
+          .join(", ");
+      }
+
+      data[outputKey] = outputValue;
+    });
+    return data;
+  };
+
+  const processDataForExport = (answers, format = "text") => {
+    const processedAnswers = [];
+    if (!answers) return processedAnswers;
+
+    answers.forEach((item) => {
+      if (!item.answer) return;
+
+      const fecha = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "";
+      const hora = item.createdAt ? new Date(item.createdAt).toLocaleTimeString() : "";
+
+      const answerData = item.answerRaw
+        ? processWithRaw(item.answerRaw, format)
+        : processWithAnswer(item.answer, format);
+
+      const quotaData =
+        item.quotaAnswers && typeof item.quotaAnswers === "object"
+          ? item.quotaAnswers
+          : {};
+
+      processedAnswers.push(
+        nestedJSONtoJson({
+          creado: `${fecha}-${hora}`,
+          encuestador: item.fullName,
+          latitud: item.lat,
+          longitud: item.lng,
+          caso: item._id,
+          time: item.time,
+          ...quotaData,
+          ...answerData,
+        }),
+      );
+    });
     return processedAnswers;
   };
 

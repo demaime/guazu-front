@@ -244,15 +244,44 @@ export default function SurveyResponderStable() {
           }
         }
 
-        // Forzar isAllRowRequired en todas las preguntas tipo matrix (cubre encuestas existentes)
+        // Parche para encuestas existentes: forzar isAllRowRequired en matrix
+        // y corregir visibleIf con '=' en preguntas checkbox (debe ser 'contains')
+        const checkboxNames = new Set();
         surveyData.pages.forEach((page) => {
           if (!page.elements) return;
           page.elements.forEach((el) => {
             if (el.type === "matrix") {
               el.isAllRowRequired = true;
             }
+            if (el.type === "checkbox") {
+              checkboxNames.add(el.name);
+            }
           });
         });
+        if (checkboxNames.size > 0) {
+          surveyData.pages.forEach((page) => {
+            if (!page.elements) return;
+            page.elements.forEach((el) => {
+              if (!el.visibleIf) return;
+              checkboxNames.forEach((name) => {
+                const pattern = new RegExp(
+                  `\\{${name}\\}\\s*=\\s*'`,
+                  "g"
+                );
+                el.visibleIf = el.visibleIf.replace(pattern, `{${name}} contains '`);
+              });
+            });
+            if (page.visibleIf) {
+              checkboxNames.forEach((name) => {
+                const pattern = new RegExp(
+                  `\\{${name}\\}\\s*=\\s*'`,
+                  "g"
+                );
+                page.visibleIf = page.visibleIf.replace(pattern, `{${name}} contains '`);
+              });
+            }
+          });
+        }
 
         const model = new Model(surveyData);
         modelInstance = model;
@@ -425,6 +454,7 @@ export default function SurveyResponderStable() {
       const user = authService.getUser();
       const token = localStorage.getItem("token");
       const transformedAnswers = {};
+      const rawAnswers = {};
       const extractedQuotaAnswers = {};
       
       sender.getAllQuestions().forEach((q) => {
@@ -436,43 +466,41 @@ export default function SurveyResponderStable() {
         if (name.startsWith("__quota_")) {
           const categoryName = name.replace("__quota_", "");
           extractedQuotaAnswers[categoryName] = ans;
-          return; // No incluir en respuestas normales
+          return;
         }
         
         if (ans !== undefined) {
           if (Array.isArray(ans)) {
-            // Múltiple choice: convertir cada valor a texto
+            // Múltiple choice: texto para answer, values para answerRaw
             transformedAnswers[text] = ans.map(
               (v) => q.choices?.find((c) => c.value === v)?.text || v
             );
+            rawAnswers[name] = ans;
           } else if (typeof ans === "object" && ans !== null) {
-            // Matriz: convertir row IDs y column IDs a texto
             if (q.getType() === "matrix") {
               const matrixAnswer = {};
+              const matrixRaw = {};
               
-              // Iterar sobre cada fila respondida
               Object.keys(ans).forEach((rowValue) => {
                 const columnValue = ans[rowValue];
-                
-                // Buscar el texto de la fila
                 const rowText = q.rows?.find((r) => r.value === rowValue)?.text || rowValue;
-                
-                // Buscar el texto de la columna
                 const columnText = q.columns?.find((c) => c.value === columnValue)?.text || columnValue;
                 
-                // Guardar con textos en lugar de IDs
                 matrixAnswer[rowText] = columnText;
+                matrixRaw[rowValue] = columnValue;
               });
               
               transformedAnswers[text] = matrixAnswer;
+              rawAnswers[name] = matrixRaw;
             } else {
-              // Otros tipos de objetos (mantener comportamiento original)
               transformedAnswers[text] = ans;
+              rawAnswers[name] = ans;
             }
           } else {
-            // Single choice o texto: convertir valor a texto si hay choices
+            // Single choice o texto: texto para answer, value para answerRaw
             transformedAnswers[text] =
               q.choices?.find((c) => c.value === ans)?.text || ans;
+            rawAnswers[name] = ans;
           }
         }
       });
@@ -491,7 +519,8 @@ export default function SurveyResponderStable() {
         fullName: user?.fullName,
         userId: user?._id,
         answer: transformedAnswers,
-        quotaAnswers: extractedQuotaAnswers, // Incluir respuestas de cuotas extraídas del modelo
+        answerRaw: rawAnswers,
+        quotaAnswers: extractedQuotaAnswers,
         createdAt: new Date().toISOString(),
         time: calculatedTime,
         authToken: token,

@@ -265,7 +265,7 @@ export default function MatrixEditor({
             type="button"
             onClick={() => setEditingColumnaValueIndex(index)}
             className="w-16 px-2 py-1 text-xs text-center rounded bg-[color:var(--hover-bg)] text-[color:var(--text-secondary)] font-mono hover:bg-[color:var(--primary)] hover:text-white transition-colors truncate"
-            title="Clic para editar variable"
+            title="Clic para editar valor"
           >
             {columna.value}
           </button>
@@ -381,7 +381,7 @@ export default function MatrixEditor({
           {columnas.length > 0 && (
             <div className="flex items-center gap-2 px-2 pb-1 text-xs font-semibold text-[color:var(--text-secondary)] uppercase tracking-wide">
               {allowReorder && <div className="w-4 text-center" title="Orden">#</div>}
-              <div className="w-20 text-center">Variable</div>
+              <div className="w-20 text-center">Valor</div>
               <div className="flex-1">Texto</div>
               {tipoMatriz === 'matriz-dinamica' && <div className="w-24 pl-1">Tipo</div>}
               <div className="w-7"></div>

@@ -34,7 +34,7 @@ function mapQuestionType(tipoTemporal) {
 /**
  * Transforma una pregunta temporal individual a formato SurveyJS
  */
-function transformPregunta(pregunta, preguntaIdToValue = {}) {
+function transformPregunta(pregunta, preguntaIdToValue = {}, preguntaIdToTipo = {}) {
   const element = {
     type: mapQuestionType(pregunta.tipo),
     name: pregunta.value || `pregunta_${pregunta.id}`,
@@ -188,7 +188,7 @@ function transformPregunta(pregunta, preguntaIdToValue = {}) {
   // Procesar condiciones si existen
   if (pregunta.condicionada?.activa && pregunta.condicionada.condiciones?.length > 0) {
     // Usar la función generarVisibleIf para mantener consistencia
-    const visibleIfExpression = generarVisibleIf(pregunta.condicionada, preguntaIdToValue);
+    const visibleIfExpression = generarVisibleIf(pregunta.condicionada, preguntaIdToValue, preguntaIdToTipo);
     if (visibleIfExpression) {
       element.visibleIf = visibleIfExpression;
     }
@@ -202,7 +202,7 @@ function transformPregunta(pregunta, preguntaIdToValue = {}) {
  * @param {Object} condicionada - Objeto con condiciones
  * @param {Object} preguntaIdToValue - Mapa de ID de pregunta a su value (name en SurveyJS)
  */
-function generarVisibleIf(condicionada, preguntaIdToValue = {}) {
+function generarVisibleIf(condicionada, preguntaIdToValue = {}, preguntaIdToTipo = {}) {
   if (!condicionada?.activa || !condicionada.condiciones?.length) {
     return null;
   }
@@ -245,10 +245,12 @@ function generarVisibleIf(condicionada, preguntaIdToValue = {}) {
         return `!(${containsConditions})`;
       }
       
-      // Operador "igual" - para single choice o para checkbox con comparación exacta
+      // Operador "igual" - para single choice usa '=', para checkbox usa 'contains'
       if (cond.operador === 'igual') {
-        // Para single choice, comparar con cada valor usando OR
-        return `(${cond.valores.map(v => `${preguntaRef} = '${v}'`).join(' or ')})`;
+        const tipoPreguntaOrigen = preguntaIdToTipo[cond.preguntaId];
+        const esCheckbox = tipoPreguntaOrigen === 'opcion-multiple';
+        const op = esCheckbox ? 'contains' : '=';
+        return `(${cond.valores.map(v => `${preguntaRef} ${op} '${v}'`).join(' or ')})`;
       }
       
       // Operador "diferente"
@@ -275,12 +277,14 @@ export function transformModulosToSurveyJS(modulos) {
     return [];
   }
 
-  // Crear mapa de ID de pregunta a su value (name en SurveyJS)
+  // Crear mapas de ID de pregunta a su value (name en SurveyJS) y a su tipo
   const preguntaIdToValue = {};
+  const preguntaIdToTipo = {};
   modulos.forEach(modulo => {
     if (modulo.preguntas && Array.isArray(modulo.preguntas)) {
       modulo.preguntas.forEach(pregunta => {
         preguntaIdToValue[pregunta.id] = pregunta.value || `pregunta_${pregunta.id}`;
+        preguntaIdToTipo[pregunta.id] = pregunta.tipo;
       });
     }
   });
@@ -293,10 +297,10 @@ export function transformModulosToSurveyJS(modulos) {
     }
 
     // Transformar las preguntas del módulo
-    const preguntasTransformadas = modulo.preguntas.map(pregunta => transformPregunta(pregunta, preguntaIdToValue));
+    const preguntasTransformadas = modulo.preguntas.map(pregunta => transformPregunta(pregunta, preguntaIdToValue, preguntaIdToTipo));
 
     // Verificar si el módulo tiene condiciones activas
-    const visibleIfModulo = generarVisibleIf(modulo.condicionada, preguntaIdToValue);
+    const visibleIfModulo = generarVisibleIf(modulo.condicionada, preguntaIdToValue, preguntaIdToTipo);
 
     // Crear una página por cada pregunta
     preguntasTransformadas.forEach((pregunta, idx) => {

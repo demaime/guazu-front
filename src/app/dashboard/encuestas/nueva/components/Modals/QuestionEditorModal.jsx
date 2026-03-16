@@ -54,6 +54,7 @@ export default function QuestionEditorModal({
           columnas: pregunta.columnas || [],
           campos: pregunta.campos || [],
           configuracionEscala: pregunta.configuracionEscala || {},
+          requerida: pregunta.requerida !== undefined ? pregunta.requerida : true,
           condicionada: pregunta.condicionada || { activa: false, condiciones: [] },
           validadores: pregunta.validadores || { activo: false, reglas: [] },
         };
@@ -395,6 +396,31 @@ export default function QuestionEditorModal({
           className="w-full px-3 py-2.5 rounded-lg bg-[color:var(--input-background)] text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] border border-[color:var(--card-border)] focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:var(--primary)]/20 focus:outline-none text-base transition-all"
           placeholder="Ej: Seleccione una opción, Ingrese su respuesta..."
         />
+      </div>
+
+      {/* Pregunta obligatoria */}
+      <div className="flex items-center justify-between py-2 px-1">
+        <div>
+          <span className="text-sm font-medium text-[color:var(--text-primary)]">Pregunta obligatoria</span>
+          <p className="text-xs text-[color:var(--text-muted)]">
+            {editedData.requerida
+              ? 'El encuestado debe responder para continuar'
+              : 'El encuestado puede omitir esta pregunta'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => updateField('requerida', !editedData.requerida)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            editedData.requerida ? 'bg-[color:var(--primary)]' : 'bg-[color:var(--card-border)]'
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              editedData.requerida ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+        </button>
       </div>
 
       {/* Condiciones de visibilidad */}

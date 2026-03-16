@@ -35,7 +35,6 @@ export default function ConditionalEditor({
     { value: 'contiene-alguna', label: 'contiene alguna de estas' },
     { value: 'contiene-todas', label: 'contiene todas estas' },
     { value: 'no-contiene-ninguna', label: 'no contiene ninguna de estas' },
-    { value: 'igual', label: 'es exactamente igual a' }
   ];
 
   const operadoresNumericos = [
