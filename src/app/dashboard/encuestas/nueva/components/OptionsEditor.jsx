@@ -32,7 +32,6 @@ export default function OptionsEditor({
 
   const eliminarOpcion = (index) => {
     const nuevasOpciones = opciones.filter((_, i) => i !== index);
-    // Opcional: renumerar automáticamente
     const renumeradas = nuevasOpciones.map((opt, i) => ({
       ...opt,
       value: String(i + 1)
@@ -64,7 +63,6 @@ export default function OptionsEditor({
       const [draggedItem] = nuevasOpciones.splice(draggingIndex, 1);
       nuevasOpciones.splice(index, 0, draggedItem);
       
-      // Renumerar automáticamente después de reordenar
       const renumeradas = nuevasOpciones.map((opt, i) => ({
         ...opt,
         value: String(i + 1)
@@ -113,7 +111,7 @@ export default function OptionsEditor({
           {allowReorder && <div className="w-4 text-center" title="Orden">#</div>}
           <div className="w-20 text-center">Variable</div>
           <div className="flex-1">Texto</div>
-          <div className="w-7"></div> {/* Espacio para eliminar */}
+          <div className="w-7"></div>
         </div>
       )}
 
@@ -123,7 +121,7 @@ export default function OptionsEditor({
           <AnimatePresence mode="popLayout">
             {opciones.map((opcion, index) => (
               <motion.div
-                key={`${index}-${opcion.value}`}
+                key={index}
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -214,6 +212,3 @@ export default function OptionsEditor({
     </div>
   );
 }
-
-
-
